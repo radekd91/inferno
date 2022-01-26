@@ -52,10 +52,12 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # self.face_recognition = InceptionResnetV1(pretrained='vggface2').eval().to(device)
 
 
-        self.version = 2
+        # self.version = 2
+        self.version = 3
 
         self.video_list = None
         self.video_metas = None
+        self.audio_metas = None
         self.annotation_list = None
         self.frame_lists = None
         self.loaded = False
@@ -855,7 +857,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
             video_writer.release()
         print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
 
-    def _gather_data(self, exist_ok=False):
+    # def _gather_data(self, exist_ok=False):
+    def _gather_data(self, exist_ok=True):
         print("Processing dataset")
         Path(self.output_dir).mkdir(parents=True, exist_ok=exist_ok)
 
@@ -871,19 +874,39 @@ class FaceVideoDataModule(FaceDataModuleBase):
     def _gather_video_metadata(self):
         import ffmpeg
         self.video_metas = []
+        self.audio_metas = []
+
         for vi, vid_file in enumerate(tqdm(self.video_list)):
             vid = ffmpeg.probe(str( Path(self.root_dir) / vid_file))
+            
+            # video codec
             codec_idx = [idx for idx in range(len(vid)) if vid['streams'][idx]['codec_type'] == 'video']
             if len(codec_idx) > 1:
                 raise RuntimeError("Video file has two video streams! '%s'" % str(vid_file))
             codec_idx = codec_idx[0]
             vid_info = vid['streams'][codec_idx]
+            assert vid_info['codec_type'] == 'video'
             vid_meta = {}
             vid_meta['fps'] = vid_info['avg_frame_rate']
             vid_meta['width'] = int(vid_info['width'])
             vid_meta['height'] = int(vid_info['height'])
             vid_meta['num_frames'] = int(vid_info['nb_frames'])
             self.video_metas += [vid_meta]
+
+            # audio codec
+            codec_idx = [idx for idx in range(len(vid)) if vid['streams'][idx]['codec_type'] == 'audio']
+            if len(codec_idx) > 1:
+                raise RuntimeError("Video file has two audio streams! '%s'" % str(vid_file))
+            codec_idx = codec_idx[0]
+            aud_info = vid['streams'][codec_idx]
+            assert aud_info['codec_type'] == 'audio'
+            aud_meta = {}
+            aud_meta['sample_rate'] = aud_info['sample_rate']
+            aud_meta['sample_fmt'] = aud_info['sample_fmt']
+            # aud_meta['num_samples'] = int(aud_info['nb_samples'])
+            aud_meta["num_frames"] = int(aud_info['nb_frames'])
+            assert float(aud_info['start_time']) == 0
+            self.audio_metas += [aud_meta]
 
     def _loadMeta(self):
         if self.loaded:
@@ -895,10 +918,11 @@ class FaceVideoDataModule(FaceDataModuleBase):
             self.video_list = pkl.load(f)
             self.video_metas = pkl.load(f)
             self.annotation_list = pkl.load(f)
-            # try:
             self.frame_lists = pkl.load(f)
-            # except Exception:
-            #     pass
+            try:
+                self.audio_metas = pkl.load(f)
+            except Exception:
+                pass
         self.loaded = True
 
     def _saveMeta(self):
@@ -908,6 +932,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
             pkl.dump(self.video_metas, f)
             pkl.dump(self.annotation_list,f)
             pkl.dump(self.frame_lists, f)
+            if hasattr(self, "audio_metas"): 
+                pkl.dump(self.audio_metas, f)
 
 
     def setup(self, stage: Optional[str] = None):
