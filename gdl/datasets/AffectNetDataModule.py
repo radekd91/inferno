@@ -1527,8 +1527,8 @@ if __name__ == "__main__":
     # augmenter = yaml.load(open(Path(__file__).parents[2] / "gdl_apps" / "EmotionRecognition" / "emodeca_conf" / "data" / "augmentations" / "default_with_resize.yaml"))["augmentation"]
     augmenter = None
     # 316239
-    # dm = AffectNetEmoNetSplitModule(
-    dm = AffectNetEmoNetSplitModuleValTest(
+    dm = AffectNetEmoNetSplitModule(
+    # dm = AffectNetEmoNetSplitModuleValTest(
     # dm = AffectNetDataModule(
              # "/home/rdanecek/Workspace/mount/project/EmotionalFacialAnimation/data/affectnet/",
              "/ps/project_cifs/EmotionalFacialAnimation/data/affectnet/",
@@ -1563,10 +1563,20 @@ if __name__ == "__main__":
     dlv = dm.val_dataloader()
     dlt = dm.test_dataloader()
 
-    for i in range(len(dm.training_set)):
-        sample = dm.training_set[i]
+    # dataset = dm.training_set
+    dataset = dm.test_set
+
+    for i in range(len(dataset)):
+        sample = dataset[i]
+        if AffectNetExpressions(sample["affectnetexp"].item()) != AffectNetExpressions.Contempt:
+            # print(AffectNetExpressions(sample["affectnetexp"].item()))
+            continue
         print(AffectNetExpressions(sample["affectnetexp"].item()))
         print(sample["va"])
-        dm.training_set.visualize_sample(sample)
+        # dataset.visualize_sample(sample)
+
+        path = Path("/home/rdanecek/Downloads/AffectNet_Contempt")
+        path.mkdir(exist_ok=True, parents=True)
+        imsave(f"/home/rdanecek/Downloads/AffectNet_Contempt/{i:05d}.png", sample["image"].numpy().transpose([1, 2, 0]), )
 
     print("Done")
