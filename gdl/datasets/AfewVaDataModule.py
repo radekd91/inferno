@@ -143,7 +143,7 @@ class AfewVaDataModule(FaceDataModuleBase):
                    
             self.train_indices = training_indices[k_index]
             self.val_indices = validation_indices[k_index]
-            self.test_indices = np.array([])
+            self.test_indices = np.copy(validation_indices[k_index])
 
         else:
             self.train_fraction = train_fraction
