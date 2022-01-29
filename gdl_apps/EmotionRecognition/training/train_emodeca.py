@@ -163,12 +163,12 @@ def single_stage_deca_pass(deca, cfg, stage, prefix, dm=None, logger=None,
 
     if deca is None:
         if 'emodeca_type' in cfg.model:
-            if cfg.model.emodeca_type == 'EmoDeep3DFace':
-                ## ugly and yucky import but otherwise there's import collisions with 3DDFA
-                try:
-                    from gdl.models.external.EmoDeep3DFace import EmoDeep3DFace
-                except ImportError as e:
-                    print("Could not import EmoDeep3DFace")
+            # if cfg.model.emodeca_type == 'EmoDeep3DFace':
+                # ## ugly and yucky import but otherwise there's import collisions with 3DDFA
+                # try:
+                #     from gdl.models.external.EmoDeep3DFace import EmoDeep3DFace
+                # except ImportError as e:
+                #     print("Could not import EmoDeep3DFace")
             if cfg.model.emodeca_type == 'Emo3DDFA_v2':
                 ## ugly and yucky import but otherwise there's import collisions with EmoDeep3DFace
                 try:
