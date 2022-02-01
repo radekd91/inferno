@@ -98,7 +98,7 @@ class DecaModule(LightningModule):
             self.emotion_mlp = None
 
     def _init_emotion_loss(self):
-        if 'emonet_weight' in self.deca.config.keys() and bool(self.deca.config.emonet_model_path):
+        if 'emonet_weight' in self.deca.config.keys() and 'emonet_model_path' in self.deca.config.keys() and bool(self.deca.config.emonet_model_path):
             if self.emonet_loss is not None:
                 emoloss_force_override = True if 'emoloss_force_override' in self.deca.config.keys() and self.deca.config.emoloss_force_override else False
                 if self.emonet_loss.is_trainable():

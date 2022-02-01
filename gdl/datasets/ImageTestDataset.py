@@ -12,7 +12,35 @@ from torch.utils.data import Dataset
 from gdl.datasets.ImageDatasetHelpers import bbox2point
 from gdl.utils.FaceDetector import FAN
 
+from pytorch_lightning import LightningDataModule
+
 import os
+
+class TestDM(LightningDataModule):
+
+    def __init__(self, testpath, iscrop=True, crop_size=224, scale=1.25, face_detector='fan',
+                 scaling_factor=1.0, max_detection=None):
+        super().__init__()
+        self.testpath = testpath 
+        self.crop = iscrop
+        self.crop_size = crop_size
+        self.scale = scale
+        self.scaling_factor = scaling_factor
+        self.face_detector = face_detector
+
+    def prepare_data(self) -> None:
+        return super().prepare_data()
+
+    def setup(self, stage=None):
+        self.dataset = TestData(self.testpath, iscrop=self.crop, crop_size=self.crop_size, 
+            scale=self.scale, face_detector=self.face_detector,
+            scaling_factor=self.scaling_factor, max_detection=None)
+
+    def test_dataloader(self):
+        # create a data loader for self.dataset 
+        dataloader = torch.utils.data.DataLoader(self.dataset, batch_size=1, shuffle=False, num_workers=0)
+        return dataloader
+
 
 class TestData(Dataset):
     def __init__(self, testpath, iscrop=True, crop_size=224, scale=1.25, face_detector='fan',
@@ -132,7 +160,7 @@ class TestData(Dataset):
         if not isinstance(src_pts, list):
             DST_PTS = np.array([[0, 0], [0, self.resolution_inp - 1], [self.resolution_inp - 1, 0]])
             tform = estimate_transform('similarity', src_pts, DST_PTS)
-            dst_image = warp(image, tform.inverse, output_shape=(self.resolution_inp, self.resolution_inp))
+            dst_image = warp(image, tform.inverse, output_shape=(self.resolution_inp, self.resolution_inp), order=3)
             dst_image = dst_image.transpose(2, 0, 1)
             return {'image': torch.tensor(dst_image).float(),
                     'image_name': imagename,
@@ -145,7 +173,7 @@ class TestData(Dataset):
             dst_images = []
             for i in range(len(src_pts)):
                 tform = estimate_transform('similarity', src_pts[i], DST_PTS)
-                dst_image = warp(image, tform.inverse, output_shape=(self.resolution_inp, self.resolution_inp))
+                dst_image = warp(image, tform.inverse, output_shape=(self.resolution_inp, self.resolution_inp), order=3)
                 dst_image = dst_image.transpose(2, 0, 1)
                 dst_images += [dst_image]
             dst_images = np.stack(dst_images, axis=0)
