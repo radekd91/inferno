@@ -173,7 +173,7 @@ class TestData(Dataset):
             dst_images = []
             for i in range(len(src_pts)):
                 tform = estimate_transform('similarity', src_pts[i], DST_PTS)
-                dst_image = warp(image, tform.inverse, output_shape=(self.resolution_inp, self.resolution_inp))
+                dst_image = warp(image, tform.inverse, output_shape=(self.resolution_inp, self.resolution_inp), order=3)
                 dst_image = dst_image.transpose(2, 0, 1)
                 dst_images += [dst_image]
             dst_images = np.stack(dst_images, axis=0)
