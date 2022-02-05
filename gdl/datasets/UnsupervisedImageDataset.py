@@ -9,7 +9,8 @@ from gdl.utils.FaceDetector import load_landmark
 
 class UnsupervisedImageDataset(torch.utils.data.Dataset):
 
-    def __init__(self, image_list, landmark_list=None, image_transforms=None, im_read=None):
+    def __init__(self, image_list, landmark_list=None, image_transforms=None, im_read=None, 
+                align_landmarks=False):
         super().__init__()
         self.image_list = image_list
         self.landmark_list = landmark_list
@@ -17,6 +18,8 @@ class UnsupervisedImageDataset(torch.utils.data.Dataset):
             raise RuntimeError("There must be a landmark for every image")
         self.image_transforms = image_transforms
         self.im_read = im_read or 'skio'
+        if isinstance(self.image_list, np.ndarray): 
+            self.im_read = None
 
     def __getitem__(self, index):
         # if index < len(self.image_list):
@@ -27,9 +30,15 @@ class UnsupervisedImageDataset(torch.utils.data.Dataset):
                 img = imread(self.image_list[index])
                 img = img.transpose([2, 0, 1]).astype(np.float32)
                 img_torch = torch.from_numpy(img)
+                path = str(self.image_list[index])
             elif self.im_read == 'pil':
                 img = Image.open(self.image_list[index])
                 img_torch = ToTensor()(img)
+                path = f"{index:05d}"
+            elif isinstance(self.image_list, np.ndarray):
+                img = self.image_list[index].transpose([2, 0, 1]).astype(np.float32)
+                img_torch = torch.from_numpy(img)
+                path = str(self.image_list[index])
             else:
                 raise ValueError(f"Invalid image reading method {self.im_read}")
         except Exception as e:
@@ -40,7 +49,7 @@ class UnsupervisedImageDataset(torch.utils.data.Dataset):
             img_torch = self.image_transforms(img_torch)
 
         batch = {"image" : img_torch,
-                "path" : str(self.image_list[index])}
+                "path" : path}
 
         if self.landmark_list is not None:
             landmark_type, landmark = load_landmark(self.landmark_list[index])

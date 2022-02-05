@@ -1,3 +1,4 @@
+from email import generator
 import os
 import sys
 from pathlib import Path
@@ -16,7 +17,17 @@ from gdl.datasets.IO import save_segmentation
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 from gdl.datasets.UnsupervisedImageDataset import UnsupervisedImageDataset
 from gdl.utils.FaceDetector import FAN, MTCNN, save_landmark
+try:
+    from gdl.utils.TFabRecLandmarkDetector import TFabRec
+except ImportError:
+    pass
+# try:
+    from gdl.utils.Deep3DFaceLandmarkDetector import Deep3DFaceLandmarkDetector
+# except ImportError:
+#     pass
 import pickle as pkl
+import types
+
 
 class FaceDataModuleBase(pl.LightningDataModule):
 
@@ -27,7 +38,9 @@ class FaceDataModuleBase(pl.LightningDataModule):
                  scale=1.25,
                  bb_center_shift_x=0., # in relative numbers
                  bb_center_shift_y=0., # in relative numbers (i.e. -0.1 for 10% shift upwards, ...)
-                 processed_ext=".png",
+                 processed_ext=".png",                 
+                 save_detection_images=True, 
+                 save_landmarks=True,
                  ):
         super().__init__()
         self.root_dir = root_dir
@@ -35,6 +48,8 @@ class FaceDataModuleBase(pl.LightningDataModule):
         self.bb_center_shift_x = bb_center_shift_x
         self.bb_center_shift_y = bb_center_shift_y
         self.processed_ext = processed_ext
+        self.save_detection_images=save_detection_images
+        self.save_landmarks=save_landmarks
 
         if processed_subfolder is None:
             import datetime
@@ -63,14 +78,24 @@ class FaceDataModuleBase(pl.LightningDataModule):
             self.face_detector = FAN(self.device, threshold=self.face_detector_threshold)
         elif self.face_detector_type == 'mtcnn':
             self.face_detector = MTCNN(self.device)
+        elif self.face_detector_type == '3fabrec': 
+            self.face_detector = TFabRec(instantiate_detector='sfd', threshold=self.face_detector_threshold)
+        elif self.face_detector_type == 'deep3dface': 
+            self.face_detector = Deep3DFaceLandmarkDetector(instantiate_detector='mtcnn')
         else:
             raise ValueError("Invalid face detector specifier '%s'" % self.face_detector)
 
     # @profile
-    def _detect_faces_in_image(self, image_path, detected_faces=None):
+    def _detect_faces_in_image(self, image_or_path, detected_faces=None):
         # imagepath = self.imagepath_list[index]
         # imagename = imagepath.split('/')[-1].split('.')[0]
-        image = np.array(imread(image_path))
+        if isinstance(image_or_path, (str, Path)):
+            image = np.array(imread(image_or_path))
+        elif isinstance(image_or_path, np.ndarray):
+            image = image_or_path
+        else: 
+            raise ValueError("Invalid image type '%s'" % type(image_or_path)) 
+            
         if len(image.shape) == 2:
             image = np.tile(image[:, :, None], (1, 1, 3))
         if len(image.shape) == 3 and image.shape[2] > 3:
@@ -85,12 +110,14 @@ class FaceDataModuleBase(pl.LightningDataModule):
         detection_images = []
         detection_centers = []
         detection_sizes = []
-        detection_landmarks = []
+        detection_landmarks = [] # landmarks wrt the detection image
+        # original_landmarks = [] # landmarks wrt the original image
+        original_landmarks = landmarks # landmarks wrt the original image
         # detection_embeddings = []
         if len(bounding_boxes) == 0:
             # print('no face detected! run original image')
             return detection_images, detection_centers, detection_images, \
-                   bbox_type, detection_landmarks
+                   bbox_type, detection_landmarks, original_landmarks
             # left = 0
             # right = h - 1
             # top = 0
@@ -121,15 +148,27 @@ class FaceDataModuleBase(pl.LightningDataModule):
             detection_landmarks += [dts_landmark]
 
         del image
-        return detection_images, detection_centers, detection_sizes, bbox_type, detection_landmarks
+        return detection_images, detection_centers, detection_sizes, bbox_type, detection_landmarks, original_landmarks
 
     # @profile
     def _detect_faces_in_image_wrapper(self, frame_list, fid, out_detection_folder, out_landmark_folder, bb_outfile,
-                                       centers_all, sizes_all, detection_fnames_all, landmark_fnames_all):
+                                       centers_all, sizes_all, detection_fnames_all, landmark_fnames_all, 
+                                       ):
 
-        frame_fname = frame_list[fid]
-        # detect faces in each frames
-        detection_ims, centers, sizes, bbox_type, landmarks = self._detect_faces_in_image(Path(self.output_dir) / frame_fname)
+        if isinstance(frame_list, (str, Path, list)):\
+            # if frame list is a list of image paths
+            frame_fname = frame_list[fid]
+            # detect faces in each frames
+            detection_ims, centers, sizes, bbox_type, landmarks, orig_landmarks = self._detect_faces_in_image(Path(self.output_dir) / frame_fname)
+        elif isinstance(frame_list, (np.ndarray, types.GeneratorType)): 
+            # frame_list is an array of many images, or a generator (like a video reader)
+            frame_fname =Path(f"{fid:05d}.png")
+            if isinstance(frame_list, np.ndarray):
+                frame = frame_list[fid]
+            else:
+                frame = next(frame_list)
+            detection_ims, centers, sizes, bbox_type, landmarks, orig_landmarks = self._detect_faces_in_image(frame)
+        
         # self.detection_lists[sequence_id][fid] += [detections]
         centers_all += [centers]
         sizes_all += [sizes]
@@ -140,16 +179,23 @@ class FaceDataModuleBase(pl.LightningDataModule):
         for di, detection in enumerate(detection_ims):
             # save detection
             stem = frame_fname.stem + "_%.03d" % di
-            out_detection_fname = out_detection_folder / (stem + self.processed_ext)
-            detection_fnames += [out_detection_fname.relative_to(self.output_dir)]
-            if self.processed_ext in ['.JPG', '.jpg', ".jpeg", ".JPEG"]:
-                imsave(out_detection_fname, detection, quality=100)
-            else:
-                imsave(out_detection_fname, detection)
+            if self.save_detection_images:
+                out_detection_fname = out_detection_folder / (stem + self.processed_ext)
+                detection_fnames += [out_detection_fname.relative_to(self.output_dir)]
+                if self.processed_ext in ['.JPG', '.jpg', ".jpeg", ".JPEG"]:
+                    imsave(out_detection_fname, detection, quality=100)
+                else:
+                    imsave(out_detection_fname, detection)
             # save landmarks
-            out_landmark_fname = out_landmark_folder / (stem + ".pkl")
-            landmark_fnames += [out_landmark_fname.relative_to(self.output_dir)]
-            save_landmark(out_landmark_fname, landmarks[di], bbox_type)
+            if self.save_landmarks:
+                if self.save_detection_images:
+                    out_landmark_fname = out_landmark_folder / (stem + ".pkl")
+                    landmark_fnames += [out_landmark_fname.relative_to(self.output_dir)]
+                    save_landmark(out_landmark_fname, landmarks[di], bbox_type)
+                else: 
+                    out_landmark_fname = out_landmark_folder / (stem + ".pkl")
+                    landmark_fnames += [out_landmark_fname.relative_to(self.output_dir)]
+                    save_landmark(out_landmark_fname, orig_landmarks[di], bbox_type)
 
         detection_fnames_all += [detection_fnames]
         landmark_fnames_all += [landmark_fnames]
@@ -160,15 +206,18 @@ class FaceDataModuleBase(pl.LightningDataModule):
             FaceDataModuleBase.save_detections(bb_outfile, detection_fnames_all, landmark_fnames_all,
                                                 centers_all, sizes_all, fid)
 
-    def _segment_images(self, detection_fnames, out_segmentation_folder, path_depth = 0):
+    def _segment_images(self, detection_fnames_or_ims, out_segmentation_folder, path_depth = 0, landmarks=None):
         import time
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         print(device)
         net, seg_type = self._get_segmentation_net(device)
 
-        ref_im = imread(detection_fnames[0])
-        ref_size = Resize((ref_im.shape[0], ref_im.shape[1]), interpolation=Image.NEAREST)
+        if self.save_detection_images:
+            ref_im = imread(detection_fnames_or_ims[0])
+        else: 
+            ref_im = detection_fnames_or_ims[0]
+        ref_size = Resize((ref_im.shape[0], ref_im.shape[1]), interpolation=Image.CUBIC)
 
         transforms = Compose([
             Resize((512, 512)),
@@ -176,8 +225,9 @@ class FaceDataModuleBase(pl.LightningDataModule):
         ])
         batch_size = 64
 
-        dataset = UnsupervisedImageDataset(detection_fnames, image_transforms=transforms,
-                                           im_read='pil')
+        dataset = UnsupervisedImageDataset(detection_fnames_or_ims, image_transforms=transforms,
+                                           landmark_list = landmarks,
+                                           im_read='pil' if not isinstance(detection_fnames_or_ims[0], np.ndarray) else None)
         loader = DataLoader(dataset, batch_size=batch_size, num_workers=4, shuffle=False)
 
         # import matplotlib.pyplot as plt

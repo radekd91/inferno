@@ -16,7 +16,7 @@ from gdl.utils.other import get_path_to_externals
 repo_dir = str(get_path_to_externals())
 if repo_dir not in sys.path:
     sys.path.insert(0, repo_dir)
-deep3d_face_dir = get_path_to_externals() / "Deep3DFaceRecon_pytorch")
+deep3d_face_dir = str(get_path_to_externals() / "Deep3DFaceRecon_pytorch")
 if deep3d_face_dir not in sys.path:
     sys.path.insert(0, deep3d_face_dir)
 from models import create_model

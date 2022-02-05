@@ -21,6 +21,8 @@ from gdl.datasets.IO import save_emotion
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 from skimage.io import imread
+from skvideo.io import vreader, vread
+import skvideo
 
 # from memory_profiler import profile
 
@@ -38,14 +40,20 @@ class FaceVideoDataModule(FaceDataModuleBase):
                  face_detector_threshold=0.9,
                  image_size=224,
                  scale=1.25,
-                 device=None):
+                 device=None, 
+                 unpack_videos=True, 
+                 save_detection_images=True, 
+                 save_landmarks=True):
         super().__init__(root_dir, output_dir,
                          processed_subfolder=processed_subfolder,
                          face_detector=face_detector,
                          face_detector_threshold=face_detector_threshold,
                          image_size = image_size,
                          scale = scale,
-                         device=device)
+                         device=device, 
+                         save_detection_images=save_detection_images, 
+                         save_landmarks=save_landmarks)
+        self.unpack_videos = unpack_videos
 
 
         # self._instantiate_detector()
@@ -101,7 +109,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         video_file = Path(self.root_dir) / self.video_list[video_idx]
         # suffix = self._get_unpacked_video_subfolder(video_idx)
         # out_folder = Path(self.output_dir) / suffix
-        out_folder = self._get_path_to_sequence_frames(video_idx)
+        out_folder = self._get_path_to_sequence_audio(video_idx)
 
         if not out_folder.exists() or overwrite:
             print("Unpacking video to '%s'" % str(out_folder))
@@ -131,7 +139,26 @@ class FaceVideoDataModule(FaceDataModuleBase):
                   % (expected_frames, n_frames, str(video_file)))
 
 
-    def _detect_faces(self):
+    def _extract_audio(self):
+        # extract audio for all videos 
+        print("Extracting audio for all videos")
+        for vi, video_file in enumerate(auto.tqdm(self.video_list)):
+            self._extract_audio_for_video(vi)
+        print("Audio extracted for all videos")
+
+    def _extract_audio_for_video(self, video_idx): 
+        video_file = Path(self.root_dir) / self.video_list[video_idx] 
+        audio_file = self._get_path_to_sequence_audio(video_idx)  
+
+        # extract the audio from the video using ffmpeg 
+        if not audio_file.exists():
+            # print("Extracting audio from video '%s'" % str(video_file))
+            audio_file.parent.mkdir(exist_ok=True, parents=True)
+            cmd = "ffmpeg -i " + str(video_file) + " -f wav -vn -y " + str(audio_file) + ' -loglevel quiet'
+            os.system(cmd)
+
+
+    def _detect_faces(self): #, videos_unpacked=True): #, save_detection_images=True, save_landmarks=True):
         for sid in range(self.num_sequences):
             self._detect_faces_in_sequence(sid)
 
@@ -148,41 +175,34 @@ class FaceVideoDataModule(FaceDataModuleBase):
         out_folder = Path(self.output_dir) / suffix
         return out_folder
 
+    def _get_path_to_sequence_audio(self, sequence_id):
+        return self._get_path_to_sequence_files(sequence_id, "audio").with_suffix(".wav")
 
     def _get_path_to_sequence_frames(self, sequence_id):
         return self._get_path_to_sequence_files(sequence_id, "videos")
-        # video_file = self.video_list[sequence_id]
-        # suffix = Path(self._video_category(sequence_id)) / 'videos' /self._video_set(sequence_id) / video_file.stem
-        # out_folder = Path(self.output_dir) / suffix
-        # return out_folder
 
     def _get_path_to_sequence_detections(self, sequence_id): 
         return self._get_path_to_sequence_files(sequence_id, "detections")
-        # video_file = self.video_list[sequence_id]
-        # suffix = Path(self._video_category(sequence_id)) / 'detections' /self._video_set(sequence_id) / video_file.stem
-        # out_folder = Path(self.output_dir) / suffix
-        # return out_folder
 
     def _get_path_to_sequence_landmarks(self, sequence_id):
-        return self._get_path_to_sequence_files(sequence_id, "landmarks")
-        # video_file = self.video_list[sequence_id]
-        # suffix = Path(self._video_category(sequence_id)) / 'landmarks' /self._video_set(sequence_id) / video_file.stem
-        # out_folder = Path(self.output_dir) / suffix
-        # return out_folder
+
+        if self.save_detection_images: 
+            # landmarks will be saved wrt to the detection images
+            landmark_subfolder = "landmarks" 
+        else: 
+            # landmarks will be saved wrt to the original images (not the detection images), 
+            # so better put them in a different folder to make it clear
+            landmark_subfolder = "landmarks_original"
+
+        return self._get_path_to_sequence_files(sequence_id, landmark_subfolder)
+
 
     def _get_path_to_sequence_segmentations(self, sequence_id):
         return self._get_path_to_sequence_files(sequence_id, "segmentations")
-        # video_file = self.video_list[sequence_id]
-        # suffix = Path(self._video_category(sequence_id)) / 'segmentations' /self._video_set(sequence_id) / video_file.stem
-        # out_folder = Path(self.output_dir) / suffix
-        # return out_folder
+
 
     def _get_path_to_sequence_emotions(self, sequence_id):
         return self._get_path_to_sequence_files(sequence_id, "emotions")
-        # video_file = self.video_list[sequence_id]
-        # suffix = Path(self._video_category(sequence_id)) / 'emotions' /self._video_set(sequence_id) / video_file.stem
-        # out_folder = Path(self.output_dir) / suffix
-        # return out_folder
 
     def _video_category(self, sequence_id):
         video_file = self.video_list[sequence_id]
@@ -250,17 +270,33 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # detector_instantion_frequency = 200
         start_fid = 0
 
-        frame_list = self.frame_lists[sequence_id]
-        fid = 0
-        if len(frame_list) == 0:
-            print("Nothing to detect in: '%s'. All frames have been processed" % self.video_list[sequence_id])
-        for fid, frame_fname in enumerate(tqdm(range(start_fid, len(frame_list)))):
+        if self.unpack_videos:
+            frame_list = self.frame_lists[sequence_id]
+            fid = 0
+            if len(frame_list) == 0:
+                print("Nothing to detect in: '%s'. All frames have been processed" % self.video_list[sequence_id])
+            for fid, frame_fname in enumerate(tqdm(range(start_fid, len(frame_list)))):
 
-            # if fid % detector_instantion_frequency == 0:
-            #     self._instantiate_detector(overwrite=True)
+                # if fid % detector_instantion_frequency == 0:
+                #     self._instantiate_detector(overwrite=True)
 
-            self._detect_faces_in_image_wrapper(frame_list, fid, out_detection_folder, out_landmark_folder, out_file,
-                                           centers_all, sizes_all, detection_fnames_all, landmark_fnames_all)
+                self._detect_faces_in_image_wrapper(frame_list, fid, out_detection_folder, out_landmark_folder, out_file,
+                                            centers_all, sizes_all, detection_fnames_all, landmark_fnames_all)
+
+        else: 
+            num_frames = self.video_metas[sequence_id]['num_frames']
+            video_name = self.root_dir / self.video_list[sequence_id]
+            assert video_name.is_file()
+            if start_fid == 0:
+                videogen =  vreader(str(video_name))
+            else: 
+                videogen =  vread(str(video_name))
+
+            for fid in tqdm(range(start_fid, num_frames)):
+                self._detect_faces_in_image_wrapper(videogen, fid, out_detection_folder, out_landmark_folder, out_file,
+                                            centers_all, sizes_all, detection_fnames_all, landmark_fnames_all,
+                                            )
+
 
         FaceVideoDataModule.save_detections(out_file,
                                             detection_fnames_all, landmark_fnames_all, centers_all, sizes_all, fid)
@@ -282,13 +318,22 @@ class FaceVideoDataModule(FaceDataModuleBase):
         print("Segmenting faces in sequence: '%s'" % video_file)
         # suffix = Path(self._video_category(sequence_id)) / 'detections' /self._video_set(sequence_id) / video_file.stem
 
-        out_detection_folder = self._get_path_to_sequence_detections(sequence_id)
+        if self.save_detection_images:
+            out_detection_folder = self._get_path_to_sequence_detections(sequence_id)
+            detections = sorted(list(out_detection_folder.glob("*.png")))
+        else: 
+            detections = vread( str(self.root_dir / self.video_list[sequence_id]))
+
         out_segmentation_folder = self._get_path_to_sequence_segmentations(sequence_id)
         out_segmentation_folder.mkdir(exist_ok=True, parents=True)
 
-        detection_fnames = sorted(list(out_detection_folder.glob("*.png")))
+        if self.save_landmarks: 
+            out_landmark_folder = self._get_path_to_sequence_landmarks(sequence_id)
+            landmarks = sorted(list(out_landmark_folder.glob("*.pkl")))
+        else: 
+            landmarks = None
 
-        self._segment_images(detection_fnames, out_segmentation_folder)
+        self._segment_images(detections, out_segmentation_folder)
 
 
     def _extract_emotion_from_faces_in_sequence(self, sequence_id):
@@ -1082,10 +1127,14 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 break
 
             frame_name = vid_frames[fid]
-            c = centers[fid]
-            s = sizes[fid]
-
             frame = imread(frame_name)
+
+            if len(centers) > 0 and len(sizes) > 0:
+                c = centers[fid]
+                s = sizes[fid]
+            else: 
+                c = [[frame.shape[0] / 2, frame.shape[0] / 2]]
+                s = frame.shape[0]
 
 
             frame_pill_bb = Image.fromarray(frame)
@@ -2457,12 +2506,14 @@ class TestFaceVideoDM(FaceVideoDataModule):
                  face_detector_threshold=0.9,
                  image_size=224,
                  scale=1.25,
+                 detect = True,
                  batch_size=8,
                  num_workers=4,
                  device=None):
         self.video_path = Path(video_path)
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.detect = detect
         super().__init__(self.video_path.parent, output_dir, 
                 processed_subfolder,
                  face_detector,
@@ -2470,7 +2521,6 @@ class TestFaceVideoDM(FaceVideoDataModule):
                  image_size,
                  scale,
                  device)
-        
     
     def prepare_data(self, *args, **kwargs):
         outdir = Path(self.output_dir)
@@ -2482,9 +2532,15 @@ class TestFaceVideoDM(FaceVideoDataModule):
             self._loadMeta()
             return
         # else:
-        self._gather_data()
+        self._gather_data(exist_ok=True)
         self._unpack_videos() 
+        # if self.detect:
         self._detect_faces()
+        # else: 
+        #     src = self._get_path_to_sequence_frames(0)
+        #     dst = self._get_path_to_sequence_detections(0)
+        #     # create a symlink from src to dst 
+        #     os.symlink(src, dst, target_is_directory=True)
         self._saveMeta()
 
     # def _get_unpacked_video_subfolder(self, video_idx):
@@ -2500,6 +2556,17 @@ class TestFaceVideoDM(FaceVideoDataModule):
         self.annotation_list = []
         self._gather_video_metadata()
 
+    def _detect_faces_in_image(self, image_path, detected_faces=None):
+        if self.detect:
+            return super()._detect_faces_in_image(image_path, None)
+        else: 
+            # the image is already a detection 
+            # get the size of the image from image_path using PIL 
+            img = Image.open(image_path, mode="r") # mode=r does not load the whole image
+            #get the image dimensions 
+            width, height = img.size
+            detected_faces = [np.array([0,0, width, height]) ]
+            return super()._detect_faces_in_image(image_path, detected_faces)
 
     def _get_path_to_sequence_results(self, sequence_id, rec_method='EMOCA', suffix=''):
         return self._get_path_to_sequence_files(sequence_id, "results", rec_method, suffix)
@@ -2511,6 +2578,10 @@ class TestFaceVideoDM(FaceVideoDataModule):
             image_type = "geometry_detail"
         vis_fnames = sorted(list(out_folder.glob(f"**/{image_type}.png")))
         return vis_fnames
+
+
+    def _get_path_to_sequence_detections(self, sequence_id): 
+        return self._get_path_to_sequence_files(sequence_id, "detections")
 
 
     def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix=""): 

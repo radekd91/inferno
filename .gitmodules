@@ -22,3 +22,12 @@
 	path = external/face-parsing.PyTorch
 	url = https://github.com/zllrunning/face-parsing.PyTorch
 
+[submodule "external/3FabRec"]
+	path = external/3FabRec
+	url = https://github.com/browatbn2/3FabRec/
+[submodule "external/KAIR"]
+	path = external/KAIR
+	url = https://github.com/cszn/KAIR/
+[submodule "external/GPEN"]
+	path = external/GPEN
+	url = https://github.com/yangxy/GPEN
