@@ -22,7 +22,7 @@ try:
 except ImportError:
     pass
 # try:
-    from gdl.utils.Deep3DFaceLandmarkDetector import Deep3DFaceLandmarkDetector
+    # from gdl.utils.Deep3DFaceLandmarkDetector import Deep3DFaceLandmarkDetector
 # except ImportError:
 #     pass
 import pickle as pkl
@@ -81,6 +81,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
         elif self.face_detector_type == '3fabrec': 
             self.face_detector = TFabRec(instantiate_detector='sfd', threshold=self.face_detector_threshold)
         elif self.face_detector_type == 'deep3dface': 
+            from gdl.utils.Deep3DFaceLandmarkDetector import Deep3DFaceLandmarkDetector
             self.face_detector = Deep3DFaceLandmarkDetector(instantiate_detector='mtcnn')
         else:
             raise ValueError("Invalid face detector specifier '%s'" % self.face_detector)
