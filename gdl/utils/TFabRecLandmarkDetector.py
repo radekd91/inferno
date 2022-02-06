@@ -72,6 +72,9 @@ class TFabRec(FaceDetector):
             print("Image size: {}".format(image.shape)) 
             bboxes = [np.array([0, 0, image.shape[1], image.shape[0]])]
 
+        final_boxes = []
+        final_kpts = []
+
         for bbox in bboxes:
             center = torch.tensor(
                 [bbox[2] - (bbox[2] - bbox[0]) / 2.0, bbox[3] - (bbox[3] - bbox[1]) / 2.0])
@@ -93,9 +96,6 @@ class TFabRec(FaceDetector):
                 else:
                     return [],  f'kpt{self.num_landmarks}'
             else:
-                boxes = []
-                kpts = []
-
                 # import matplotlib.pyplot as plt
                 # # image to numpy array
                 # images_np = images.cpu().numpy()[0].transpose((1, 2, 0))
@@ -111,9 +111,9 @@ class TFabRec(FaceDetector):
                     right = np.max(kpt[:, 0])
                     top = np.min(kpt[:, 1])
                     bottom = np.max(kpt[:, 1])
-                    bbox = [left, top, right, bottom]
-                    boxes += [bbox]
-                    kpts += [kpt]
+                    final_bbox = [left, top, right, bottom]
+                    final_boxes += [final_bbox]
+                    final_kpts += [kpt]
 
                     # plot points                 
                     # plt.figure(1)
@@ -125,9 +125,9 @@ class TFabRec(FaceDetector):
 
         # del lms # attempt to prevent memory leaks
         if with_landmarks:
-            return boxes, f'kpt{self.num_landmarks}', kpts
+            return final_boxes, f'kpt{self.num_landmarks}', final_kpts
         else:
-            return boxes, f'kpt{self.num_landmarks}'
+            return final_boxes, f'kpt{self.num_landmarks}'
 
 
     @torch.no_grad()
