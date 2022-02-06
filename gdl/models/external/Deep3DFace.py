@@ -102,7 +102,8 @@ class Deep3DFaceModule(pl.LightningModule):
             # training = False
             # testing = True
             values = self.encode(batch)
-            values = self.decode(batch, values)
+            # values = self.decode(batch, values)
+            values = self.decode(values)
             # if 'mask' in batch.keys():
             #     losses_and_metrics = self.compute_loss(values, batch, training=False, testing=testing)
             #     # losses_and_metrics_to_log = {prefix + '_' + stage_str + key: value.detach().cpu() for key, value in losses_and_metrics.items()}

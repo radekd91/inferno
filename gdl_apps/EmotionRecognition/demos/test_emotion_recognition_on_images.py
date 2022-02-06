@@ -12,6 +12,24 @@ import matplotlib.pyplot as plt
 from torch.functional import F
 from gdl.datasets.AffectNetDataModule import AffectNetExpressions
 from gdl.utils.other import get_path_to_assets
+import pickle as pkl
+
+
+def save_annotation(batch, predictions, output_folder):
+    softmax = F.softmax(predictions["expr_classification"])
+    top_expr =  torch.argmax(softmax, dim=1)
+    for i in range(len(batch["image"])):
+        valence = predictions["valence"][i].item()
+        arousal = predictions["arousal"][i].item()
+        out_fname = Path(output_folder) / f"{batch['image_name'][i]}.pkl"
+
+        with open(out_fname, 'wb') as f:
+            pkl.dump({"valence": valence, 
+                      "arousal": arousal, 
+                      "top_expression": top_expr[i],
+                      "expression": softmax[i].detach().cpu().numpy()
+                      }, f)
+
 
 def save_images(batch, predictions, output_folder):
     # Save the images
@@ -52,7 +70,9 @@ def main():
     parser.add_argument('--model_name', type=str, default='EMOCA-emorec', help='Name of the model to use.')
     # parser.add_argument('--model_name', type=str, default='ResNet50', help='Name of the model to use.')
     parser.add_argument('--path_to_models', type=str, default=get_path_to_assets() /"EmotionRecognition")
-
+    parser.add_argument('--save_images', type=bool, default=True, help="If true, output images will be saved")
+    parser.add_argument('--save_annotation', type=bool, default=True, help="If true, output the valence, arousal and expression values")
+    
     args = parser.parse_args()
 
     path_to_models = args.path_to_models 
@@ -73,7 +93,7 @@ def main():
     model.eval()
 
     # 2) Create a dataset
-    dataset = TestData(input_folder, face_detector="fan", scaling_factor=0.25, max_detection=20)
+    dataset = TestData(input_folder, face_detector="fan", max_detection=20)
 
     ## 3) Run the model on the data
     for i in auto.tqdm( range(len(dataset))):
@@ -81,7 +101,10 @@ def main():
         batch["image"] = batch["image"].cuda()
         output = model(batch)
         
-        save_images(batch, output, output_folder)
+        if args.save_images:
+            save_images(batch, output, output_folder)
+        if args.save_annotation:
+            save_annotation(batch, output, output_folder)
 
     print("Done")
 
