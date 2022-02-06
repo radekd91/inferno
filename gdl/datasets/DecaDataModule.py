@@ -400,9 +400,9 @@ class VoxelDataset(Dataset):
         return data_dict
 
     def crop(self, image, kpt):
-        left = np.min(kpt[:, 0]);
-        right = np.max(kpt[:, 0]);
-        top = np.min(kpt[:, 1]);
+        left = np.min(kpt[:, 0])
+        right = np.max(kpt[:, 0])
+        top = np.min(kpt[:, 1])
         bottom = np.max(kpt[:, 1])
 
         h, w, _ = image.shape

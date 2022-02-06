@@ -1,6 +1,7 @@
 from gdl_apps.EMOCA.utils.load import load_model
 from gdl.utils.FaceDetector import FAN
 from gdl.datasets.FaceVideoDataModule import TestFaceVideoDM
+from gdl.models.DECA import DecaModule
 import gdl
 import matplotlib.pyplot as plt
 import gdl.utils.DecaUtils as util
@@ -13,6 +14,8 @@ from gdl.utils.lightning_logging import _fix_image
 
 
 def torch_img_to_np(img):
+    if isinstance(img, np.ndarray): 
+        return img
     return img.detach().cpu().numpy().transpose(1, 2, 0)
 
 
@@ -74,33 +77,37 @@ def save_codes(output_folder, name, vals, i = None):
         np.save(output_folder / name / f"detail.npy", vals["detailcode"][i].detach().cpu().numpy())
 
 
-def test(deca, img):
-    img["image"] = img["image"].cuda()
-    if len(img["image"].shape) == 3:
-        img["image"] = img["image"].view(1,3,224,224)
-    vals = deca.encode(img, training=False)
-    vals, visdict = decode(deca, vals, training=False)
+def test(deca, batch):
+    batch["image"] = batch["image"].cuda()
+    if len(batch["image"].shape) == 3:
+        batch["image"] = batch["image"].view(1,3,224,224)
+    vals = deca.encode(batch, training=False)
+    vals, visdict = decode(deca, batch, vals, training=False)
     return vals, visdict
 
 
-def decode(emoca, values, training=False):
+def decode(emoca, batch, values, training=False):
     with torch.no_grad():
         values = emoca.decode(values, training=training)
         # losses = deca.compute_loss(values, training=False)
         # batch_size = values["expcode"].shape[0]
-        uv_detail_normals = None
-        if 'uv_detail_normals' in values.keys():
-            uv_detail_normals = values['uv_detail_normals']
-        visualizations, grid_image = emoca._visualization_checkpoint(
-            values['verts'],
-            values['trans_verts'],
-            values['ops'],
-            uv_detail_normals,
-            values, 
-            0,
-            "",
-            "",
-            save=False
-        )
+        if isinstance(emoca, DecaModule):
+            uv_detail_normals = None
+            if 'uv_detail_normals' in values.keys():
+                uv_detail_normals = values['uv_detail_normals']
+            visualizations, grid_image = emoca._visualization_checkpoint(
+                values['verts'],
+                values['trans_verts'],
+                values['ops'],
+                uv_detail_normals,
+                values, 
+                0,
+                "",
+                "",
+                save=False
+            )
+        else: 
+            batch_size = batch["image"].shape[0]
+            visualizations = emoca._visualization_checkpoint( batch_size, batch, values, None, None, None)
 
     return values, visualizations
