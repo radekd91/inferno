@@ -628,8 +628,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
             mode = "test"
             from gdl.models.IO import get_checkpoint_with_kwargs
             from omegaconf import OmegaConf
-            # model_path = "/is/cluster/work/rdanecek/emoca/finetune_deca/2021_11_13_03-43-40_4753326650554236352_ExpDECA_Affec_clone_NoRing_EmoC_F2_DeSeggt_BlackC_Aug_early"
-            model_path = Path(gdl.__file__).parents[1] / "assets" / "EMOCA" / "models" / "EMOCA"
+            model_path = "/is/cluster/work/rdanecek/emoca/finetune_deca/2021_11_13_03-43-40_4753326650554236352_ExpDECA_Affec_clone_NoRing_EmoC_F2_DeSeggt_BlackC_Aug_early"
+            # model_path = Path(gdl.__file__).parents[1] / "assets" / "EMOCA" / "models" / "EMOCA"
             cfg = OmegaConf.load(Path(model_path) / "cfg.yaml")
             stage = 'detail'
             cfg = cfg[stage]
@@ -648,9 +648,20 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 "inout_params": checkpoint_kwargs["config"]["inout"],
                 "stage_name": "train",
             }
+
+            from gdl_apps.EMOCA.utils.load import load_model 
+
             deca = instantiate_deca(cfg, mode, "",  checkpoint, deca_checkpoint_kwargs )
             deca.to(device)
             deca.deca.config.detail_constrain_type = 'none'
+
+            # path_to_models = Path(gdl.__file__).parents[1] / "assets/EMOCA/models
+            # model_name = "EMOCA"
+            # mode = "detail"
+            # deca, conf = load_model(path_to_models, model_name, mode)
+            # deca.to(device)
+            # deca.eval()
+
             return deca
             # return deca.deca
         elif rec_method == "deep3dface":
