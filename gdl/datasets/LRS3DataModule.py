@@ -255,7 +255,7 @@ class LRS3DataModule(FaceVideoDataModule):
         return num_shards
 
 
-    def _process_shard(self, videos_per_shard, shard_idx, 
+    def _process_shard(self, videos_per_shard, shard_idx, extract_audio=True,
         restore_videos=True, detect_landmarks=True, segment_videos=True, reconstruct_faces=False,
     ):
         num_shards = self._get_num_shards(videos_per_shard)
@@ -270,6 +270,8 @@ class LRS3DataModule(FaceVideoDataModule):
         
         for i in range(start_idx, end_idx):
             idx = idxs[i]
+            if extract_audio: 
+                self._extract_audio_for_video(idx)
             if restore_videos:
                 self._deep_restore_sequence_sr_res(idx)
             if detect_landmarks:
