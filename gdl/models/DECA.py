@@ -97,6 +97,9 @@ class DecaModule(LightningModule):
         else:
             self.emotion_mlp = None
 
+    def get_input_image_size(self): 
+        return (self.deca.config.image_size, self.deca.config.image_size)
+
     def _init_emotion_loss(self):
         if 'emonet_weight' in self.deca.config.keys() and bool(self.deca.config.emonet_model_path):
             if self.emonet_loss is not None:
@@ -2246,6 +2249,9 @@ class DECA(torch.nn.Module):
         self.vgg_loss = None
         self._reconfigure(config)
         self._reinitialize()
+
+    def get_input_image_size(self): 
+        return (self.config.image_size, self.config.image_size)
 
     def _reconfigure(self, config):
         self.config = config

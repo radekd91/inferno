@@ -23,6 +23,7 @@ import cv2
 from skimage.io import imread
 from skvideo.io import vreader, vread
 import skvideo
+import torch.nn.functional as F
 
 # from memory_profiler import profile
 
@@ -54,7 +55,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                          save_detection_images=save_detection_images, 
                          save_landmarks=save_landmarks)
         self.unpack_videos = unpack_videos
-
+        self.detect_landmarks_on_restored_images = None
 
         # self._instantiate_detector()
         # self.face_recognition = InceptionResnetV1(pretrained='vggface2').eval().to(device)
@@ -198,7 +199,16 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
 
     def _get_path_to_sequence_segmentations(self, sequence_id):
-        return self._get_path_to_sequence_files(sequence_id, "segmentations")
+        if self.save_detection_images: 
+            # landmarks will be saved wrt to the detection images
+            segmentation_subfolder = "segmentations" 
+        else: 
+            # landmarks will be saved wrt to the original images (not the detection images), 
+            # so better put them in a different folder to make it clear
+            segmentation_subfolder = "segmentations_original"
+
+        return self._get_path_to_sequence_files(sequence_id, segmentation_subfolder)
+        # return self._get_path_to_sequence_files(sequence_id, "segmentations")
 
 
     def _get_path_to_sequence_emotions(self, sequence_id):
@@ -285,7 +295,11 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
         else: 
             num_frames = self.video_metas[sequence_id]['num_frames']
-            video_name = self.root_dir / self.video_list[sequence_id]
+            if self.detect_landmarks_on_restored_images is None:
+                video_name = self.root_dir / self.video_list[sequence_id]
+            else: 
+                video_name = video_file = self._get_path_to_sequence_restored(
+                    sequence_id, method=self.detect_landmarks_on_restored_images)
             assert video_name.is_file()
             if start_fid == 0:
                 videogen =  vreader(str(video_name))
@@ -323,6 +337,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             detections = sorted(list(out_detection_folder.glob("*.png")))
         else: 
             detections = vread( str(self.root_dir / self.video_list[sequence_id]))
+            detections = detections.astype(np.float32) / 255.
 
         out_segmentation_folder = self._get_path_to_sequence_segmentations(sequence_id)
         out_segmentation_folder.mkdir(exist_ok=True, parents=True)
@@ -801,7 +816,15 @@ class FaceVideoDataModule(FaceDataModuleBase):
             return image / 255.
 
         print("Running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
-        in_folder = self._get_path_to_sequence_detections(sequence_id)
+        if self.unpack_videos:
+            in_folder = self._get_path_to_sequence_detections(sequence_id)
+        else: 
+            if self.detect_landmarks_on_restored_images is None:
+                in_folder = self.root_dir / self.video_list[sequence_id]
+            else: 
+                in_folder = self._get_path_to_sequence_restored(
+                    sequence_id, method=self.detect_landmarks_on_restored_images)
+
         out_folder = self._get_path_to_sequence_reconstructions(sequence_id, rec_method=rec_method, suffix=suffix)
 
         if retarget_from is not None:
@@ -822,8 +845,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
 
         video_writer = None
-        detections_fnames = sorted(list(in_folder.glob("*.png")))
-        dataset = UnsupervisedImageDataset(detections_fnames)
+        if self.unpack_videos:
+            detections_fnames_or_images = sorted(list(in_folder.glob("*.png")))
+        else:
+            from skvideo.io import vread
+            detections_fnames_or_images = vread(str(in_folder))
+             
+        dataset = UnsupervisedImageDataset(detections_fnames_or_images)
         batch_size = 32
         # batch_size = 64
         # loader = DataLoader(dataset, batch_size=batch_size, num_workers=4, shuffle=False)
@@ -833,6 +861,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
             with torch.no_grad():
                 images = fixed_image_standardization(batch['image'].to(device))#[None, ...]
                 batch_ = {}
+                if images.shape[2:4] != reconstruction_net.get_input_image_size():
+                    images = F.interpolate(images, size=reconstruction_net.get_input_image_size(), mode='bicubic', align_corners=False)
                 batch_["image"] = images
                 codedict = reconstruction_net.encode(batch_, training=False)
                 # opdict, visdict = reconstruction_net.decode(codedict)
@@ -840,7 +870,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     codedict["shapecode"] = codedict_retarget["shapecode"].repeat(batch_["image"].shape[0], 1,)
                     codedict["detailcode"] = codedict_retarget["detailcode"].repeat(batch_["image"].shape[0], 1,)
                 codedict = reconstruction_net.decode(codedict, training=False)
-
+                values = util.dict_tensor2npy(codedict)
                 uv_detail_normals = None
                 if 'uv_detail_normals' in codedict.keys():
                     uv_detail_normals = codedict['uv_detail_normals']
@@ -851,7 +881,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                                                            uv_detail_normals, codedict, 0, "train", "")
                 else:
                     visdict = reconstruction_net._visualization_checkpoint(batch_["image"].shape[0], batch_, codedict, i, "", "")
-                values = util.dict_tensor2npy(codedict)
+                # values = util.dict_tensor2npy(codedict)
                 #TODO: verify axis
                 # vis_im = np.split(vis_im, axis=0 ,indices_or_sections=batch_size)
                 for j in range(images.shape[0]):

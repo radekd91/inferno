@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from munch import Munch
 
 # path_to_gpen = get_path_to_externals() / ".." / ".." / "KAIR" #/ "models"
-path_to_gpen = get_path_to_externals() / / "KAIR" #/ "models"
+path_to_gpen = get_path_to_externals() / "KAIR" #/ "models"
 if str(path_to_gpen) not in sys.path:
     sys.path.insert(0, str(path_to_gpen))
 

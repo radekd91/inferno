@@ -46,6 +46,10 @@ class Deep3DFaceModule(pl.LightningModule):
             self.stage_name += "_"
         self.deepface3d = Deep3DFaceWrapper(cfg=model_params.deep3dface)
 
+    def get_input_image_size(self): 
+        img_size=int(2 * self.model_params.deep3dface.center)
+        return (img_size, img_size)
+
     def encode(self, batch, **kwargs):
         return self.deepface3d.encode(batch)
 
@@ -322,6 +326,10 @@ class Deep3DFaceWrapper(torch.nn.Module):
         self.model.parallelize()
         self.model.eval()
         self.visualizer = MyVisualizer(cfg_)
+
+    def get_input_image_size(self): 
+        im_size = int(2*self.cfg.image_size.center)
+        return (im_size, im_size)
 
     def forward(self, batch):
         values = self.encode(batch)

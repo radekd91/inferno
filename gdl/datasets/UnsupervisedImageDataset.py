@@ -26,7 +26,11 @@ class UnsupervisedImageDataset(torch.utils.data.Dataset):
         #     x = self.mnist_data[index]
         # raise IndexError("Out of bounds")
         try:
-            if self.im_read == 'skio':
+            if isinstance(self.image_list, np.ndarray):
+                img = self.image_list[index].transpose([2, 0, 1]).astype(np.float32)
+                img_torch = torch.from_numpy(img)
+                path = f"{index:05d}"
+            elif self.im_read == 'skio':
                 img = imread(self.image_list[index])
                 img = img.transpose([2, 0, 1]).astype(np.float32)
                 img_torch = torch.from_numpy(img)
@@ -34,11 +38,8 @@ class UnsupervisedImageDataset(torch.utils.data.Dataset):
             elif self.im_read == 'pil':
                 img = Image.open(self.image_list[index])
                 img_torch = ToTensor()(img)
-                path = f"{index:05d}"
-            elif isinstance(self.image_list, np.ndarray):
-                img = self.image_list[index].transpose([2, 0, 1]).astype(np.float32)
-                img_torch = torch.from_numpy(img)
                 path = str(self.image_list[index])
+                # path = f"{index:05d}"
             else:
                 raise ValueError(f"Invalid image reading method {self.im_read}")
         except Exception as e:

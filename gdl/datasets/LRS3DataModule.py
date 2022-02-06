@@ -5,25 +5,20 @@ import torch.nn.functional as F
 import os, sys
 from gdl.utils.other import get_path_to_externals
 import numpy as np
-try:
-    from gdl.models.external.GPENFaceRestoration import GPENFaceRestoration
-except ImportError: 
-    print("Could not import GPENFaceRestoration. Skipping.") 
-try:
-    from gdl.models.external.SwinIRTranslation import SwinIRRealSuperRes, SwinIRCompressionArtifact
-except ImportError: 
-    print("Could not import SwinIRTranslation. Skipping.") 
+
+
 import time
 
 
 class LRS3DataModule(FaceVideoDataModule):
 
     def __init__(self, root_dir, output_dir, 
-                processed_subfolder=None, face_detector='3fabrec', 
+                processed_subfolder=None, face_detector='3fabrec', landmarks_from='sr_res',
                 face_detector_threshold=0.9, image_size=224, scale=1.25, device=None):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, device, 
             unpack_videos=False, save_detection_images=False, save_landmarks=True)
+        self.detect_landmarks_on_restored_images = landmarks_from
 
     def prepare_data(self):
         # super().prepare_data()
@@ -89,11 +84,12 @@ class LRS3DataModule(FaceVideoDataModule):
         return out_folder
 
     def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix=""): 
-        assert file_type in ['videos', 'detections', "landmarks", "landmarks_original", "segmentations", 
+        assert file_type in ['videos', 'detections', "landmarks", "landmarks_original", "segmentations", "segmentations_original",
             "emotions", "reconstructions",  "audio", "videos_restored" ]
         video_file = self.video_list[sequence_id]
         if len(method) > 0:
-            file_type += "_" + method 
+            # file_type += "_" + method 
+            file_type += "/" + method 
         if len(suffix) > 0:
             file_type += suffix
 
@@ -102,17 +98,29 @@ class LRS3DataModule(FaceVideoDataModule):
         return out_folder
 
 
-    def _get_path_to_sequence_restored(self, sequence_id, file_type, method="", suffix=""):
+    def _get_path_to_sequence_restored(self, sequence_id, method="", suffix=""):
         return self._get_path_to_sequence_files(sequence_id, "videos_restored", method, suffix).with_suffix(".mp4")
 
 
     def _get_restoration_network(self, method):
+        # try:
+        from gdl.models.external.GPENFaceRestoration import GPENFaceRestoration
+        # except ImportError: 
+        #     print("Could not import GPENFaceRestoration. Skipping.") 
         return GPENFaceRestoration(method)
 
     def _get_jpeg_network(self):
+        # try:
+        from gdl.models.external.SwinIRTranslation import SwinIRCompressionArtifact
+        # except ImportError: 
+        #     print("Could not import SwinIRTranslation. Skipping.") 
         return SwinIRCompressionArtifact( 256)
 
     def _get_superres_network(self):
+        # try:
+        from gdl.models.external.SwinIRTranslation import SwinIRRealSuperRes
+        # except ImportError: 
+            # print("Could not import SwinIRTranslation. Skipping.") 
         return SwinIRRealSuperRes( 256)
 
 
@@ -135,44 +143,44 @@ class LRS3DataModule(FaceVideoDataModule):
         # return network
 
 
-    def _deep_restore_sequence(self, sequence_id, method="GPEN-512"): 
+    def _deep_restore_sequence(self, sequence_id, nets, input_videos = None, output_subfolder = None, 
+            batch_size=16, resize_to_original=True):
         from skvideo.io import vread, vwrite
 
-        assert method in ['GPEN-512', 'GPEN-256']
-
-        # if method == "GPEN-512": 
-        #     im_size = 512
-        #     model_name = "GPEN-BFR-512.pth"
-        # elif method == 'GPEN-256': 
-        #     im_size = 256
-        #     model_name = "GPEN-BFR-256.pth"
-        # else: 
-        #     raise NotImplementedError()
-
         video_file = self.root_dir / self.video_list[sequence_id]
-        restored_video_file = self._get_path_to_sequence_restored(sequence_id, method) 
-        # restored_video_file = Path(str(restored_video_file).replace('videos_restored', 'videos_restored_jpg'))
+        restored_video_file = self._get_path_to_sequence_restored(sequence_id, method=output_subfolder)
+
+        if input_videos is not None:
+            # video_file = Path(str(restored_video_file).replace('videos_restored', input_videos))
+            video_file = self._get_path_to_sequence_restored(sequence_id, method=input_videos)
+
+        if output_subfolder is not None:
+            # restored_video_file = Path(str(restored_video_file).replace('videos_restored', output_subfolder))
+            restored_video_file = self._get_path_to_sequence_restored(sequence_id, method=output_subfolder)
+
+
         # restored_video_file = Path(str(restored_video_file).replace('videos_restored', 'videos_restored_jpg_sr'))
         # restored_video_file = Path(str(restored_video_file).replace('videos_restored', 'videos_restored_sr'))
         # restored_video_file = Path(str(restored_video_file).replace('videos_restored', 'videos_restored_jpg_sr_res'))
         # restored_video_file = Path(str(restored_video_file).replace('videos_restored', 'videos_restored_sr_res'))
 
         # batch_size = 16 
-        batch_size = 12
+        # batch_size = 12
         # batch_size = 6 
 
         restored_video_file.parent.mkdir(parents=True, exist_ok=True)
 
         images =  vread(str(video_file))
-        restored_images = np.zeros_like(images)
+        # restored_images = np.zeros_like(images)
+        restored_images = None
 
         start_i = 0 
         end_i = min(start_i + batch_size, images.shape[0])
 
-        # jpeg_net = self._get_jpeg_network()
-        superres_net = self._get_superres_network()
+        # # jpeg_net = self._get_jpeg_network()
+        # superres_net = self._get_superres_network()
 
-        restoration_net = self._get_restoration_network(method)
+        # restoration_net = self._get_restoration_network("GPEN-512")
 
         while start_i < images.shape[0]:
             print(f"Restoring {start_i} to {end_i}")
@@ -181,38 +189,29 @@ class LRS3DataModule(FaceVideoDataModule):
             images_torch = images_torch.permute(0, 3, 1, 2).cuda()
 
             with torch.no_grad():
-                time_start = time.time()
-                # restored_images_torch = jpeg_net(images_torch, resize_to_input_size=False)
-                time_jpeg = time.time() 
-                restored_images_torch = superres_net(images_torch, resize_to_input_size=False)
-                # restored_images_torch = superres_net(restored_images_torch, resize_to_input_size=False)
-                time_superres = time.time() 
-                # restored_images_torch = restoration_net(images_torch, resize_to_input_size=False)
-                restored_images_torch = restoration_net(restored_images_torch, resize_to_input_size=False)
-                time_restoration = time.time() 
-                restored_images_torch = F.interpolate(restored_images_torch, size=(images_torch.shape[2], images_torch.shape[3]), 
-                    mode='bicubic', align_corners=False)
+                # time_start = time.time()
+                # # restored_images_torch = jpeg_net(images_torch, resize_to_input_size=False)
+                # time_jpeg = time.time() 
+                # restored_images_torch = superres_net(images_torch, resize_to_input_size=False)
+                # # restored_images_torch = superres_net(restored_images_torch, resize_to_input_size=False)
+                # time_superres = time.time() 
+                # # restored_images_torch = restoration_net(images_torch, resize_to_input_size=False)
+                # restored_images_torch = restoration_net(restored_images_torch, resize_to_input_size=False)
+                # time_restoration = time.time() 
                 
-
-            # print times 
-            print(f"JPEG: {time_jpeg - time_start}")
-            print(f"Superres: {time_superres - time_jpeg}")
-            print(f"Restoration: {time_restoration - time_superres}")
-
-            # # RGB to BGR
-            # images_torch = images_torch[:, [2, 1, 0], :, :]
-
-            # images_torch = F.interpolate(images_torch, size=(im_size, im_size), mode='bicubic', align_corners=False)
-            # images_torch = (images_torch - 0.5) / 0.5
-            # images_torch = images_torch.cuda()
-            # with torch.no_grad():
-            #     restored_images_torch, _ = net.model(images_torch)
-            # restored_images_torch = (restored_images_torch * 0.5 + 0.5).clamp(0, 1) * 255.
-            # restored_images_torch = F.interpolate(restored_images_torch, size=(images.shape[1], images.shape[2]), mode='bicubic', align_corners=False) 
-            # # float to uint 
-            # 
-            # # BGR to RGB
-            # restored_images_torch = restored_images_torch[:, :, :, [2, 1, 0]]
+                restored_images_torch = images_torch.clone()
+                for ni, net in enumerate(nets):
+                    restored_images_torch = net(restored_images_torch, resize_to_input_size=False)
+                
+                if resize_to_original:
+                    restored_images_torch = F.interpolate(restored_images_torch, 
+                        size=(self.video_metas[i]["height"], self.video_metas[i]["width"]), 
+                        mode='bicubic', align_corners=False)
+                
+            # # print times 
+            # print(f"JPEG: {time_jpeg - time_start}")
+            # print(f"Superres: {time_superres - time_jpeg}")
+            # print(f"Restoration: {time_restoration - time_superres}")
 
             # back to uint range
             restored_images_torch = restored_images_torch.clamp(0, 1) * 255.
@@ -224,6 +223,9 @@ class LRS3DataModule(FaceVideoDataModule):
             # to uint
             restored_images_torch = restored_images_torch.astype(np.uint8)
             
+            if restored_images is None:
+                restored_images = np.zeros(shape=(images.shape[0], *restored_images_torch.shape[1:]), dtype=np.uint8)
+
             # to video tensor
             restored_images[start_i:end_i] = restored_images_torch
 
@@ -233,6 +235,64 @@ class LRS3DataModule(FaceVideoDataModule):
         # write the video to file 
         vwrite(str(restored_video_file), restored_images)
         print("Video restored to: ", restored_video_file)
+
+
+    def _deep_restore_sequence_sr_res(self, sequence_id):
+        # jpeg_net = self._get_jpeg_network()
+        superres_net = self._get_superres_network()
+        restoration_net = self._get_restoration_network("GPEN-512")
+
+        nets = [superres_net, restoration_net] 
+
+        # self._deep_restore_sequence(sequence_id, [superres_net], \
+            # output_subfolder = 'sr', batch_size=16, resize_to_original=False)
+        self._deep_restore_sequence(sequence_id, nets, output_subfolder = 'sr_res', batch_size=12, resize_to_original=False)
+        # self._deep_restore_sequence(sequence_id, [restoration_net], input_videos = 'sr', \
+            # output_subfolder = 'sr_res', batch_size=16, resize_to_original=True)
+
+    def _get_num_shards(self, videos_per_shard): 
+        num_shards = int(np.ceil( self.num_sequences / videos_per_shard))
+        return num_shards
+
+
+    def _process_shard(self, videos_per_shard, shard_idx, 
+        restore_videos=True, detect_landmarks=True, segment_videos=True, reconstruct_faces=False,
+    ):
+        num_shards = self._get_num_shards(videos_per_shard)
+        start_idx = shard_idx * videos_per_shard
+        end_idx = min(start_idx + videos_per_shard, self.num_sequences)
+
+        print(f"Processing shard {shard_idx} of {num_shards}")
+
+        idxs = np.arange(self.num_sequences, dtype=np.int32)
+        np.random.seed(0)
+        np.random.shuffle(idxs)
+        
+        for i in range(start_idx, end_idx):
+            idx = idxs[i]
+            if restore_videos:
+                self._deep_restore_sequence_sr_res(idx)
+            if detect_landmarks:
+                self._detect_faces_in_sequence(idx)
+            if segment_videos:
+                self._segment_faces_in_sequence(idx)
+                # raise NotImplementedError()
+            if reconstruct_faces: 
+                # self._reconstruct_faces_in_sequence(idx, 
+                #     reconstruction_net=self._get_reconstruction_network('emoca'))
+                # self._reconstruct_faces_in_sequence(idx, 
+                #     reconstruction_net=self._get_reconstruction_network('deep3dface'))
+                # self._reconstruct_faces_in_sequence(idx, 
+                #     reconstruction_net=self._get_reconstruction_network('deca'))
+                # rec_methods = ['emoca', 'deep3dface', 'deca']
+                # rec_methods = ['deep3dface',]
+                rec_methods = ['emoca',]
+                for rec_method in rec_methods:
+                    self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
+                                       save_obj=False, save_mat=True, save_vis=False, save_images=False,
+                                       save_video=False, rec_method=rec_method, retarget_from=None, retarget_suffix=None)
+            
+        print("Done processing shard")
 
 
 def main(): 
@@ -271,7 +331,7 @@ def main():
     np.random.shuffle(idxs)
 
     for i in range(dm.num_sequences):
-        dm._deep_restore_sequence(idxs[i])
+        dm._deep_restore_sequence_sr_res(idxs[i])
 
     # dm.setup()
 

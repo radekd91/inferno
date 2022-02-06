@@ -211,19 +211,20 @@ class FaceDataModuleBase(pl.LightningDataModule):
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         print(device)
-        net, seg_type = self._get_segmentation_net(device)
+        net, seg_type, batch_size = self._get_segmentation_net(device)
 
         if self.save_detection_images:
             ref_im = imread(detection_fnames_or_ims[0])
         else: 
             ref_im = detection_fnames_or_ims[0]
-        ref_size = Resize((ref_im.shape[0], ref_im.shape[1]), interpolation=Image.CUBIC)
+        ref_size = Resize((ref_im.shape[0], ref_im.shape[1]), interpolation=Image.NEAREST)
 
-        transforms = Compose([
-            Resize((512, 512)),
-            Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-        ])
-        batch_size = 64
+        # transforms = Compose([
+        #     Resize((512, 512)),
+        #     Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        # ])
+        transforms=None
+        # batch_size = 16
 
         dataset = UnsupervisedImageDataset(detection_fnames_or_ims, image_transforms=transforms,
                                            landmark_list = landmarks,
@@ -236,19 +237,16 @@ class FaceDataModuleBase(pl.LightningDataModule):
             # facenet_pytorch expects this stanadrization for the input to the net
             # images = fixed_image_standardization(batch['image'].to(device))
             images = batch['image'].cuda()
-            start = time.time()
+            # start = time.time()
             with torch.no_grad():
-                out = net(images)[0]
-            end = time.time()
-            print(f" Inference batch {i} took : {end - start}")
-            segmentation = out.cpu().argmax(1)
+                segmentation = net(images)
+            segmentation = segmentation.cpu()
+            # end = time.time()
             segmentation = ref_size(segmentation)
             segmentation = segmentation.numpy()
-            # images = ref_size(images.cpu())
-            # images = images.numpy()
 
             start = time.time()
-            for j in range(out.size()[0]):
+            for j in range(segmentation.shape[0]):
                 image_path = batch['path'][j]
                 # if isinstance(out_segmentation_folder, list):
                 if path_depth > 0:
@@ -275,20 +273,33 @@ class FaceDataModuleBase(pl.LightningDataModule):
             print(f" Saving batch {i} took: {end - start}")
 
 
-    def _get_segmentation_net(self, device):
-        from gdl.utils.other import get_path_to_externals
-        path_to_segnet = get_path_to_externals() / "face-parsing.PyTorch"
-        if not(str(path_to_segnet) in sys.path  or str(path_to_segnet.absolute()) in sys.path):
-            sys.path += [str(path_to_segnet)]
+    def _get_segmentation_net(self, device, method='bisenet'):
+        if method == 'bisenet':
+            seg_type = 'face_parsing'
+            from gdl.models.external.BiSeNetFaceParsing import BiSeNetFaceParsing
+            net = BiSeNetFaceParsing()
+            batch_size = 64
+        elif method == "gpen": 
+            seg_type = 'face_parsing'
+            from gdl.models.external.GPENFaceParsing import GPENFaceParsing
+            net = GPENFaceParsing()
+            batch_size = 16
+        else: 
+            raise ValueError(f"Unknown segmentation type: {method}" )
 
-        from model import BiSeNet
-        n_classes = 19
-        net = BiSeNet(n_classes=n_classes)
-        # net.cuda()
-        save_pth = path_to_segnet / 'res' / 'cp' / '79999_iter.pth'
-        net.load_state_dict(torch.load(save_pth))
-        # net.eval()
-        net.eval().to(device)
+        # from gdl.utils.other import get_path_to_externals
+        # path_to_segnet = get_path_to_externals() / "face-parsing.PyTorch"
+        # if not(str(path_to_segnet) in sys.path  or str(path_to_segnet.absolute()) in sys.path):
+        #     sys.path += [str(path_to_segnet)]
+
+        # from model import BiSeNet
+        # n_classes = 19
+        # net = BiSeNet(n_classes=n_classes)
+        # # net.cuda()
+        # save_pth = path_to_segnet / 'res' / 'cp' / '79999_iter.pth'
+        # net.load_state_dict(torch.load(save_pth))
+        # # net.eval()
+        # net.eval().to(device)
 
         # labels = {
         #     0: 'background',
@@ -312,7 +323,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
         #     18: 'cloth'
         # }
 
-        return net, "face_parsing"
+        return net, "face_parsing" , batch_size
 
     @staticmethod
     def save_detections(fname, detection_fnames, landmark_fnames, centers, sizes, last_frame_id):
