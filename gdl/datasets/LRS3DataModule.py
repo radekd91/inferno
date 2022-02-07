@@ -116,7 +116,7 @@ class LRS3DataModule(FaceVideoDataModule):
         #     print("Could not import SwinIRTranslation. Skipping.") 
         return SwinIRCompressionArtifact( 256)
 
-    def _get_superres_network(self, method="bsrgan"):
+    def _get_superres_network(self, method="swin_ir"):
         # try:
         if method == "swin_ir":
             from gdl.models.external.SwinIRTranslation import SwinIRRealSuperRes
@@ -204,12 +204,12 @@ class LRS3DataModule(FaceVideoDataModule):
                 # restored_images_torch = restoration_net(restored_images_torch, resize_to_input_size=False)
                 # time_restoration = time.time() 
                 
-                time_start = time.time() 
+                # time_start = time.time() 
                 restored_images_torch = images_torch.clone()
                 for ni, net in enumerate(nets):
                     restored_images_torch = net(restored_images_torch, resize_to_input_size=False)
-                time_end = time.time() 
-                print(f"Time: {time_end - time_start}")
+                # time_end = time.time() 
+                # print(f"Time: {time_end - time_start}")
 
                 if resize_to_original:
                     restored_images_torch = F.interpolate(restored_images_torch, 
