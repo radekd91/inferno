@@ -116,7 +116,7 @@ class LRS3DataModule(FaceVideoDataModule):
         #     print("Could not import SwinIRTranslation. Skipping.") 
         return SwinIRCompressionArtifact( 256)
 
-    def _get_superres_network(self, method="swin_ir"):
+    def _get_superres_network(self, method="bsrgan"):
         # try:
         if method == "swin_ir":
             from gdl.models.external.SwinIRTranslation import SwinIRRealSuperRes
