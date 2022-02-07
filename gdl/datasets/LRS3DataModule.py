@@ -116,13 +116,18 @@ class LRS3DataModule(FaceVideoDataModule):
         #     print("Could not import SwinIRTranslation. Skipping.") 
         return SwinIRCompressionArtifact( 256)
 
-    def _get_superres_network(self):
+    def _get_superres_network(self, method="swin_ir"):
         # try:
-        from gdl.models.external.SwinIRTranslation import SwinIRRealSuperRes
-        # except ImportError: 
-            # print("Could not import SwinIRTranslation. Skipping.") 
-        return SwinIRRealSuperRes( 256)
-
+        if method == "swin_ir":
+            from gdl.models.external.SwinIRTranslation import SwinIRRealSuperRes
+            # except ImportError: 
+                # print("Could not import SwinIRTranslation. Skipping.") 
+            return SwinIRRealSuperRes( 256)
+        elif method == "bsrgan":
+            from gdl.models.external.BSRGANSuperRes import BSRSuperRes
+            # return BSRSuperRes( 256, 4)
+            return BSRSuperRes( 256, 2)
+        raise ValueError(f"Unknown super-resolution method: {method}")
 
         # if method == "GPEN-512": 
         #     im_size = 512
@@ -199,13 +204,16 @@ class LRS3DataModule(FaceVideoDataModule):
                 # restored_images_torch = restoration_net(restored_images_torch, resize_to_input_size=False)
                 # time_restoration = time.time() 
                 
+                time_start = time.time() 
                 restored_images_torch = images_torch.clone()
                 for ni, net in enumerate(nets):
                     restored_images_torch = net(restored_images_torch, resize_to_input_size=False)
-                
+                time_end = time.time() 
+                print(f"Time: {time_end - time_start}")
+
                 if resize_to_original:
                     restored_images_torch = F.interpolate(restored_images_torch, 
-                        size=(self.video_metas[i]["height"], self.video_metas[i]["width"]), 
+                        size=(self.video_metas[sequence_id]["height"], self.video_metas[sequence_id]["width"]), 
                         mode='bicubic', align_corners=False)
                 
             # # print times 
@@ -246,7 +254,8 @@ class LRS3DataModule(FaceVideoDataModule):
 
         # self._deep_restore_sequence(sequence_id, [superres_net], \
             # output_subfolder = 'sr', batch_size=16, resize_to_original=False)
-        self._deep_restore_sequence(sequence_id, nets, output_subfolder = 'sr_res', batch_size=12, resize_to_original=False)
+        self._deep_restore_sequence(sequence_id, nets, output_subfolder = 'sr_res', batch_size=12, 
+            resize_to_original=True)
         # self._deep_restore_sequence(sequence_id, [restoration_net], input_videos = 'sr', \
             # output_subfolder = 'sr_res', batch_size=16, resize_to_original=True)
 
