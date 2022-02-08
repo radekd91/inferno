@@ -2,8 +2,11 @@ import sys
 from pathlib import Path
 
 
-def locate_checkpoint(cfg, replace_root = None, relative_to = None, mode=None):
-    checkpoint_dir = cfg.inout.checkpoint_dir
+def locate_checkpoint(cfg_or_checkpoint_dir, replace_root = None, relative_to = None, mode=None):
+    if isinstance(cfg_or_checkpoint_dir, (str, Path)):
+        checkpoint_dir = str(cfg_or_checkpoint_dir)
+    else:
+        checkpoint_dir = cfg_or_checkpoint_dir.inout.checkpoint_dir
     if replace_root is not None and relative_to is not None:
         try:
             checkpoint_dir = str(Path(replace_root) / Path(checkpoint_dir).relative_to(relative_to))
