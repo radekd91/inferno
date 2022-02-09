@@ -876,12 +876,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     images = F.interpolate(images, size=reconstruction_net.get_input_image_size(), mode='bicubic', align_corners=False)
                 batch_["image"] = images
                 codedict = reconstruction_net.encode(batch_, training=False)
+                encoded_values = util.dict_tensor2npy(codedict)
                 # opdict, visdict = reconstruction_net.decode(codedict)
                 if codedict_retarget is not None:
                     codedict["shapecode"] = codedict_retarget["shapecode"].repeat(batch_["image"].shape[0], 1,)
                     codedict["detailcode"] = codedict_retarget["detailcode"].repeat(batch_["image"].shape[0], 1,)
                 codedict = reconstruction_net.decode(codedict, training=False)
-                values = util.dict_tensor2npy(codedict)
+                
                 uv_detail_normals = None
                 if 'uv_detail_normals' in codedict.keys():
                     uv_detail_normals = codedict['uv_detail_normals']
@@ -903,12 +904,12 @@ class FaceVideoDataModule(FaceDataModuleBase):
                         # if i*j == 0:
                         mesh_folder = out_folder / 'meshes'
                         mesh_folder.mkdir(exist_ok=True, parents=True)
-                        reconstruction_net.deca.save_obj(str(mesh_folder / (name + '.obj')), values)
+                        reconstruction_net.deca.save_obj(str(mesh_folder / (name + '.obj')), encoded_values)
                     if save_mat:
                         # if i*j == 0:
                         mat_folder = out_folder / 'mat'
                         mat_folder.mkdir(exist_ok=True, parents=True)
-                        savemat(str(mat_folder / (name + '.mat')), values)
+                        savemat(str(mat_folder / (name + '.mat')), encoded_values)
                     if save_vis or save_video:
                         # if i*j == 0:
                         vis_folder = out_folder / 'vis'

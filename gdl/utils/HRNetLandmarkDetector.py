@@ -9,34 +9,56 @@ from pathlib import Path
 from torchvision import transforms as tf
 from face_alignment.detection.sfd.sfd_detector import SFDDetector
 from face_alignment.utils import get_preds_fromhm, crop
+from collections import OrderedDict
+import torch.nn.functional as F
 
-# path_to_3fabrec = (Path(get_path_to_externals()) / ".." / ".." / "3FabRec").absolute()
-path_to_3fabrec = (Path(get_path_to_externals())  / "3FabRec").absolute()
 
-if str(path_to_3fabrec) not in sys.path:
-    sys.path.insert(0, str(path_to_3fabrec))
+path_to_hrnet = (Path(get_path_to_externals()) / ".." / ".." / "HRNet-Facial-Landmark-Detection").absolute()
+# path_to_hrnet = (Path(get_path_to_externals())  / "HRNet-Facial-Landmark-Detection").absolute()
 
-from csl_common.utils import nn, cropping
-from csl_common import utils
-from landmarks import fabrec
+if str(path_to_hrnet) not in sys.path:
+    sys.path.insert(0, str(path_to_hrnet))
 
+from lib.config import config, update_config
+from lib.core import function
+import lib.models as models
+from lib.core.evaluation import decode_preds, compute_nme
 
 INPUT_SIZE = 256
 
 
-class TFabRec(FaceDetector):
+class HRNet(FaceDetector):
 
     def __init__(self, device = 'cuda', instantiate_detector='sfd', threshold=0.5):
-        # model =  path_to_3fabrec / 'data/models/snapshots/demo'
-        # model =  path_to_3fabrec / 'data/models/snapshots/lms_wflw'
-        # self.num_landmarks = 98
-        
-        # model =  path_to_3fabrec / 'data/models/snapshots/lms_aflw'
-        model =  path_to_3fabrec / 'data/models/snapshots/lms_300w'
-        self.num_landmarks = 68
 
-        self.net = fabrec.load_net(str(model), num_landmarks= self.num_landmarks)
-        self.net.eval()
+        cfg = path_to_hrnet / "experiments/300w/face_alignment_300w_hrnet_w18.yaml"
+        model_file = path_to_hrnet / "hrnetv2_pretrained" / "HR18-300W.pth"
+
+        # cfg = path_to_hrnet / "experiments/aflw/face_alignment_aflw_hrnet_w18.yaml"
+        # model_file = path_to_hrnet / "hrnetv2_pretrained" / "HR18-AFLW.pth"
+
+        # model_file = path_to_hrnet / "hrnetv2_pretrained" / "hrnetv2_w18_imagenet_pretrained.pth"
+        config.defrost()
+        config.merge_from_file(cfg)
+        config.MODEL.INIT_WEIGHTS = False
+        config.freeze()
+        self.model = models.get_face_alignment_net(config)
+        # self.num_landmarks = 68
+        self.num_landmarks = config.MODEL.NUM_JOINTS
+        self.config = config
+
+        state_dict = torch.load(model_file)
+
+        if model_file.name == "HR18-300W.pth":
+            prefix_to_remove = "module."
+            state_dict = OrderedDict({k[len(prefix_to_remove):]: v for k, v in state_dict.items()})
+
+        if 'state_dict' in state_dict.keys():
+            state_dict = state_dict['state_dict']
+            res = self.model.load_state_dict(state_dict)
+        else:
+            # self.model.module.load_state_dict(state_dict)
+            self.model.load_state_dict(state_dict)
 
         self.detector = None
         if instantiate_detector == 'mtcnn':
@@ -52,11 +74,10 @@ class TFabRec(FaceDetector):
         elif instantiate_detector is not None: 
             raise ValueError("Invalid value for instantiate_detector: {}".format(instantiate_detector))
         
-        # self.transforms = [utils.transforms.CenterCrop(INPUT_SIZE)]
-        self.transforms = [utils.transforms.ToTensor()]
-        self.transforms += [utils.transforms.Normalize([0.518, 0.418, 0.361], [1, 1, 1])]
+        # # self.transforms = [utils.transforms.CenterCrop(INPUT_SIZE)]
+        self.transforms = [tf.ToTensor()]
+        # self.transforms += [utils.transforms.Normalize([0.518, 0.418, 0.361], [1, 1, 1])]
         self.crop_to_tensor = tf.Compose(self.transforms)
-
 
     
     # @profile
@@ -93,13 +114,16 @@ class TFabRec(FaceDetector):
             # scale = ((bbox[2] - bbox[0] + bbox[3] - bbox[1]) / image.shape[0] ) * 0.85
             images_ = crop(image, center, scale, resolution=256.0)
             images = self.crop_to_tensor(images_)
-            images = nn.atleast4d(images).cuda()
+            if images.ndimension() == 3:
+                images = images.unsqueeze(0)
+            # images = nn.atleast4d(images).cuda()
 
-            X_recon, lms, X_lm_hm = self.detect_in_crop(images)
-            pts, pts_img = get_preds_fromhm(X_lm_hm, center.numpy(), scale)
+            # X_recon, lms, X_lm_hm = self.detect_in_crop(images)
+            pts_img, X_lm_hm = self.detect_in_crop(images, center.unsqueeze(0), torch.tensor([scale]))
+            # pts, pts_img = get_preds_fromhm(X_lm_hm, center.numpy(), scale)
             # torch.cuda.empty_cache()
-            if lms is None:
-                del lms
+            if pts_img is None:
+                del pts_img
                 if with_landmarks:
                     return [],  f'kpt{self.num_landmarks}', []
                 else:
@@ -116,7 +140,7 @@ class TFabRec(FaceDetector):
                 # plt.imshow(image)
                 # for i in range(len(lms)):
                 for i in range(len(pts_img)):
-                    kpt = pts_img[i][:68].squeeze()
+                    kpt = pts_img[i][:68].squeeze().detach().cpu().numpy()
                     left = np.min(kpt[:, 0])
                     right = np.max(kpt[:, 0])
                     top = np.min(kpt[:, 1])
@@ -141,10 +165,23 @@ class TFabRec(FaceDetector):
 
 
     @torch.no_grad()
-    def detect_in_crop(self, crop):
+    def detect_in_crop(self, crop, center, scale):
         with torch.no_grad():
-            X_recon, lms_in_crop, X_lm_hm = self.net.detect_landmarks(crop)
-        lms_in_crop = utils.nn.to_numpy(lms_in_crop.reshape(1, -1, 2))
-        return X_recon, lms_in_crop, X_lm_hm
+            output = self.model(crop)
+            score_map = output.data.cpu()
+            # preds = decode_preds(score_map, meta['center'], meta['scale'], [64, 64])
+            # center = torch.tensor(crop.shape[2:] ).repeat(crop.shape[0], 1)/ 2
+            # scale = torch.ones((crop.shape[0]), dtype=torch.float32)
+            score_map = F.interpolate(score_map,  crop.shape[2:], mode='bicubic', align_corners=False)
+            preds = decode_preds(score_map, center, scale, crop.shape[2:])
 
+            # resize score map to original image size with F interpolate 
+
+            # # NME
+            # # nme_temp = compute_nme(preds, meta)
+            # nme_temp = compute_nme(preds, None)
+
+        # lms_in_crop = utils.nn.to_numpy(lms_in_crop.reshape(1, -1, 2))
+
+        return preds, score_map
 
