@@ -1,4 +1,4 @@
-name: work37_cu11
+name: work37_cu11_v2
 channels:
   - pytorch
   - fastai
@@ -156,4 +156,4 @@ dependencies:
     - wrapt==1.12.1
     - yapf==0.30.0
     - youtube-dl==2021.6.6
-prefix: /home/rdanecek/anaconda3/envs/work37_cu11
+prefix: /home/rdanecek/anaconda3/envs/work37_cu11_v2
