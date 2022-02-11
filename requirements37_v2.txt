@@ -1,6 +1,6 @@
-cython==0.29.21
+#- cython>=0.29.21
 adabound>=0.0.5
-addict==2.4.0
+#- addict==2.4.0
 alabaster==0.7.12
 albumentations==1.0.2
 antlr4-python3-runtime==4.8
@@ -32,12 +32,12 @@ imgaug==0.4.0
 importlib-resources==5.1.0
 insightface==0.5.0
 install==1.3.5
-itk-core==5.1.2
-itk-filtering==5.1.2
-itk-meshtopolydata==0.6.2
-itk-numerics==5.1.2
-itk-registration==5.1.2
-itk-segmentation==5.1.2
+itk-core>=5.1.2
+itk-filtering>=5.1.2
+itk-meshtopolydata>=0.6.2
+itk-numerics>=5.1.2
+itk-registration>=5.1.2
+itk-segmentation>=5.1.2
 kaggle==1.5.12
 keras-preprocessing==1.1.2
 kornia==0.6.1
@@ -48,13 +48,13 @@ memory-profiler==0.58.0
 mmcv==1.2.2
 munch==2.5.0
 numpy>=1.19.3
-# nvdiffrast==0.2.7 ## install this one from the deep3dface submodule
+# nvdiffrast==0.2.7
 omegaconf==2.0.6
 onnx==1.10.2
 onnxruntime-gpu==1.9.0
-# opencv-contrib-python==4.5.5.62
-# opencv-python==4.5.5.62
-# opencv-python-headless==4.5.5.62
+#- opencv-contrib-python==4.5.5.62
+#- opencv-python==4.5.5.62
+#- opencv-python-headless==4.5.5.62
 opt-einsum==3.3.0
 pathtools==0.1.2
 pillow==8.1.2
@@ -67,12 +67,12 @@ pyasn1-modules==0.2.8
 pydeprecate==0.3.1
 pyglet==1.5.11
 PyOpengl==3.1.5
-# pyrender==0.1.39
+#- # pyrender==0.1.39
 python-slugify==5.0.2
 python-speech-features==0.6
 pytorch-lightning==1.4.9
-# pytorch3d==0.6.0
-# pytorch3d==0.6.1
+#- # pytorch3d==0.6.0
+#- # pytorch3d==0.6.1
 pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py37_cu111_pyt191/download.html
 pyzmq==22.0.3
 scikit-sound==0.2.3
