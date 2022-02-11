@@ -1,6 +1,6 @@
 import setuptools
 
-requirements = open("requirements.txt").read().splitlines()
+# requirements = open("requirements.txt").read().splitlines()
 # dev_requirements = open("requirements_dev.txt").read().splitlines()
 
 with open("README.md", "r") as fh:
@@ -16,7 +16,7 @@ setuptools.setup(
     version="0.0.2",
     packages=["gdl", "gdl_apps"],
     package_dir={"": "."},
-    install_requires=requirements,
+    # install_requires=requirements,
     # extras_require={"dev": dev_requirements},
     python_requires=">=3.6",
 )
