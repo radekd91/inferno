@@ -94,6 +94,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
         self._unpack_videos()
         self._saveMeta()
 
+    def _is_video_dataset(self): 
+        return True
 
     def _unpack_videos(self):
         self.frame_lists = []
@@ -185,6 +187,9 @@ class FaceVideoDataModule(FaceDataModuleBase):
     def _get_path_to_sequence_detections(self, sequence_id): 
         return self._get_path_to_sequence_files(sequence_id, "detections")
 
+    def _get_landmark_method(self):
+        return "" # for backwards compatibility (AffectNet, ...), the inheriting classes should specify the method
+
     def _get_path_to_sequence_landmarks(self, sequence_id):
 
         if self.save_detection_images: 
@@ -195,7 +200,9 @@ class FaceVideoDataModule(FaceDataModuleBase):
             # so better put them in a different folder to make it clear
             landmark_subfolder = "landmarks_original"
 
-        return self._get_path_to_sequence_files(sequence_id, landmark_subfolder)
+        method = self._get_landmark_method()
+
+        return self._get_path_to_sequence_files(sequence_id, landmark_subfolder, method=method)
 
 
     def _get_path_to_sequence_segmentations(self, sequence_id):
@@ -302,7 +309,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     sequence_id, method=self.detect_landmarks_on_restored_images)
             assert video_name.is_file()
             if start_fid == 0:
-                videogen =  vreader(str(video_name))
+                # videogen =  vreader(str(video_name))
+                videogen =  vread(str(video_name))
+                # for i in range(start_fid): 
+                    # _discarded_frame = next(videogen
             else: 
                 videogen =  vread(str(video_name))
 

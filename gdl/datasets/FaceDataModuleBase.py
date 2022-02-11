@@ -17,10 +17,10 @@ from gdl.datasets.IO import save_segmentation
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 from gdl.datasets.UnsupervisedImageDataset import UnsupervisedImageDataset
 from gdl.utils.FaceDetector import FAN, MTCNN, save_landmark
-try:
-    from gdl.utils.TFabRecLandmarkDetector import TFabRec
-except ImportError:
-    pass
+# try:
+#     from gdl.utils.TFabRecLandmarkDetector import TFabRec
+# except ImportError:
+#     pass
 # try:
     # from gdl.utils.Deep3DFaceLandmarkDetector import Deep3DFaceLandmarkDetector
 # except ImportError:
@@ -67,6 +67,11 @@ class FaceDataModuleBase(pl.LightningDataModule):
         self.image_size = image_size
         self.scale = scale
 
+    def _get_max_faces_per_image(self): 
+        return 1
+    
+    def _is_video_dataset(self): 
+        return False
 
     # @profile
     def _instantiate_detector(self, overwrite = False):
@@ -79,7 +84,12 @@ class FaceDataModuleBase(pl.LightningDataModule):
         elif self.face_detector_type == 'mtcnn':
             self.face_detector = MTCNN(self.device)
         elif self.face_detector_type == '3fabrec': 
+            from gdl.utils.TFabRecLandmarkDetector import TFabRec
             self.face_detector = TFabRec(instantiate_detector='sfd', threshold=self.face_detector_threshold)
+        elif self.face_detector_type == 'mediapipe': 
+            from gdl.utils.MediaPipeLandmarkDetector import MediaPipeLandmarkDetector
+            self.face_detector = MediaPipeLandmarkDetector(threshold=self.face_detector_threshold, 
+                video_based=self._is_video_dataset(), max_faces=self._get_max_faces_per_image())
         elif self.face_detector_type == 'deep3dface': 
             from gdl.utils.Deep3DFaceLandmarkDetector import Deep3DFaceLandmarkDetector
             self.face_detector = Deep3DFaceLandmarkDetector(instantiate_detector='mtcnn')
@@ -145,6 +155,8 @@ class FaceDataModuleBase(pl.LightningDataModule):
             detection_centers += [center]
             detection_sizes += [size]
 
+            # imsave(os.path.join("detection_%d.png" % bi), dst_image)
+
             # to be checked
             detection_landmarks += [dts_landmark]
 
@@ -169,6 +181,8 @@ class FaceDataModuleBase(pl.LightningDataModule):
             else:
                 frame = next(frame_list)
             detection_ims, centers, sizes, bbox_type, landmarks, orig_landmarks = self._detect_faces_in_image(frame)
+            # if len(detection_ims) > 0: # debug visualization
+            #     imsave(frame_fname, detection_ims[0])
         
         # self.detection_lists[sequence_id][fid] += [detections]
         centers_all += [centers]

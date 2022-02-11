@@ -13,7 +13,9 @@ import time
 class LRS3DataModule(FaceVideoDataModule):
 
     def __init__(self, root_dir, output_dir, 
-                processed_subfolder=None, face_detector='3fabrec', landmarks_from='sr_res',
+                processed_subfolder=None, face_detector='mediapipe', 
+                landmarks_from='sr_res',
+                # landmarks_from=None,
                 face_detector_threshold=0.9, image_size=224, scale=1.25, device=None):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, device, 
@@ -38,6 +40,10 @@ class LRS3DataModule(FaceVideoDataModule):
         # self._unpack_videos()
         # self._saveMeta()
 
+
+
+    def _get_landmark_method(self):
+        return self.face_detector_type
 
     def _detect_faces(self):
         return super()._detect_faces( )

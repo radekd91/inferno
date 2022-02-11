@@ -11,8 +11,11 @@ def bbox2point(left, right, top, bottom, type='bbox'):
     elif type == 'bbox':
         old_size = (right - left + bottom - top) / 2
         center = np.array([right - (right - left) / 2.0, bottom - (bottom - top) / 2.0 + old_size * 0.12])
+    elif type == "mediapipe":
+        old_size = (right - left + bottom - top) / 2 * 1.1
+        center = np.array([right - (right - left) / 2.0, bottom - (bottom - top) / 2.0])
     else:
-        raise NotImplementedError
+        raise NotImplementedError(f" bbox2point not implemented for {type} ")
     return old_size, center
 
 
@@ -43,5 +46,5 @@ def bbpoint_warp(image, center, size, target_size_height, target_size_width=None
         return dst_image
     # points need the matrix
     tf_lmk = tform if inv else tform.inverse
-    dst_landmarks = tf_lmk(landmarks)
+    dst_landmarks = tf_lmk(landmarks[:, :2])
     return dst_image, dst_landmarks

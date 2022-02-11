@@ -69,6 +69,9 @@ class AffWild2DMBase(FaceVideoDataModule):
         emotions, valence, arousal, detections_fnames = FaceVideoDataModule._load_face_emotions(annotation)
         return emotions, valence, arousal, detections_fnames
 
+    def _get_max_faces_per_image(self): 
+        return 10
+
     def _create_emotional_image_dataset(self,
                                         annotation_list=None,
                                         filter_pattern=None,
