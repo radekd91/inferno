@@ -84,7 +84,7 @@ setuptools==54.2.0
 shapely==1.7.1
 shortuuid==1.0.1
 smmap==3.0.4
-smplx==0.1.26python
+smplx==0.1.26
 snowballstemmer==2.0.0
 soupsieve==2.3.1
 subprocess32==3.5.4
