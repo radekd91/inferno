@@ -303,7 +303,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 # self._reconstruct_faces_in_sequence(idx, 
                 #     reconstruction_net=self._get_reconstruction_network('deca'))
                 # rec_methods = ['emoca', 'deep3dface', 'deca']
-                rec_methods = ['deep3dface',]
+                rec_methods = ['emoca', 'deep3dface',]
                 # rec_methods = ['emoca',]
                 for rec_method in rec_methods:
                     self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
