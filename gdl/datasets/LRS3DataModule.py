@@ -40,10 +40,11 @@ class LRS3DataModule(FaceVideoDataModule):
         # self._unpack_videos()
         # self._saveMeta()
 
-
-
     def _get_landmark_method(self):
         return self.face_detector_type
+
+    def _get_segmentation_method(self):
+        return "bisenet"
 
     def _detect_faces(self):
         return super()._detect_faces( )
@@ -302,8 +303,8 @@ class LRS3DataModule(FaceVideoDataModule):
                 # self._reconstruct_faces_in_sequence(idx, 
                 #     reconstruction_net=self._get_reconstruction_network('deca'))
                 # rec_methods = ['emoca', 'deep3dface', 'deca']
-                # rec_methods = ['deep3dface',]
-                rec_methods = ['emoca',]
+                rec_methods = ['deep3dface',]
+                # rec_methods = ['emoca',]
                 for rec_method in rec_methods:
                     self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
                                        save_obj=False, save_mat=True, save_vis=False, save_images=False,

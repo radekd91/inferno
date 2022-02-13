@@ -4,13 +4,17 @@ import os, sys
 from gdl.models.ImageTranslationNetBase import ImageTranslationNetBase
 import torch.nn.functional as F
 from torchvision.transforms import Resize, Compose, Normalize
-
+import numpy as np
 from gdl.utils.other import get_path_to_externals
 path_to_segnet = get_path_to_externals() / "face-parsing.PyTorch"
 if not(str(path_to_segnet) in sys.path  or str(path_to_segnet.absolute()) in sys.path):
     sys.path += [str(path_to_segnet)]
 
 from model import BiSeNet
+
+MASK_COLORMAP = [[0, 0, 0], [204, 0, 0], [76, 153, 0], [204, 204, 0], [51, 51, 255], [204, 0, 204], [0, 255, 255], [255, 204, 204], [102, 51, 0], [255, 0, 0], [102, 204, 0], [255, 255, 0], [0, 0, 153], [0, 0, 204], [255, 51, 153], [0, 204, 204], [0, 51, 0], [255, 153, 51], [0, 204, 0]]
+##MASK_COLORMAP = [[0, 0, 0], [204, 0, 0], [76, 153, 0], [204, 204, 0], [51, 51, 255], [204, 0, 204], [0, 255, 255], [255, 204, 204], [102, 51, 0], [255, 0, 0], [102, 204, 0], [255, 255, 0], [0, 0, 153], [0, 0, 204], [255, 51, 153], [0, 204, 204], [0, 51, 0], [255, 153, 51], [0, 204, 0]] = [[0, 0, 0], [204, 0, 0], [76, 153, 0], [204, 204, 0], [51, 51, 255], [204, 0, 204], [0, 255, 255], [255, 204, 204], [102, 51, 0], [255, 0, 0], [102, 204, 0], [255, 255, 0], [0, 0, 153], [0, 0, 204], [255, 51, 153], [0, 204, 204], [0, 51, 0], [0, 0, 0], [0, 0, 0]]
+# MASK_COLORMAP = [0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 0, 0, 0]
 
 
 class BiSeNetFaceParsing(ImageTranslationNetBase):
@@ -38,7 +42,7 @@ class BiSeNetFaceParsing(ImageTranslationNetBase):
         input_image: torch.Tensor [b,c,w,h] in RGB format 0,1
         """
 
-        # input_shape = input_image.shape
+        input_shape = input_image.shape
         # # RGB to BGR
         # input_image = input_image[:, [2, 1, 0], :, :]
 
@@ -60,5 +64,25 @@ class BiSeNetFaceParsing(ImageTranslationNetBase):
 
         input_image = self.transforms(input_image)
         out = self.net(input_image)[0]
-        segmentation = out.cpu().argmax(1)
-        return self.net(input_image)[0]
+        if resize_to_input_size:
+            # resize to input size, with nearest neighbor interpolation
+            out = F.interpolate(out, size=(input_shape[2], input_shape[3]), 
+                mode='bicubic', align_corners=False) 
+        segmentation = out.cpu().argmax(1, keepdim=True)
+        return segmentation
+
+    def tensor2mask(self, tensor):
+        if len(tensor.shape) < 4:
+            tensor = tensor.unsqueeze(0)
+        if tensor.shape[1] > 1:
+            tensor = tensor.argmax(dim=1) 
+
+        tensor = tensor.squeeze(1).data.cpu().numpy()
+        color_maps = []
+        for t in tensor:
+            tmp_img = np.zeros(tensor.shape[1:] + (3,))
+            # tmp_img = np.zeros(tensor.shape[1:])
+            for idx, color in enumerate( MASK_COLORMAP):
+                tmp_img[t == idx] = color
+            color_maps.append(tmp_img.astype(np.uint8))
+        return color_maps

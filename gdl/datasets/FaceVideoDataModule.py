@@ -204,6 +204,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
         return self._get_path_to_sequence_files(sequence_id, landmark_subfolder, method=method)
 
+    def _get_segmentation_method(self):
+        return ""
 
     def _get_path_to_sequence_segmentations(self, sequence_id):
         if self.save_detection_images: 
@@ -214,7 +216,9 @@ class FaceVideoDataModule(FaceDataModuleBase):
             # so better put them in a different folder to make it clear
             segmentation_subfolder = "segmentations_original"
 
-        return self._get_path_to_sequence_files(sequence_id, segmentation_subfolder)
+        method = self._get_segmentation_method()
+
+        return self._get_path_to_sequence_files(sequence_id, segmentation_subfolder, method=method)
         # return self._get_path_to_sequence_files(sequence_id, "segmentations")
 
 
@@ -886,7 +890,12 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     images = F.interpolate(images, size=reconstruction_net.get_input_image_size(), mode='bicubic', align_corners=False)
                 batch_["image"] = images
                 codedict = reconstruction_net.encode(batch_, training=False)
-                encoded_values = util.dict_tensor2npy(codedict)
+                encoded_values = util.dict_tensor2npy(codedict) 
+                if "images" in encoded_values.keys(): 
+                    del encoded_values["images"]
+                if "image" in encoded_values.keys(): 
+                    del encoded_values["image"]
+
                 # opdict, visdict = reconstruction_net.decode(codedict)
                 if codedict_retarget is not None:
                     codedict["shapecode"] = codedict_retarget["shapecode"].repeat(batch_["image"].shape[0], 1,)
@@ -944,7 +953,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
                         # if i*j == 0:
                         ims_folder = out_folder / 'ims'
                         ims_folder.mkdir(exist_ok=True, parents=True)
-                        for vis_name in ['inputs', 'rendered_images', 'albedo_images', 'shape_images', 'shape_detail_images']:
+                        for vis_name in ['inputs', 'rendered_images', 'albedo_images', 'shape_images', 'shape_detail_images', 
+                                "geometry_detail", "geometry_coarse", "output_images_detail"]:
                             if vis_name not in visdict.keys():
                                 continue
                             image = util.tensor2image(visdict[vis_name][j])

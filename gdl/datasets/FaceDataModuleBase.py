@@ -288,14 +288,14 @@ class FaceDataModuleBase(pl.LightningDataModule):
             print(f" Saving batch {i} took: {end - start}")
 
 
-    def _get_segmentation_net(self, device, method='gpen'):
+    def _get_segmentation_net(self, device, method='bisenet'):
         if method == 'bisenet':
             seg_type = 'face_parsing'
             from gdl.models.external.BiSeNetFaceParsing import BiSeNetFaceParsing
             net = BiSeNetFaceParsing()
             batch_size = 64
         elif method == "gpen": 
-            seg_type = 'face_parsing'
+            seg_type = 'face_parsing_gpen'
             from gdl.models.external.GPENFaceParsing import GPENFaceParsing
             net = GPENFaceParsing()
             batch_size = 16
