@@ -105,6 +105,12 @@ class FaceVideoDataModule(FaceDataModuleBase):
     def get_frame_number_format(self):
         return "%06d"
 
+    def count_num_frames(self): 
+        num_frames = 0
+        for i in range(len(self.video_metas)): 
+            num_frames += self.video_metas[i]['num_frames']
+        return num_frames
+
     # def _get_unpacked_video_subfolder(self, video_idx):
         # return  Path(self._video_category(video_idx)) / video_file.parts[-3] /self._video_set(video_idx) / video_file.stem
 

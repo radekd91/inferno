@@ -96,7 +96,12 @@ class TFabRec(FaceDetector):
             images = nn.atleast4d(images).cuda()
 
             X_recon, lms, X_lm_hm = self.detect_in_crop(images)
-            pts, pts_img = get_preds_fromhm(X_lm_hm, center.numpy(), scale)
+            out = get_preds_fromhm(X_lm_hm, center.numpy(), scale) 
+            if len(out) == 3:
+                pts, pts_img, _  = out
+            else: 
+                pts, pts_img = out
+
             # torch.cuda.empty_cache()
             if lms is None:
                 del lms
