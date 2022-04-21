@@ -105,6 +105,8 @@ class AfewVaDataModule(FaceDataModuleBase):
                  train_fraction=0.6,
                  val_fraction=0.2,
                  test_fraction=0.2,
+                 k_fold_crossvalidation=None,
+                 k_index=None,
                  dataset_type=None,
                  ):
         super().__init__(input_dir, output_dir, processed_subfolder,
@@ -150,19 +152,32 @@ class AfewVaDataModule(FaceDataModuleBase):
 
         indices = np.arange(len(video_gts), dtype=np.int32) + 1
         np.random.shuffle(indices)
+        if k_fold_crossvalidation is not None:
+            training_indices = []
+            validation_indices = []
+            for k in range(k_fold_crossvalidation):
+                start_i = (k * len(indices)) // k_fold_crossvalidation 
+                end_i = ((k + 1) * len(indices)) // k_fold_crossvalidation
+                training_indices += [np.concatenate([indices[0:(start_i)], indices[end_i:]])] 
+                validation_indices += [indices[start_i:end_i]] 
+                   
+            self.train_indices = training_indices[k_index]
+            self.val_indices = validation_indices[k_index]
+            self.test_indices = np.copy(validation_indices[k_index])
 
-        self.train_fraction = train_fraction
-        self.val_fraction = val_fraction
-        self.test_fraction = test_fraction
+        else:
+            self.train_fraction = train_fraction
+            self.val_fraction = val_fraction
+            self.test_fraction = test_fraction
 
-        assert self.train_fraction + self.val_fraction + self.test_fraction == 1.0
+            assert self.train_fraction + self.val_fraction + self.test_fraction == 1.0
 
-        train_end = int(len(indices) * self.train_fraction)
-        val_end = int(len(indices) * ( self.train_fraction + self.val_fraction))
+            train_end = int(len(indices) * self.train_fraction)
+            val_end = int(len(indices) * ( self.train_fraction + self.val_fraction))
 
-        self.train_indices = indices[:train_end]
-        self.val_indices = indices[train_end:val_end]
-        self.test_indices = indices[val_end:]
+            self.train_indices = indices[:train_end]
+            self.val_indices = indices[train_end:val_end]
+            self.test_indices = indices[val_end:]
 
         # iterate over the training indices and create a list of the corresponding video names
         self.train_list = OrderedDict()
@@ -1200,6 +1215,8 @@ if __name__ == "__main__":
             augmentation=augmenter,
             # dataset_type="AfewVaWithMGCNetPredictions",
             dataset_type="AfewVaWithExpNetPredictions",
+            k_fold_crossvalidation=5, 
+            k_index=0,
             )
 
     # print(dm.num_subsets)

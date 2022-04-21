@@ -1564,18 +1564,28 @@ if __name__ == "__main__":
     #         # dataset_type="AffectNetWithExpNetPredictions",
     #         )
     #
-    print(dm.num_subsets)
-    dm.prepare_data()
-    dm.setup()
-    # # dm._extract_emotion_features()
-    dltr = dm.train_dataloader()
-    dlv = dm.val_dataloader()
-    dlt = dm.test_dataloader()
+    # print(dm.num_subsets)
+    # dm.prepare_data()
+    # dm.setup()
+    # # # dm._extract_emotion_features()
+    # dltr = dm.train_dataloader()
+    # dlv = dm.val_dataloader()
+    # dlt = dm.test_dataloader()
 
-    for i in range(len(dm.training_set)):
-        sample = dm.training_set[i]
-        print(AffectNetExpressions(sample["affectnetexp"].item()))
-        print(sample["va"])
-        dm.training_set.visualize_sample(sample)
+    # # dataset = dm.training_set
+    # dataset = dm.test_set
 
-    print("Done")
+    # for i in range(len(dataset)):
+    #     sample = dataset[i]
+    #     if AffectNetExpressions(sample["affectnetexp"].item()) != AffectNetExpressions.Contempt:
+    #         # print(AffectNetExpressions(sample["affectnetexp"].item()))
+    #         continue
+    #     print(AffectNetExpressions(sample["affectnetexp"].item()))
+    #     print(sample["va"])
+    #     # dataset.visualize_sample(sample)
+
+    #     path = Path("/home/rdanecek/Downloads/AffectNet_Contempt")
+    #     path.mkdir(exist_ok=True, parents=True)
+    #     imsave(f"/home/rdanecek/Downloads/AffectNet_Contempt/{i:05d}.png", sample["image"].numpy().transpose([1, 2, 0]), )
+
+    # print("Done")

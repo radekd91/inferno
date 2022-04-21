@@ -36,7 +36,7 @@ from gdl.utils.other import get_path_to_externals
 repo_dir = str(get_path_to_externals())
 if repo_dir not in sys.path:
     sys.path.insert(0, repo_dir)
-deep3d_face_dir = get_path_to_externals() / "Deep3DFaceRecon_pytorch")
+deep3d_face_dir = str(get_path_to_externals() / "Deep3DFaceRecon_pytorch")
 if deep3d_face_dir not in sys.path:
     sys.path.insert(0, deep3d_face_dir)
 from models import create_model
@@ -118,7 +118,8 @@ class Deep3DFaceModule(pl.LightningModule):
             # training = False
             # testing = True
             values = self.encode(batch)
-            values = self.decode(batch, values)
+            # values = self.decode(batch, values)
+            values = self.decode(values)
             # if 'mask' in batch.keys():
             #     losses_and_metrics = self.compute_loss(values, batch, training=False, testing=testing)
             #     # losses_and_metrics_to_log = {prefix + '_' + stage_str + key: value.detach().cpu() for key, value in losses_and_metrics.items()}

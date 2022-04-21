@@ -298,6 +298,8 @@ class EmotionalImageDatasetBase(torch.utils.data.Dataset):
 
         if 'mask' in sample.keys():
             mask = sample["mask"][k, ...] if K is not None else sample["mask"]
+            if mask.ndim == 2:
+                mask = mask[np.newaxis, ...]
             index_axis(i, k).imshow(mask.numpy().transpose([1, 2, 0]).squeeze(), cmap='gray')
             i += 1
 

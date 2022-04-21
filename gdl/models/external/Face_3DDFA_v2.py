@@ -20,6 +20,7 @@ All rights reserved.
 
 import sys, os
 from pathlib import Path
+from matplotlib.image import imsave
 
 import numpy as np
 from gdl.utils.other import get_path_to_externals
@@ -46,6 +47,7 @@ import pytorch_lightning as pl
 from gdl.utils.lightning_logging import _log_array_image, _log_wandb_image, _torch_image2np
 from pytorch_lightning.loggers import WandbLogger
 
+from skimage.io import imsave
 
 def _parse_param_batch(param):
     """matrix pose form
@@ -355,6 +357,11 @@ class Face3DDFAv2Wrapper(torch.nn.Module):
             resized_img = F.interpolate(img, (self.tddfa.size, self.tddfa.size), mode='bilinear')*255.
             resized_img = resized_img[:, [2, 1, 0], ...] #RGB to BGR
             transformed = self.tddfa.transform(resized_img)#.unsqueeze(0)+
+            # test_img = transformed.cpu().numpy().transpose(0, 2, 3, 1)[0] 
+            # test_img += 1.0
+            # test_img *= 127.5 
+            # test_img = test_img.astype(np.uint8)
+            # imsave("test_in.png", test_img)
             param = self.tddfa.model(transformed)
             # param = param.squeeze().cpu().numpy().flatten().astype(np.float32)
             param = param * self.param_std + self.param_mean  # re-scale
@@ -362,7 +369,8 @@ class Face3DDFAv2Wrapper(torch.nn.Module):
             # for param in param_lst:
             R, offset, alpha_shp, alpha_exp = _parse_param_batch(param)
             values = {
-                "image": transformed,
+                # "image": transformed,
+                "image": img,
                 "posecode": R,
                 "offset": offset,
                 "shapecode": alpha_shp,
