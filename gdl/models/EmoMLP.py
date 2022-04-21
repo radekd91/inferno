@@ -1,3 +1,23 @@
+"""
+Author: Radek Danecek
+Copyright (c) 2022, Radek Danecek
+All rights reserved.
+
+# Max-Planck-Gesellschaft zur Förderung der Wissenschaften e.V. (MPG) is
+# holder of all proprietary rights on this computer program.
+# Using this computer program means that you agree to the terms 
+# in the LICENSE file included with this software distribution. 
+# Any use not explicitly granted by the LICENSE is prohibited.
+#
+# Copyright©2022 Max-Planck-Gesellschaft zur Förderung
+# der Wissenschaften e.V. (MPG). acting on behalf of its Max Planck Institute
+# for Intelligent Systems. All rights reserved.
+#
+# For comments or questions, please email us at emoca@tue.mpg.de
+# For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
+"""
+
+
 import torch
 import pytorch_lightning as pl
 import numpy as np
@@ -17,6 +37,10 @@ from gdl.models.MLP import MLP
 
 
 class EmoMLP(EmotionRecognitionBaseModule):
+    """
+    EmoMLPmodule that was designed to predict emotion from precomputed 3DMM parameters of other 3D reconsturction methods 
+    such as MGCNet or ExpNet. It takes the 3DMM parameters on the input and feeds it throu an MLP to predict emotion.
+    """
 
     def __init__(self, config):
         super().__init__(config)

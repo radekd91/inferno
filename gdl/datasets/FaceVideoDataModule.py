@@ -1,3 +1,23 @@
+"""
+Author: Radek Danecek
+Copyright (c) 2022, Radek Danecek
+All rights reserved.
+
+# Max-Planck-Gesellschaft zur Förderung der Wissenschaften e.V. (MPG) is
+# holder of all proprietary rights on this computer program.
+# Using this computer program means that you agree to the terms 
+# in the LICENSE file included with this software distribution. 
+# Any use not explicitly granted by the LICENSE is prohibited.
+#
+# Copyright©2022 Max-Planck-Gesellschaft zur Förderung
+# der Wissenschaften e.V. (MPG). acting on behalf of its Max Planck Institute
+# for Intelligent Systems. All rights reserved.
+#
+# For comments or questions, please email us at emoca@tue.mpg.de
+# For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
+"""
+
+
 from torch.utils.data.dataloader import DataLoader
 import os, sys
 from pathlib import Path
@@ -32,6 +52,9 @@ def add_pretrained_deca_to_path():
 
 
 class FaceVideoDataModule(FaceDataModuleBase):
+    """
+    Base data module for face video datasets. Contains the functionality to unpack the videos, detect faces, segment faces, ...
+    """
 
     def __init__(self, root_dir, output_dir, processed_subfolder=None,
                  face_detector='fan',
@@ -149,38 +172,18 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
     def _get_path_to_sequence_frames(self, sequence_id):
         return self._get_path_to_sequence_files(sequence_id, "videos")
-        # video_file = self.video_list[sequence_id]
-        # suffix = Path(self._video_category(sequence_id)) / 'videos' /self._video_set(sequence_id) / video_file.stem
-        # out_folder = Path(self.output_dir) / suffix
-        # return out_folder
 
     def _get_path_to_sequence_detections(self, sequence_id): 
         return self._get_path_to_sequence_files(sequence_id, "detections")
-        # video_file = self.video_list[sequence_id]
-        # suffix = Path(self._video_category(sequence_id)) / 'detections' /self._video_set(sequence_id) / video_file.stem
-        # out_folder = Path(self.output_dir) / suffix
-        # return out_folder
 
     def _get_path_to_sequence_landmarks(self, sequence_id):
         return self._get_path_to_sequence_files(sequence_id, "landmarks")
-        # video_file = self.video_list[sequence_id]
-        # suffix = Path(self._video_category(sequence_id)) / 'landmarks' /self._video_set(sequence_id) / video_file.stem
-        # out_folder = Path(self.output_dir) / suffix
-        # return out_folder
 
     def _get_path_to_sequence_segmentations(self, sequence_id):
         return self._get_path_to_sequence_files(sequence_id, "segmentations")
-        # video_file = self.video_list[sequence_id]
-        # suffix = Path(self._video_category(sequence_id)) / 'segmentations' /self._video_set(sequence_id) / video_file.stem
-        # out_folder = Path(self.output_dir) / suffix
-        # return out_folder
 
     def _get_path_to_sequence_emotions(self, sequence_id):
         return self._get_path_to_sequence_files(sequence_id, "emotions")
-        # video_file = self.video_list[sequence_id]
-        # suffix = Path(self._video_category(sequence_id)) / 'emotions' /self._video_set(sequence_id) / video_file.stem
-        # out_folder = Path(self.output_dir) / suffix
-        # return out_folder
 
     def _video_category(self, sequence_id):
         video_file = self.video_list[sequence_id]
@@ -263,8 +266,6 @@ class FaceVideoDataModule(FaceDataModuleBase):
         FaceVideoDataModule.save_detections(out_file,
                                             detection_fnames_all, landmark_fnames_all, centers_all, sizes_all, fid)
         print("Done detecting faces in sequence: '%s'" % self.video_list[sequence_id])
-
-
 
 
     def _get_emotion_net(self, device):
@@ -873,9 +874,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
         self.video_metas = []
         for vi, vid_file in enumerate(tqdm(self.video_list)):
             vid = ffmpeg.probe(str( Path(self.root_dir) / vid_file))
-            codec_idx = [idx for idx in range(len(vid)) if vid['streams'][idx]['codec_type'] == 'video']
-            if len(codec_idx) > 1:
-                raise RuntimeError("Video file has two video streams! '%s'" % str(vid_file))
+            # codec_idx = [idx for idx in range(len(vid)) if vid['streams'][idx]['codec_type'] == 'video']
+            codec_idx = [idx for idx in range(len(vid)) if vid['streams'][0]['codec_type'] == 'video']
+            if len(codec_idx) == 0:
+                raise RuntimeError("Video file has no video streams! '%s'" % str(vid_file))
+            # if len(codec_idx) > 1:
+                # raise RuntimeError("Video file has two video streams! '%s'" % str(vid_file))
+            print("[WARNING] Video file has %d video streams. Only the first one will be processed" % len(codec_idx))
             codec_idx = codec_idx[0]
             vid_info = vid['streams'][codec_idx]
             vid_meta = {}

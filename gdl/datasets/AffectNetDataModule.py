@@ -1,3 +1,23 @@
+"""
+Author: Radek Danecek
+Copyright (c) 2022, Radek Danecek
+All rights reserved.
+
+# Max-Planck-Gesellschaft zur Förderung der Wissenschaften e.V. (MPG) is
+# holder of all proprietary rights on this computer program.
+# Using this computer program means that you agree to the terms 
+# in the LICENSE file included with this software distribution. 
+# Any use not explicitly granted by the LICENSE is prohibited.
+#
+# Copyright©2022 Max-Planck-Gesellschaft zur Förderung
+# der Wissenschaften e.V. (MPG). acting on behalf of its Max Planck Institute
+# for Intelligent Systems. All rights reserved.
+#
+# For comments or questions, please email us at emoca@tue.mpg.de
+# For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
+"""
+
+
 import os, sys
 from enum import Enum
 from pathlib import Path
@@ -72,7 +92,9 @@ def new_affectnet(class_name):
 
 
 class AffectNetDataModule(FaceDataModuleBase):
-
+    """
+    AffectNetDataModule implements a wrapper for the AffectNet dataset
+    """
     def __init__(self,
                  input_dir,
                  output_dir,
@@ -153,8 +175,6 @@ class AffectNetDataModule(FaceDataModuleBase):
         self.face_detector_type = 'fan'
         self.scale = scale
         self.use_processed = use_processed
-
-
 
         if self.use_processed:
             self.image_path = Path(self.output_dir) / "detections"
@@ -1496,16 +1516,6 @@ def process_emonet_split():
 
 if __name__ == "__main__":
     # emonet_split_pkl_to_csv()
-    # d = AffectNetOriginal(
-    #     "/home/rdanecek/Workspace/mount/project/EmotionalFacialAnimation/data/affectnet/Manually_Annotated/Manually_Annotated_Images",
-    #     "/home/rdanecek/Workspace/mount/project/EmotionalFacialAnimation/data/affectnet/Manually_Annotated/validation.csv",
-    #     224
-    # )
-    # print(f"Num sample {len(d)}")
-    # for i in range(100):
-    #     sample = d[i]
-    #     d.visualize_sample(sample)
-
     ## FIRST VERSION, CLASSIC FAN-LIKE problems from too tight bb (such as forehead cut in half, etc)
     # dm = AffectNetDataModule(
     #          # "/home/rdanecek/Workspace/mount/project/EmotionalFacialAnimation/data/affectnet/",
@@ -1526,57 +1536,56 @@ if __name__ == "__main__":
     import yaml
     # augmenter = yaml.load(open(Path(__file__).parents[2] / "gdl_apps" / "EmotionRecognition" / "emodeca_conf" / "data" / "augmentations" / "default_with_resize.yaml"))["augmentation"]
     augmenter = None
-    # 316239
-    dm = AffectNetEmoNetSplitModule(
+    # # dm = AffectNetEmoNetSplitModule(
     # dm = AffectNetEmoNetSplitModuleValTest(
-    # dm = AffectNetDataModule(
-             # "/home/rdanecek/Workspace/mount/project/EmotionalFacialAnimation/data/affectnet/",
-             "/ps/project_cifs/EmotionalFacialAnimation/data/affectnet/",
-             # "/home/rdanecek/Workspace/mount/scratch/rdanecek/data/affectnet/",
-             # "/home/rdanecek/Workspace/mount/work/rdanecek/data/affectnet/",
-             "/is/cluster/work/rdanecek/data/affectnet/",
-             # processed_subfolder="processed_2021_Aug_27_19-58-02",
-             processed_subfolder="processed_2021_Apr_05_15-22-18",
-             processed_ext=".png",
-             mode="manual",
-             scale=1.7,
-             image_size=512,
-             bb_center_shift_x=0,
-             bb_center_shift_y=-0.3,
-             ignore_invalid=True,
-             # ignore_invalid="like_emonet",
-             # ring_type="gt_expression",
-             # ring_type="gt_va",
-             # ring_type="emonet_feature",
-             ring_size=4,
-            augmentation=augmenter,
-            # use_clean_labels=True
-            # dataset_type="AffectNetWithMGCNetPredictions",
-            # dataset_type="AffectNetWithExpNetPredictions",
-            )
+    # # dm = AffectNetDataModule(
+    #          # "/home/rdanecek/Workspace/mount/project/EmotionalFacialAnimation/data/affectnet/",
+    #          "/ps/project_cifs/EmotionalFacialAnimation/data/affectnet/",
+    #          # "/home/rdanecek/Workspace/mount/scratch/rdanecek/data/affectnet/",
+    #          # "/home/rdanecek/Workspace/mount/work/rdanecek/data/affectnet/",
+    #          "/is/cluster/work/rdanecek/data/affectnet/",
+    #          # processed_subfolder="processed_2021_Aug_27_19-58-02",
+    #          processed_subfolder="processed_2021_Apr_05_15-22-18",
+    #          processed_ext=".png",
+    #          mode="manual",
+    #          scale=1.7,
+    #          image_size=512,
+    #          bb_center_shift_x=0,
+    #          bb_center_shift_y=-0.3,
+    #          ignore_invalid=True,
+    #          # ignore_invalid="like_emonet",
+    #          # ring_type="gt_expression",
+    #          # ring_type="gt_va",
+    #          # ring_type="emonet_feature",
+    #          ring_size=4,
+    #         augmentation=augmenter,
+    #         # use_clean_labels=True
+    #         # dataset_type="AffectNetWithMGCNetPredictions",
+    #         # dataset_type="AffectNetWithExpNetPredictions",
+    #         )
     #
-    print(dm.num_subsets)
-    dm.prepare_data()
-    dm.setup()
-    # # dm._extract_emotion_features()
-    dltr = dm.train_dataloader()
-    dlv = dm.val_dataloader()
-    dlt = dm.test_dataloader()
+    # print(dm.num_subsets)
+    # dm.prepare_data()
+    # dm.setup()
+    # # # dm._extract_emotion_features()
+    # dltr = dm.train_dataloader()
+    # dlv = dm.val_dataloader()
+    # dlt = dm.test_dataloader()
 
-    # dataset = dm.training_set
-    dataset = dm.test_set
+    # # dataset = dm.training_set
+    # dataset = dm.test_set
 
-    for i in range(len(dataset)):
-        sample = dataset[i]
-        if AffectNetExpressions(sample["affectnetexp"].item()) != AffectNetExpressions.Contempt:
-            # print(AffectNetExpressions(sample["affectnetexp"].item()))
-            continue
-        print(AffectNetExpressions(sample["affectnetexp"].item()))
-        print(sample["va"])
-        # dataset.visualize_sample(sample)
+    # for i in range(len(dataset)):
+    #     sample = dataset[i]
+    #     if AffectNetExpressions(sample["affectnetexp"].item()) != AffectNetExpressions.Contempt:
+    #         # print(AffectNetExpressions(sample["affectnetexp"].item()))
+    #         continue
+    #     print(AffectNetExpressions(sample["affectnetexp"].item()))
+    #     print(sample["va"])
+    #     # dataset.visualize_sample(sample)
 
-        path = Path("/home/rdanecek/Downloads/AffectNet_Contempt")
-        path.mkdir(exist_ok=True, parents=True)
-        imsave(f"/home/rdanecek/Downloads/AffectNet_Contempt/{i:05d}.png", sample["image"].numpy().transpose([1, 2, 0]), )
+    #     path = Path("/home/rdanecek/Downloads/AffectNet_Contempt")
+    #     path.mkdir(exist_ok=True, parents=True)
+    #     imsave(f"/home/rdanecek/Downloads/AffectNet_Contempt/{i:05d}.png", sample["image"].numpy().transpose([1, 2, 0]), )
 
-    print("Done")
+    # print("Done")

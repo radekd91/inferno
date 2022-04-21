@@ -1,3 +1,23 @@
+"""
+Author: Radek Danecek
+Copyright (c) 2022, Radek Danecek
+All rights reserved.
+
+# Max-Planck-Gesellschaft zur Förderung der Wissenschaften e.V. (MPG) is
+# holder of all proprietary rights on this computer program.
+# Using this computer program means that you agree to the terms 
+# in the LICENSE file included with this software distribution. 
+# Any use not explicitly granted by the LICENSE is prohibited.
+#
+# Copyright©2022 Max-Planck-Gesellschaft zur Förderung
+# der Wissenschaften e.V. (MPG). acting on behalf of its Max Planck Institute
+# for Intelligent Systems. All rights reserved.
+#
+# For comments or questions, please email us at emoca@tue.mpg.de
+# For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
+"""
+
+
 import torch
 import pytorch_lightning as pl
 import numpy as np
@@ -11,6 +31,7 @@ from torch.nn.functional import mse_loss, cross_entropy, nll_loss, l1_loss, log_
 import sys
 import adabound
 from gdl.datasets.EmotioNetDataModule import ActionUnitTypes
+
 
 def loss_from_cfg(config, loss_name):
     if loss_name in config.keys():
@@ -30,8 +51,14 @@ def loss_from_cfg(config, loss_name):
 
 
 class EmotionRecognitionBaseModule(pl.LightningModule):
+    """
+    EmotionRecognitionBaseModule is a base class for emotion prediction (valence and arousal, expression classification and/or action units)
+    """
 
     def __init__(self, config):
+        """
+
+        """
         super().__init__()
         self.config = config
 
