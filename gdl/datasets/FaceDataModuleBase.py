@@ -1,4 +1,23 @@
-from email import generator
+"""
+Author: Radek Danecek
+Copyright (c) 2022, Radek Danecek
+All rights reserved.
+
+# Max-Planck-Gesellschaft zur Förderung der Wissenschaften e.V. (MPG) is
+# holder of all proprietary rights on this computer program.
+# Using this computer program means that you agree to the terms 
+# in the LICENSE file included with this software distribution. 
+# Any use not explicitly granted by the LICENSE is prohibited.
+#
+# Copyright©2022 Max-Planck-Gesellschaft zur Förderung
+# der Wissenschaften e.V. (MPG). acting on behalf of its Max Planck Institute
+# for Intelligent Systems. All rights reserved.
+#
+# For comments or questions, please email us at emoca@tue.mpg.de
+# For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
+"""
+
+
 import os
 import sys
 from pathlib import Path
@@ -30,6 +49,11 @@ import types
 
 
 class FaceDataModuleBase(pl.LightningDataModule):
+    """
+    A base data module for face datasets. This DM can be inherited by any face datasets, which just adapt things 
+    to the dataset's specificities (such as different GT or data storage structure). 
+    This class can take care of face detection, recognition, segmentation and landmark detection.
+    """
 
     def __init__(self, root_dir, output_dir, processed_subfolder, device=None,
                  face_detector='fan',

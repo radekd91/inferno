@@ -1,3 +1,23 @@
+"""
+Author: Radek Danecek
+Copyright (c) 2022, Radek Danecek
+All rights reserved.
+
+# Max-Planck-Gesellschaft zur Förderung der Wissenschaften e.V. (MPG) is
+# holder of all proprietary rights on this computer program.
+# Using this computer program means that you agree to the terms 
+# in the LICENSE file included with this software distribution. 
+# Any use not explicitly granted by the LICENSE is prohibited.
+#
+# Copyright©2022 Max-Planck-Gesellschaft zur Förderung
+# der Wissenschaften e.V. (MPG). acting on behalf of its Max Planck Institute
+# for Intelligent Systems. All rights reserved.
+#
+# For comments or questions, please email us at emoca@tue.mpg.de
+# For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
+"""
+
+
 from gdl_apps.EMOCA.utils.load import load_model
 from gdl.datasets.ImageTestDataset import TestData
 import gdl
@@ -14,11 +34,10 @@ from gdl_apps.EMOCA.utils.io import save_obj, save_images, save_codes, test
 def main():
     parser = argparse.ArgumentParser()
     # add the input folder arg 
-    # parser.add_argument('--input_folder', type=str, default="/ps/data/SignLanguage/SignLanguage_210805_03586_GH/IOI/2021-08-05_ASL_PNG_MH/SignLanguage_210805_03586_GH_LiebBitte_2/Cam_0_35mm_90CW")
-    parser.add_argument('--input_folder', type=str, default="/ps/scratch/rdanecek/EMOCA/ContemptImages/original")
-    parser.add_argument('--output_folder', type=str, default="/ps/scratch/rdanecek/EMOCA/OutContempt", help="Output folder to save the results to.")
+    parser.add_argument('--input_folder', type=str, default= str(Path(gdl.__file__).parents[1] / "data/EMOCA_test_example_data/images/affectnet_test_examples"))
+    parser.add_argument('--output_folder', type=str, default="image_output", help="Output folder to save the results to.")
     parser.add_argument('--model_name', type=str, default='EMOCA', help='Name of the model to use.')
-    parser.add_argument('--path_to_models', type=str, default=Path(gdl.__file__).parents[1] / "assets/EMOCA/models")
+    parser.add_argument('--path_to_models', type=str, default=str(Path(gdl.__file__).parents[1] / "assets/EMOCA/models"))
     parser.add_argument('--save_images', type=bool, default=True, help="If true, output images will be saved")
     parser.add_argument('--save_codes', type=bool, default=False, help="If true, output FLAME values for shape, expression, jaw pose will be saved")
     parser.add_argument('--save_mesh', type=bool, default=False, help="If true, output meshes will be saved")
