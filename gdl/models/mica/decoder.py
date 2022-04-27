@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as Functional
 
-from flame.FLAME import FLAME
+from DecaFLAME import FLAME
 
 
 def kaiming_leaky_init(m):

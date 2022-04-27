@@ -1,12 +1,12 @@
 import os
 import shutil
 
-import git
+# import git
 import torch
 
-if not os.path.exists('insightfacegit'):
-    git.Git('').clone('https://github.com/deepinsight/insightface.git')
-    shutil.move('insightface', 'insightfacegit')
+#if not os.path.exists('insightfacegit'):
+#    git.Git('').clone('https://github.com/deepinsight/insightface.git')
+#    shutil.move('insightface', 'insightfacegit')
 
 from insightfacegit.recognition.arcface_torch.backbones.iresnet import IResNet, IBasicBlock
 
