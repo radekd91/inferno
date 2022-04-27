@@ -55,6 +55,7 @@ class FLAME(nn.Module):
             ss = pickle.load(f, encoding='latin1')
             flame_model = Struct(**ss)
 
+        self.cfg = config
         self.dtype = torch.float32
         self.register_buffer('faces_tensor', to_tensor(to_np(flame_model.f, dtype=np.int64), dtype=torch.long))
         # The vertices of the template model
