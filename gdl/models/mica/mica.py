@@ -4,6 +4,8 @@ import cv2
 import torch
 import torch.nn.functional as F
 from config import get_cfg_defaults
+# Needed dependency
+# pip install -U insightface
 from insightface.utils import face_align
 from loguru import logger
 from torch import nn
