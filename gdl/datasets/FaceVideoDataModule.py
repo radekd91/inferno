@@ -141,7 +141,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         video_file = Path(self.root_dir) / self.video_list[video_idx]
         # suffix = self._get_unpacked_video_subfolder(video_idx)
         # out_folder = Path(self.output_dir) / suffix
-        out_folder = self._get_path_to_sequence_audio(video_idx)
+        out_folder = self._get_path_to_sequence_frames(video_idx)
 
         if not out_folder.exists() or overwrite:
             print("Unpacking video to '%s'" % str(out_folder))
@@ -1019,7 +1019,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         for vi, vid_file in enumerate(tqdm(self.video_list)):
             vid = ffmpeg.probe(str( Path(self.root_dir) / vid_file))
             # codec_idx = [idx for idx in range(len(vid)) if vid['streams'][idx]['codec_type'] == 'video']
-            codec_idx = [idx for idx in range(len(vid)) if vid['streams'][0]['codec_type'] == 'video']
+            codec_idx = [idx for idx in range(len(vid['streams'])) if vid['streams'][idx]['codec_type'] == 'video']
             if len(codec_idx) == 0:
                 raise RuntimeError("Video file has no video streams! '%s'" % str(vid_file))
             # if len(codec_idx) > 1:
@@ -1036,19 +1036,22 @@ class FaceVideoDataModule(FaceDataModuleBase):
             self.video_metas += [vid_meta]
 
             # audio codec
-            codec_idx = [idx for idx in range(len(vid)) if vid['streams'][idx]['codec_type'] == 'audio']
+            codec_idx = [idx for idx in range(len(vid['streams'])) if vid['streams'][idx]['codec_type'] == 'audio']
             if len(codec_idx) > 1:
                 raise RuntimeError("Video file has two audio streams! '%s'" % str(vid_file))
-            codec_idx = codec_idx[0]
-            aud_info = vid['streams'][codec_idx]
-            assert aud_info['codec_type'] == 'audio'
-            aud_meta = {}
-            aud_meta['sample_rate'] = aud_info['sample_rate']
-            aud_meta['sample_fmt'] = aud_info['sample_fmt']
-            # aud_meta['num_samples'] = int(aud_info['nb_samples'])
-            aud_meta["num_frames"] = int(aud_info['nb_frames'])
-            assert float(aud_info['start_time']) == 0
-            self.audio_metas += [aud_meta]
+            if len(codec_idx) == 0:
+                self.audio_metas += [None]
+            else:
+                codec_idx = codec_idx[0]
+                aud_info = vid['streams'][codec_idx]
+                assert aud_info['codec_type'] == 'audio'
+                aud_meta = {}
+                aud_meta['sample_rate'] = aud_info['sample_rate']
+                aud_meta['sample_fmt'] = aud_info['sample_fmt']
+                # aud_meta['num_samples'] = int(aud_info['nb_samples'])
+                aud_meta["num_frames"] = int(aud_info['nb_frames'])
+                assert float(aud_info['start_time']) == 0
+                self.audio_metas += [aud_meta]
 
     def _loadMeta(self):
         if self.loaded:
@@ -1174,7 +1177,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
     def _get_annotations_for_sequence(self, sid):
         video_file = self.video_list[sid]
-        suffix = Path(self._video_category(sid)) / 'annotations' /self._video_set(sequence_id)
+        suffix = Path(self._video_category(sid)) / 'annotations' /self._video_set(sid)
         annotation_prefix = Path(self.root_dir / suffix)
         annotation = sorted(annotation_prefix.glob(video_file.stem + "*.txt"))
         return annotation
@@ -1191,10 +1194,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
         return indices, labels, mean, cov, fnames
 
     def create_reconstruction_video(self, sequence_id, overwrite=False, distance_threshold=0.5,
-                                    rec_method='emoca', image_type=None, retarget_suffix=None, cat_dim=0, include_transparent=True):
+                                    rec_method='emoca', image_type=None, retarget_suffix=None, cat_dim=0, include_transparent=True, 
+                                    include_original=True, include_rec=True, black_background=False, use_mask=True):
+        print("Include original: " + str(include_original)) 
+        print("========================")
         from PIL import Image, ImageDraw
         # fid = 0
-        image_type = image_type or "detail"
+        image_type = image_type or "geometry_detail"
         detection_fnames, centers, sizes, last_frame_id = self._get_detection_for_sequence(sequence_id)
         vis_fnames = self._get_reconstructions_for_sequence(sequence_id, rec_method=rec_method, 
             retarget_suffix=retarget_suffix, image_type=image_type)
@@ -1235,7 +1241,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
 
             frame_pill_bb = Image.fromarray(frame)
-            if retarget_suffix is None:
+            if retarget_suffix is not None or black_background is False:
                 frame_deca_full = Image.fromarray(frame)
                 frame_deca_trans = Image.fromarray(frame)
             else:
@@ -1271,16 +1277,22 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 im_c = vis_im.shape[1]
                 num_ims = im_c // im_r
 
-                if image_type == "coarse":
-                    vis_im = vis_im[:, im_r*3:im_r*4, ...] # coarse
-                elif image_type == "detail":
-                    vis_im = vis_im[:, im_r*4:im_r*5, ...] # detail
+                # if image_type == "coarse":
+                #     vis_im = vis_im[:, im_r*3:im_r*4, ...] # coarse
+                # elif image_type == "detail":
+                #     vis_im = vis_im[:, im_r*4:im_r*5, ...] # detail
 
                     
                 # vis_im = vis_im[:, :, ...]
 
                 # vis_mask = np.prod(vis_im, axis=2) == 0
-                vis_mask = (np.prod(vis_im, axis=2) > 30).astype(np.uint8) * 255
+                mask_name = vis_name.parent / "geometry_coarse.png"
+                mask_im = imread(mask_name)
+
+                # a hacky way to get the mask
+                vis_mask = (np.prod(mask_im, axis=2) > 30).astype(np.uint8) * 255
+                if not use_mask: 
+                    vis_mask = np.ones_like(vis_mask) * 255
 
                 # vis_im = np.concatenate([vis_im, vis_mask[..., np.newaxis]], axis=2)
 
@@ -1322,10 +1334,22 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 else:
                     cat_dim = 0
             
-            if include_transparent:
-                im = np.concatenate([final_im, final_im2, final_im3], axis=cat_dim)
-            else: 
-                im = np.concatenate([final_im, final_im2,], axis=cat_dim)
+            im_list = [] 
+            if include_original: 
+                im_list += [final_im]
+            
+            if include_rec: 
+                im_list += [final_im2] 
+
+            if include_transparent: 
+                im_list += [final_im3]
+
+            im = np.concatenate(im_list, axis=cat_dim)
+
+            # if include_transparent:
+            #     im = np.concatenate([final_im, final_im2, final_im3], axis=cat_dim)
+            # else: 
+            #     im = np.concatenate([final_im, final_im2,], axis=cat_dim)
 
             if writer is None:
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -2673,6 +2697,7 @@ class TestFaceVideoDM(FaceVideoDataModule):
             suffix=retarget_suffix)
         if image_type is None:
             image_type = "geometry_detail"
+        assert image_type in ["geometry_detail", "geometry_coarse", "out_im_detail", "out_im_coarse"], f"Invalid image type: '{image_type}'"
         vis_fnames = sorted(list(out_folder.glob(f"**/{image_type}.png")))
         return vis_fnames
 
@@ -2683,7 +2708,7 @@ class TestFaceVideoDM(FaceVideoDataModule):
 
     def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix=""): 
         assert file_type in ['videos', 'detections', "landmarks", "segmentations", 
-            "emotions", "reconstructions", "results"]
+            "emotions", "reconstructions", "results", "audio"], f"'{file_type}' is not a valid file type"
         video_file = self.video_list[sequence_id]
         if len(method) > 0:
             file_type += "/" + method 
