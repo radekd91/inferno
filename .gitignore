@@ -27,3 +27,8 @@ assets/
 *.tar.gz
 *.tar.bz2
 *.pkl
+*.obj 
+*.mtl 
+*.stl
+*.ply 
+
