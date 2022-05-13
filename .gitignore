@@ -26,3 +26,4 @@ assets/
 *.tgz
 *.tar.gz
 *.tar.bz2
+*.pkl
