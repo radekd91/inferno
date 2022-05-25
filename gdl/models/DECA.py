@@ -2335,7 +2335,7 @@ class DecaModule(LightningModule):
                 lr=self.learning_params.learning_rate,
                 amsgrad=False)
         elif self.config.learning.optimizer == 'AdaBound':
-            opt = adabound.AdaBound(
+            self.deca.opt = adabound.AdaBound(
                 trainable_params,
                 lr=self.config.learning.learning_rate,
                 final_lr=self.config.learning.final_learning_rate

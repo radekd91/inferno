@@ -27,3 +27,6 @@
 [submodule "external/GPEN"]
 	path = external/GPEN
 	url = https://github.com/yangxy/GPEN
+[submodule "external/av_hubert"]
+	path = external/av_hubert
+	url = https://github.com/facebookresearch/av_hubert
