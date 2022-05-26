@@ -1109,12 +1109,10 @@ class AffectNet(EmotionalImageDatasetBase):
         if num_skips > 0:
             print(f"Warning: skipped {num_skips} samples do to failed loading. In total {self.num_skips} samples skipped")
 
-
         expression = self.df.loc[index]["expression"]
         valence = self.df.loc[index]["valence"]
         arousal = self.df.loc[index]["arousal"]
         facial_landmarks = self.df.loc[index]["facial_landmarks"]
-
 
         input_img_shape = input_img.shape
 

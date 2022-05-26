@@ -1,13 +1,19 @@
+from cv2 import imread
+import torchaudio
 from gdl.datasets.FaceVideoDataModule import FaceVideoDataModule 
 from pathlib import Path
 import torch
 import torch.nn.functional as F
 import os, sys
+from gdl.utils.FaceDetector import load_landmark
 from gdl.utils.other import get_path_to_externals
+from gdl.utils.MediaPipeFaceOccluder import MediaPipeFaceOccluder, sizes_to_bb, sizes_to_bb_batch
 import numpy as np
-
-
+from skvideo.io import vread
+from scipy.io import wavfile
 import time
+from python_speech_features import logfbank
+from gdl.datasets.IO import load_segmentation, process_segmentation
 
 
 class LRS3DataModule(FaceVideoDataModule):
@@ -16,11 +22,34 @@ class LRS3DataModule(FaceVideoDataModule):
                 processed_subfolder=None, face_detector='mediapipe', 
                 landmarks_from='sr_res',
                 # landmarks_from=None,
-                face_detector_threshold=0.9, image_size=224, scale=1.25, device=None):
+                face_detector_threshold=0.9, 
+                image_size=224, scale=1.25, 
+                batch_size_train=16,
+                batch_size_val=16,
+                batch_size_test=16,
+                sequence_length_train=16,
+                sequence_length_val=16,
+                sequence_length_test=16,
+                occlusion_length_train=0,
+                split = "original",
+                num_workers=4,
+                device=None):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, device, 
             unpack_videos=False, save_detection_images=False, save_landmarks=True)
         self.detect_landmarks_on_restored_images = landmarks_from
+        self.batch_size_train = batch_size_train
+        self.batch_size_val = batch_size_val
+        self.batch_size_test = batch_size_test
+        self.sequence_length_train = sequence_length_train
+        self.sequence_length_val = sequence_length_val
+        self.sequence_length_test = sequence_length_test
+
+        self.split = split
+        self.num_workers = num_workers
+        self.drop_last = True
+
+        self.occlusion_length_train = occlusion_length_train
 
     def prepare_data(self):
         # super().prepare_data()
@@ -311,6 +340,397 @@ class LRS3DataModule(FaceVideoDataModule):
                                        save_video=False, rec_method=rec_method, retarget_from=None, retarget_suffix=None)
             
         print("Done processing shard")
+
+    def _get_subsets(self, set_type=None):
+        set_type = set_type or "original"
+
+        if set_type == "original":
+            pretrain = []
+            trainval = []
+            test = []
+            for i in range(len(self.video_list)): 
+                vid_set = self._video_set(i) 
+                if vid_set == "pretrain": 
+                    pretrain.append(i)
+                elif vid_set == "trainval":
+                    trainval.append(i)
+                elif vid_set == "test":
+                    test.append(i)
+                else:
+                    raise ValueError(f"Unknown video set: {vid_set}")
+            return pretrain, trainval, test
+
+        else: 
+            raise ValueError(f"Unknown set type: {set_type}")
+
+
+
+    def setup(self, stage=None):
+        train, val, test = self._get_subsets(self.split)
+        self.training_set = LRS3Dataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, train, 
+            self.audio_metas, self.sequence_length_train, occlusion_length=self.occlusion_length_train)
+        self.validation_set = LRS3Dataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, val, self.audio_metas, self.sequence_length_val)
+        self.test_set = LRS3Dataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, self.sequence_length_test)
+
+        # if self.mode in ['all', 'manual']:
+        #     # self.image_list += sorted(list((Path(self.path) / "Manually_Annotated").rglob(".jpg")))
+        #     self.dataframe = pd.load_csv(self.path / "Manually_Annotated" / "Manually_Annotated.csv")
+        # if self.mode in ['all', 'automatic']:
+        #     # self.image_list += sorted(list((Path(self.path) / "Automatically_Annotated").rglob("*.jpg")))
+        #     self.dataframe = pd.load_csv(
+        #         self.path / "Automatically_Annotated" / "Automatically_annotated_file_list.csv")
+
+    def train_sampler(self):
+        return None
+        # if self.sampler == "uniform":
+        #     sampler = None
+        # elif self.sampler == "balanced_expr":
+        #     sampler = make_class_balanced_sampler(self.training_set.df["expression"].to_numpy())
+        # elif self.sampler == "balanced_va":
+        #     sampler = make_balanced_sample_by_weights(self.training_set.va_sample_weights)
+        # elif self.sampler == "balanced_v":
+        #     sampler = make_balanced_sample_by_weights(self.training_set.v_sample_weights)
+        # elif self.sampler == "balanced_a":
+        #     sampler = make_balanced_sample_by_weights(self.training_set.a_sample_weights)
+        # else:
+        #     raise ValueError(f"Invalid sampler value: '{self.sampler}'")
+        # return sampler
+
+    def train_dataloader(self):
+        sampler = self.train_sampler()
+        dl =  torch.utils.data.DataLoader(self.training_set, shuffle=sampler is None, num_workers=self.num_workers, pin_memory=True,
+                        batch_size=self.batch_size_train, drop_last=self.drop_last, sampler=sampler)
+        return dl
+
+    def val_dataloader(self):
+        return torch.utils.data.DataLoader(self.validation_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                          batch_size=self.batch_size_val, drop_last=self.drop_last)
+
+    def test_dataloader(self):
+        return torch.utils.data.DataLoader(self.test_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                          batch_size=self.batch_size_test, drop_last=self.drop_last)
+
+
+class TemporalDatasetBase(torch.utils.data.Dataset):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def _augment_sequence_sample(self, sample):
+        raise NotImplementedError()
+
+    def visualize_sample(self, sample):
+        raise NotImplementedError()
+
+
+class LRS3Dataset(TemporalDatasetBase):
+
+    def __init__(self,
+            root_path,
+            output_dir,
+            video_list, 
+            video_metas,
+            video_indices,
+            # audio_paths, 
+            audio_metas,
+            sequence_length,
+            audio_noise_prob=0.0,
+            stack_order_audio=4,
+            audio_normalization="layer_norm",
+            landmark_types="mediapipe", 
+            segmentation_type = "bisenet",
+            landmark_source = "original",
+            segmentation_source = "original",
+            occlusion_length=0,
+        ) -> None:
+        super().__init__()
+        self.root_path = root_path
+        self.output_dir = output_dir
+        self.video_list = video_list
+        self.video_indices = video_indices
+        self.video_metas = video_metas
+        self.sequence_length = sequence_length
+        # self.audio_paths = audio_paths
+        self.audio_metas = audio_metas
+        self.audio_noise_prob = audio_noise_prob
+
+        # if the video is 25 fps and the audio is 16 kHz, stack_order_audio corresponds to 4 
+        # (i.e. 4 consecutive filterbanks will be concatenated to sync with the visual frame) 
+        self.stack_order_audio = stack_order_audio
+
+        self.audio_normalization = audio_normalization
+
+        self.landmark_types = landmark_types 
+        if isinstance(self.landmark_types, str): 
+            self.landmark_types = [self.landmark_types]
+        self.segmentation_type = segmentation_type 
+        self.landmark_source = landmark_source 
+        self.segmentation_source = segmentation_source
+
+        self.occluder = MediaPipeFaceOccluder()
+        self.occlusion_probability_mouth = 1.0
+        self.occlusion_probability_left_eye = 1.0
+        self.occlusion_probability_right_eye = 1.0
+        self.occlusion_probability_face = 0.
+        self.occlusion_length = occlusion_length
+        if isinstance(self.occlusion_length, int):
+            self.occlusion_length = [self.occlusion_length, self.occlusion_length+1]
+        # self.occlusion_length = [20, 30]
+        self.occlusion_length = sorted(self.occlusion_length)
+
+        assert self.occlusion_length[0] >= 0
+        assert self.occlusion_length[1] <= self.sequence_length + 1
+
+
+    def __getitem__(self, index):
+        sample = {}
+
+        # 1) VIDEO
+        # load the video 
+        video_path = self.root_path / self.video_list[self.video_indices[index]]
+        video_meta = self.video_metas[self.video_indices[index]]
+
+        # num video frames 
+        num_frames = video_meta["num_frames"]
+
+        assert num_frames >= self.sequence_length, f"Video {video_path} has only {num_frames} frames, but sequence length is {self.sequence_length}"
+
+        # pick the starting video frame 
+        start_frame = np.random.randint(0, num_frames - self.sequence_length)
+
+        # load the frames
+        # frames = []
+        # for i in range(start_frame, start_frame + self.sequence_length):
+        #     frame_path = video_path / f"frame_{i:04d}.jpg"
+        #     frame = imread(str(frame_path))
+        #     frames.append(frame)
+
+        frames = vread(video_path.as_posix())
+        assert len(frames) == num_frames, f"Video {video_path} has {len(frames)} frames, but meta says it has {num_frames}"
+        frames = frames[start_frame:(start_frame + self.sequence_length)] 
+
+        # 2) AUDIO
+        # load the audio 
+        audio_path = (Path(self.output_dir) / "audio" / self.video_list[self.video_indices[index]]).with_suffix(".wav")
+        audio_meta = self.audio_metas[self.video_indices[index]]
+        samplerate, wavdata = wavfile.read(audio_path.as_posix())
+        assert samplerate == 16000 and len(wavdata.shape) == 1
+
+        # audio augmentation
+        if np.random.rand() < self.audio_noise_prob:
+            wavdata = self.add_noise(wavdata)
+
+        # 
+        audio_feats = logfbank(wavdata, samplerate=samplerate).astype(np.float32) # [T (num audio frames), F (num filters)]
+        # the audio feats frequency (and therefore num frames) is too high, so we stack them together to match num visual frames 
+        audio_feats = stacker(audio_feats, self.stack_order_audio)
+
+        audio_feats = audio_feats[start_frame:(start_frame + self.sequence_length)] 
+
+        # stack the frames and audio feats together
+        sample = { 
+            "video": frames,
+            "audio": audio_feats,
+        }
+
+        # 3) LANDMARKS 
+        landmark_dict = {}
+        for landmark_type in self.landmark_types:
+            landmarks_dir = (Path(self.output_dir) / f"landmarks_{self.landmark_source}" / landmark_type /  self.video_list[self.video_indices[index]]).with_suffix("")
+            landmarks = []
+            for i in range(start_frame, self.sequence_length + start_frame):
+                landmark_path = landmarks_dir / f"{i:05d}_000.pkl"
+                landmark_type, landmark = load_landmark(landmark_path)
+                landmarks += [landmark]
+            landmarks = np.stack(landmarks, axis=0)
+            landmark_dict[landmark_type] = landmarks
+        sample["landmarks"] = landmark_dict
+
+        # 4) SEGMENTATIONS
+        segmentations_dir = (Path(self.output_dir) / f"segmentations_{self.segmentation_source}" / self.segmentation_type /  self.video_list[self.video_indices[index]]).with_suffix("")
+        segmentations = []
+        for i in range(start_frame, self.sequence_length + start_frame):
+            segmentation_path = segmentations_dir / f"{i:05d}.pkl"
+            seg_image, seg_type = load_segmentation(segmentation_path)
+            # seg_image = seg_image[:, :, np.newaxis]
+            seg_image = process_segmentation(seg_image[0], seg_type).astype(np.uint8)
+            segmentations += [seg_image]
+        segmentations = np.stack(segmentations, axis=0)
+        sample["segmentation"] = segmentations
+
+        # AUGMENTATION
+        sample = self._augment_sequence_sample(sample)
+
+        # TO TORCH
+        sample = to_torch(sample)
+
+        # AUDIO NORMALIZATION (if any)
+        if self.audio_normalization is not None:
+            if self.audio_normalization == "layer_norm":
+                sample["audio"] = F.layer_norm(sample["audio"], audio_feats.shape[1:])
+            else: 
+                raise ValueError(f"Unsupported audio normalization {self.audio_normalization}")
+
+        return sample
+
+    def _augment_sequence_sample(self, sample):
+        # get the mediapipe landmarks 
+        mediapipe_landmarks = sample["landmarks"]["mediapipe"]
+        images = sample["video"]
+        segmentation = sample["segmentation"]
+
+        images_masked = np.copy(images)
+        segmentation_masked = np.copy(segmentation)
+
+        # compute mouth region bounding box
+        if np.random.rand() < self.occlusion_probability_mouth: 
+            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, mediapipe_landmarks, "mouth")
+
+        # compute eye region bounding box
+        if np.random.rand() < self.occlusion_probability_left_eye:
+            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, mediapipe_landmarks, "left_eye")
+
+        if np.random.rand() < self.occlusion_probability_right_eye:
+            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, mediapipe_landmarks, "right_eye")
+
+        # compute face region bounding box
+        if np.random.rand() < self.occlusion_probability_face:
+            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, mediapipe_landmarks, "all")
+
+        sample["video_masked"] = images_masked
+        sample["segmentation_masked"] = segmentation_masked
+
+        return sample
+
+    def _occlude_sequence(self, images, segmentation, mediapipe_landmarks, region):
+        bounding_boxes, sizes = self.occluder.bounding_box_batch(mediapipe_landmarks, region)
+        
+        bb_style = "max" # largest bb of the sequence 
+        # bb_style = "min" # smallest bb of the sequence 
+        # bb_style = "mean" # mean bb of the sequence 
+        # bb_style = "original" # original bb of the sequence (different for each frame) 
+
+        if bb_style == "max":
+            width = sizes[:,2].max()
+            height = sizes[:,3].max()
+            sizes[:, 2] = width
+            sizes[:, 3] = height
+            bounding_boxes = sizes_to_bb_batch(sizes)
+        elif bb_style == "mean":
+            width = sizes[:,2].mean()
+            height = sizes[:,3].mean()
+            sizes[:, 2] = width
+            sizes[:, 3] = height
+            bounding_boxes = sizes_to_bb_batch(sizes)
+        elif bb_style == "mean":
+            width = sizes[:,2].mean()
+            height = sizes[:,3].mean()
+            sizes[:, 2] = width
+            sizes[:, 3] = height
+            bounding_boxes = sizes_to_bb_batch(sizes)
+        elif bb_style == "original":
+            pass 
+        else:
+            raise ValueError(f"Unsupported bounding box strategy {bb_style}")
+
+        bounding_boxes = bounding_boxes.clip(min=0, max=images.shape[1] - 1)
+
+        occlusion_length = np.random.randint(self.occlusion_length[0], self.occlusion_length[1])
+
+        start_frame = np.random.randint(0, self.sequence_length - occlusion_length + 1)
+        end_frame = start_frame + occlusion_length
+
+        images = self.occluder.occlude_batch(images, region, landmarks=None, 
+            bounding_box_batch=bounding_boxes, start_frame=start_frame, end_frame=end_frame)
+        segmentation = self.occluder.occlude_batch(segmentation, region, landmarks=None, 
+            bounding_box_batch=bounding_boxes, start_frame=start_frame, end_frame=end_frame)
+        return images, segmentation
+
+    def add_noise(self, wavdata):
+        raise NotImplementedError(  )
+        noise = np.random.randn(len(wavdata))
+        return wavdata + noise
+
+    def __len__(self): 
+        return len(self.video_indices)
+
+    def visualize_sample(self, sample_or_index):
+        if isinstance(sample_or_index, int):
+            index = sample_or_index
+            sample = self[index]
+        else:
+            sample = sample_or_index
+
+        # visualize the video
+        video_frames = sample["video"]
+        segmentation = sample["segmentation"]
+        video_frames_masked = sample["video_masked"]
+        segmentation_masked = sample["segmentation_masked"]
+
+        # plot the video frames with plotly
+        # horizontally concatenate the frames
+        frames = np.concatenate(video_frames.numpy(), axis=1)
+        frames_masked = np.concatenate(video_frames_masked.numpy(), axis=1)
+        segmentation = np.concatenate(segmentation.numpy(), axis=1)
+        segmentation_masked = np.concatenate(segmentation_masked.numpy(), axis=1)
+
+        all_images = [frames, np.tile( segmentation[..., np.newaxis]*255, (1,1,3)), 
+            frames_masked, np.tile(segmentation_masked[..., np.newaxis]*255, (1,1,3))]
+        all_images = np.concatenate(all_images, axis=0)
+        # plot the frames
+
+        import plotly.express as px
+        import plotly.graph_objects as go
+        import pandas as pd
+        fig = go.Figure(data=[go.Image(z=all_images)])
+        # show the figure 
+        fig.show()
+
+        # fig = go.Figure(data=[go.Image(z=frames)])
+        # # show the figure 
+        # fig.show()
+        # fig = go.Figure(data=[go.Image(z=frames_masked)])
+        # # show the figure 
+        # fig.show()
+
+        # fig = go.Figure(data=[go.Image(z=segmentation)])
+        # # show the figure 
+        # fig.show()
+
+        # fig = go.Figure(data=[go.Image(z=segmentation_masked)])
+        # # show the figure 
+        # fig.show()
+        # print("ha")
+
+
+def to_torch(what):
+    if isinstance(what, np.ndarray):
+        return torch.from_numpy(what)
+    elif isinstance(what, list):
+        return [to_torch(x) for x in what]
+    elif isinstance(what, dict):
+        return {k: to_torch(v) for k, v in what.items()}
+    else:
+        return what
+
+
+def stacker(feats, stack_order):
+    """
+    Concatenating consecutive audio frames
+    Args:
+    feats - numpy.ndarray of shape [T, F]
+    stack_order - int (number of neighboring frames to concatenate
+    Returns:
+    feats - numpy.ndarray of shape [T', F']
+    """
+    feat_dim = feats.shape[1]
+    if len(feats) % stack_order != 0:
+        # pad the end with zeros
+        res = stack_order - len(feats) % stack_order
+        res = np.zeros([res, feat_dim]).astype(feats.dtype)
+        feats = np.concatenate([feats, res], axis=0)
+    feats = feats.reshape((-1, stack_order, feat_dim)).reshape(-1, stack_order*feat_dim)
+    return feats
 
 
 def main(): 
