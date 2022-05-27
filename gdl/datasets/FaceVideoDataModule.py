@@ -37,7 +37,7 @@ from gdl.datasets.ImageDatasetHelpers import point2bbox, bbpoint_warp
 from gdl.datasets.UnsupervisedImageDataset import UnsupervisedImageDataset
 from facenet_pytorch import InceptionResnetV1
 from collections import OrderedDict
-from gdl.datasets.IO import save_emotion
+from gdl.datasets.IO import save_emotion, save_segmentation_list
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 from skimage.io import imread
@@ -67,7 +67,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
                  device=None, 
                  unpack_videos=True, 
                  save_detection_images=True, 
-                 save_landmarks=True):
+                 save_landmarks=True, 
+                 save_landmarks_one_file=False, 
+                 save_segmentation_frame_by_frame=True, 
+                 save_segmentation_one_file=False):
         super().__init__(root_dir, output_dir,
                          processed_subfolder=processed_subfolder,
                          face_detector=face_detector,
@@ -76,7 +79,11 @@ class FaceVideoDataModule(FaceDataModuleBase):
                          scale = scale,
                          device=device, 
                          save_detection_images=save_detection_images, 
-                         save_landmarks=save_landmarks)
+                         save_landmarks_frame_by_frame=save_landmarks, 
+                         save_landmarks_one_file=save_landmarks_one_file,
+                         save_segmentation_frame_by_frame=save_segmentation_frame_by_frame, # default
+                         save_segmentation_one_file=save_segmentation_one_file # only use for large scale video datasets (that would produce too many files otherwise)
+                         )
         self.unpack_videos = unpack_videos
         self.detect_landmarks_on_restored_images = None
 
@@ -355,15 +362,34 @@ class FaceVideoDataModule(FaceDataModuleBase):
             else: 
                 videogen =  vread(str(video_name))
 
+            if self.save_landmarks_one_file: 
+                out_landmarks_all = []
+                out_landmarks_original_all = []
+                out_bbox_type_all = None
+            else: 
+                out_landmarks_all = None
+                out_landmarks_original_all = None
+                out_bbox_type_all = None
+
             for fid in tqdm(range(start_fid, num_frames)):
                 self._detect_faces_in_image_wrapper(videogen, fid, out_detection_folder, out_landmark_folder, out_file,
                                             centers_all, sizes_all, detection_fnames_all, landmark_fnames_all,
-                                            )
+                                            out_landmarks_all, out_landmarks_original_all, out_bbox_type_all)
+                                            
+        if self.save_landmarks_one_file: 
+            # saves all landmarks per video  
+            out_file = out_detection_folder / "landmarks.pkl"
+            FaceVideoDataModule.save_landmark_list(out_file, out_landmarks_all)
+            out_file = out_detection_folder / "landmarks_original.pkl"
+            FaceVideoDataModule.save_landmark_list(out_file, out_landmarks_original_all)
+            out_file = out_detection_folder / "landmark_types.pkl"
+            FaceVideoDataModule.save_landmark_list(out_file, out_bbox_type_all)
 
 
         FaceVideoDataModule.save_detections(out_file,
                                             detection_fnames_all, landmark_fnames_all, centers_all, sizes_all, fid)
         print("Done detecting faces in sequence: '%s'" % self.video_list[sequence_id])
+        return 
 
 
     def _get_emotion_net(self, device):
@@ -389,14 +415,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
         out_segmentation_folder = self._get_path_to_sequence_segmentations(sequence_id)
         out_segmentation_folder.mkdir(exist_ok=True, parents=True)
 
-        if self.save_landmarks: 
-            out_landmark_folder = self._get_path_to_sequence_landmarks(sequence_id)
-            landmarks = sorted(list(out_landmark_folder.glob("*.pkl")))
-        else: 
-            landmarks = None
+        # if self.save_landmarks_frame_by_frame: 
+        #     out_landmark_folder = self._get_path_to_sequence_landmarks(sequence_id)
+        #     landmarks = sorted(list(out_landmark_folder.glob("*.pkl")))
+        # else: 
+        #     landmarks = None
 
-        self._segment_images(detections, out_segmentation_folder)
-
+        self._segment_images(detections, out_segmentation_folder) 
 
     def _extract_emotion_from_faces_in_sequence(self, sequence_id):
 
@@ -1022,9 +1047,9 @@ class FaceVideoDataModule(FaceDataModuleBase):
             codec_idx = [idx for idx in range(len(vid['streams'])) if vid['streams'][idx]['codec_type'] == 'video']
             if len(codec_idx) == 0:
                 raise RuntimeError("Video file has no video streams! '%s'" % str(vid_file))
-            # if len(codec_idx) > 1:
+            if len(codec_idx) > 1:
                 # raise RuntimeError("Video file has two video streams! '%s'" % str(vid_file))
-            print("[WARNING] Video file has %d video streams. Only the first one will be processed" % len(codec_idx))
+                print("[WARNING] Video file has %d video streams. Only the first one will be processed" % len(codec_idx))
             codec_idx = codec_idx[0]
             vid_info = vid['streams'][codec_idx]
             assert vid_info['codec_type'] == 'video'

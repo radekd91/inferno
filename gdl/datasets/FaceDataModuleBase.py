@@ -32,7 +32,7 @@ from torchvision.transforms import Resize, Compose, Normalize
 from tqdm import tqdm
 
 # from gdl.datasets.FaceVideoDataset import FaceVideoDataModule
-from gdl.datasets.IO import save_segmentation
+from gdl.datasets.IO import save_segmentation, save_segmentation_list
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 from gdl.datasets.UnsupervisedImageDataset import UnsupervisedImageDataset
 from gdl.utils.FaceDetector import FAN, MTCNN, save_landmark
@@ -64,7 +64,10 @@ class FaceDataModuleBase(pl.LightningDataModule):
                  bb_center_shift_y=0., # in relative numbers (i.e. -0.1 for 10% shift upwards, ...)
                  processed_ext=".png",                 
                  save_detection_images=True, 
-                 save_landmarks=True,
+                 save_landmarks_frame_by_frame=True, # default
+                 save_landmarks_one_file=False, # only use for large scale video datasets (that would produce too many files otherwise)
+                 save_segmentation_frame_by_frame=True, # default
+                 save_segmentation_one_file=False, # only use for large scale video datasets (that would produce too many files otherwise)
                  ):
         super().__init__()
         self.root_dir = root_dir
@@ -73,7 +76,12 @@ class FaceDataModuleBase(pl.LightningDataModule):
         self.bb_center_shift_y = bb_center_shift_y
         self.processed_ext = processed_ext
         self.save_detection_images=save_detection_images
-        self.save_landmarks=save_landmarks
+        self.save_landmarks_frame_by_frame = save_landmarks_frame_by_frame
+        self.save_landmarks_one_file = save_landmarks_one_file
+        assert not (save_landmarks_one_file and save_landmarks_frame_by_frame) # only one of them can be true
+        self.save_segmentation_frame_by_frame = save_segmentation_frame_by_frame
+        self.save_segmentation_one_file = save_segmentation_one_file
+        assert not (save_segmentation_one_file and save_segmentation_frame_by_frame) # only one of them can be true
 
         if processed_subfolder is None:
             import datetime
@@ -98,7 +106,8 @@ class FaceDataModuleBase(pl.LightningDataModule):
         return False
 
     # @profile
-    def _instantiate_detector(self, overwrite = False):
+    def _instantiate_detector(self, overwrite = False, face_detector=None):
+        face_detector = face_detector or self.face_detector_type
         if hasattr(self, 'face_detector'):
             if not overwrite:
                 return
@@ -190,7 +199,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
     # @profile
     def _detect_faces_in_image_wrapper(self, frame_list, fid, out_detection_folder, out_landmark_folder, bb_outfile,
                                        centers_all, sizes_all, detection_fnames_all, landmark_fnames_all, 
-                                       ):
+                                       out_landmarks_all=None, out_landmarks_orig_all=None, out_bbox_type_all=None):
 
         if isinstance(frame_list, (str, Path, list)):\
             # if frame list is a list of image paths
@@ -211,6 +220,12 @@ class FaceDataModuleBase(pl.LightningDataModule):
         # self.detection_lists[sequence_id][fid] += [detections]
         centers_all += [centers]
         sizes_all += [sizes]
+        if out_landmarks_all is not None:
+            out_landmarks_all += [landmarks]
+        if out_landmarks_orig_all is not None:
+            out_landmarks_orig_all += [orig_landmarks]
+        if out_bbox_type_all is not None:
+            out_bbox_type_all += [bbox_type]
 
         # save detections
         detection_fnames = []
@@ -226,7 +241,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
                 else:
                     imsave(out_detection_fname, detection)
             # save landmarks
-            if self.save_landmarks:
+            if self.save_landmarks_frame_by_frame:
                 if self.save_detection_images:
                     out_landmark_fname = out_landmark_folder / (stem + ".pkl")
                     landmark_fnames += [out_landmark_fname.relative_to(self.output_dir)]
@@ -244,6 +259,8 @@ class FaceDataModuleBase(pl.LightningDataModule):
         if fid % checkpoint_frequency == 0:
             FaceDataModuleBase.save_detections(bb_outfile, detection_fnames_all, landmark_fnames_all,
                                                 centers_all, sizes_all, fid)
+
+
 
     def _segment_images(self, detection_fnames_or_ims, out_segmentation_folder, path_depth = 0, landmarks=None):
         import time
@@ -272,6 +289,11 @@ class FaceDataModuleBase(pl.LightningDataModule):
 
         # import matplotlib.pyplot as plt
 
+        if self.save_segmentation_one_file: 
+            out_segmentation_names = []
+            out_segmentations = []
+            out_segmentation_types = []
+
         for i, batch in enumerate(tqdm(loader)):
             # facenet_pytorch expects this stanadrization for the input to the net
             # images = fixed_image_standardization(batch['image'].to(device))
@@ -284,32 +306,52 @@ class FaceDataModuleBase(pl.LightningDataModule):
             segmentation = ref_size(segmentation)
             segmentation = segmentation.numpy()
 
-            start = time.time()
-            for j in range(segmentation.shape[0]):
-                image_path = batch['path'][j]
-                # if isinstance(out_segmentation_folder, list):
-                if path_depth > 0:
-                    rel_path = Path(image_path).parent.relative_to(Path(image_path).parents[path_depth])
-                    segmentation_path = out_segmentation_folder / rel_path / (Path(image_path).stem + ".pkl")
-                else:
-                    segmentation_path = out_segmentation_folder / (Path(image_path).stem + ".pkl")
-                segmentation_path.parent.mkdir(exist_ok=True, parents=True)
-                # im = images[j]
-                # im = im.transpose([1,2,0])
-                # seg = process_segmentation(segmentation[j], seg_type)
-                # imsave("seg.png", seg)
-                # imsave("im.png", im)
-                # FaceVideoDataModule.vis_parsing_maps(im, segmentation[j], stride=1, save_im=True,
-                #                  save_path='overlay.png')
-                # plt.figure()
-                # plt.imshow(im)
-                # plt.show()
-                # plt.figure()
-                # plt.imshow(seg)
-                # plt.show()
-                save_segmentation(segmentation_path, segmentation[j], seg_type)
-            end = time.time()
-            print(f" Saving batch {i} took: {end - start}")
+            if self.save_segmentation_frame_by_frame:
+                start = time.time()
+                for j in range(segmentation.shape[0]):
+                    image_path = batch['path'][j]
+                    # if isinstance(out_segmentation_folder, list):
+                    if path_depth > 0:
+                        rel_path = Path(image_path).parent.relative_to(Path(image_path).parents[path_depth])
+                        segmentation_path = out_segmentation_folder / rel_path / (Path(image_path).stem + ".pkl")
+                    else:
+                        segmentation_path = out_segmentation_folder / (Path(image_path).stem + ".pkl")
+                    segmentation_path.parent.mkdir(exist_ok=True, parents=True)
+                    # im = images[j]
+                    # im = im.transpose([1,2,0])
+                    # seg = process_segmentation(segmentation[j], seg_type)
+                    # imsave("seg.png", seg)
+                    # imsave("im.png", im)
+                    # FaceVideoDataModule.vis_parsing_maps(im, segmentation[j], stride=1, save_im=True,
+                    #                  save_path='overlay.png')
+                    # plt.figure()
+                    # plt.imshow(im)
+                    # plt.show()
+                    # plt.figure()
+                    # plt.imshow(seg)
+                    # plt.show()
+                    save_segmentation(segmentation_path, segmentation[j], seg_type)
+                print(f" Saving batch {i} took: {end - start}")
+                end = time.time()
+            if self.save_segmentation_one_file: 
+                segmentation_names = []
+                segmentations = []
+                for j in range(segmentation.shape[0]):
+                    image_path = batch['path'][j]
+                    if path_depth > 0:
+                        rel_path = Path(image_path).parent.relative_to(Path(image_path).parents[path_depth])
+                        segmentation_path = rel_path / (Path(image_path).stem + ".pkl")
+                    else:
+                        segmentation_path = Path(image_path).stem 
+                    segmentation_names += [segmentation_path]
+                    segmentations += [segmentation[j]]
+                out_segmentation_names += segmentation_names
+                out_segmentations += segmentations
+                out_segmentation_types += [seg_type] * len(segmentation_names)
+
+        if self.save_landmarks_one_file: 
+            out_file = out_segmentation_folder / "segmentations.pkl"
+            save_segmentation_list(out_file, out_segmentations, out_segmentation_types, out_segmentation_names)
 
 
     def _get_segmentation_net(self, device, method='bisenet'):
@@ -363,6 +405,18 @@ class FaceDataModuleBase(pl.LightningDataModule):
         # }
 
         return net, "face_parsing" , batch_size
+
+
+    @staticmethod
+    def save_landmark_list(fname, landmarks):
+        with open(fname, "wb" ) as f:
+            pkl.dump(landmarks, f)
+
+    @staticmethod
+    def load_landmark_list(fname):
+        with open(fname, "rb" ) as f:
+            landmarks = pkl.load(f)
+        return landmarks
 
     @staticmethod
     def save_detections(fname, detection_fnames, landmark_fnames, centers, sizes, last_frame_id):

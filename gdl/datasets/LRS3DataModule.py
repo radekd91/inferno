@@ -20,8 +20,8 @@ class LRS3DataModule(FaceVideoDataModule):
 
     def __init__(self, root_dir, output_dir, 
                 processed_subfolder=None, face_detector='mediapipe', 
-                landmarks_from='sr_res',
-                # landmarks_from=None,
+                # landmarks_from='sr_res',
+                landmarks_from=None,
                 face_detector_threshold=0.9, 
                 image_size=224, scale=1.25, 
                 batch_size_train=16,
@@ -36,7 +36,13 @@ class LRS3DataModule(FaceVideoDataModule):
                 device=None):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, device, 
-            unpack_videos=False, save_detection_images=False, save_landmarks=True)
+            unpack_videos=False, save_detection_images=False, 
+            # save_landmarks=True,
+            save_landmarks=False, # trying out this option
+            save_landmarks_one_file=True, 
+            save_segmentation_frame_by_frame=False, 
+            save_segmentation_one_file=True,
+            )
         self.detect_landmarks_on_restored_images = landmarks_from
         self.batch_size_train = batch_size_train
         self.batch_size_val = batch_size_val

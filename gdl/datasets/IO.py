@@ -25,6 +25,35 @@ import numpy as np
 from timeit import default_timer as timer
 
 
+def save_segmentation_list(filename, seg_images, seg_types, seg_names):
+    with open(filename, "wb") as f:
+        # for some reason compressed pickle can only load one object (EOF bug)
+        # so put it in the list
+        cpkl.dump([seg_types, seg_images, seg_names], f, compression='gzip')
+        # pkl.dump(seg_type, f)
+        # pkl.dump(seg_image, f)
+
+
+def load_segmentation_list(filename):
+    with open(filename, "rb") as f:
+        seg = cpkl.load(f, compression='gzip')
+        seg_types = seg[0]
+        seg_images = seg[1]
+        seg_names = seg[2]
+    return seg_images, seg_types, seg_names
+
+
+def load_segmentation(filename):
+    with open(filename, "rb") as f:
+        seg = cpkl.load(f, compression='gzip')
+        seg_type = seg[0]
+        seg_image = seg[1]
+        # seg_type = pkl.load(f)
+        # seg_image = pkl.load(f)
+    return seg_image, seg_type
+
+
+
 def save_segmentation(filename, seg_image, seg_type):
     with open(filename, "wb") as f:
         # for some reason compressed pickle can only load one object (EOF bug)
