@@ -1,5 +1,6 @@
 from cv2 import imread
 import torchaudio
+from gdl.datasets.FaceDataModuleBase import FaceDataModuleBase
 from gdl.datasets.FaceVideoDataModule import FaceVideoDataModule 
 from pathlib import Path
 import torch
@@ -13,7 +14,7 @@ from skvideo.io import vread
 from scipy.io import wavfile
 import time
 from python_speech_features import logfbank
-from gdl.datasets.IO import load_segmentation, process_segmentation
+from gdl.datasets.IO import load_segmentation, process_segmentation, load_segmentation_list
 
 
 class LRS3DataModule(FaceVideoDataModule):
@@ -544,10 +545,17 @@ class LRS3Dataset(TemporalDatasetBase):
         for landmark_type in self.landmark_types:
             landmarks_dir = (Path(self.output_dir) / f"landmarks_{self.landmark_source}" / landmark_type /  self.video_list[self.video_indices[index]]).with_suffix("")
             landmarks = []
-            for i in range(start_frame, self.sequence_length + start_frame):
-                landmark_path = landmarks_dir / f"{i:05d}_000.pkl"
-                landmark_type, landmark = load_landmark(landmark_path)
-                landmarks += [landmark]
+            if (landmarks_dir / "landmarks.pkl").exists(): # landmarks are saved per video in a single file
+            #    landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks.pkl")  
+            #    landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_original.pkl")  
+               landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{self.landmark_source}.pkl")  
+               landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
+               landmarks = landmark_list[start_frame: self.sequence_length + start_frame]
+            else: # landmarks are saved per frame
+                for i in range(start_frame, self.sequence_length + start_frame):
+                    landmark_path = landmarks_dir / f"{i:05d}_000.pkl"
+                    landmark_type, landmark = load_landmark(landmark_path)
+                    landmarks += [landmark]
             landmarks = np.stack(landmarks, axis=0)
             landmark_dict[landmark_type] = landmarks
         sample["landmarks"] = landmark_dict
@@ -555,13 +563,21 @@ class LRS3Dataset(TemporalDatasetBase):
         # 4) SEGMENTATIONS
         segmentations_dir = (Path(self.output_dir) / f"segmentations_{self.segmentation_source}" / self.segmentation_type /  self.video_list[self.video_indices[index]]).with_suffix("")
         segmentations = []
-        for i in range(start_frame, self.sequence_length + start_frame):
-            segmentation_path = segmentations_dir / f"{i:05d}.pkl"
-            seg_image, seg_type = load_segmentation(segmentation_path)
-            # seg_image = seg_image[:, :, np.newaxis]
-            seg_image = process_segmentation(seg_image[0], seg_type).astype(np.uint8)
-            segmentations += [seg_image]
-        segmentations = np.stack(segmentations, axis=0)
+
+        if (segmentations_dir / "segmentations.pkl").exists(): # segmentations are saved in a single file-per video 
+            seg_images, seg_types, seg_names = load_segmentation_list(segmentation_path)
+            landmarks = seg_images[start_frame: self.sequence_length + start_frame]
+            segmentations = seg_images[start_frame: self.sequence_length + start_frame]
+            segmentations = np.stack(segmentations, axis=0)
+            segmentations = process_segmentation(segmentations, seg_types[0]).astype(np.uint8)
+        else: # segmentations are saved per-frame
+            for i in range(start_frame, self.sequence_length + start_frame):
+                segmentation_path = segmentations_dir / f"{i:05d}.pkl"
+                seg_image, seg_type = load_segmentation(segmentation_path)
+                # seg_image = seg_image[:, :, np.newaxis]
+                seg_image = process_segmentation(seg_image[0], seg_type).astype(np.uint8)
+                segmentations += [seg_image]
+            segmentations = np.stack(segmentations, axis=0)
         sample["segmentation"] = segmentations
 
         # AUGMENTATION

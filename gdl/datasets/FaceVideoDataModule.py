@@ -378,11 +378,11 @@ class FaceVideoDataModule(FaceDataModuleBase):
                                             
         if self.save_landmarks_one_file: 
             # saves all landmarks per video  
-            out_file = out_detection_folder / "landmarks.pkl"
+            out_file = out_landmark_folder / "landmarks.pkl"
             FaceVideoDataModule.save_landmark_list(out_file, out_landmarks_all)
-            out_file = out_detection_folder / "landmarks_original.pkl"
+            out_file = out_landmark_folder / "landmarks_original.pkl"
             FaceVideoDataModule.save_landmark_list(out_file, out_landmarks_original_all)
-            out_file = out_detection_folder / "landmark_types.pkl"
+            out_file = out_landmark_folder / "landmark_types.pkl"
             FaceVideoDataModule.save_landmark_list(out_file, out_bbox_type_all)
 
 
