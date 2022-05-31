@@ -316,7 +316,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
         if self.save_landmarks_one_file: 
             overwrite = False
-            if not overwrite and (out_landmark_folder / "landmarks.pkl").is_file() and (out_landmark_folder / "landmarks_original.pkl").is_file() and (out_landmark_folder / "landmark_types.pkl").is_file() 
+            if not overwrite and (out_landmark_folder / "landmarks.pkl").is_file() and (out_landmark_folder / "landmarks_original.pkl").is_file() and (out_landmark_folder / "landmark_types.pkl").is_file(): 
                 print("Files with landmarks already found in '%s'. Skipping" % out_landmark_folder)
                 return
 
