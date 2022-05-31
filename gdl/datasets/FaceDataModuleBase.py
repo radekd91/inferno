@@ -264,6 +264,12 @@ class FaceDataModuleBase(pl.LightningDataModule):
 
     def _segment_images(self, detection_fnames_or_ims, out_segmentation_folder, path_depth = 0, landmarks=None):
         import time
+        if self.save_landmarks_one_file: 
+            overwrite = False 
+            single_out_file = out_segmentation_folder / "segmentations.pkl"
+            if single_out_file.is_file() and not overwrite:
+                print(f"Segmentation already found in {single_out_file}, skipping")
+                return
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         print(device)
@@ -350,20 +356,28 @@ class FaceDataModuleBase(pl.LightningDataModule):
                 out_segmentation_types += [seg_type] * len(segmentation_names)
 
         if self.save_landmarks_one_file: 
-            out_file = out_segmentation_folder / "segmentations.pkl"
-            save_segmentation_list(out_file, out_segmentations, out_segmentation_types, out_segmentation_names)
+            save_segmentation_list(single_out_file, out_segmentations, out_segmentation_types, out_segmentation_names)
+            print("Segmentation saved to %s" % single_out_file)
 
 
     def _get_segmentation_net(self, device, method='bisenet'):
         if method == 'bisenet':
             seg_type = 'face_parsing'
-            from gdl.models.external.BiSeNetFaceParsing import BiSeNetFaceParsing
-            net = BiSeNetFaceParsing()
+            if hasattr(self, "_bisenet" ): 
+                net = self._bisenet
+            else:
+                from gdl.models.external.BiSeNetFaceParsing import BiSeNetFaceParsing
+                net = BiSeNetFaceParsing()
+                self._bisenet = net
             batch_size = 64
         elif method == "gpen": 
             seg_type = 'face_parsing_gpen'
-            from gdl.models.external.GPENFaceParsing import GPENFaceParsing
-            net = GPENFaceParsing()
+            if hasattr(self, "_gpen" ): 
+                net = self._bisenet
+            else:
+                from gdl.models.external.GPENFaceParsing import GPENFaceParsing
+                net = GPENFaceParsing()
+                self._gpen = net
             batch_size = 16
         else: 
             raise ValueError(f"Unknown segmentation type: {method}" )
@@ -404,7 +418,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
         #     18: 'cloth'
         # }
 
-        return net, "face_parsing" , batch_size
+        return net, seg_type , batch_size
 
 
     @staticmethod
