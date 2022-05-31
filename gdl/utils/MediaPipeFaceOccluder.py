@@ -125,7 +125,7 @@ class MediaPipeFaceOccluder(object):
         return image
 
     def occlude_batch(self, image, region, landmarks=None, bounding_box_batch=None
-            , start_frame=None, end_frame=None): 
+            , start_frame=None, end_frame=None, validity=None): 
         assert not(landmarks is not None and bounding_box_batch is not None), "Specify either landmarks or bounding_box"
         start_frame = start_frame or 0
         end_frame = end_frame or image.shape[0]
@@ -133,6 +133,8 @@ class MediaPipeFaceOccluder(object):
         if landmarks is not None:
             bounding_box_batch, sizes_batch = self.bounding_box_batch(landmarks, region) 
         for i in range(start_frame, end_frame): 
+            if validity is not None and not validity[i]: # if the bounding box is not valid, occlude nothing
+                continue
             image[i, bounding_box_batch[i, 2]:bounding_box_batch[i, 3], bounding_box_batch[i, 0]:bounding_box_batch[i, 1], ...] = 0
         
         # # do the above without a for loop 

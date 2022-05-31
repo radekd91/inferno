@@ -540,36 +540,61 @@ class LRS3Dataset(TemporalDatasetBase):
             "audio": audio_feats,
         }
 
-        # 3) LANDMARKS 
+        # # 3) LANDMARKS 
         landmark_dict = {}
+        landmark_validity_dict = {}
         for landmark_type in self.landmark_types:
             landmarks_dir = (Path(self.output_dir) / f"landmarks_{self.landmark_source}" / landmark_type /  self.video_list[self.video_indices[index]]).with_suffix("")
             landmarks = []
             if (landmarks_dir / "landmarks.pkl").exists(): # landmarks are saved per video in a single file
             #    landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks.pkl")  
             #    landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_original.pkl")  
-               landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{self.landmark_source}.pkl")  
-               landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
-               landmarks = landmark_list[start_frame: self.sequence_length + start_frame]
+                landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{self.landmark_source}.pkl")  
+                landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
+                landmarks = landmark_list[start_frame: self.sequence_length + start_frame] 
+                landmark_validity = np.ones(len(landmarks), dtype=np.bool)
+                for li in range(len(landmarks)): 
+                    if len(landmarks[li]) == 0: # dropped detection
+                        if landmark_type == "mediapipe":
+                            landmarks[li] = np.zeros((478, 3))
+                        elif landmark_type == "fan":
+                            landmarks[li] = np.zeros((68, 2))
+                        else: 
+                            raise ValueError(f"Unknown landmark type '{landmark_type}'")
+                        landmark_validity[li] = False
+                    elif len(landmarks[li]) > 1: # multiple faces detected
+                        landmarks[li] = landmarks[li][0] # just take the first one for now
+                    else: 
+                        landmarks[li] = landmarks[li][0] 
             else: # landmarks are saved per frame
+                landmark_validity = np.ones(len(landmarks), dtype=np.bool)
                 for i in range(start_frame, self.sequence_length + start_frame):
                     landmark_path = landmarks_dir / f"{i:05d}_000.pkl"
                     landmark_type, landmark = load_landmark(landmark_path)
                     landmarks += [landmark]
+                    if len(landmark) == 0: # dropped detection
+                        landmark = [0, 0]
+                        landmark_validity[li] = False
+                    elif len(landmark) > 1: # multiple faces detected
+                        landmarks[li] = landmarks[li][0] # just take the first one for now
+                    else: 
+                        landmark[li] = landmarks[li][0] 
             landmarks = np.stack(landmarks, axis=0)
             landmark_dict[landmark_type] = landmarks
+            landmark_validity_dict[landmark_type] = landmark_validity
         sample["landmarks"] = landmark_dict
+        sample["landmarks_validity"] = landmark_validity_dict
 
         # 4) SEGMENTATIONS
         segmentations_dir = (Path(self.output_dir) / f"segmentations_{self.segmentation_source}" / self.segmentation_type /  self.video_list[self.video_indices[index]]).with_suffix("")
         segmentations = []
 
         if (segmentations_dir / "segmentations.pkl").exists(): # segmentations are saved in a single file-per video 
-            seg_images, seg_types, seg_names = load_segmentation_list(segmentation_path)
-            landmarks = seg_images[start_frame: self.sequence_length + start_frame]
+            seg_images, seg_types, seg_names = load_segmentation_list(segmentations_dir / "segmentations.pkl")
             segmentations = seg_images[start_frame: self.sequence_length + start_frame]
-            segmentations = np.stack(segmentations, axis=0)
+            segmentations = np.stack(segmentations, axis=0)[:,0,...]
             segmentations = process_segmentation(segmentations, seg_types[0]).astype(np.uint8)
+            assert segmentations.shape[0] == self.sequence_length
         else: # segmentations are saved per-frame
             for i in range(start_frame, self.sequence_length + start_frame):
                 segmentation_path = segmentations_dir / f"{i:05d}.pkl"
@@ -598,6 +623,8 @@ class LRS3Dataset(TemporalDatasetBase):
     def _augment_sequence_sample(self, sample):
         # get the mediapipe landmarks 
         mediapipe_landmarks = sample["landmarks"]["mediapipe"]
+        mediapipe_landmarks_valid = sample["landmarks_validity"]["mediapipe"]
+        # mediapipe_landmarks = []
         images = sample["video"]
         segmentation = sample["segmentation"]
 
@@ -606,31 +633,44 @@ class LRS3Dataset(TemporalDatasetBase):
 
         # compute mouth region bounding box
         if np.random.rand() < self.occlusion_probability_mouth: 
-            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, mediapipe_landmarks, "mouth")
+            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, 
+                mediapipe_landmarks, mediapipe_landmarks_valid, "mouth")
 
         # compute eye region bounding box
         if np.random.rand() < self.occlusion_probability_left_eye:
-            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, mediapipe_landmarks, "left_eye")
+            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, 
+                mediapipe_landmarks, mediapipe_landmarks_valid, "left_eye")
 
         if np.random.rand() < self.occlusion_probability_right_eye:
-            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, mediapipe_landmarks, "right_eye")
+            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, 
+                mediapipe_landmarks, mediapipe_landmarks_valid, "right_eye")
 
         # compute face region bounding box
         if np.random.rand() < self.occlusion_probability_face:
-            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, mediapipe_landmarks, "all")
+            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, 
+                mediapipe_landmarks, mediapipe_landmarks_valid, "all")
 
         sample["video_masked"] = images_masked
         sample["segmentation_masked"] = segmentation_masked
 
         return sample
 
-    def _occlude_sequence(self, images, segmentation, mediapipe_landmarks, region):
+    def _occlude_sequence(self, images, segmentation, mediapipe_landmarks, mediapipe_landmarks_valid, region):
         bounding_boxes, sizes = self.occluder.bounding_box_batch(mediapipe_landmarks, region)
         
         bb_style = "max" # largest bb of the sequence 
         # bb_style = "min" # smallest bb of the sequence 
         # bb_style = "mean" # mean bb of the sequence 
         # bb_style = "original" # original bb of the sequence (different for each frame) 
+
+        # we can enlarge or shrink the bounding box
+        scale_size_width = 1 
+        scale_size_height = 1 
+
+        scaled_sizes = np.copy(sizes)
+        scaled_sizes[:,2] = (scaled_sizes[:,2] * scale_size_width).astype(np.int32)
+        scaled_sizes[:,3] = (scaled_sizes[:,3] * scale_size_height).astype(np.int32)
+
 
         if bb_style == "max":
             width = sizes[:,2].max()
@@ -644,9 +684,9 @@ class LRS3Dataset(TemporalDatasetBase):
             sizes[:, 2] = width
             sizes[:, 3] = height
             bounding_boxes = sizes_to_bb_batch(sizes)
-        elif bb_style == "mean":
-            width = sizes[:,2].mean()
-            height = sizes[:,3].mean()
+        elif bb_style == "min":
+            width = sizes[:,2].min()
+            height = sizes[:,3].min()
             sizes[:, 2] = width
             sizes[:, 3] = height
             bounding_boxes = sizes_to_bb_batch(sizes)
