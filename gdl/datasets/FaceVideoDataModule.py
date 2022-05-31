@@ -314,6 +314,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
         out_landmark_folder = self._get_path_to_sequence_landmarks(sequence_id)
         out_landmark_folder.mkdir(exist_ok=True, parents=True)
 
+        if self.save_landmarks_one_file: 
+            overwrite = False
+            if not overwrite and (out_landmark_folder / "landmarks.pkl").is_file() and (out_landmark_folder / "landmarks_original.pkl").is_file() and (out_landmark_folder / "landmark_types.pkl").is_file() 
+                print("Files with landmarks already found in '%s'. Skipping" % out_landmark_folder)
+                return
+
+
         centers_all = []
         sizes_all = []
         detection_fnames_all = []
@@ -382,6 +389,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             FaceVideoDataModule.save_landmark_list(out_file, out_landmarks_all)
             out_file = out_landmark_folder / "landmarks_original.pkl"
             FaceVideoDataModule.save_landmark_list(out_file, out_landmarks_original_all)
+            print(f"Landmarks for sequence saved into one file: {out_file}")
             out_file = out_landmark_folder / "landmark_types.pkl"
             FaceVideoDataModule.save_landmark_list(out_file, out_bbox_type_all)
 
