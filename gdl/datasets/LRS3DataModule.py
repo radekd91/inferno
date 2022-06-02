@@ -10,7 +10,7 @@ from gdl.utils.FaceDetector import load_landmark
 from gdl.utils.other import get_path_to_externals
 from gdl.utils.MediaPipeFaceOccluder import MediaPipeFaceOccluder, sizes_to_bb, sizes_to_bb_batch
 import numpy as np
-from skvideo.io import vread
+from skvideo.io import vread, vreader
 from scipy.io import wavfile
 import time
 from python_speech_features import logfbank
@@ -32,6 +32,8 @@ class LRS3DataModule(FaceVideoDataModule):
                 sequence_length_val=16,
                 sequence_length_test=16,
                 occlusion_length_train=0,
+                occlusion_length_val=0,
+                occlusion_length_test=0,
                 split = "original",
                 num_workers=4,
                 device=None):
@@ -57,6 +59,8 @@ class LRS3DataModule(FaceVideoDataModule):
         self.drop_last = True
 
         self.occlusion_length_train = occlusion_length_train
+        self.occlusion_length_val = occlusion_length_val
+        self.occlusion_length_test = occlusion_length_test
 
     def prepare_data(self):
         # super().prepare_data()
@@ -375,9 +379,11 @@ class LRS3DataModule(FaceVideoDataModule):
     def setup(self, stage=None):
         train, val, test = self._get_subsets(self.split)
         self.training_set = LRS3Dataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, train, 
-            self.audio_metas, self.sequence_length_train, occlusion_length=self.occlusion_length_train)
-        self.validation_set = LRS3Dataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, val, self.audio_metas, self.sequence_length_val)
-        self.test_set = LRS3Dataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, self.sequence_length_test)
+            self.audio_metas, self.sequence_length_train, occlusion_length=self.occlusion_length_train, image_size=self.image_size)
+        self.validation_set = LRS3Dataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, val, self.audio_metas, 
+            self.sequence_length_val, occlusion_length=self.occlusion_length_val, image_size=self.image_size)
+        self.test_set = LRS3Dataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
+            self.sequence_length_test, occlusion_length=self.occlusion_length_test, image_size=self.image_size)
 
         # if self.mode in ['all', 'manual']:
         #     # self.image_list += sorted(list((Path(self.path) / "Manually_Annotated").rglob(".jpg")))
@@ -449,6 +455,7 @@ class LRS3Dataset(TemporalDatasetBase):
             landmark_source = "original",
             segmentation_source = "original",
             occlusion_length=0,
+            image_size=None
         ) -> None:
         super().__init__()
         self.root_path = root_path
@@ -460,6 +467,7 @@ class LRS3Dataset(TemporalDatasetBase):
         # self.audio_paths = audio_paths
         self.audio_metas = audio_metas
         self.audio_noise_prob = audio_noise_prob
+        self.image_size = image_size
 
         # if the video is 25 fps and the audio is 16 kHz, stack_order_audio corresponds to 4 
         # (i.e. 4 consecutive filterbanks will be concatenated to sync with the visual frame) 
@@ -475,9 +483,9 @@ class LRS3Dataset(TemporalDatasetBase):
         self.segmentation_source = segmentation_source
 
         self.occluder = MediaPipeFaceOccluder()
-        self.occlusion_probability_mouth = 1.0
-        self.occlusion_probability_left_eye = 1.0
-        self.occlusion_probability_right_eye = 1.0
+        self.occlusion_probability_mouth = 0.1
+        self.occlusion_probability_left_eye = 0.1
+        self.occlusion_probability_right_eye = 0.1
         self.occlusion_probability_face = 0.
         self.occlusion_length = occlusion_length
         if isinstance(self.occlusion_length, int):
@@ -511,10 +519,31 @@ class LRS3Dataset(TemporalDatasetBase):
         #     frame_path = video_path / f"frame_{i:04d}.jpg"
         #     frame = imread(str(frame_path))
         #     frames.append(frame)
-
-        frames = vread(video_path.as_posix())
-        assert len(frames) == num_frames, f"Video {video_path} has {len(frames)} frames, but meta says it has {num_frames}"
-        frames = frames[start_frame:(start_frame + self.sequence_length)] 
+        assert video_path.is_file(), f"Video {video_path} does not exist"
+        try:
+            frames = vread(video_path.as_posix())
+            assert len(frames) == num_frames, f"Video {video_path} has {len(frames)} frames, but meta says it has {num_frames}"
+            frames = frames[start_frame:(start_frame + self.sequence_length)] 
+        except ValueError: 
+            # reader = vreader(video_path.as_posix())
+            # create an opencv video reader 
+            import cv2
+            reader = cv2.VideoCapture(video_path.as_posix())
+            fi = 0 
+            frames = []
+            while fi < start_frame:
+                fi += 1
+                # _ = next(reader) 
+                _, frame = reader.read()
+            for i in range(self.sequence_length):
+                # frames.append(next(reader))
+                _, frame = reader.read()
+                # bgr to rgb 
+                frame = frame[:, :, ::-1]
+                frames.append(frame)
+            reader.release()
+            frames = np.stack(frames, axis=0)
+        frames = frames.astype(np.float32) 
 
         # 2) AUDIO
         # load the audio 
@@ -557,7 +586,7 @@ class LRS3Dataset(TemporalDatasetBase):
                     if len(landmarks[li]) == 0: # dropped detection
                         if landmark_type == "mediapipe":
                             landmarks[li] = np.zeros((478, 3))
-                        elif landmark_type == "fan":
+                        elif landmark_type in ["fan", "kpt68"]:
                             landmarks[li] = np.zeros((68, 2))
                         else: 
                             raise ValueError(f"Unknown landmark type '{landmark_type}'")
@@ -610,6 +639,12 @@ class LRS3Dataset(TemporalDatasetBase):
 
         # TO TORCH
         sample = to_torch(sample)
+
+        # T,H,W,C to T,C,H,W
+        sample["video"] = sample["video"].permute(0, 3, 1, 2)
+        sample["video_masked"] = sample["video_masked"].permute(0, 3, 1, 2)
+        # sample["segmenation"] = sample["segmenation"].permute(0, 2, 1)
+        # sample["segmentation_masked"] = sample["segmentation_masked"].permute(0, 2, 1)
 
         # AUDIO NORMALIZATION (if any)
         if self.audio_normalization is not None:

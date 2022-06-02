@@ -16,4 +16,10 @@ pip install Cython==0.29
 pip install -e . 
 echo "Making sure Pytorch3D installed correctly"
 pip install git+https://github.com/facebookresearch/pytorch3d.git@v0.6.0
+echo "Installing avhubert and fairseq"
+cd external/av_hubert/fairseq 
+pip install -e . 
+cd .. 
+pip install -r requirements.txt
+cd ../..
 echo "Installation finished"

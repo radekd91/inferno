@@ -190,11 +190,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
         audio_file = self._get_path_to_sequence_audio(video_idx)  
 
         # extract the audio from the video using ffmpeg 
-        if not audio_file.exists():
+        if not audio_file.is_file():
             # print("Extracting audio from video '%s'" % str(video_file))
             audio_file.parent.mkdir(exist_ok=True, parents=True)
             cmd = "ffmpeg -i " + str(video_file) + " -f wav -vn -y " + str(audio_file) + ' -loglevel quiet'
             os.system(cmd)
+        else: 
+            print("Skipped extracting audio from video '%s' because it already exists" % str(video_file))
 
 
     def _detect_faces(self): #, videos_unpacked=True): #, save_detection_images=True, save_landmarks=True):
