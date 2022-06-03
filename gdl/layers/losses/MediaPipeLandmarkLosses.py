@@ -46,6 +46,41 @@ VERTICAL_NOSE_LINE = [168, 6, 197, 195, 5, 4]
 HORIZONTAL_NOSE_LINE = [129,  98, 97,  2, 326, 327, 358]
 
 
+# COMBINED LISTS 
+UPPER_EYELIDS = np.array(sorted(LEFT_UPPER_EYELID_INDICES + RIGHT_UPPER_EYELID_INDICES), dtype=np.int64)
+LOWER_EYELIDS = np.array(sorted(LEFT_LOWER_EYELID_INDICES + RIGHT_LOWER_EYELID_INDICES), dtype=np.int64) 
+UPPER_EYELIDS_TORCH = torch.from_numpy(UPPER_EYELIDS).long()
+LOWER_EYELIDS_TORCH = torch.from_numpy(LOWER_EYELIDS).long()
+
+EMBEDDING_INDICES = [276, 282, 283, 285, 293, 295, 296, 300, 334, 336,  46,  52,  53,
+        55,  63,  65,  66,  70, 105, 107, 249, 263, 362, 373, 374, 380,
+        381, 382, 384, 385, 386, 387, 388, 390, 398, 466,   7,  33, 133,
+        144, 145, 153, 154, 155, 157, 158, 159, 160, 161, 163, 173, 246,
+        168,   6, 197, 195,   5,   4, 129,  98,  97,   2, 326, 327, 358,
+          0,  13,  14,  17,  37,  39,  40,  61,  78,  80,  81,  82,  84,
+        87,  88,  91,  95, 146, 178, 181, 185, 191, 267, 269, 270, 291,
+        308, 310, 311, 312, 314, 317, 318, 321, 324, 375, 402, 405, 409,
+        415]
+
+EMBEDDING_INDICES_NP = np.array(EMBEDDING_INDICES, dtype=np.int64)
+
+sorter = np.argsort(EMBEDDING_INDICES)
+UPPER_EYELIDS_EM = sorter[np.searchsorted(EMBEDDING_INDICES, UPPER_EYELIDS, sorter=sorter)]
+LOWER_EYELIDS_EM = sorter[np.searchsorted(EMBEDDING_INDICES, LOWER_EYELIDS, sorter=sorter)]
+
+
+
+UPPER_OUTTER_LIP_LINE_EM = sorter[np.searchsorted(EMBEDDING_INDICES, UPPER_OUTTER_LIP_LINE, sorter=sorter)]
+LOWER_OUTTER_LIP_LINE_EM = sorter[np.searchsorted(EMBEDDING_INDICES, LOWER_OUTTER_LIP_LINE, sorter=sorter)]
+LOWER_INNER_LIP_LINE_EM = sorter[np.searchsorted(EMBEDDING_INDICES, LOWER_INNER_LIP_LINE, sorter=sorter)]
+UPPER_INNER_LIP_LINE_EM = sorter[np.searchsorted(EMBEDDING_INDICES, UPPER_INNER_LIP_LINE, sorter=sorter)]
+
+RIGHT_INNER_LIP_CORNER_EM =  sorter[np.searchsorted(EMBEDDING_INDICES, np.array([RIGHT_INNER_LIP_CORNER]), sorter=sorter)]
+LEFT_INNER_LIP_CORNER_EM =  sorter[np.searchsorted(EMBEDDING_INDICES, np.array([LEFT_INNER_LIP_CORNER]), sorter=sorter)]
+RIGHT_OUTTER_LIP_CORNER_EM = sorter[np.searchsorted(EMBEDDING_INDICES, np.array([RIGHT_OUTTER_LIP_CORNER]), sorter=sorter)]
+LEFT_OUTTER_LIP_CORNER_EM = sorter[np.searchsorted(EMBEDDING_INDICES, np.array([LEFT_OUTTER_LIP_CORNER]), sorter=sorter)]
+
+
 def get_mediapipe_indices():
     # This index array contains indices of mediapipe landmarks that are selected by Timo. 
     # These include the eyes, eyebrows, nose, and mouth. Not the face contour and others. 
@@ -79,55 +114,90 @@ def batch_kp_2d_l1_loss(real_2d_kp, predicted_2d_kp, weights=None):
     return torch.matmul(dif_abs, vis) * 1.0 / k
 
 
-def landmark_loss(predicted_landmarks, landmarks_gt, weight=1.):
-    # (predicted_theta, predicted_verts, predicted_landmarks) = ringnet_outputs[-1]
-    if torch.is_tensor(landmarks_gt) is not True:
-        real_2d = torch.cat(landmarks_gt) #.cuda()
-    else:
-        real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1))#.cuda()
-                             ], dim=-1)
-    # real_2d = torch.cat(landmarks_gt).cuda()
+def landmark_loss(predicted_landmarks, landmarks_gt):
+    # if torch.is_tensor(landmarks_gt) is not True:
+    #     real_2d = torch.cat(landmarks_gt)
+    # else:
+    #     real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1))
+    #                          ], dim=-1)
 
-    loss_lmk_2d = batch_kp_2d_l1_loss(real_2d, predicted_landmarks)
-    return loss_lmk_2d * weight
+    loss_lmk_2d = batch_kp_2d_l1_loss(
+        landmarks_gt[..., EMBEDDING_INDICES, :], 
+        # real_2d[..., get_mediapipe_indices(), :], 
+        predicted_landmarks[..., :, :])
+    return loss_lmk_2d 
 
 
 
-def lip_dis(landmarks):
-    lip_up = landmarks[:, UPPER_OUTTER_LIP_LINE + UPPER_INNER_LIP_LINE, :]
-    lip_down = landmarks[:, LOWER_OUTTER_LIP_LINE + LOWER_INNER_LIP_LINE, :]
+def lip_dis(lip_up, lip_down):
+    # lip_up = landmarks[:, UPPER_OUTTER_LIP_LINE + UPPER_INNER_LIP_LINE, :]
+    # lip_down = landmarks[:, LOWER_OUTTER_LIP_LINE + LOWER_INNER_LIP_LINE, :]
     dis = torch.sqrt(((lip_up - lip_down) ** 2).sum(2))  # [bz, 4]
     return dis
 
 
-def mouth_corner_dis(landmarks):
-    lip_right = landmarks[:, [LEFT_INNER_LIP_CORNER, LEFT_OUTTER_LIP_CORNER], :]
-    lip_left = landmarks[:,  [RIGHT_INNER_LIP_CORNER, RIGHT_OUTTER_LIP_CORNER], :]
+def mouth_corner_dis(lip_right, lip_left):
+    # lip_right = landmarks[:, [LEFT_INNER_LIP_CORNER, LEFT_OUTTER_LIP_CORNER], :]
+    # lip_left = landmarks[:,  [RIGHT_INNER_LIP_CORNER, RIGHT_OUTTER_LIP_CORNER], :]
     dis = torch.sqrt(((lip_right - lip_left) ** 2).sum(2))  # [bz, 4]
     return dis
 
 
 def lipd_loss(predicted_landmarks, landmarks_gt, weight=1.):
-    if torch.is_tensor(landmarks_gt) is not True:
-        real_2d = torch.cat(landmarks_gt)#.cuda()
-    else:
-        real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).to(device=predicted_landmarks.device) #.cuda()
-                             ], dim=-1)
-    pred_lipd = lip_dis(predicted_landmarks[:, :, :2])
-    gt_lipd = lip_dis(real_2d[:, :, :2])
+    # if torch.is_tensor(landmarks_gt) is not True:
+    #     real_2d = torch.cat(landmarks_gt)
+    # else:
+    #     real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).to(device=predicted_landmarks.device) #.cuda()
+    #                          ], dim=-1)
+    pred_lipd = lip_dis(predicted_landmarks[...,  np.concatenate([UPPER_OUTTER_LIP_LINE_EM, UPPER_INNER_LIP_LINE_EM]), :2] , 
+                        predicted_landmarks[...,  np.concatenate([LOWER_OUTTER_LIP_LINE_EM, LOWER_INNER_LIP_LINE_EM]), :2])
+    gt_lipd = lip_dis(landmarks_gt[...,  UPPER_OUTTER_LIP_LINE + UPPER_INNER_LIP_LINE, :2] , 
+                      landmarks_gt[...,  LOWER_OUTTER_LIP_LINE + LOWER_INNER_LIP_LINE, :2])
+
+    # gt_lipd = lip_dis(real_2d[... :2])
 
     loss = (pred_lipd - gt_lipd).abs().mean()
     return loss
 
 
-def mouth_corner_loss(predicted_landmarks, landmarks_gt, weight=1.):
-    if torch.is_tensor(landmarks_gt) is not True:
-        real_2d = torch.cat(landmarks_gt)#.cuda()
-    else:
-        real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).to(device=predicted_landmarks.device) #.cuda()
-                             ], dim=-1)
-    pred_corner_d = mouth_corner_dis(predicted_landmarks[:, :, :2])
-    gt_corner_d = mouth_corner_dis(real_2d[:, :, :2])
+def mouth_corner_loss(predicted_landmarks, landmarks_gt):
+    # if torch.is_tensor(landmarks_gt) is not True:
+    #     real_2d = torch.cat(landmarks_gt)
+    # else:
+    #     real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).to(device=predicted_landmarks.device) #.cuda()
+    #                          ], dim=-1)
+
+    pred_corner_d = mouth_corner_dis(
+            predicted_landmarks[...,  np.concatenate([RIGHT_INNER_LIP_CORNER_EM, RIGHT_OUTTER_LIP_CORNER_EM]) , :2],
+            predicted_landmarks[...,  np.concatenate([LEFT_INNER_LIP_CORNER_EM, LEFT_OUTTER_LIP_CORNER_EM]) , :2]
+            )
+    gt_corner_d = mouth_corner_dis(
+            landmarks_gt[...,  [RIGHT_INNER_LIP_CORNER, RIGHT_OUTTER_LIP_CORNER] , :2],
+            landmarks_gt[...,  [LEFT_INNER_LIP_CORNER, LEFT_OUTTER_LIP_CORNER] , :2])
+    # gt_corner_d = mouth_corner_dis(real_2d[:, :, :2])
 
     loss = (pred_corner_d - gt_corner_d).abs().mean()
+    return loss
+
+
+def eye_dis(eye_upper, eye_lower):
+    # eye_upper = landmarks[:, UPPER_EYELIDS_TORCH, :][..., :2]
+    # eye_lower = landmarks[:, LOWER_EYELIDS_TORCH, :][..., :2]
+    dis = torch.sqrt(((eye_upper - eye_lower) ** 2).sum(2))  # [bz, 4]
+    return dis
+
+
+def eyed_loss(predicted_landmarks, landmarks_gt):
+    # if torch.is_tensor(landmarks_gt) is not True:
+    #     real_2d = torch.cat(landmarks_gt)
+    # else:
+    #     real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).to(device=landmarks_gt.device) #.cuda()
+    #                          ], dim=-1)
+    pred_eyed = eye_dis(predicted_landmarks[..., UPPER_EYELIDS_EM , :2], 
+                        predicted_landmarks[..., LOWER_EYELIDS_EM , :2])
+    gt_eyed = eye_dis(landmarks_gt[..., UPPER_EYELIDS, :2], 
+                        landmarks_gt[..., LOWER_EYELIDS, :2])
+    # gt_eyed = eye_dis(real_2d[:, :, :2])
+
+    loss = (pred_eyed - gt_eyed).abs().mean()
     return loss
