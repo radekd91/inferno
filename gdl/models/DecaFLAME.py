@@ -232,6 +232,36 @@ class FLAME(nn.Module):
         return vertices, landmarks2d, landmarks3d
 
 
+class FLAME_mediapipe(FLAME): 
+
+    def __init__(self, config):
+        super().__init__(config)
+        # static MEDIAPIPE landmark embeddings for FLAME
+        lmk_embeddings_mediapipe = np.load(config.flame_mediapipe_lmk_embedding_path, 
+            allow_pickle=True, encoding='latin1')
+        # indices = lmk_embeddings_mediapipe['landmark_indices']
+        self.register_buffer('lmk_faces_idx_mediapipe', 
+            torch.tensor(lmk_embeddings_mediapipe['lmk_face_idx'], dtype=torch.long))
+        self.register_buffer('lmk_bary_coords_mediapipe',
+            torch.tensor(lmk_embeddings_mediapipe['lmk_b_coords'], dtype=self.dtype))
+        
+    def forward(self, shape_params=None, expression_params=None, pose_params=None, eye_pose_params=None):
+        vertices, landmarks2d, landmarks3d = super().forward(shape_params, expression_params, pose_params, eye_pose_params)
+        batch_size = shape_params.shape[0]
+        lmk_faces_idx_mediapipe = self.lmk_faces_idx_mediapipe.unsqueeze(dim=0).expand(batch_size, -1)
+        lmk_bary_coords_mediapipe = self.lmk_bary_coords_mediapipe.unsqueeze(dim=0).expand(batch_size, -1, -1)
+        landmarks2d_mediapipe = vertices2landmarks(vertices, self.faces_tensor,
+                                         lmk_faces_idx_mediapipe,
+                                         lmk_bary_coords_mediapipe)
+        bz = vertices.shape[0]
+        landmarks3d_mediapipe = vertices2landmarks(vertices, self.faces_tensor,
+                                         self.full_lmk_faces_idx_mediapipe.repeat(bz, 1),
+                                         self.full_lmk_bary_coords_mediapipe.repeat(bz, 1, 1))
+
+        return vertices, landmarks2d, landmarks3d, landmarks2d_mediapipe, landmarks3d_mediapipe
+    
+
+
 # class FLAMETex(nn.Module):
 #     """
 #     current FLAME texture are adapted from BFM Texture Model
