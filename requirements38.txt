@@ -59,7 +59,7 @@ tensorboard-data-server~=0.6.1
 timm~=0.4.9
 torchfile>=0.1.0
 torchgeometry>=0.1.2
-torchmetrics>=0.6.2
+torchmetrics==0.6.2
 lightning-bolts~=0.4.0
 pytorch-lightning==1.4.9
 trimesh~=3.6.18
