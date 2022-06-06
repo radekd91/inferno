@@ -33,9 +33,12 @@ class LRS3DataModule(FaceVideoDataModule):
                 sequence_length_train=16,
                 sequence_length_val=16,
                 sequence_length_test=16,
-                occlusion_length_train=0,
-                occlusion_length_val=0,
-                occlusion_length_test=0,
+                # occlusion_length_train=0,
+                # occlusion_length_val=0,
+                # occlusion_length_test=0,
+                occlusion_settings_train=None,
+                occlusion_settings_val=None,
+                occlusion_settings_test=None,
                 split = "original",
                 num_workers=4,
                 device=None):
@@ -60,9 +63,12 @@ class LRS3DataModule(FaceVideoDataModule):
         self.num_workers = num_workers
         self.drop_last = True
 
-        self.occlusion_length_train = occlusion_length_train
-        self.occlusion_length_val = occlusion_length_val
-        self.occlusion_length_test = occlusion_length_test
+        # self.occlusion_length_train = occlusion_length_train
+        # self.occlusion_length_val = occlusion_length_val
+        # self.occlusion_length_test = occlusion_length_test
+        self.occlusion_settings_train = occlusion_settings_train or {}
+        self.occlusion_settings_val = occlusion_settings_val or {}
+        self.occlusion_settings_test = occlusion_settings_test or {}
 
     def prepare_data(self):
         # super().prepare_data()
@@ -381,11 +387,32 @@ class LRS3DataModule(FaceVideoDataModule):
     def setup(self, stage=None):
         train, val, test = self._get_subsets(self.split)
         self.training_set = LRS3Dataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, train, 
-            self.audio_metas, self.sequence_length_train, occlusion_length=self.occlusion_length_train, image_size=self.image_size)
+                self.audio_metas, self.sequence_length_train, image_size=self.image_size,
+                **self.occlusion_settings_train,
+                # occlusion_length=self.occlusion_length_train,
+                # occlusion_probability_mouth = self.occlusion_probability_mouth_train_train,
+                # occlusion_probability_left_eye = self.occlusion_probability_left_eye_train,
+                # occlusion_probability_right_eye = self.occlusion_probability_right_eye_train,
+                # occlusion_probability_face = self.occlusion_probability_face_train,
+                )
         self.validation_set = LRS3Dataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, val, self.audio_metas, 
-            self.sequence_length_val, occlusion_length=self.occlusion_length_val, image_size=self.image_size)
+                self.sequence_length_val, image_size=self.image_size,  
+                **self.occlusion_settings_val,
+                # occlusion_length=self.occlusion_length_val,
+                # occlusion_probability_mouth = self.occlusion_probability_mouth_train_val,
+                # occlusion_probability_left_eye = self.occlusion_probability_left_eye_val,
+                # occlusion_probability_right_eye = self.occlusion_probability_right_eye_val,
+                # occlusion_probability_face = self.occlusion_probability_face_val,
+            )
         self.test_set = LRS3Dataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
-            self.sequence_length_test, occlusion_length=self.occlusion_length_test, image_size=self.image_size)
+                self.sequence_length_test, image_size=self.image_size, 
+                **self.occlusion_settings_test,
+                # occlusion_length=self.occlusion_length_test,  
+                # occlusion_probability_mouth = self.occlusion_probability_mouth_train_test,
+                # occlusion_probability_left_eye = self.occlusion_probability_left_eye_test,
+                # occlusion_probability_right_eye = self.occlusion_probability_right_eye_test,
+                # occlusion_probability_face = self.occlusion_probability_face_test,
+            )
 
         # if self.mode in ['all', 'manual']:
         #     # self.image_list += sorted(list((Path(self.path) / "Manually_Annotated").rglob(".jpg")))
@@ -460,6 +487,10 @@ class LRS3Dataset(TemporalDatasetBase):
             landmark_source = "original",
             segmentation_source = "original",
             occlusion_length=0,
+            occlusion_probability_mouth = 0.0,
+            occlusion_probability_left_eye = 0.0,
+            occlusion_probability_right_eye = 0.0,
+            occlusion_probability_face = 0.0,
             image_size=None
         ) -> None:
         super().__init__()
@@ -489,10 +520,10 @@ class LRS3Dataset(TemporalDatasetBase):
 
         self.landmark_normalizer = KeypointNormalization() # postprocesses final landmarks to be in [-1, 1]
         self.occluder = MediaPipeFaceOccluder()
-        self.occlusion_probability_mouth = 0.1
-        self.occlusion_probability_left_eye = 0.1
-        self.occlusion_probability_right_eye = 0.1
-        self.occlusion_probability_face = 0.
+        self.occlusion_probability_mouth = occlusion_probability_mouth
+        self.occlusion_probability_left_eye = occlusion_probability_left_eye
+        self.occlusion_probability_right_eye = occlusion_probability_right_eye
+        self.occlusion_probability_face = occlusion_probability_face
         self.occlusion_length = occlusion_length
         if isinstance(self.occlusion_length, int):
             self.occlusion_length = [self.occlusion_length, self.occlusion_length+1]
