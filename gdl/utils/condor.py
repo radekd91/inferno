@@ -33,6 +33,7 @@ queue <<NJOBS>>
 script_template = """
 source /home/rdanecek/.bashrc
 source /home/rdanecek/anaconda3/etc/profile.d/conda.sh
+"$(conda shell.bash hook)"
 #/home/rdanecek/anaconda3/condabin/conda init bash
 #/home/rdanecek/anaconda3/condabin/conda activate <<ENV>>
 #source activate <<ENV>>
