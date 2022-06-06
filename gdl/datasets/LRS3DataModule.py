@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 import os, sys
 from gdl.utils.FaceDetector import load_landmark
+from gdl.utils.MediaPipeLandmarkDetector import np2mediapipe
 from gdl.utils.other import get_path_to_externals
 from gdl.utils.MediaPipeFaceOccluder import MediaPipeFaceOccluder, sizes_to_bb, sizes_to_bb_batch
 import numpy as np
@@ -15,6 +16,7 @@ from scipy.io import wavfile
 import time
 from python_speech_features import logfbank
 from gdl.datasets.IO import load_segmentation, process_segmentation, load_segmentation_list
+from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 
 
 class LRS3DataModule(FaceVideoDataModule):
@@ -436,6 +438,9 @@ class TemporalDatasetBase(torch.utils.data.Dataset):
         raise NotImplementedError()
 
 
+
+from gdl.transforms.keypoints import KeypointNormalization, KeypointScale
+
 class LRS3Dataset(TemporalDatasetBase):
 
     def __init__(self,
@@ -468,7 +473,7 @@ class LRS3Dataset(TemporalDatasetBase):
         self.audio_metas = audio_metas
         self.audio_noise_prob = audio_noise_prob
         self.image_size = image_size
-
+        self.scale = 1.25
         # if the video is 25 fps and the audio is 16 kHz, stack_order_audio corresponds to 4 
         # (i.e. 4 consecutive filterbanks will be concatenated to sync with the visual frame) 
         self.stack_order_audio = stack_order_audio
@@ -482,6 +487,7 @@ class LRS3Dataset(TemporalDatasetBase):
         self.landmark_source = landmark_source 
         self.segmentation_source = segmentation_source
 
+        self.landmark_normalizer = KeypointNormalization() # postprocesses final landmarks to be in [-1, 1]
         self.occluder = MediaPipeFaceOccluder()
         self.occlusion_probability_mouth = 0.1
         self.occlusion_probability_left_eye = 0.1
@@ -492,6 +498,8 @@ class LRS3Dataset(TemporalDatasetBase):
             self.occlusion_length = [self.occlusion_length, self.occlusion_length+1]
         # self.occlusion_length = [20, 30]
         self.occlusion_length = sorted(self.occlusion_length)
+
+        self.align_images = True
 
         assert self.occlusion_length[0] >= 0
         assert self.occlusion_length[1] <= self.sequence_length + 1
@@ -581,10 +589,12 @@ class LRS3Dataset(TemporalDatasetBase):
                 landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{self.landmark_source}.pkl")  
                 landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
                 landmarks = landmark_list[start_frame: self.sequence_length + start_frame] 
+
                 landmark_validity = np.ones(len(landmarks), dtype=np.bool)
                 for li in range(len(landmarks)): 
                     if len(landmarks[li]) == 0: # dropped detection
                         if landmark_type == "mediapipe":
+                            # [WARNING] mediapipe landmarks coordinates are saved in the scale [0.0-1.0] (for absolute they need to be multiplied by img size)
                             landmarks[li] = np.zeros((478, 3))
                         elif landmark_type in ["fan", "kpt68"]:
                             landmarks[li] = np.zeros((68, 2))
@@ -609,6 +619,14 @@ class LRS3Dataset(TemporalDatasetBase):
                     else: 
                         landmark[li] = landmarks[li][0] 
             landmarks = np.stack(landmarks, axis=0)
+            # if landmark_type == "mediapipe" and self.align_images: 
+            # #     # [WARNING] mediapipe landmarks coordinates are saved in the scale [0.0-1.0] (for absolute they need to be multiplied by img size)
+            # #     # landmarks -= 0.5 
+            # #     landmarks -= 1. 
+            #     landmarks *= 2 
+            # # #     landmarks *= 2 
+            #     landmarks -= 1
+
             landmark_dict[landmark_type] = landmarks
             landmark_validity_dict[landmark_type] = landmark_validity
         sample["landmarks"] = landmark_dict
@@ -634,6 +652,28 @@ class LRS3Dataset(TemporalDatasetBase):
             segmentations = np.stack(segmentations, axis=0)
         sample["segmentation"] = segmentations
 
+        # 5) FACE ALIGNMENT IF ANY
+        if self.align_images:
+            landmarks_for_alignment = "mediapipe"
+            left = sample["landmarks"][landmarks_for_alignment][:,:,0].min(axis=1)
+            top =  sample["landmarks"][landmarks_for_alignment][:,:,1].min(axis=1)
+            right =  sample["landmarks"][landmarks_for_alignment][:,:,0].max(axis=1)
+            bottom = sample["landmarks"][landmarks_for_alignment][:,:,1].max(axis=1)
+            old_size, center = bbox2point(left, right, top, bottom, type=landmarks_for_alignment)
+            size = (old_size * self.scale).astype(np.int32)
+            for i in range(self.sequence_length):
+                lmk_to_warp = {k: v[i] for k,v in sample["landmarks"].items()}
+                img_warped, lmk_warped = bbpoint_warp(sample["video"][i], center[i], size[i], self.image_size, landmarks=lmk_to_warp)
+                seg_warped = bbpoint_warp(sample["segmentation"][i], center[i], size[i], self.image_size, 
+                    order=0 # nearest neighbor interpolation for segmentation
+                    )
+                # img_warped *= 255. 
+                sample["video"][i] = img_warped 
+                # sample["segmentation"][i] = seg_warped * 255.
+                sample["segmentation"][i] = seg_warped
+                for k,v in lmk_warped.items():
+                    sample["landmarks"][k][i][:,:2] = v
+
         # AUGMENTATION
         sample = self._augment_sequence_sample(sample)
 
@@ -653,7 +693,57 @@ class LRS3Dataset(TemporalDatasetBase):
             else: 
                 raise ValueError(f"Unsupported audio normalization {self.audio_normalization}")
 
+        # normalize landmarks 
+        if self.landmark_normalizer is not None:
+            if isinstance(self.landmark_normalizer, KeypointScale):
+                raise NotImplementedError("Landmark normalization is deprecated")
+                self.landmark_normalizer.set_scale(
+                    img.shape[0] / input_img_shape[0],
+                    img.shape[1] / input_img_shape[1])
+            elif isinstance(self.landmark_normalizer, KeypointNormalization):
+                self.landmark_normalizer.set_scale(sample["video"].shape[2], sample["video"].shape[3])
+            else:
+                raise ValueError(f"Unsupported landmark normalizer type: {type(self.landmark_normalizer)}")
+            for key in sample["landmarks"].keys():
+                sample["landmarks"][key] = self.landmark_normalizer(sample["landmarks"][key])
         return sample
+
+
+    def _augment(self, img, seg_image, landmark, input_img_shape=None):
+
+        if self.transforms is not None:
+            res = self.transforms(image=img.astype(np.float32),
+                                  segmentation_maps=seg_image,
+                                  keypoints=landmark)
+            if seg_image is not None and landmark is not None:
+                img, seg_image, landmark = res
+            elif seg_image is not None:
+                img, seg_image = res
+            elif landmark is not None:
+                img, _, landmark = res
+            else:
+                img = res
+
+            img = img.astype(np.float32) / 255.0
+
+        if seg_image is not None:
+            seg_image = np.squeeze(seg_image)[..., np.newaxis].astype(np.float32)
+
+        if landmark is not None:
+            landmark = np.squeeze(landmark)
+            if isinstance(self.landmark_normalizer, KeypointScale):
+                self.landmark_normalizer.set_scale(
+                    img.shape[0] / input_img_shape[0],
+                    img.shape[1] / input_img_shape[1])
+            elif isinstance(self.landmark_normalizer, KeypointNormalization):
+                self.landmark_normalizer.set_scale(img.shape[0], img.shape[1])
+                # self.landmark_normalizer.set_scale(input_img_shape[0], input_img_shape[1])
+            else:
+                raise ValueError(f"Unsupported landmark normalizer type: {type(self.landmark_normalizer)}")
+            landmark = self.landmark_normalizer(landmark)
+
+        return img, seg_image, landmark
+
 
     def _augment_sequence_sample(self, sample):
         # get the mediapipe landmarks 
@@ -763,6 +853,15 @@ class LRS3Dataset(TemporalDatasetBase):
         segmentation = sample["segmentation"]
         video_frames_masked = sample["video_masked"]
         segmentation_masked = sample["segmentation_masked"]
+        landmarks_mp = sample["landmarks"]["mediapipe"]
+
+        landmarks_mp = self.landmark_normalizer.inv(landmarks_mp)
+
+        # T, C, W, H to T, W, H, C 
+        video_frames = video_frames.permute(0, 2, 3, 1)
+        video_frames_masked = video_frames_masked.permute(0, 2, 3, 1)
+        segmentation = segmentation[..., None]
+        segmentation_masked = segmentation_masked[..., None]
 
         # plot the video frames with plotly
         # horizontally concatenate the frames
@@ -770,9 +869,32 @@ class LRS3Dataset(TemporalDatasetBase):
         frames_masked = np.concatenate(video_frames_masked.numpy(), axis=1)
         segmentation = np.concatenate(segmentation.numpy(), axis=1)
         segmentation_masked = np.concatenate(segmentation_masked.numpy(), axis=1)
+        landmarks_mp_list = [] 
+        for i in range(landmarks_mp.shape[0]):
+            landmarks_mp_proto = np2mediapipe(landmarks_mp[i].numpy() / self.image_size)
+            landmarks_mp_list.append(landmarks_mp_proto)
 
-        all_images = [frames, np.tile( segmentation[..., np.newaxis]*255, (1,1,3)), 
-            frames_masked, np.tile(segmentation_masked[..., np.newaxis]*255, (1,1,3))]
+        # Load drawing_utils and drawing_styles
+        import mediapipe as mp
+        mp_drawing = mp.solutions.drawing_utils 
+        mp_drawing_styles = mp.solutions.drawing_styles
+        mp_face_mesh = mp.solutions.face_mesh
+
+        video_frames_landmarks = np.copy(video_frames)
+        for i in range(video_frames_landmarks.shape[0]):
+            mp_drawing.draw_landmarks(
+                image=video_frames_landmarks[i],
+                landmark_list=landmarks_mp_list[i],
+                connections=mp_face_mesh.FACEMESH_CONTOURS,
+                landmark_drawing_spec=None,
+                connection_drawing_spec=mp_drawing_styles
+                .get_default_face_mesh_contours_style()
+                )
+        
+        video_frames_landmarks = np.concatenate(video_frames_landmarks, axis=1)
+
+        all_images = [frames, np.tile( segmentation*255, (1,1,3)), 
+            frames_masked, np.tile(segmentation_masked*255, (1,1,3)), video_frames_landmarks]
         all_images = np.concatenate(all_images, axis=0)
         # plot the frames
 
