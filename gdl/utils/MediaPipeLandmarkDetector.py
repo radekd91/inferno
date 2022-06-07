@@ -29,7 +29,10 @@ def np2mediapipe(array):
     for i in range(len(array)):
         # landmarks += [ Munch(landmark=Munch(x=array[i, 0], y=array[i, 1], z=array[i, 2]))]
         # landmarks += [Munch(x=array[i, 0], y=array[i, 1], z=array[i, 2])]
-        lmk = NormalizedLandmark(x=array[i, 0], y=array[i, 1], z=array[i, 2])
+        if array.shape[1] == 3:
+            lmk = NormalizedLandmark(x=array[i, 0], y=array[i, 1], z=array[i, 2])
+        else: 
+            lmk = NormalizedLandmark(x=array[i, 0], y=array[i, 1], z=0.)
         landmarks.landmark.append(lmk)
     return landmarks
 

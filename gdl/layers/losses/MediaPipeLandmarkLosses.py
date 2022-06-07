@@ -105,26 +105,41 @@ def batch_kp_2d_l1_loss(real_2d_kp, predicted_2d_kp, weights=None):
     kp_pred: N x K x 2
     """
     if weights is not None:
-        real_2d_kp[:, :, 2] = weights[None, :] * real_2d_kp[:, :, 2]
+        real_2d_kp[..., 2] = weights[None, :] * real_2d_kp[..., 2]
     kp_gt = real_2d_kp.view(-1, 3)
     kp_pred = predicted_2d_kp.contiguous().view(-1, 2)
-    vis = kp_gt[:, 2]
+    vis = kp_gt[..., 2]
     k = torch.sum(vis) * 2.0 + 1e-8
-    dif_abs = torch.abs(kp_gt[:, :2] - kp_pred).sum(1)
+    dif_abs = torch.abs(kp_gt[..., :2] - kp_pred).sum(1)
     return torch.matmul(dif_abs, vis) * 1.0 / k
 
 
-def landmark_loss(predicted_landmarks, landmarks_gt):
+def landmark_loss(predicted_landmarks, landmarks_gt, weights=None):
     # if torch.is_tensor(landmarks_gt) is not True:
     #     real_2d = torch.cat(landmarks_gt)
     # else:
     #     real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1))
     #                          ], dim=-1)
 
-    loss_lmk_2d = batch_kp_2d_l1_loss(
-        landmarks_gt[..., EMBEDDING_INDICES, :], 
-        # real_2d[..., get_mediapipe_indices(), :], 
-        predicted_landmarks[..., :, :])
+    # loss_lmk_2d = batch_kp_2d_l1_loss(
+    #     landmarks_gt[..., EMBEDDING_INDICES, :], 
+    #     # real_2d[..., get_mediapipe_indices(), :], 
+    #     predicted_landmarks[..., :, :])
+    assert predicted_landmarks[..., :2].isnan().sum() == 0
+    assert landmarks_gt[..., :2].isnan().sum() == 0
+    loss_lmk_2d = (predicted_landmarks[..., :2] - landmarks_gt[..., EMBEDDING_INDICES, :2]).abs()
+    if loss_lmk_2d.ndim == 3:
+        loss_lmk_2d= loss_lmk_2d.mean(dim=2)
+    elif loss_lmk_2d.ndim == 4: 
+        loss_lmk_2d = loss_lmk_2d.mean(dim=(2,3))
+    else: 
+        raise ValueError(f"Wrong dimension of loss_lmk_2d: { loss_lmk_2d.ndim}")
+    if weights is None: 
+        return loss_lmk_2d.mean()
+    if weights is not None:
+        w = weights / torch.sum(weights)
+        loss_lmk_2d = w * loss_lmk_2d
+        return loss_lmk_2d.sum()
     return loss_lmk_2d 
 
 
@@ -143,7 +158,7 @@ def mouth_corner_dis(lip_right, lip_left):
     return dis
 
 
-def lipd_loss(predicted_landmarks, landmarks_gt, weight=1.):
+def lipd_loss(predicted_landmarks, landmarks_gt, weights=None):
     # if torch.is_tensor(landmarks_gt) is not True:
     #     real_2d = torch.cat(landmarks_gt)
     # else:
@@ -156,11 +171,19 @@ def lipd_loss(predicted_landmarks, landmarks_gt, weight=1.):
 
     # gt_lipd = lip_dis(real_2d[... :2])
 
-    loss = (pred_lipd - gt_lipd).abs().mean()
-    return loss
+    loss = (pred_lipd - gt_lipd).abs()
+    if weights is None: 
+        return loss.mean()
+    if loss.ndim == 3:
+        loss = loss.mean(dim=2)
+    elif loss.ndim == 4: 
+        loss = loss.mean(dim=(2,3))
+    w = weights / torch.sum(weights)
+    loss = w * loss
+    return loss.sum()
 
 
-def mouth_corner_loss(predicted_landmarks, landmarks_gt):
+def mouth_corner_loss(predicted_landmarks, landmarks_gt, weights=None):
     # if torch.is_tensor(landmarks_gt) is not True:
     #     real_2d = torch.cat(landmarks_gt)
     # else:
@@ -176,8 +199,16 @@ def mouth_corner_loss(predicted_landmarks, landmarks_gt):
             landmarks_gt[...,  [LEFT_INNER_LIP_CORNER, LEFT_OUTTER_LIP_CORNER] , :2])
     # gt_corner_d = mouth_corner_dis(real_2d[:, :, :2])
 
-    loss = (pred_corner_d - gt_corner_d).abs().mean()
-    return loss
+    loss = (pred_corner_d - gt_corner_d).abs()
+    if weights is None: 
+        return loss.mean()
+    if loss.ndim == 3:
+        loss = loss.mean(dim=2)
+    elif loss.ndim == 4: 
+        loss = loss.mean(dim=(2,3))
+    w = weights / torch.sum(weights)
+    loss = w * loss
+    return loss.sum()
 
 
 def eye_dis(eye_upper, eye_lower):
@@ -187,7 +218,7 @@ def eye_dis(eye_upper, eye_lower):
     return dis
 
 
-def eyed_loss(predicted_landmarks, landmarks_gt):
+def eyed_loss(predicted_landmarks, landmarks_gt, weights=None):
     # if torch.is_tensor(landmarks_gt) is not True:
     #     real_2d = torch.cat(landmarks_gt)
     # else:
