@@ -7,6 +7,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - libiconv=1.17 # otherwise ffmpeg might have a missing .so 
   - ffmpeg=4.4.1
   - ffmpeg-python=0.2.0
   - matplotlib-base>=3.2.2
@@ -34,3 +35,4 @@ dependencies:
   - wheel>=0.37.0
   - yaml>=0.2.5
   - yarl>=1.6.3
+  - requests=2.27.1

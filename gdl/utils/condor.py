@@ -33,6 +33,7 @@ queue <<NJOBS>>
 script_template = """
 source /home/rdanecek/.bashrc
 source /home/rdanecek/anaconda3/etc/profile.d/conda.sh
+"$(conda shell.bash hook)"
 #/home/rdanecek/anaconda3/condabin/conda init bash
 #/home/rdanecek/anaconda3/condabin/conda activate <<ENV>>
 #source activate <<ENV>>
@@ -69,7 +70,8 @@ def execute_on_cluster(cluster_script_path, args, submission_dir_local_mount,
                        job_name="skynet",
                        python_bin='python',
                        #env='work36',
-                       env='work36_cu11',
+                    #    env='work36_cu11',
+                       env='work38',
                        username='rdanecek',
                        gpu_mem_requirement_mb=None,
                        gpu_mem_requirement_mb_max=None,

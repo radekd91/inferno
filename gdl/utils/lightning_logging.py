@@ -5,7 +5,7 @@ import numpy as np
 
 
 def _fix_image( image):
-    if image.max() < 30.:
+    if image.max() < 30.: #ugly hack just to find out if range is [0-1] or [0-255]
         image = image * 255.
     image = np.clip(image, 0, 255).astype(np.uint8)
     return image

@@ -10,7 +10,8 @@ import mediapipe as mp
 import numpy as np 
 import matplotlib.pyplot as plt
 from pathlib import Path
-
+from mediapipe.framework.formats.landmark_pb2 import NormalizedLandmarkList, NormalizedLandmark
+# from google.protobuf.pyext._message import RepeatedCompositeContainer
 
 def mediapipe2np(landmarks): 
     # d = protobuf_to_dict(landmarks)
@@ -20,6 +21,20 @@ def mediapipe2np(landmarks):
         array[i, 1] = landmarks[i].y
         array[i, 2] = landmarks[i].z
     return array
+
+
+def np2mediapipe(array): 
+    # from munch import Munch
+    landmarks = NormalizedLandmarkList()
+    for i in range(len(array)):
+        # landmarks += [ Munch(landmark=Munch(x=array[i, 0], y=array[i, 1], z=array[i, 2]))]
+        # landmarks += [Munch(x=array[i, 0], y=array[i, 1], z=array[i, 2])]
+        if array.shape[1] == 3:
+            lmk = NormalizedLandmark(x=array[i, 0], y=array[i, 1], z=array[i, 2])
+        else: 
+            lmk = NormalizedLandmark(x=array[i, 0], y=array[i, 1], z=0.)
+        landmarks.landmark.append(lmk)
+    return landmarks
 
 
 class MediaPipeLandmarkDetector(FaceDetector):
