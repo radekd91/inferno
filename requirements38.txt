@@ -69,4 +69,4 @@ wrapt~=1.12.1
 youtube-dl~=2021.6.6
 mediapipe==0.8.10 
 plotly==5.8.0 
-pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git@v0.6.0
+# pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git@v0.6.0
