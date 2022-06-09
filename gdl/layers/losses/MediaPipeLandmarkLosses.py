@@ -136,6 +136,8 @@ def landmark_loss(predicted_landmarks, landmarks_gt, weights=None):
         raise ValueError(f"Wrong dimension of loss_lmk_2d: { loss_lmk_2d.ndim}")
     if weights is None: 
         return loss_lmk_2d.mean()
+    if weights.sum().abs() < 1e-8:
+        return 0
     if weights is not None:
         w = weights / torch.sum(weights)
         loss_lmk_2d = w * loss_lmk_2d
@@ -174,6 +176,8 @@ def lipd_loss(predicted_landmarks, landmarks_gt, weights=None):
     loss = (pred_lipd - gt_lipd).abs()
     if weights is None: 
         return loss.mean()
+    if weights.sum().abs() < 1e-8:
+        return 0
     if loss.ndim == 3:
         loss = loss.mean(dim=2)
     elif loss.ndim == 4: 
@@ -202,6 +206,8 @@ def mouth_corner_loss(predicted_landmarks, landmarks_gt, weights=None):
     loss = (pred_corner_d - gt_corner_d).abs()
     if weights is None: 
         return loss.mean()
+    if weights.sum().abs() < 1e-8:
+        return 0
     if loss.ndim == 3:
         loss = loss.mean(dim=2)
     elif loss.ndim == 4: 
@@ -231,4 +237,14 @@ def eyed_loss(predicted_landmarks, landmarks_gt, weights=None):
     # gt_eyed = eye_dis(real_2d[:, :, :2])
 
     loss = (pred_eyed - gt_eyed).abs().mean()
-    return loss
+    if weights is None: 
+        return loss.mean()
+    if weights.sum().abs() < 1e-8:
+        return 0
+    if loss.ndim == 3:
+        loss = loss.mean(dim=2)
+    elif loss.ndim == 4: 
+        loss = loss.mean(dim=(2,3))
+    w = weights / torch.sum(weights)
+    loss = w * loss
+    return loss.sum()
