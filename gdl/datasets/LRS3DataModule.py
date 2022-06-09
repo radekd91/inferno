@@ -20,6 +20,7 @@ from gdl.datasets.IO import load_segmentation, process_segmentation, load_segmen
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 from gdl.transforms.imgaug import create_image_augmenter
 import imgaug
+import traceback
 
 
 class LRS3DataModule(FaceVideoDataModule):
@@ -548,7 +549,7 @@ class LRS3Dataset(TemporalDatasetBase):
         assert self.occlusion_length[1] <= self.sequence_length + 1
 
 
-    def __getitem__(self, index):
+    def _getitem(self, index):
         sample = {}
 
         # 1) VIDEO
@@ -816,6 +817,20 @@ class LRS3Dataset(TemporalDatasetBase):
         #     for key in sample["landmarks"].keys():
         #         sample["landmarks"][key] = self.landmark_normalizer(sample["landmarks"][key])
         return sample
+
+    def __getitem__(self, index):
+        max_attempts = 10
+        for i in range(max_attempts):
+            try:
+                return self._getitem(index)
+            except Exception as e:
+                index = np.random.randint(0, self.__len__())
+                tb = traceback.format_exc()
+                print(f"[ERROR] Exception in {self.__class__.__name__} dataset, retrying with new index {index}")
+                print(tb)
+        print("[ERROR] Failed to retrieve sample after {} attempts".format(max_attempts))
+        raise RuntimeError("Failed to retrieve sample after {} attempts".format(max_attempts))
+
 
 
     def _augment(self, img, seg_image, landmark, input_img_shape=None):
