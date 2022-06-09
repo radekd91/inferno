@@ -137,7 +137,7 @@ def landmark_loss(predicted_landmarks, landmarks_gt, weights=None):
     if weights is None: 
         return loss_lmk_2d.mean()
     if weights.sum().abs() < 1e-8:
-        return 0
+        return torch.tensor(0)
     if weights is not None:
         w = weights / torch.sum(weights)
         loss_lmk_2d = w * loss_lmk_2d
@@ -177,7 +177,7 @@ def lipd_loss(predicted_landmarks, landmarks_gt, weights=None):
     if weights is None: 
         return loss.mean()
     if weights.sum().abs() < 1e-8:
-        return 0
+        return torch.tensor(0)
     if loss.ndim == 3:
         loss = loss.mean(dim=2)
     elif loss.ndim == 4: 
@@ -207,7 +207,7 @@ def mouth_corner_loss(predicted_landmarks, landmarks_gt, weights=None):
     if weights is None: 
         return loss.mean()
     if weights.sum().abs() < 1e-8:
-        return 0
+        return torch.tensor(0)
     if loss.ndim == 3:
         loss = loss.mean(dim=2)
     elif loss.ndim == 4: 
@@ -240,7 +240,7 @@ def eyed_loss(predicted_landmarks, landmarks_gt, weights=None):
     if weights is None: 
         return loss.mean()
     if weights.sum().abs() < 1e-8:
-        return 0
+        return torch.tensor(0)
     if loss.ndim == 3:
         loss = loss.mean(dim=2)
     elif loss.ndim == 4: 
