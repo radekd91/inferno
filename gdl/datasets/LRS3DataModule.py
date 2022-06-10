@@ -1050,6 +1050,7 @@ class LRS3Dataset(TemporalDatasetBase):
         bounding_boxes = bounding_boxes.clip(min=0, max=images.shape[1] - 1)
 
         occlusion_length = np.random.randint(self.occlusion_length[0], self.occlusion_length[1])
+        occlusion_length = min(self.sequence_length, occlusion_length)
 
         start_frame = np.random.randint(0, self.sequence_length - occlusion_length + 1)
         end_frame = start_frame + occlusion_length
