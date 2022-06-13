@@ -385,10 +385,12 @@ class LRS3DataModule(FaceVideoDataModule):
                 else:
                     raise ValueError(f"Unknown video set: {vid_set}")
             return pretrain, trainval, test
-
+        elif set_type == "all":
+            pretrain = list(range(len(self.video_list)))
+            trainval = list(range(len(self.video_list)))
+            test = list(range(len(self.video_list)))
         else: 
             raise ValueError(f"Unknown set type: {set_type}")
-
 
 
     def setup(self, stage=None):
@@ -546,7 +548,7 @@ class LRS3Dataset(TemporalDatasetBase):
         self.transforms = transforms or imgaug.augmenters.Resize((image_size, image_size))
 
         assert self.occlusion_length[0] >= 0
-        assert self.occlusion_length[1] <= self.sequence_length + 1
+        # assert self.occlusion_length[1] <= self.sequence_length + 1
 
 
     def _getitem(self, index):
@@ -560,11 +562,14 @@ class LRS3Dataset(TemporalDatasetBase):
         # num video frames 
         num_frames = video_meta["num_frames"]
 
-        assert num_frames >= self.sequence_length, f"Video {video_path} has only {num_frames} frames, but sequence length is {self.sequence_length}"
+        # assert num_frames >= self.sequence_length, f"Video {video_path} has only {num_frames} frames, but sequence length is {self.sequence_length}"
         # TODO: handle the case when sequence length is longer than the video length
 
         # pick the starting video frame 
-        start_frame = np.random.randint(0, num_frames - self.sequence_length)
+        if num_frames < self.sequence_length:
+            start_frame = 0
+        else:
+            start_frame = np.random.randint(0, num_frames - self.sequence_length)
 
         # TODO: picking the starting frame should probably be done a bit more robustly 
         # (e.g. by ensuring the sequence has at least some valid landmarks) ... 
@@ -577,6 +582,7 @@ class LRS3Dataset(TemporalDatasetBase):
         #     frame = imread(str(frame_path))
         #     frames.append(frame)
         assert video_path.is_file(), f"Video {video_path} does not exist"
+        num_read_frames = 0
         try:
             frames = vread(video_path.as_posix())
             assert len(frames) == num_frames, f"Video {video_path} has {len(frames)} frames, but meta says it has {num_frames}"
@@ -594,9 +600,14 @@ class LRS3Dataset(TemporalDatasetBase):
                 _, frame = reader.read()
             for i in range(self.sequence_length):
                 # frames.append(next(reader))
-                _, frame = reader.read()
-                # bgr to rgb 
-                frame = frame[:, :, ::-1]
+                if reader.isOpened():
+                    _, frame = reader.read()
+                    num_read_frames += 1
+                    # bgr to rgb 
+                    frame = frame[:, :, ::-1]
+                else: 
+                    # if we ran out of frames, pad with black
+                    frame = np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
                 frames.append(frame)
             reader.release()
             frames = np.stack(frames, axis=0)
@@ -618,15 +629,22 @@ class LRS3Dataset(TemporalDatasetBase):
         # the audio feats frequency (and therefore num frames) is too high, so we stack them together to match num visual frames 
         audio_feats = stacker(audio_feats, self.stack_order_audio)
 
-        audio_feats = audio_feats[start_frame:(start_frame + self.sequence_length)] 
-
+        # audio_feats = audio_feats[start_frame:(start_frame + self.sequence_length)] 
+        audio_feats = audio_feats[start_frame:(start_frame + num_read_frames)] 
+        # temporal pad with zeros if necessary to match the desired video length 
+        if audio_feats.shape[0] < self.sequence_length:
+            # concatente with zeros
+            audio_feats = np.concatenate([audio_feats, 
+                np.zeros((self.sequence_length - audio_feats.shape[0], audio_feats.shape[1]),
+                dtype=audio_feats.dtype)], axis=0)
+        
         # stack the frames and audio feats together
         sample = { 
             "video": frames,
             "audio": audio_feats,
         }
 
-        # # 3) LANDMARKS 
+        # 3) LANDMARKS 
         landmark_dict = {}
         landmark_validity_dict = {}
         for landmark_type in self.landmark_types:
@@ -654,6 +672,16 @@ class LRS3Dataset(TemporalDatasetBase):
                         landmarks[li] = landmarks[li][0] # just take the first one for now
                     else: \
                         landmarks[li] = landmarks[li][0] 
+
+                # # pad landmarks with zeros if necessary to match the desired video length
+                # # if landmarks.shape[0] < self.sequence_length:
+                # if len(landmarks) < self.sequence_length:
+                #     # concatente with zeros
+                #     landmarks += [np.zeros((landmarks.shape[1]))] * (self.sequence_length - len(landmarks))
+                    
+
+                #     landmarks = np.concatenate([landmarks, np.zeros((self.sequence_length - landmarks.shape[0], landmarks.shape[1]))], axis=0)
+                #     landmark_validity = np.concatenate([landmark_validity, np.zeros((self.sequence_length - landmark_validity.shape[0]), dtype=np.bool)], axis=0)
             else: # landmarks are saved per frame
                 landmark_validity = np.ones(len(landmarks), dtype=np.bool)
                 for i in range(start_frame, self.sequence_length + start_frame):
@@ -676,8 +704,19 @@ class LRS3Dataset(TemporalDatasetBase):
             # # #     landmarks *= 2 
             #     landmarks -= 1
 
+            # pad landmarks with zeros if necessary to match the desired video length
+            if landmarks.shape[0] < self.sequence_length:
+                landmarks = np.concatenate([landmarks, np.zeros(
+                    (self.sequence_length - landmarks.shape[0], *landmarks.shape[1:]), 
+                    dtype=landmarks.dtype)], axis=0)
+                landmark_validity = np.concatenate([landmark_validity, np.zeros((self.sequence_length - landmark_validity.shape[0]), 
+                    dtype=landmark_validity.dtype)], axis=0)
+
             landmark_dict[landmark_type] = landmarks
             landmark_validity_dict[landmark_type] = landmark_validity
+
+
+
         sample["landmarks"] = landmark_dict
         sample["landmarks_validity"] = landmark_validity_dict
 
@@ -690,7 +729,7 @@ class LRS3Dataset(TemporalDatasetBase):
             segmentations = seg_images[start_frame: self.sequence_length + start_frame]
             segmentations = np.stack(segmentations, axis=0)[:,0,...]
             segmentations = process_segmentation(segmentations, seg_types[0]).astype(np.uint8)
-            assert segmentations.shape[0] == self.sequence_length
+            # assert segmentations.shape[0] == self.sequence_length
         else: # segmentations are saved per-frame
             for i in range(start_frame, self.sequence_length + start_frame):
                 segmentation_path = segmentations_dir / f"{i:05d}.pkl"
@@ -699,6 +738,12 @@ class LRS3Dataset(TemporalDatasetBase):
                 seg_image = process_segmentation(seg_image[0], seg_type).astype(np.uint8)
                 segmentations += [seg_image]
             segmentations = np.stack(segmentations, axis=0)
+        if segmentations.shape[0] < self.sequence_length:
+                # pad segmentations with zeros to match the sequence length
+                segmentations = np.concatenate([segmentations, 
+                    np.zeros((self.sequence_length - segmentations.shape[0], segmentations.shape[1], segmentations.shape[2]),
+                        dtype=segmentations.dtype)], axis=0)
+
         sample["segmentation"] = segmentations
 
         # 5) FACE ALIGNMENT IF ANY
@@ -824,9 +869,10 @@ class LRS3Dataset(TemporalDatasetBase):
             try:
                 return self._getitem(index)
             except Exception as e:
+                old_index = index
                 index = np.random.randint(0, self.__len__())
                 tb = traceback.format_exc()
-                print(f"[ERROR] Exception in {self.__class__.__name__} dataset, retrying with new index {index}")
+                print(f"[ERROR] Exception in {self.__class__.__name__} dataset while retrieving sample {old_index}, retrying with new index {index}")
                 print(tb)
         print("[ERROR] Failed to retrieve sample after {} attempts".format(max_attempts))
         raise RuntimeError("Failed to retrieve sample after {} attempts".format(max_attempts))
@@ -1052,7 +1098,7 @@ class LRS3Dataset(TemporalDatasetBase):
         occlusion_length = np.random.randint(self.occlusion_length[0], self.occlusion_length[1])
         occlusion_length = min(self.sequence_length, occlusion_length)
 
-        start_frame = np.random.randint(0, self.sequence_length - occlusion_length + 1)
+        start_frame = np.random.randint(0, max(self.sequence_length - occlusion_length + 1, 1))
         end_frame = start_frame + occlusion_length
 
         images = self.occluder.occlude_batch(images, region, landmarks=None, 
