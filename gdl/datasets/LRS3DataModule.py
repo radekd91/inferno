@@ -325,6 +325,32 @@ class LRS3DataModule(FaceVideoDataModule):
         num_shards = int(np.ceil( self.num_sequences / videos_per_shard))
         return num_shards
 
+    def _process_video(self, idx, extract_audio=True, restore_videos=True, 
+            detect_landmarks=True, segment_videos=True, reconstruct_faces=False,):
+        if extract_audio: 
+            self._extract_audio_for_video(idx)
+        if restore_videos:
+            self._deep_restore_sequence_sr_res(idx)
+        if detect_landmarks:
+            self._detect_faces_in_sequence(idx)
+        if segment_videos:
+            self._segment_faces_in_sequence(idx)
+            # raise NotImplementedError()
+        if reconstruct_faces: 
+            # self._reconstruct_faces_in_sequence(idx, 
+            #     reconstruction_net=self._get_reconstruction_network('emoca'))
+            # self._reconstruct_faces_in_sequence(idx, 
+            #     reconstruction_net=self._get_reconstruction_network('deep3dface'))
+            # self._reconstruct_faces_in_sequence(idx, 
+            #     reconstruction_net=self._get_reconstruction_network('deca'))
+            # rec_methods = ['emoca', 'deep3dface', 'deca']
+            rec_methods = ['emoca', 'deep3dface',]
+            # rec_methods = ['emoca',]
+            for rec_method in rec_methods:
+                self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
+                                    save_obj=False, save_mat=True, save_vis=False, save_images=False,
+                                    save_video=False, rec_method=rec_method, retarget_from=None, retarget_suffix=None)
+  
 
     def _process_shard(self, videos_per_shard, shard_idx, extract_audio=True,
         restore_videos=True, detect_landmarks=True, segment_videos=True, reconstruct_faces=False,
@@ -341,29 +367,31 @@ class LRS3DataModule(FaceVideoDataModule):
         
         for i in range(start_idx, end_idx):
             idx = idxs[i]
-            if extract_audio: 
-                self._extract_audio_for_video(idx)
-            if restore_videos:
-                self._deep_restore_sequence_sr_res(idx)
-            if detect_landmarks:
-                self._detect_faces_in_sequence(idx)
-            if segment_videos:
-                self._segment_faces_in_sequence(idx)
-                # raise NotImplementedError()
-            if reconstruct_faces: 
-                # self._reconstruct_faces_in_sequence(idx, 
-                #     reconstruction_net=self._get_reconstruction_network('emoca'))
-                # self._reconstruct_faces_in_sequence(idx, 
-                #     reconstruction_net=self._get_reconstruction_network('deep3dface'))
-                # self._reconstruct_faces_in_sequence(idx, 
-                #     reconstruction_net=self._get_reconstruction_network('deca'))
-                # rec_methods = ['emoca', 'deep3dface', 'deca']
-                rec_methods = ['emoca', 'deep3dface',]
-                # rec_methods = ['emoca',]
-                for rec_method in rec_methods:
-                    self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
-                                       save_obj=False, save_mat=True, save_vis=False, save_images=False,
-                                       save_video=False, rec_method=rec_method, retarget_from=None, retarget_suffix=None)
+            self._process_video(idx, extract_audio=extract_audio, restore_videos=restore_videos,
+                detect_landmarks=detect_landmarks, segment_videos=segment_videos, reconstruct_faces=reconstruct_faces)
+            # if extract_audio: 
+            #     self._extract_audio_for_video(idx)
+            # if restore_videos:
+            #     self._deep_restore_sequence_sr_res(idx)
+            # if detect_landmarks:
+            #     self._detect_faces_in_sequence(idx)
+            # if segment_videos:
+            #     self._segment_faces_in_sequence(idx)
+            #     # raise NotImplementedError()
+            # if reconstruct_faces: 
+            #     # self._reconstruct_faces_in_sequence(idx, 
+            #     #     reconstruction_net=self._get_reconstruction_network('emoca'))
+            #     # self._reconstruct_faces_in_sequence(idx, 
+            #     #     reconstruction_net=self._get_reconstruction_network('deep3dface'))
+            #     # self._reconstruct_faces_in_sequence(idx, 
+            #     #     reconstruction_net=self._get_reconstruction_network('deca'))
+            #     # rec_methods = ['emoca', 'deep3dface', 'deca']
+            #     rec_methods = ['emoca', 'deep3dface',]
+            #     # rec_methods = ['emoca',]
+            #     for rec_method in rec_methods:
+            #         self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
+            #                            save_obj=False, save_mat=True, save_vis=False, save_images=False,
+            #                            save_video=False, rec_method=rec_method, retarget_from=None, retarget_suffix=None)
             
         print("Done processing shard")
 
@@ -389,6 +417,7 @@ class LRS3DataModule(FaceVideoDataModule):
             pretrain = list(range(len(self.video_list)))
             trainval = list(range(len(self.video_list)))
             test = list(range(len(self.video_list)))
+            return pretrain, trainval, test
         else: 
             raise ValueError(f"Unknown set type: {set_type}")
 
