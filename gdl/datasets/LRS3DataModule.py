@@ -95,6 +95,9 @@ class LRS3DataModule(FaceVideoDataModule):
         # self._unpack_videos()
         # self._saveMeta()
 
+    def _filename2index(self, filename):
+        return self.video_list.index(filename)
+
     def _get_landmark_method(self):
         return self.face_detector_type
 
@@ -413,6 +416,81 @@ class LRS3DataModule(FaceVideoDataModule):
                 else:
                     raise ValueError(f"Unknown video set: {vid_set}")
             return pretrain, trainval, test
+        elif "pretrain" == set_type:
+            if set_type == "pretrain":
+                pretrain = []
+                trainval = [] 
+                test = []
+                for i in range(len(self.video_list)): 
+                    vid_set = self._video_set(i) 
+                    if vid_set == "pretrain": 
+                        pretrain.append(i) 
+                return pretrain, trainval, test
+        elif "random_by_identity_pretrain" in set_type:
+            # pretrain_02d_02d, such as pretrain_80_20 
+            res = set_type.split("_")
+            train = float(res[-2])
+            val = float(res[-1])
+            train = train / (train + val)
+            val = 1 - train
+            indices = np.arange(len(self.video_list), dtype=np.int32)
+            # get video_clips_by_identity
+            video_clips_by_identity = {}
+            video_clips_by_identity_indices = {}
+            index_counter = 0
+            for i in range(len(self.video_list)):
+                key = self._video_set(i) + "/" + self._video_supername(i) 
+                if key in video_clips_by_identity.keys(): 
+                    video_clips_by_identity[key] += [i]
+                else: 
+                    video_clips_by_identity[key] = [i]
+                    video_clips_by_identity_indices[key] = index_counter
+                    index_counter += 1
+            
+            import random
+            seed = 4
+            # get the list of identities
+            identities = list(video_clips_by_identity.keys())
+            random.Random(seed).shuffle(identities)
+            # identitities randomly shuffled 
+            # this determines which identities are for training and which for validation
+
+            # get the list of corresponding indices
+            # indices = [] # identity index list shuffled the samte way as the identity list
+            # for identity in identities:
+            #     indices += [video_clips_by_identity_indices[identity]]
+
+            training = [] 
+            validation = [] 
+            for i, identity in enumerate(identities): 
+                # identity = identities[i] 
+                identity_videos = video_clips_by_identity[identity]
+                if i < int(train * len(identities)): 
+                    training += identity_videos
+                else:
+                    validation += identity_videos
+            training.sort() 
+            validation.sort()
+            # at this point, the identities are shuffled but per-identity videos have 
+            # consecutive indices, for training, shuffle afterwards (set shuffle to True or use a 
+            # sampler )
+            return training, validation, []
+
+        elif "random_by_video_pretrain" in set_type:
+            # pretrain_02d_02d, such as pretrain_80_20 
+            res = set_type.split("_")
+            if len(res) != 3:
+                raise ValueError(f"Unknown set type: {set_type}")
+            training = float(res[1])
+            val = float(res[2])
+            training = training / (training + val)
+            val = 1 - training
+            indices = np.arange(len(self.video_list), dtype=np.int32)
+            np.random.seed(0)
+            np.random.shuffle(indices)
+            training = indices[:int(training * len(indices))].tolist()
+            validation = indices[int(training * len(indices)):].tolist()
+            return training, validation, []
         elif set_type == "all":
             pretrain = list(range(len(self.video_list)))
             trainval = list(range(len(self.video_list)))
