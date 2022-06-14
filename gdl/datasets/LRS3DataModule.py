@@ -491,6 +491,22 @@ class LRS3DataModule(FaceVideoDataModule):
             training = indices[:int(training * len(indices))].tolist()
             validation = indices[int(training * len(indices)):].tolist()
             return training, validation, []
+        elif "specific_identity" in set_type: 
+            res = set_type.split("_")
+            identity = res[-1]
+            train = float(res[-3])
+            val = float(res[-2])
+            train = train / (train + val)
+            val = 1 - train
+            indices = [i for i in range(len(self.video_list)) if self._video_set(i) + "/" + self._video_supername(i) == identity]
+
+            training = indices[:int(train * len(indices))] 
+            validation = indices[int(train * len(indices)):]
+            import random
+            seed = 4
+            random.Random(seed).shuffle(training)
+            random.Random(seed).shuffle(validation)
+            return training, validation, []
         elif set_type == "all":
             pretrain = list(range(len(self.video_list)))
             trainval = list(range(len(self.video_list)))
