@@ -47,6 +47,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 num_workers=4,
                 device=None,
                 augmentation=None,
+                drop_last=True,
                 ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, device, 
@@ -67,7 +68,7 @@ class LRS3DataModule(FaceVideoDataModule):
 
         self.split = split
         self.num_workers = num_workers
-        self.drop_last = True
+        self.drop_last = drop_last
 
         # self.occlusion_length_train = occlusion_length_train
         # self.occlusion_length_val = occlusion_length_val
@@ -523,29 +524,33 @@ class LRS3DataModule(FaceVideoDataModule):
                 self.audio_metas, self.sequence_length_train, image_size=self.image_size, 
                 transforms=training_augmenter,
                 **self.occlusion_settings_train,
-                # occlusion_length=self.occlusion_length_train,
-                # occlusion_probability_mouth = self.occlusion_probability_mouth_train_train,
-                # occlusion_probability_left_eye = self.occlusion_probability_left_eye_train,
-                # occlusion_probability_right_eye = self.occlusion_probability_right_eye_train,
-                # occlusion_probability_face = self.occlusion_probability_face_train,
-                )
-        self.validation_set = LRS3Dataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, val, self.audio_metas, 
+              )
+
+
+                    
+        self.validation_set = LRS3Dataset(self.root_dir, self.output_dir, 
+                self.video_list, self.video_metas, val, self.audio_metas, 
                 self.sequence_length_val, image_size=self.image_size,  
                 **self.occlusion_settings_val,
-                # occlusion_length=self.occlusion_length_val,
-                # occlusion_probability_mouth = self.occlusion_probability_mouth_train_val,
-                # occlusion_probability_left_eye = self.occlusion_probability_left_eye_val,
-                # occlusion_probability_right_eye = self.occlusion_probability_right_eye_val,
-                # occlusion_probability_face = self.occlusion_probability_face_val,
             )
+
+
         self.test_set = LRS3Dataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
                 self.sequence_length_test, image_size=self.image_size, 
                 **self.occlusion_settings_test,
-                # occlusion_length=self.occlusion_length_test,  
-                # occlusion_probability_mouth = self.occlusion_probability_mouth_train_test,
-                # occlusion_probability_left_eye = self.occlusion_probability_left_eye_test,
-                # occlusion_probability_right_eye = self.occlusion_probability_right_eye_test,
-                # occlusion_probability_face = self.occlusion_probability_face_test,
+                )
+
+        if  "specific_identity" in self.split: 
+            # let's just do this for the small experiments for now
+            # just to compute what the losses are is wrt to unoccluded images
+            self.validation_set_2 = LRS3Dataset(self.root_dir, self.output_dir, 
+                self.video_list, self.video_metas, val, self.audio_metas, 
+                self.sequence_length_val, image_size=self.image_size,  
+                occlusion_length=0,
+                occlusion_probability_mouth = 0.0,
+                occlusion_probability_left_eye = 0.0,
+                occlusion_probability_right_eye = 0.0,
+                occlusion_probability_face = 0.0,
             )
 
         # if self.mode in ['all', 'manual']:
@@ -579,8 +584,19 @@ class LRS3DataModule(FaceVideoDataModule):
         return dl
 
     def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.validation_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
-                          batch_size=self.batch_size_val, drop_last=self.drop_last)
+        dl = torch.utils.data.DataLoader(self.validation_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                          batch_size=self.batch_size_val, 
+                        #   drop_last=self.drop_last
+                          drop_last=False
+                          )
+        if hasattr(self, "validation_set_2"): 
+            dl2 =  torch.utils.data.DataLoader(self.validation_set_2, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                            batch_size=self.batch_size_val, 
+                            # drop_last=self.drop_last, 
+                            drop_last=False
+                            )
+            return [dl, dl2]
+        return dl 
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(self.test_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
@@ -1031,9 +1047,6 @@ class LRS3Dataset(TemporalDatasetBase):
                 else:
                     img_t = res
 
-                # img_t = img_t.astype(np.float32) / 255.0
-                # img_t = img_t.clip(0., 1.)
-
             if seg_image_t is not None:
                 seg_image_t = np.squeeze(seg_image_t)[..., np.newaxis].astype(np.float32)
 
@@ -1058,67 +1071,6 @@ class LRS3Dataset(TemporalDatasetBase):
         if landmark is not None:
             landmark = landmark[:, :, :2]
         return img, seg_image, landmark
-
-    
-    # def _augment(self, img, seg_image, landmark, input_img_shape=None):
-    #     # workaround to make sure each sequence is augmented the same
-    #     # unfortunately imgaug does not support this out of the box 
-
-    #     # therefore we split the [B, T, ...] arays into T x [B, ...] arrays 
-    #     # and augment each t from 1 to T separately same way using to_deterministic
-
-    #     transform_det = self.transforms.to_deterministic()
-
-    #     # T = img.shape[0]
-
-    #     # for t in range(T):
-    #     #     img_t = img[t, ...] if img is not None else None
-    #     #     seg_image_t = seg_image[t:t+1, ..., np.newaxis] if seg_image is not None else None
-    #     #     landmark_t = landmark[t:t+1, ..., :2] if landmark is not None else None
-    #     batch = imgaug.Batch(images=img, segmentation_maps=seg_image, keypoints=landmark)
-
-
-    #     if self.transforms is not None:
-    #         res = transform_det.augment_batches(batch)
-    #         # res = transform_det(image=img.astype(np.float32),
-    #                             # segmentation_maps=seg_image,
-    #                             # keypoints=landmark)
-    #         if seg_image is not None and landmark is not None:
-    #             img, seg_image, landmark = res
-    #         elif seg_image is not None:
-    #             img, seg_image, _ = res
-    #         elif landmark is not None:
-    #             img, _, landmark = res
-    #         else:
-    #             img = res
-
-    #         img = img.astype(np.float32) / 255.0
-
-    #     if seg_image is not None:
-    #         seg_image = np.squeeze(seg_image)[..., np.newaxis].astype(np.float32)
-
-    #     if landmark is not None:
-    #         landmark = np.squeeze(landmark)
-    #         if isinstance(self.landmark_normalizer, KeypointScale):
-    #             self.landmark_normalizer.set_scale(
-    #                 img.shape[0] / input_img_shape[0],
-    #                 img.shape[1] / input_img_shape[1])
-    #         elif isinstance(self.landmark_normalizer, KeypointNormalization):
-    #             self.landmark_normalizer.set_scale(img.shape[0], img.shape[1])
-    #             # self.landmark_normalizer.set_scale(input_img_shape[0], input_img_shape[1])
-    #         else:
-    #             raise ValueError(f"Unsupported landmark normalizer type: {type(self.landmark_normalizer)}")
-    #         landmark = self.landmark_normalizer(landmark)
-
-    #     # img[t:t+1, ...] = img_t 
-    #     # if seg_image is not None:
-    #     #     seg_image[t:t+1, ...] = seg_image_t[..., 0]
-    #     # if landmark is not None:
-    #     #     landmark[t:t+1, ..., :2] = landmark_t[np.newaxis]
-    #     # if landmark is not None:
-    #     #     landmark = landmark[:, :, :2]
-    #     return img, seg_image, landmark
-
 
     def _augment_sequence_sample(self, sample):
         # get the mediapipe landmarks 
