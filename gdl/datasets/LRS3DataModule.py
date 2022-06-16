@@ -524,6 +524,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 self.audio_metas, self.sequence_length_train, image_size=self.image_size, 
                 transforms=training_augmenter,
                 **self.occlusion_settings_train,
+                hack_length='auto'
               )
 
 
@@ -532,15 +533,17 @@ class LRS3DataModule(FaceVideoDataModule):
                 self.video_list, self.video_metas, val, self.audio_metas, 
                 self.sequence_length_val, image_size=self.image_size,  
                 **self.occlusion_settings_val,
+                hack_length=False
             )
 
 
         self.test_set = LRS3Dataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
                 self.sequence_length_test, image_size=self.image_size, 
                 **self.occlusion_settings_test,
+                hack_length=False
                 )
 
-        if  "specific_identity" in self.split: 
+        if "specific_identity" in self.split: 
             # let's just do this for the small experiments for now
             # just to compute what the losses are is wrt to unoccluded images
             self.validation_set_2 = LRS3Dataset(self.root_dir, self.output_dir, 
@@ -644,6 +647,7 @@ class LRS3Dataset(TemporalDatasetBase):
             occlusion_probability_face = 0.0,
             image_size=None, 
             transforms : imgaug.augmenters.Augmenter = None,
+            hack_length=False,
         ) -> None:
         super().__init__()
         self.root_path = root_path
@@ -686,11 +690,23 @@ class LRS3Dataset(TemporalDatasetBase):
         # self.align_images = False
         self.transforms = transforms or imgaug.augmenters.Resize((image_size, image_size))
 
+        self.hack_length = hack_length
+        if self.hack_length == "auto": 
+            if self._true_len() < 64: # hacks the length for supersmall test datasets
+                self.hack_length = (64 // self._true_len())
+                if 64 % self._true_len() != 0:
+                    self.hack_length += 1
+                self.hack_length = float(self.hack_length)
+            # useful hack to repeat the elements in the dataset for really small datasets
+
         assert self.occlusion_length[0] >= 0
         # assert self.occlusion_length[1] <= self.sequence_length + 1
 
 
     def _getitem(self, index):
+        if self.hack_length: 
+            index = index % self._true_len()
+
         sample = {}
 
         # 1) VIDEO
@@ -1005,7 +1021,7 @@ class LRS3Dataset(TemporalDatasetBase):
     def __getitem__(self, index):
         max_attempts = 10
         for i in range(max_attempts):
-            try:
+            try: 
                 return self._getitem(index)
             except Exception as e:
                 old_index = index
@@ -1015,8 +1031,6 @@ class LRS3Dataset(TemporalDatasetBase):
                 print(tb)
         print("[ERROR] Failed to retrieve sample after {} attempts".format(max_attempts))
         raise RuntimeError("Failed to retrieve sample after {} attempts".format(max_attempts))
-
-
 
     def _augment(self, img, seg_image, landmark, input_img_shape=None):
         # workaround to make sure each sequence is augmented the same
@@ -1187,8 +1201,13 @@ class LRS3Dataset(TemporalDatasetBase):
         noise = np.random.randn(len(wavdata))
         return wavdata + noise
 
-    def __len__(self): 
+    def _true_len(self):
         return len(self.video_indices)
+
+    def __len__(self): 
+        if self.hack_length: 
+            return int(self.hack_length*self._true_len())
+        return self._true_len()
 
     def visualize_sample(self, sample_or_index):
         if isinstance(sample_or_index, int):
