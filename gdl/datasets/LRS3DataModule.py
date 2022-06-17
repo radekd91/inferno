@@ -742,6 +742,9 @@ class LRS3Dataset(TemporalDatasetBase):
             frames = vread(video_path.as_posix())
             assert len(frames) == num_frames, f"Video {video_path} has {len(frames)} frames, but meta says it has {num_frames}"
             frames = frames[start_frame:(start_frame + self.sequence_length)] 
+            if frames.shape[0] < self.sequence_length:
+                # pad with zeros if video shorter than sequence length
+                frames = np.concatenate([frames, np.zeros((self.sequence_length - frames.shape[0], frames.shape[1], frames.shape[2]), dtype=frames.dtype)])
         except ValueError: 
             # reader = vreader(video_path.as_posix())
             # create an opencv video reader 
@@ -757,6 +760,10 @@ class LRS3Dataset(TemporalDatasetBase):
                 # frames.append(next(reader))
                 if reader.isOpened():
                     _, frame = reader.read()
+                    if frame is None: 
+                        frame = np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
+                        frames.append(frame)
+                        continue
                     num_read_frames += 1
                     # bgr to rgb 
                     frame = frame[:, :, ::-1]
@@ -1021,14 +1028,14 @@ class LRS3Dataset(TemporalDatasetBase):
     def __getitem__(self, index):
         max_attempts = 10
         for i in range(max_attempts):
-            try: 
+            # try: 
                 return self._getitem(index)
-            except Exception as e:
-                old_index = index
-                index = np.random.randint(0, self.__len__())
-                tb = traceback.format_exc()
-                print(f"[ERROR] Exception in {self.__class__.__name__} dataset while retrieving sample {old_index}, retrying with new index {index}")
-                print(tb)
+            # except Exception as e:
+            #     old_index = index
+            #     index = np.random.randint(0, self.__len__())
+            #     tb = traceback.format_exc()
+            #     print(f"[ERROR] Exception in {self.__class__.__name__} dataset while retrieving sample {old_index}, retrying with new index {index}")
+            #     print(tb)
         print("[ERROR] Failed to retrieve sample after {} attempts".format(max_attempts))
         raise RuntimeError("Failed to retrieve sample after {} attempts".format(max_attempts))
 
@@ -1093,28 +1100,37 @@ class LRS3Dataset(TemporalDatasetBase):
         # mediapipe_landmarks = []
         images = sample["video"]
         segmentation = sample["segmentation"]
+        
 
         images_masked = np.copy(images)
         segmentation_masked = np.copy(segmentation)
 
+        masked_frames = np.zeros(segmentation.shape[:1], dtype=np.float32)
+
         # compute mouth region bounding box
         if np.random.rand() < self.occlusion_probability_mouth: 
-            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, 
+            images_masked, segmentation_masked, start_frame_, end_frame_ = self._occlude_sequence(images_masked, segmentation_masked, 
                 mediapipe_landmarks, mediapipe_landmarks_valid, "mouth")
+            masked_frames[start_frame_:end_frame_] = 1.0
 
         # compute eye region bounding box
         if np.random.rand() < self.occlusion_probability_left_eye:
-            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, 
+            images_masked, segmentation_masked, start_frame_, end_frame_ = self._occlude_sequence(images_masked, segmentation_masked, 
                 mediapipe_landmarks, mediapipe_landmarks_valid, "left_eye")
+            masked_frames[start_frame_:end_frame_] = 1.0
 
         if np.random.rand() < self.occlusion_probability_right_eye:
-            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, 
+            images_masked, segmentation_masked, start_frame_, end_frame_ = self._occlude_sequence(images_masked, segmentation_masked, 
                 mediapipe_landmarks, mediapipe_landmarks_valid, "right_eye")
+            masked_frames[start_frame_:end_frame_] = 1.0
 
         # compute face region bounding box
         if np.random.rand() < self.occlusion_probability_face:
-            images_masked, segmentation_masked = self._occlude_sequence(images_masked, segmentation_masked, 
+            images_masked, segmentation_masked, start_frame_, end_frame_ = self._occlude_sequence(images_masked, segmentation_masked, 
                 mediapipe_landmarks, mediapipe_landmarks_valid, "all")
+            masked_frames[start_frame_:end_frame_] = 1.0
+
+
 
         #  augment the sequence
         # images, segmentation, mediapipe_landmarks = self._augment(images, segmentation, 
@@ -1139,6 +1155,7 @@ class LRS3Dataset(TemporalDatasetBase):
         sample["video_masked"] = images_masked / 255.0
         sample["segmentation"] = segmentation
         sample["segmentation_masked"] = segmentation_masked
+        sample["masked_frames"] = masked_frames
         sample["landmarks"]["mediapipe"] = mediapipe_landmarks
         return sample
 
@@ -1194,7 +1211,7 @@ class LRS3Dataset(TemporalDatasetBase):
             bounding_box_batch=bounding_boxes, start_frame=start_frame, end_frame=end_frame)
         segmentation = self.occluder.occlude_batch(segmentation, region, landmarks=None, 
             bounding_box_batch=bounding_boxes, start_frame=start_frame, end_frame=end_frame)
-        return images, segmentation
+        return images, segmentation, start_frame, end_frame
 
     def add_noise(self, wavdata):
         raise NotImplementedError(  )
