@@ -312,8 +312,75 @@ def batch_rodrigues(theta):
     v_sin = torch.sin(angle)
     quat = torch.cat([v_cos, v_sin * normalized], dim=1)
 
-    return quat2mat(quat)
+    return quaternion_to_rotation_matrix(quat)
 
+
+def angle_axis_to_quaternion(angle_axis: torch.Tensor) -> torch.Tensor:
+    """Convert an angle axis to a quaternion.
+    Adapted from ceres C++ library: ceres-solver/include/ceres/rotation.h
+    Args:
+        angle_axis (torch.Tensor): tensor with angle axis.
+    Return:
+        torch.Tensor: tensor with quaternion.
+    Shape:
+        - Input: :math:`(*, 3)` where `*` means, any number of dimensions
+        - Output: :math:`(*, 4)`
+    Example:
+        >>> angle_axis = torch.rand(2, 4)  # Nx4
+        >>> quaternion = tgm.angle_axis_to_quaternion(angle_axis)  # Nx3
+    """
+    if not torch.is_tensor(angle_axis):
+        raise TypeError("Input type is not a torch.Tensor. Got {}".format(
+            type(angle_axis)))
+
+    if not angle_axis.shape[-1] == 3:
+        raise ValueError("Input must be a tensor of shape Nx3 or 3. Got {}"
+                         .format(angle_axis.shape))
+    # unpack input and compute conversion
+    a0: torch.Tensor = angle_axis[..., 0:1]
+    a1: torch.Tensor = angle_axis[..., 1:2]
+    a2: torch.Tensor = angle_axis[..., 2:3]
+    theta_squared: torch.Tensor = a0 * a0 + a1 * a1 + a2 * a2
+
+    theta: torch.Tensor = torch.sqrt(theta_squared)
+    half_theta: torch.Tensor = theta * 0.5
+
+    mask: torch.Tensor = theta_squared > 0.0
+    ones: torch.Tensor = torch.ones_like(half_theta)
+
+    k_neg: torch.Tensor = 0.5 * ones
+    k_pos: torch.Tensor = torch.sin(half_theta) / theta
+    k: torch.Tensor = torch.where(mask, k_pos, k_neg)
+    w: torch.Tensor = torch.where(mask, torch.cos(half_theta), ones)
+
+    quaternion: torch.Tensor = torch.zeros_like(angle_axis)
+    quaternion[..., 0:1] += a0 * k
+    quaternion[..., 1:2] += a1 * k
+    quaternion[..., 2:3] += a2 * k
+    return torch.cat([w, quaternion], dim=-1)
+
+
+def quaternion_to_rotation_matrix(quat):
+    """Convert quaternion coefficients to rotation matrix.
+    Args:
+        quat: size = [B, 4] 4 <===>(w, x, y, z)
+    Returns:
+        Rotation matrix corresponding to the quaternion -- size = [B, 3, 3]
+    """
+    norm_quat = quat
+    norm_quat = norm_quat / norm_quat.norm(p=2, dim=1, keepdim=True)
+    w, x, y, z = norm_quat[:, 0], norm_quat[:, 1], norm_quat[:, 2], norm_quat[:, 3]
+
+    B = quat.size(0)
+
+    w2, x2, y2, z2 = w.pow(2), x.pow(2), y.pow(2), z.pow(2)
+    wx, wy, wz = w * x, w * y, w * z
+    xy, xz, yz = x * y, x * z, y * z
+
+    rotMat = torch.stack([w2 + x2 - y2 - z2, 2 * xy - 2 * wz, 2 * wy + 2 * xz,
+                          2 * wz + 2 * xy, w2 - x2 + y2 - z2, 2 * yz - 2 * wx,
+                          2 * xz - 2 * wy, 2 * wx + 2 * yz, w2 - x2 - y2 + z2], dim=1).view(B, 3, 3)
+    return rotMat
 
 def rot_mat_to_euler(rot_mats):
     # Calculates rotation matrix to euler angles
