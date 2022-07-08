@@ -51,6 +51,31 @@ def renderer_from_cfg(cfg):
     return renderer
 
 
+def norm_from_cfg(cfg, input_tensor_shape):
+    if cfg is None or cfg.type == "none":
+        return None
+    elif cfg.type == "batchnorm2d":
+        assert len(input_tensor_shape) == 4 # B, C, H, W
+        return torch.nn.BatchNorm2d(input_tensor_shape[1])
+    elif cfg.type == "instancenorm2d":
+        assert len(input_tensor_shape) == 4 # B, C, H, W
+        return torch.nn.InstanceNorm2d(input_tensor_shape[1]) 
+    elif cfg.type == "batchnorm1d":
+        assert len(input_tensor_shape) == 2 # B, F
+        return torch.nn.BatchNorm1d(input_tensor_shape[1])
+    elif cfg.type == "instancenorm1d":
+        assert len(input_tensor_shape) == 2 # B, F
+        return torch.nn.InstanceNorm1d(input_tensor_shape[1])
+    elif cfg.type == "layernorm_temporal":
+        assert len(input_tensor_shape) == 3  # B, T, F
+        return torch.nn.LayerNorm(input_tensor_shape[2])
+    elif cfg.type == "layernorm_image":
+        assert len(input_tensor_shape) == 4 # B, C, H, W
+        return torch.nn.LayerNorm(input_tensor_shape[1:])
+    else:
+        raise ValueError(f"Unknown norm type '{cfg.type}'")
+
+
 def video_encoder_from_cfg(cfg):
     if cfg.type == "emoca": 
         # instantate EMOCA 
