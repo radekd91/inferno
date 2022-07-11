@@ -199,17 +199,45 @@ class GRUSeqEnc(SequenceEncoder):
         return self.cfg.feature_dim * 2 if self.bidirectional else self.cfg.feature_dim
 
 
-# class TemporalConvNet(SequenceEncoder):
+class TemporalConvNet(SequenceEncoder):
 
-#     def __init__(self, cfg):
-#         super().__init__()
-#         self.cfg = cfg
-#         layers = []
-#         for i in range()
-
-#     def forward(self, x):
-#         pass 
+    def __init__(self, cfg):
+        super().__init__()
+        self.cfg = cfg
+        layers = []
+        kernel_size = cfg.kernel_size
         
+        for i in range(self.cfg.num_layers):
+            layers += [torch.nn.Conv1d(self.cfg.feature_dim, 
+                    self.cfg.feature_dim, kernel_size=kernel_size, padding='same',)]
+            layers += [torch.nn.ReLU()]
+            if self.cfg.dropout > 0:
+                layers += [torch.nn.Dropout(p=self.cfg.dropout)] 
+            if self.cfg.norm_layer: 
+                if self.cfg.norm_layer == "batchnorm1d":
+                    layers += [torch.nn.BatchNorm1d(self.cfg.feature_dim)]
+                elif self.cfg.norm_layer == "layernorm":
+                    layers += [torch.nn.LayerNorm(self.cfg.feature_dim)]
+                elif self.cfg.norm_layer == "instancenorm1d":
+                    layers += [torch.nn.InstanceNorm1d(self.cfg.feature_dim)]
+                else:
+                    raise NotImplementedError("Unknown norm layer: {}".format(self.cfg.norm_layer))
+        self.layers = torch.nn.Sequential(*layers)
+
+    def forward(self, sample):
+        feat = sample["fused_feature"].transpose(1, 2)
+        out = self.layers(feat).transpose(1, 2) 
+        sample["seq_encoder_output"] = out 
+        return sample 
+        
+    def get_trainable_parameters(self): 
+        return list(self.parameters())
+
+    def input_feature_dim(self):
+        return self.cfg.feature_dim
+
+    def output_feature_dim(self):
+        return self.cfg.feature_dim 
 
 
 class ResNetBottleneck(torch.nn.Module):

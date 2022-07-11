@@ -31,6 +31,8 @@ def sequence_encoder_from_cfg(cfg):
         encoder = MLPSequenceEncoder(cfg)
     elif cfg.type in ["gru"]:
         encoder = GRUSeqEnc(cfg)
+    elif cfg.type in ["temporal_cnn"]:
+        encoder = TemporalConvNet(cfg)
     else: 
         raise ValueError(f"Unknown sequence encoder model type '{cfg.type}'")
     return encoder
