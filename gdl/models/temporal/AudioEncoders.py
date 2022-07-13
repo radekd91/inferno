@@ -38,6 +38,12 @@ class AvHubertAudioEncoder(TemporalAudioEncoder):
         sample["audio_feature"] = features
         return sample
 
+    def train(self, mode: bool = True):
+        # return super().train(mode)
+        mode = mode and self.trainable 
+        self.avhubert.train(mode)
+        return self
+
     def get_trainable_parameters(self): 
         if self.trainable:
             return list(self.avhubert.parameters())
