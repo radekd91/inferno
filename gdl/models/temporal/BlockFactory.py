@@ -79,6 +79,8 @@ def norm_from_cfg(cfg, input_tensor_shape):
 
 
 def video_encoder_from_cfg(cfg):
+    if cfg.type == "none":
+        return None
     if cfg.type == "emoca": 
         # instantate EMOCA 
         from gdl_apps.EMOCA.utils.io import load_model
@@ -91,7 +93,8 @@ def video_encoder_from_cfg(cfg):
                                 cfg.use_lightcode, 
                                 # cfg.use_posecode, 
                                 cfg.use_cam, 
-                                cfg.trainable)
+                                cfg.trainable, 
+                                cfg.get('discard_feature', False),)
     elif cfg.type == "deca": 
         from gdl_apps.EMOCA.utils.io import load_model
         mode = "detail"
