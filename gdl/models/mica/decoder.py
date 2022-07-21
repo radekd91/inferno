@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as Functional
 
-from DecaFLAME import FLAME
+from ..DecaFLAME import FLAME
 
 
 def kaiming_leaky_init(m):
@@ -44,14 +44,19 @@ class MappingNetwork(nn.Module):
 
 
 class DecoderMica(nn.Module):
-    def __init__(self, z_dim, map_hidden_dim, map_output_dim, hidden, model_cfg, device):
+    def __init__(self, z_dim, map_hidden_dim, map_output_dim, hidden, model_cfg, device, 
+        instantiate_flame=True):
         super().__init__()
         self.device = device
         self.regressor = MappingNetwork(z_dim, map_hidden_dim, map_output_dim, hidden).to(self.device)
-        self.generator = FLAME(model_cfg).to(self.device)
+        self.generator = None 
+        if instantiate_flame:
+            self.generator = FLAME(model_cfg).to(self.device)
 
-    def forward(self, arcface):
+    def forward(self, arcface, decode_verts=True):
         shape = self.regressor(arcface)
-        vertices = self.generator(shape_params=shape)[0]
-
+        if decode_verts:
+            vertices = self.generator(shape_params=shape)[0]
+        else: 
+            vertices = None
         return vertices, shape

@@ -49,7 +49,7 @@ from gdl.utils.lightning_logging import _log_array_image, _log_wandb_image, _tor
 
 torch.backends.cudnn.benchmark = True
 from enum import Enum
-from gdl.utils.other import class_from_str
+from gdl.utils.other import class_from_str, get_path_to_assets
 from gdl.layers.losses.VGGLoss import VGG19Loss
 from omegaconf import OmegaConf, open_dict
 
@@ -140,6 +140,23 @@ class DecaModule(LightningModule):
 
     def get_input_image_size(self): 
         return (self.deca.config.image_size, self.deca.config.image_size)
+
+    def _instantiate_deca(self, model_params):
+        """
+        Instantiate the DECA network.
+        """
+        # which type of DECA network is used
+        if 'deca_class' not in model_params.keys() or model_params.deca_class is None:
+            print(f"Deca class is not specified. Defaulting to {str(DECA.__class__.__name__)}")
+            # vanilla DECA by default (not EMOCA)
+            deca_class = DECA
+        else:
+            # other type of DECA-inspired networks possible (such as ExpDECA, which is what EMOCA)
+            deca_class = class_from_str(model_params.deca_class, sys.modules[__name__])
+
+        # instantiate the network
+        self.deca = deca_class(config=model_params)
+
 
     def _init_emotion_loss(self):
         """
@@ -1873,7 +1890,7 @@ class DecaModule(LightningModule):
 
         return losses, metrics
 
-    def compute_loss(self, values, batch, training=True, testing=False) -> (dict, dict):
+    def compute_loss(self, values, batch, training=True, testing=False) -> dict:
         """
         The function used to compute the loss on a training batch.
         :
@@ -2821,7 +2838,7 @@ class ExpDECA(DECA):
             raise ValueError(f"Invalid expression backbone: '{self.config.expression_backbone}'")
         
         if self.config.get('zero_out_last_enc_layer', False):
-            self.E_expression.reset_last_layer()
+            self.E_expression.reset_last_layer() 
 
     def _get_coarse_trainable_parameters(self):
         print("Add E_expression.parameters() to the optimizer")
@@ -2911,6 +2928,94 @@ class ExpDECA(DECA):
             self.E_detail.eval()
             self.D_detail.eval()
         return self
+
+
+    
+class EMICA(ExpDECA): 
+
+    def __init__(self, config):
+        super().__init__(config)
+  
+    def _create_model(self):
+        # 1) Initialize DECA
+        super()._create_model()
+        from .mica.mica import Mica
+        #TODO: MICA uses FLAME  
+        # 1) This is redundant - get rid of it 
+        # 2) Make sure it's the same FLAME as EMOCA
+        if Path(self.config.mica_model_path).exists(): 
+            mica_path = self.config.mica_model_path 
+        else:
+            from gdl.utils.other import get_path_to_assets
+            mica_path = get_path_to_assets() / self.config.mica_model_path  
+            assert mica_path.exists(), f"MICA model path does not exist: '{mica_path}'"
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.E_mica = Mica(device, str(mica_path), instantiate_flame=False)
+        # E_mica should be fixed 
+        self.E_mica.requires_grad_(False)
+
+        # preprocessing for MICA
+        from insightface.app import FaceAnalysis
+        self.app = FaceAnalysis(name='antelopev2', providers=['CUDAExecutionProvider'])
+        self.app.prepare(ctx_id=0, det_size=(224, 224))
+
+
+    def _get_coarse_trainable_parameters(self):
+        # MICA is not trainable so we don't wanna add it 
+        return super()._get_coarse_trainable_parameters()
+
+
+    def train(self, mode: bool = True):
+        super().train(mode)
+        self.E_mica.train(False) # MICA is pretrained and will be set to EVAL at all times 
+
+
+    def _encode_flame(self, images):
+        
+        mica_image = self._dirty_image_preprocessing(images)
+
+        deca_code, exp_deca_code = super()._encode_flame(images)
+        mica_code = self.E_mica(mica_image) 
+
+        return deca_code, exp_deca_code, mica_code
+ 
+    def _dirty_image_preprocessing(self, input_image): 
+        # breaks whatever gradient flow that may have gone into the image creation process
+        from gdl.models.mica.detector import get_center, get_arcface_input
+        from insightface.app.common import Face
+        
+        image = input_image.detach().clone().cpu() 
+        min_det_score = 0.5
+        bboxes, kpss = self.app.det_model.detect(image, max_num=0, metric='default')
+        if bboxes.shape[0] == 0:
+            raise RuntimeError("No faces detected")
+        i = get_center(bboxes, image)
+        bbox = bboxes[i, 0:4]
+        det_score = bboxes[i, 4]
+        # if det_score < min_det_score:
+        #     continue
+        kps = None
+        if kpss is not None:
+            kps = kpss[i]
+
+        face = Face(bbox=bbox, kps=kps, det_score=det_score)
+        blob, aimg = get_arcface_input(face, image)
+        aimg = torch.tensor(aimg).astype(input_image.dtype).to(input_image.device)
+        return aimg
+
+    def decompose_code(self, code): 
+        deca_code = code[0]
+        expdeca_code = code[1]
+        mica_code = code[2]
+
+        code_list = super().decompose_code((deca_code, expdeca_code), )
+
+        id_idx = 0 # identity is the first part of the vector
+        assert self.config.n_shape == mica_code.shape[-1]
+        assert code_list[id_idx].shape[-1] == mica_code.shape[-1]
+        # code_list[id_idx] = mica_code[..., :self.config.n_shape]
+        code_list[id_idx] = mica_code
+        return code_list
 
 
 def instantiate_deca(cfg, stage, prefix, checkpoint=None, checkpoint_kwargs=None):
