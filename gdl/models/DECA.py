@@ -32,6 +32,7 @@ from gdl.layers.losses.EmoNetLoss import EmoNetLoss, create_emo_loss, create_au_
 import numpy as np
 # from time import time
 from skimage.io import imread
+from skimage.transform import resize
 import cv2
 from pathlib import Path
 
@@ -497,7 +498,7 @@ class DecaModule(LightningModule):
                     shapecode_mean = torch.mean(shapecode_idK, dim=[1])
                     # shapecode_new = shapecode_mean[:, None, :].repeat(1, self.deca.K, 1)
                     shapecode_new = shapecode_mean[:, None, :].repeat(1, K, 1)
-                    shapecode = shapecode_new.view(-1, self.deca.config.model.n_shape)
+                    shapecode = shapecode_new.view(-1, self.deca._get_num_shape_params())
                 elif self.deca.config.shape_constrain_type == 'exchange':
                     ## Shuffle identitys shape codes within ring (they should correspond to the same identity)
                     '''
@@ -612,7 +613,7 @@ class DecaModule(LightningModule):
                     expcode_mean = torch.mean(expcode_idK, dim=[1])
                     # shapecode_new = shapecode_mean[:, None, :].repeat(1, self.deca.K, 1)
                     expcode_new = expcode_mean[:, None, :].repeat(1, K, 1)
-                    expcode = expcode_new.view(-1, self.deca.config.model.n_shape)
+                    expcode = expcode_new.view(-1, self.deca._get_num_shape_params())
 
                 elif 'expression_constrain_type' in self.deca.config.keys() and \
                         self.deca.config.expression_constrain_type == 'exchange':
@@ -2441,6 +2442,9 @@ class DECA(torch.nn.Module):
         self._init_deep_losses()
         self.face_attr_mask = util.load_local_mask(image_size=self.config.uv_size, mode='bbx')
 
+    def _get_num_shape_params(self): 
+        return self.config.n_shape
+
     def _init_deep_losses(self):
         """
         Initialize networks for deep losses
@@ -2579,7 +2583,10 @@ class DECA(torch.nn.Module):
         else:
             raise ValueError(f"Invalid 'e_flame_type' = {e_flame_type}")
 
-        self.flame = FLAME(self.config)
+        import copy 
+        flame_cfg = copy.deepcopy(self.config)
+        flame_cfg.n_shape = self._get_num_shape_params()
+        self.flame = FLAME(flame_cfg)
 
         if self.uses_texture():
             self.flametex = FLAMETex(self.config)
@@ -2871,6 +2878,8 @@ class ExpDECA(DECA):
         exp_idx = 2
         pose_idx = 3
 
+        # self.E_mica.cfg.model.n_shape
+
         #TODO: clean this if-else block up
         if self.config.exp_deca_global_pose and self.config.exp_deca_jaw_pose:
             exp_code = expdeca_code[:, :self.config.n_exp]
@@ -2934,12 +2943,16 @@ class ExpDECA(DECA):
 class EMICA(ExpDECA): 
 
     def __init__(self, config):
+        self.use_mica_shape_dim = True
+        # self.use_mica_shape_dim = False
+        from .mica.config import get_cfg_defaults
+        self.mica_cfg = get_cfg_defaults()
         super().__init__(config)
   
     def _create_model(self):
         # 1) Initialize DECA
         super()._create_model()
-        from .mica.mica import Mica
+        from .mica.mica import MICA
         #TODO: MICA uses FLAME  
         # 1) This is redundant - get rid of it 
         # 2) Make sure it's the same FLAME as EMOCA
@@ -2949,16 +2962,24 @@ class EMICA(ExpDECA):
             from gdl.utils.other import get_path_to_assets
             mica_path = get_path_to_assets() / self.config.mica_model_path  
             assert mica_path.exists(), f"MICA model path does not exist: '{mica_path}'"
+
+        self.mica_cfg.pretrained_model_path = mica_path
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.E_mica = Mica(device, str(mica_path), instantiate_flame=False)
+        self.E_mica = MICA(self.mica_cfg, device, str(mica_path), instantiate_flame=False)
         # E_mica should be fixed 
         self.E_mica.requires_grad_(False)
+        self.E_mica.testing = True
 
         # preprocessing for MICA
         from insightface.app import FaceAnalysis
         self.app = FaceAnalysis(name='antelopev2', providers=['CUDAExecutionProvider'])
         self.app.prepare(ctx_id=0, det_size=(224, 224))
 
+
+    def _get_num_shape_params(self):
+        if self.use_mica_shape_dim:
+            return self.mica_cfg.model.n_shape
+        return self.config.n_shape
 
     def _get_coarse_trainable_parameters(self):
         # MICA is not trainable so we don't wanna add it 
@@ -2975,33 +2996,47 @@ class EMICA(ExpDECA):
         mica_image = self._dirty_image_preprocessing(images)
 
         deca_code, exp_deca_code = super()._encode_flame(images)
-        mica_code = self.E_mica(mica_image) 
-
-        return deca_code, exp_deca_code, mica_code
+        mica_code = self.E_mica.encode(images, mica_image) 
+        mica_code = self.E_mica.decode(mica_code, predict_vertices=False)
+        return deca_code, exp_deca_code, mica_code['pred_shape_code']
  
     def _dirty_image_preprocessing(self, input_image): 
         # breaks whatever gradient flow that may have gone into the image creation process
         from gdl.models.mica.detector import get_center, get_arcface_input
         from insightface.app.common import Face
         
-        image = input_image.detach().clone().cpu() 
+        image = input_image.detach().clone().cpu().numpy() * 255. 
+        # b,c,h,w to b,h,w,c
+        image = image.transpose((0,2,3,1))
+    
         min_det_score = 0.5
-        bboxes, kpss = self.app.det_model.detect(image, max_num=0, metric='default')
-        if bboxes.shape[0] == 0:
-            raise RuntimeError("No faces detected")
-        i = get_center(bboxes, image)
-        bbox = bboxes[i, 0:4]
-        det_score = bboxes[i, 4]
-        # if det_score < min_det_score:
-        #     continue
-        kps = None
-        if kpss is not None:
-            kps = kpss[i]
+        image_list = list(image)
+        aligned_image_list = []
+        for i, img in enumerate(image_list):
+            bboxes, kpss = self.app.det_model.detect(img, max_num=0, metric='default')
+            if bboxes.shape[0] == 0:
+                aimg = resize(img, output_shape=(112,112), preserve_range=True)
+                aligned_image_list.append(aimg)
+                raise RuntimeError("No faces detected")
+                continue
+            i = get_center(bboxes, image)
+            bbox = bboxes[i, 0:4]
+            det_score = bboxes[i, 4]
+            # if det_score < min_det_score:
+            #     continue
+            kps = None
+            if kpss is not None:
+                kps = kpss[i]
 
-        face = Face(bbox=bbox, kps=kps, det_score=det_score)
-        blob, aimg = get_arcface_input(face, image)
-        aimg = torch.tensor(aimg).astype(input_image.dtype).to(input_image.device)
-        return aimg
+            face = Face(bbox=bbox, kps=kps, det_score=det_score)
+            blob, aimg = get_arcface_input(face, img)
+            aligned_image_list.append(aimg)
+        aligned_images = np.array(aligned_image_list)
+        # b,h,w,c to b,c,h,w
+        aligned_images = aligned_images.transpose((0,3,1,2))
+        # to torch to correct device 
+        aligned_images = torch.from_numpy(aligned_images).to(input_image.device)
+        return aligned_images
 
     def decompose_code(self, code): 
         deca_code = code[0]
@@ -3011,10 +3046,12 @@ class EMICA(ExpDECA):
         code_list = super().decompose_code((deca_code, expdeca_code), )
 
         id_idx = 0 # identity is the first part of the vector
-        assert self.config.n_shape == mica_code.shape[-1]
-        assert code_list[id_idx].shape[-1] == mica_code.shape[-1]
-        # code_list[id_idx] = mica_code[..., :self.config.n_shape]
-        code_list[id_idx] = mica_code
+        # assert self.config.n_shape == mica_code.shape[-1]
+        # assert code_list[id_idx].shape[-1] == mica_code.shape[-1]
+        if self.use_mica_shape_dim:
+            code_list[id_idx] = mica_code
+        else: 
+            code_list[id_idx] = mica_code[..., :self.config.n_shape]
         return code_list
 
 

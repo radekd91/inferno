@@ -1,3 +1,21 @@
+
+# -*- coding: utf-8 -*-
+
+# Max-Planck-Gesellschaft zur Förderung der Wissenschaften e.V. (MPG) is
+# holder of all proprietary rights on this computer program.
+# You can only use this computer program if you have closed
+# a license agreement with MPG or you get the right to use the computer
+# program from someone who is authorized to grant you that right.
+# Any use of the computer program without a valid license is prohibited and
+# liable to prosecution.
+#
+# Copyright©2022 Max-Planck-Gesellschaft zur Förderung
+# der Wissenschaften e.V. (MPG). acting on behalf of its Max Planck Institute
+# for Intelligent Systems. All rights reserved.
+#
+# Contact: mica@tue.mpg.de
+
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as Functional
@@ -43,20 +61,29 @@ class MappingNetwork(nn.Module):
         return output
 
 
-class DecoderMica(nn.Module):
-    def __init__(self, z_dim, map_hidden_dim, map_output_dim, hidden, model_cfg, device, 
-        instantiate_flame=True):
+class Generator(nn.Module):
+    def __init__(self, z_dim, map_hidden_dim, map_output_dim, hidden, model_cfg, device,
+            regress=True, 
+            instantiate_flame=True):
         super().__init__()
         self.device = device
-        self.regressor = MappingNetwork(z_dim, map_hidden_dim, map_output_dim, hidden).to(self.device)
-        self.generator = None 
+        self.cfg = model_cfg
+        self.regress = regress
+
+        if self.regress:
+            self.regressor = MappingNetwork(z_dim, map_hidden_dim, map_output_dim, hidden).to(self.device)
+
         if instantiate_flame:
             self.generator = FLAME(model_cfg).to(self.device)
 
     def forward(self, arcface, decode_verts=True):
-        shape = self.regressor(arcface)
+        if self.regress:
+            shape = self.regressor(arcface)
+        else:
+            shape = arcface
+
+        prediction = None
         if decode_verts:
-            vertices = self.generator(shape_params=shape)[0]
-        else: 
-            vertices = None
-        return vertices, shape
+            prediction, _, _ = self.generator(shape_params=shape)
+
+        return prediction, shape
