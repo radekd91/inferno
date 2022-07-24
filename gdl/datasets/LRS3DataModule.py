@@ -698,6 +698,8 @@ class LRS3Dataset(TemporalDatasetBase):
                     self.hack_length += 1
                 self.hack_length = float(self.hack_length)
             # useful hack to repeat the elements in the dataset for really small datasets
+            else: 
+                self.hack_length = False
 
         assert self.occlusion_length[0] >= 0
         # assert self.occlusion_length[1] <= self.sequence_length + 1
