@@ -723,7 +723,7 @@ class LRS3Dataset(TemporalDatasetBase):
         # TODO: handle the case when sequence length is longer than the video length
 
         # pick the starting video frame 
-        if num_frames < self.sequence_length:
+        if num_frames <= self.sequence_length:
             start_frame = 0
         else:
             start_frame = np.random.randint(0, num_frames - self.sequence_length)
