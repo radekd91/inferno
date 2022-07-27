@@ -686,6 +686,7 @@ class LRS3Dataset(TemporalDatasetBase):
         # self.occlusion_length = [20, 30]
         self.occlusion_length = sorted(self.occlusion_length)
 
+        self.include_raw_audio = True
         self.align_images = True
         # self.align_images = False
         self.transforms = transforms or imgaug.augmenters.Resize((image_size, image_size))
@@ -715,9 +716,15 @@ class LRS3Dataset(TemporalDatasetBase):
         # load the video 
         video_path = self.root_path / self.video_list[self.video_indices[index]]
         video_meta = self.video_metas[self.video_indices[index]]
-
+        # print("Video path: ", video_path)
         # num video frames 
         num_frames = video_meta["num_frames"]
+        video_fps = video_meta["fps"]
+        n1, n2 = video_fps.split("/")
+        n1 = int(n1)
+        n2 = int(n2)
+        assert n1 % n2 == 0
+        video_fps = n1 // n2
 
         # assert num_frames >= self.sequence_length, f"Video {video_path} has only {num_frames} frames, but sequence length is {self.sequence_length}"
         # TODO: handle the case when sequence length is longer than the video length
@@ -807,6 +814,30 @@ class LRS3Dataset(TemporalDatasetBase):
             "video": frames,
             "audio": audio_feats,
         }
+        if self.include_raw_audio:
+            assert samplerate % video_fps == 0 
+            wav_per_frame = samplerate // video_fps 
+            wavdata_ = np.zeros((num_frames, wav_per_frame), dtype=wavdata.dtype) 
+            wavdata_ = wavdata_.reshape(-1)
+            if wavdata.size > wavdata_.size:
+                wavdata_[...] = wavdata[:wavdata_.size]
+            else: 
+                wavdata_[:wavdata.size] = wavdata
+            wavdata_ = wavdata_.reshape((num_frames, wav_per_frame))
+            wavdata_ = wavdata_[start_frame:(start_frame + num_read_frames)] 
+            if wavdata_.shape[0] < self.sequence_length:
+                # concatente with zeros
+                wavdata_ = np.concatenate([wavdata_, 
+                    np.zeros((self.sequence_length - wavdata_.shape[0], wavdata_.shape[1]),
+                    dtype=wavdata_.dtype)], axis=0)
+            wavdata_ = wavdata_.astype(np.float64) / np.int16(np.iinfo(np.int16).max)
+
+            # wavdata_ = np.zeros((self.sequence_length, samplerate // video_fps), dtype=wavdata.dtype)
+            # wavdata_ = np.zeros((n * frames.shape[0]), dtype=wavdata.dtype)
+            # wavdata_[:wavdata.shape[0]] = wavdata 
+            # wavdata_ = wavdata_.reshape((frames.shape[0], -1))
+            sample["raw_audio"] = wavdata_ 
+            sample["samplerate"] = samplerate
 
         # 3) LANDMARKS 
         landmark_dict = {}
