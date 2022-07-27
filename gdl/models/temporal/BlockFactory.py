@@ -4,7 +4,7 @@ from gdl.models.temporal.SequenceEncoders import *
 from gdl.models.temporal.SequenceDecoders import *
 from gdl.models.temporal.TemporalFLAME import FlameShapeModel
 from gdl.models.temporal.Renderers import FlameRenderer
-from gdl.models.temporal.AudioEncoders import AvHubertAudioEncoder
+from gdl.models.temporal.AudioEncoders import AvHubertAudioEncoder, Wav2Vec2Encoder
 from gdl.models.temporal.VideoEncoders import EmocaVideoEncoder
 
 
@@ -118,7 +118,8 @@ def audio_model_from_cfg(cfg):
         if 'audio' not in saved_cfg.task.modalities:
             raise ValueError("This AVHubert model does not support audio")
         encoder = AvHubertAudioEncoder(models[0], cfg.trainable)
-
+    elif cfg.type == "wav2vec2": 
+        encoder = Wav2Vec2Encoder(cfg.model_specifier, cfg.trainable)
     else: 
         raise ValueError(f"Unknown audio model type '{cfg.type}'")
 
