@@ -107,6 +107,12 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
         sample["audio_feature"] = feats 
         return sample
 
+    def train(self, mode: bool = True):
+        # return super().train(mode)
+        mode = mode and self.trainable 
+        self.model.train(mode)
+        return self
+
     def forward(self, sample, train=False): 
         if self.trainable:
             return self._forward(sample, train=train)
