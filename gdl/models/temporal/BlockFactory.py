@@ -33,10 +33,64 @@ def sequence_encoder_from_cfg(cfg):
         encoder = GRUSeqEnc(cfg)
     elif cfg.type in ["temporal_cnn"]:
         encoder = TemporalConvNet(cfg)
+    elif cfg.type in ["parallel"]:
+        encoder = ParallelSequenceEncoder(cfg)
     else: 
         raise ValueError(f"Unknown sequence encoder model type '{cfg.type}'")
-    return encoder
+    return encoder 
 
+
+class ParallelSequenceEncoder(SequenceEncoder): 
+    
+    def __init__(self, cfg):
+        super().__init__()
+        self.cfg = cfg
+        encoders = []
+        self.outputs = []
+        self.input_feature_dim_ = None
+        assert len(cfg.encoders) > 1, "At least two encoders are required"
+        self.names = []
+        for encoder_cfg in cfg.encoders:
+            name = list(encoder_cfg.keys())[0]
+            encoder = sequence_encoder_from_cfg(encoder_cfg[name].cfg)
+            if self.input_feature_dim_ is None:
+                self.input_feature_dim_ = encoder.input_feature_dim()
+            assert self.input_feature_dim_ == encoder.input_feature_dim(), \
+                "All encoders must have the same input feature dim"
+            encoders += [encoder]
+            self.outputs += [encoder_cfg.outputs]
+            self.names += [name]
+        self.encoders = torch.nn.ModuleList(encoders)
+
+    def get_trainable_parameters(self): 
+        return list(self.parameters())
+
+    def input_feature_dim(self):
+        # return self.cfg.feature_dim
+        return self.input_feature_dim_
+
+    def output_feature_dim(self):
+        # dim = 0 
+        # for encoder in self.encoders:
+        #     dim += encoder.output_feature_dim() 
+        dim = self.encoders[0].output_feature_dim()
+        return dim
+
+    def forward(self, sample):
+        input_feature = sample["fused_feature"]
+        # results = []
+        results = {}
+        for ei, encoder in enumerate(self.encoders):
+            # results += [encoder(x)]
+            sample_ = {} 
+            sample_["fused_feature"] = input_feature 
+            results[self.names[ei]] = encoder(sample_)["seq_encoder_output"]
+        # results = torch.cat(results, dim=1)
+        sample["seq_encoder_output"] = results
+        return sample
+
+
+    
 
 def face_model_from_cfg(cfg): 
     if cfg.type in ["flame", "flame_mediapipe"]: 

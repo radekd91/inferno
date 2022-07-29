@@ -13,6 +13,33 @@ if str(path_to_av_hubert) not in sys.path:
 import avhubert
 
 
+
+class ParallelSequenceEncoder(SequenceEncoder): 
+    
+    def __init__(self, cfg):
+        super().__init__()
+        self.cfg = cfg
+
+        encoders = []
+        self.outputs = []
+        for encoder_cfg in cfg.encoders:
+            encoder = self.get_encoder(encoder_cfg)
+            encoders.append(encoder)
+            self.outputs += [encoder_cfg.outputs]
+
+    def get_trainable_parameters(self): 
+        return list(self.parameters())
+
+    def input_feature_dim(self):
+        return self.cfg.feature_dim
+
+    def output_feature_dim(self):
+        return self.cfg.feature_dim
+
+    def output_feature_dim(self): 
+        return self.cfg.d_model * self.output_size_factor()
+
+
 class PositionalEncoding(torch.nn.Module):
 
     def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000, op: str = 'add', **kwargs):
