@@ -2971,9 +2971,10 @@ class EMICA(ExpDECA):
         self.E_mica.testing = True
 
         # preprocessing for MICA
-        from insightface.app import FaceAnalysis
-        self.app = FaceAnalysis(name='antelopev2', providers=['CUDAExecutionProvider'])
-        self.app.prepare(ctx_id=0, det_size=(224, 224))
+        if self.config.mica_preprocessing:
+            from insightface.app import FaceAnalysis
+            self.app = FaceAnalysis(name='antelopev2', providers=['CUDAExecutionProvider'])
+            self.app.prepare(ctx_id=0, det_size=(224, 224))
 
 
     def _get_num_shape_params(self):
@@ -2993,7 +2994,10 @@ class EMICA(ExpDECA):
 
     def _encode_flame(self, images):
         
-        mica_image = self._dirty_image_preprocessing(images)
+        if self.config.mica_preprocessing:
+            mica_image = self._dirty_image_preprocessing(images)
+        else: 
+            mica_image = F.interpolate(images, (112,112), mode='bilinear', align_corners=False)
 
         deca_code, exp_deca_code = super()._encode_flame(images)
         mica_code = self.E_mica.encode(images, mica_image) 
