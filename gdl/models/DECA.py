@@ -2963,7 +2963,7 @@ class EMICA(ExpDECA):
             mica_path = get_path_to_assets() / self.config.mica_model_path  
             assert mica_path.exists(), f"MICA model path does not exist: '{mica_path}'"
 
-        self.mica_cfg.pretrained_model_path = mica_path
+        self.mica_cfg.pretrained_model_path = str(mica_path)
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.E_mica = MICA(self.mica_cfg, device, str(mica_path), instantiate_flame=False)
         # E_mica should be fixed 
