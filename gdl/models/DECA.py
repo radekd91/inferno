@@ -2475,6 +2475,7 @@ class DECA(torch.nn.Module):
             fixed_uv_dis = torch.tensor(fixed_dis).float()
         else:
             fixed_uv_dis = torch.zeros([512, 512]).float()
+            print("Warning: fixed_displacement_path not found, using zero displacement")
         self.register_buffer('fixed_uv_dis', fixed_uv_dis)
 
     def uses_texture(self): 
