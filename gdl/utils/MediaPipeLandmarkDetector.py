@@ -75,6 +75,12 @@ class MediaPipeLandmarkDetector(FaceDetector):
         # else:
             # print("Image size: {}".format(image.shape)) 
             # bboxes = [np.array([0, 0, image.shape[1], image.shape[0]])]
+        if not results.multi_face_landmarks: 
+            # this is a really weird thing, but somehow (especially when switching from one video to another) nothing will get picked up on the 
+            # first run but it will be after the second run.
+            results = self.face_mesh.process(image) 
+
+
         if not results.multi_face_landmarks:
             # det_results = self.mp_face_detection.process(image)
             # det_results_ = self.mp_face_detection_.process(image)

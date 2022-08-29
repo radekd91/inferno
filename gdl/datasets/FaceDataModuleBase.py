@@ -218,6 +218,11 @@ class FaceDataModuleBase(pl.LightningDataModule):
             #     imsave(frame_fname, detection_ims[0])
         
         # self.detection_lists[sequence_id][fid] += [detections]
+        # import plotly.graph_objects as go
+        # fig = go.Figure(data=go.Image(z=frame,))
+        # fig.show()
+
+        
         centers_all += [centers]
         sizes_all += [sizes]
         if out_landmarks_all is not None:
@@ -225,7 +230,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
         if out_landmarks_orig_all is not None:
             out_landmarks_orig_all += [orig_landmarks]
         if out_bbox_type_all is not None:
-            out_bbox_type_all += [bbox_type]
+            out_bbox_type_all += [[bbox_type]*len(landmarks)]
 
         # save detections
         detection_fnames = []

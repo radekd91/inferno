@@ -957,7 +957,7 @@ class LRS3Dataset(TemporalDatasetBase):
                 sample["landmarks_validity"][landmarks_for_alignment][invalid_indices] = False
 
             if len(invalid_indices) == invalid_frames.size:
-                # no invalid indices, make up dummy one (zoom in a little bit)
+                # no valid indices, make up dummy one (zoom in a little bit)
                 top = np.array([self.image_size//16]*invalid_frames.size)
                 left = np.array([self.image_size//16]*invalid_frames.size)
                 bottom = np.array([self.image_size - self.image_size//6]*invalid_frames.size)

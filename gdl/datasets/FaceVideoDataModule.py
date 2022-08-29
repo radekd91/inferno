@@ -45,6 +45,8 @@ from skvideo.io import vreader, vread
 import skvideo
 import torch.nn.functional as F
 
+from gdl.datasets.VideoFaceDetectionDataset import VideoFaceDetectionDataset
+
 # from memory_profiler import profile
 
 
@@ -311,7 +313,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # suffix = Path(self._video_category(sequence_id)) / 'detections' /self._video_set(sequence_id) / video_file.stem
         out_detection_folder = self._get_path_to_sequence_detections(sequence_id)
         out_detection_folder.mkdir(exist_ok=True, parents=True)
-        out_file = out_detection_folder / "bboxes.pkl"
+        out_file_boxes = out_detection_folder / "bboxes.pkl"
 
         out_landmark_folder = self._get_path_to_sequence_landmarks(sequence_id)
         out_landmark_folder.mkdir(exist_ok=True, parents=True)
@@ -372,16 +374,16 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 videogen =  vread(str(video_name))
 
             if self.save_landmarks_one_file: 
-                out_landmarks_all = []
-                out_landmarks_original_all = []
-                out_bbox_type_all = None
+                out_landmarks_all = [] # landmarks wrt to the aligned image
+                out_landmarks_original_all = [] # landmarks wrt to the original image
+                out_bbox_type_all = []
             else: 
                 out_landmarks_all = None
                 out_landmarks_original_all = None
                 out_bbox_type_all = None
 
             for fid in tqdm(range(start_fid, num_frames)):
-                self._detect_faces_in_image_wrapper(videogen, fid, out_detection_folder, out_landmark_folder, out_file,
+                self._detect_faces_in_image_wrapper(videogen, fid, out_detection_folder, out_landmark_folder, out_file_boxes,
                                             centers_all, sizes_all, detection_fnames_all, landmark_fnames_all,
                                             out_landmarks_all, out_landmarks_original_all, out_bbox_type_all)
                                             
@@ -396,10 +398,33 @@ class FaceVideoDataModule(FaceDataModuleBase):
             FaceVideoDataModule.save_landmark_list(out_file, out_bbox_type_all)
 
 
-        FaceVideoDataModule.save_detections(out_file,
+        FaceVideoDataModule.save_detections(out_file_boxes,
                                             detection_fnames_all, landmark_fnames_all, centers_all, sizes_all, fid)
         print("Done detecting faces in sequence: '%s'" % self.video_list[sequence_id])
         return 
+
+
+    def _cut_out_detected_faces_in_sequence(self, sequence_id):
+        in_landmark_folder = self._get_path_to_sequence_landmarks(sequence_id)
+        in_file = in_landmark_folder / "landmarks_original.pkl"
+        FaceVideoDataModule.load_landmark_list(in_file)
+
+        # Extract the number of people (use face recognition)
+
+        # Take the most numerous person. (that is most likely the person in question)
+        #  - very unlikely there will be more equally present ones in most face datasets 
+
+
+        # Interpolate the bounding boxes of that person in order to have a BB for dropped detections 
+
+        # Extract the face from all frames to create a video 
+
+        # Resample the video to conform to the desired FPS if need be 
+        
+        # Save the video
+
+        
+
 
 
     def _get_emotion_net(self, device):
@@ -620,7 +645,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         for sid in range(self.num_sequences):
             self._recognize_faces_in_sequence(sid, recognition_net, device)
 
-    def _recognize_faces_in_sequence(self, sequence_id, recognition_net=None, device=None, num_workers = 4):
+    def _recognize_faces_in_sequence(self, sequence_id, recognition_net=None, device=None, num_workers = 4, overwrite = False):
 
         def fixed_image_standardization(image_tensor):
             processed_tensor = (image_tensor - 127.5) / 128.0
@@ -628,12 +653,25 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
         print("Running face recognition in sequence '%s'" % self.video_list[sequence_id])
         out_folder = self._get_path_to_sequence_detections(sequence_id)
+        out_file = out_folder / "embeddings.pkl" 
+        if out_file.exists() and not overwrite:
+            print("Face embeddings already computed for sequence '%s'" % self.video_list[sequence_id])
+            return
         device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         recognition_net = recognition_net or self._get_recognition_net(device)
         recognition_net.requires_grad_(False)
         # detections_fnames = sorted(self.detection_fnames[sequence_id])
         detections_fnames = sorted(list(out_folder.glob("*.png")))
-        dataset = UnsupervisedImageDataset(detections_fnames)
+
+        if len(detections_fnames) == 0: 
+            # there are no images, either there is a video file or something went wrong: 
+            video_path = self.root_dir / self.video_list[sequence_id]
+            landmark_file = self._get_path_to_sequence_landmarks(sequence_id) 
+            
+            from gdl.datasets.VideoFaceDetectionDataset import VideoFaceDetectionDataset
+            dataset = VideoFaceDetectionDataset(video_path, landmark_file, output_im_range=255)
+        else:
+            dataset = UnsupervisedImageDataset(detections_fnames)
         loader = DataLoader(dataset, batch_size=64, num_workers=num_workers, shuffle=False)
         # loader = DataLoader(dataset, batch_size=2, num_workers=0, shuffle=False)
         all_embeddings = []
@@ -643,8 +681,12 @@ class FaceVideoDataModule(FaceDataModuleBase):
             embeddings = recognition_net(images)
             all_embeddings += [embeddings.detach().cpu().numpy()]
 
-        embedding_array = np.concatenate(all_embeddings, axis=0)
-        FaceVideoDataModule._save_face_embeddings(out_folder / "embeddings.pkl", embedding_array, detections_fnames)
+        if len(all_embeddings) > 0:
+            embedding_array = np.concatenate(all_embeddings, axis=0)
+        else: 
+            embedding_array = np.array([])
+        out_folder.mkdir(parents=True, exist_ok=True)
+        FaceVideoDataModule._save_face_embeddings(out_file, embedding_array, detections_fnames)
         print("Done running face recognition in sequence '%s'" % self.video_list[sequence_id])
 
 
@@ -1786,10 +1828,6 @@ class FaceVideoDataModule(FaceDataModuleBase):
             self._gather_detections_for_sequence(sequence_id, with_recognitions=True)
 
         out_folder = self._get_path_to_sequence_detections(sequence_id)
-        # if distance_threshold != 0.5:
-        #     out_file = out_folder / ("recognition_dist_%.03f.pkl" % distance_threshold)
-        # else:
-        #     out_file = out_folder / "recognition.pkl"
         out_file = self._get_recognition_filename(sequence_id, distance_threshold)
 
         from collections import Counter, OrderedDict
@@ -1814,21 +1852,140 @@ class FaceVideoDataModule(FaceDataModuleBase):
             features = embeddings[indices]
             mean = np.mean(features, axis=0, keepdims=True)
             cov = np.cov(features, rowvar=False)
-            try:
-                recognized_filenames_label = sorted([recognized_detections_fnames[i].relative_to(
-                    self.output_dir) for i in indices.tolist()])
-            except ValueError:
-                recognized_filenames_label = sorted([recognized_detections_fnames[i].relative_to(
-                    recognized_detections_fnames[i].parents[4]) for i in indices.tolist()])
+            if len(recognized_detections_fnames):
+                try:
+                    pass
+                    recognized_filenames_label = sorted([recognized_detections_fnames[i].relative_to(
+                        self.output_dir) for i in indices.tolist()])
+                except ValueError:
+                    recognized_filenames_label = sorted([recognized_detections_fnames[i].relative_to(
+                        recognized_detections_fnames[i].parents[4]) for i in indices.tolist()])
+
 
             recognition_indices[label] = indices
             recognition_means[label] = mean
             recognition_cov[label] = cov
-            recognition_fnames[label] = recognized_filenames_label
+            if len(recognized_detections_fnames):
+                recognition_fnames[label] = recognized_filenames_label
+            else:
+                recognition_fnames[label] = None
+
 
         FaceVideoDataModule._save_recognitions(out_file, labels, recognition_indices, recognition_means,
                                                recognition_cov, recognition_fnames)
         print("Done identifying recognitions for sequence %d: '%s'" % (sequence_id, self.video_list[sequence_id]))
+
+    def _extract_personal_recognition_sequences(self, sequence_id, distance_threshold = None): 
+        detection_fnames, landmark_fnames, centers, sizes, embeddings, recognized_detections_fnames = \
+            self._gather_detections_for_sequence(sequence_id, with_recognitions=True)
+        landmark_file = self._get_path_to_sequence_landmarks(sequence_id) / "landmarks_original.pkl"
+        landmarks = FaceVideoDataModule.load_landmark_list(landmark_file)
+
+        distance_threshold = self.get_default_recognition_threshold() if distance_threshold is None else distance_threshold
+
+        indices, labels, mean, cov, fnames = self._get_recognition_for_sequence(sequence_id, distance_threshold)
+        print("yam ta dee ta daa")
+        # 1) extract the most numerous recognition 
+        exclusive_indices = OrderedDict({key: np.unique(value) for key, value in indices.items()})
+        exclusive_sizes = OrderedDict({key: value.size for key, value in exclusive_indices.items()})
+
+        max_size = max(exclusive_sizes.values())
+        max_size = -1 
+        max_index = -1
+        for k,v in exclusive_sizes.items():
+            if exclusive_sizes[k] > max_size:
+                max_size = exclusive_sizes[k]
+                max_index = k
+
+        print("max_index: %d" % max_index)
+
+        main_occurence_mean = mean[max_index]
+        main_occurence_cov = cov[max_index]
+
+
+        # 2) retrieve its detections 
+        total_len = 0
+        frame_map = OrderedDict() # detection index to frame map
+        index_for_frame_map = OrderedDict() # detection index to frame map
+        inv_frame_map = {} # frame to detection index map
+        frame_indices = OrderedDict()
+        for i in range(len(landmarks)): 
+            # for j in range(len(landmarks[i])): 
+                # frame_map[total_len + j] = i
+                # index_for_frame_map[total_len + j] = j
+                # inv_frame_map[i] = (i, j)
+            frame_indices[i] = (total_len, total_len + len(landmarks[i]))
+            total_len += len(landmarks[i])
+
+
+        # main_occurence_sizes = OrderedDict()
+        # main_occurence_centers = OrderedDict()
+
+        used_frames = []
+        main_occurence_centers = []
+        main_occurence_sizes = []
+        used_landmarks = []
+
+
+        for frame_num in frame_indices.keys():
+            first_index, last_index = frame_indices[frame_num]
+            if first_index == last_index: 
+                continue
+            frame_recognitions = embeddings[first_index:last_index, ...]
+            
+            # 3) compute the distance between the main recognition and the detections
+            distances = np.linalg.norm(frame_recognitions - main_occurence_mean, axis=1)
+            # find the closest detection to the main recognition
+            closest_detection = np.argmin(distances)
+            closest_detection_index = first_index + closest_detection
+
+            if distances.min() < distance_threshold:
+                main_occurence_sizes += [sizes[frame_num][closest_detection]]
+                main_occurence_centers += [centers[frame_num][closest_detection]]
+                used_frames += [frame_num]
+                used_landmarks += [landmarks[frame_num][closest_detection]]
+                # main_occurence_sizes[frame_num] = sizes[closest_detection_index]
+                # main_occurence_centers[frame_num] = centers[closest_detection_index]
+
+        # 3) compute bounding box for frames without detection (via fitting/interpolating the curve) 
+        from scipy.interpolate import griddata, RBFInterpolator
+
+        used_frames = np.array(used_frames)[:,np.newaxis]
+        main_occurence_centers = np.stack(main_occurence_centers, axis=0)
+        main_occurence_sizes = np.stack(main_occurence_sizes, axis=0)
+
+        # only iterpolates
+        # interpolated_centers = griddata(used_frames, main_occurence_centers, np.arange(len(landmarks)), method='linear')
+        # interpolated_sizes = griddata(used_frames, main_occurence_sizes, np.arange(len(landmarks)), method='linear')
+
+        # can extrapolate
+        interpolated_centers = RBFInterpolator(used_frames, main_occurence_centers)(np.arange(len(landmarks))[:, np.newaxis])
+        interpolated_sizes = RBFInterpolator(used_frames, main_occurence_sizes)(np.arange(len(landmarks))[:, np.newaxis])
+        interpolated_landmarks = RBFInterpolator(used_frames, used_landmarks)(np.arange(len(landmarks))[:, np.newaxis])
+
+        # 4) generate a new video 
+
+        video = skvideo.io.vread(str(self.root_dir / self.video_list[sequence_id]))
+        aligned_video = []
+        warped_landmarks = []
+        for i in range(len(interpolated_centers)): 
+            img_warped, lmk_warped = bbpoint_warp(video[i], interpolated_centers[i], interpolated_sizes[i], target_size_height=256, target_size_width=256, 
+                    landmarks=interpolated_landmarks[i])
+            aligned_video.append(img_warped)
+            warped_landmarks += [lmk_warped] 
+
+        aligned_video = np.stack(aligned_video, axis=0)
+
+        # 5) save the video
+        video_file = self._get_path_to_sequence_files(sequence_id, "videos_aligned").with_suffix(".mp4")
+        skvideo.io.vwrite(str(video_file), aligned_video)
+
+
+        # 5) resample the video to a target framerate
+
+        # 6) save the video 
+
+
 
 
     @staticmethod
@@ -1843,8 +2000,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
     @staticmethod
     def _load_recognitions(file):
         with open(file, "rb") as f:
-            indices = pkl.load(f)
             labels = pkl.load(f)
+            indices = pkl.load(f)
             mean = pkl.load(f)
             cov = pkl.load(f)
             fnames = pkl.load(f)
@@ -1897,9 +2054,6 @@ class FaceVideoDataModule(FaceDataModuleBase):
             self.detection_embeddings += [embeddings]
             self.detection_recognized_fnames += [recognized_detections_fnames]
 
-    def _assign_gt_to_detections(self):
-        for sid in range(self.num_sequences):
-            self.assign_gt_to_detections_sequence(sid)
 
     def get_default_recognition_threshold(self):
         #TODO: ensure that 0.6 is good for the most part
@@ -2369,280 +2523,6 @@ class FaceVideoDataModule(FaceDataModuleBase):
     #
     #     dataset = self.get_annotated_emotion_dataset(annotation_list, filter_pattern)
 
-
-    def assign_gt_to_detections_sequence(self, sequence_id):
-        print(f"Assigning GT to sequence {sequence_id}")
-
-        def second_most_frequent_label():
-            if len(most_frequent_labels) == 2:
-                second_label = most_frequent_labels[1]
-            elif len(most_frequent_labels) > 2:
-                raise RuntimeError(f"Too many labels occurred with the same frequency. Unclear which one to pick.")
-            else:
-                most_frequent_count2 = list(counts2labels.keys())[1]
-                most_frequent_labels2 = counts2labels[most_frequent_count2]
-                if len(most_frequent_labels2) != 1:
-                    raise RuntimeError(
-                        f"Too many labels occurred with the same frequency. Unclear which one to pick.")
-                second_label = most_frequent_labels2[0]
-            return second_label
-
-        def correct_left_right_order(left_center, right_center):
-            left_right_dim = 0 # TODO: verify if this is correct
-            if left_center[left_right_dim] < right_center[left_right_dim]:
-                # left is on the left
-                return 1
-            elif left_center[left_right_dim] == right_center[left_right_dim]:
-                # same place
-                return 0
-            # left is on the right
-            return -1
-
-        # detection_fnames = self._get_path_to_sequence_detections(sequence_id)
-        # full_frames = self._get_frames_for_sequence(sequence_id)
-        annotations = self._get_annotations_for_sequence(sequence_id)
-        if len(annotations) == 0:
-            print(f"No GT available for video '{self.video_list[sequence_id]}'")
-            return
-        annotation_type = annotations[0].parent.parent.parent.stem
-        if annotation_type == 'AU_Set':
-            anno_type = 'au8' # AU1,AU2,AU4,AU6,AU12,AU15,AU20,AU25
-        elif annotation_type == 'Expression_Set':
-            anno_type = 'expr7' # Neutral,Anger,Disgust,Fear,Happiness,Sadness,Surprise
-        elif annotation_type == 'VA_Set':
-            anno_type = 'va' # valence arousal -1 to 1
-        else:
-            raise ValueError(f"Unsupported annotation type: '{annotation_type}'")
-
-        # load the recognitions:
-        # recognition_file = self._get_recognition_filename(
-        #     sequence_id, self.get_default_recognition_threshold())
-        # indices, labels, mean, cov, recognition_fnames = FaceVideoDataModule._load_recognitions(
-        #     recognition_file)
-        indices, labels, mean, cov, recognition_fnames = self._get_recognition_for_sequence(sequence_id)
-        counts2labels = OrderedDict()
-        for key, val in labels.items():
-            if key == -1: # skip invalid outliers
-                continue
-            count = len(val)
-            if count not in counts2labels.keys():
-                counts2labels[count] = []
-            counts2labels[count] += [key]
-
-        recognition_label_dict = OrderedDict()
-        annotated_detection_fnames = OrderedDict()
-        validated_annotations = OrderedDict()
-        discarded_annotations = OrderedDict()
-        detection_not_found = OrderedDict()
-
-        # suffs = [str(Path(str(anno)[len(str(anno.parent / self.video_list[sequence_id].stem)):]).stem) for anno in
-        #      annotations]
-        suffs = [str(anno.stem)[len(str(self.video_list[sequence_id].stem)):] for anno in
-             annotations]
-
-        ### WARNING: HORRIBLE THINGS FOLLOW, PUT ON YOUR PROTECTIVE GOGGLES BEFORE YOU PROCEED
-        # this next section is a ugly rule-based approach to assign annotation files to detected and recognized
-        # faces. This assignment is not provided by the authors of aff-wild2 and therefore it's approximated
-        # using these rules that are taken from the readme.
-
-        # THERE IS ONLY ONE DOMINANT DETECTION AND ONE ANNOTATION FILE:
-        if len(annotations) == 1 and suffs[0] == '':
-            most_frequent_count = list(counts2labels.keys())[0]
-            most_frequent_labels = counts2labels[most_frequent_count]
-
-            if len(most_frequent_labels) != 1:
-                raise ValueError("There seem to be two people at the same time in all pictures but we only "
-                                 "have annotation for one")
-
-            main_label = most_frequent_labels[0]
-            main_detection_file_names = recognition_fnames[main_label]
-            main_annotation_file = annotations[0]
-            main_valid_detection_list, main_valid_annotation_list, main_discarded_list, main_detection_not_found_list \
-                = self._map_detections_to_gt(main_detection_file_names, main_annotation_file, anno_type)
-
-            recognition_label_dict[main_annotation_file.stem] = main_label
-            annotated_detection_fnames[main_annotation_file.stem] = main_valid_detection_list
-            validated_annotations[main_annotation_file.stem] = main_valid_annotation_list
-            discarded_annotations[main_annotation_file.stem] = main_discarded_list
-            detection_not_found[main_annotation_file.stem] = main_detection_not_found_list
-
-
-            # THERE ARE TWO DOMINANT DETECTIONS BUT ONLY ONE IS ANNOTATED
-        elif len(annotations) == 1 and (suffs[0] == '_left' or suffs[0] == '_right'):
-
-            most_frequent_count = list(counts2labels.keys())[0]
-            most_frequent_labels = counts2labels[most_frequent_count]
-
-            detection_fnames, detection_centers, detection_sizes, _ = \
-                self._get_detection_for_sequence(sequence_id)
-
-            if len(most_frequent_labels) != 1:
-                raise ValueError("There seem to be two people at the same time in all pictures but we only "
-                                 "have annotation for one")
-
-            main_label = most_frequent_labels[0]
-            main_detection_file_names = recognition_fnames[main_label]
-            main_annotation_file = annotations[0]
-            main_valid_detection_list, main_valid_annotation_list, main_discarded_list, main_detection_not_found_list  \
-                = self._map_detections_to_gt(main_detection_file_names, main_annotation_file, anno_type)
-
-            other_label = second_most_frequent_label()
-            other_detection_file_names = recognition_fnames[other_label]
-            other_annotation_file = annotations[0] # use the same annotation, which one will be used is figured out next
-            other_valid_detection_list, other_valid_annotation_list, other_discarded_list, other_detection_not_found_list\
-                = self._map_detections_to_gt(other_detection_file_names, other_annotation_file, anno_type)
-
-            other_center = self._get_bb_center_from_fname(other_detection_file_names[0], detection_fnames,
-                                                          detection_centers)
-            main_center = self._get_bb_center_from_fname(main_detection_file_names[0], detection_fnames,
-                                                         detection_centers)
-            if correct_left_right_order(other_center, main_center) == 1:
-                pass # do nothing, order correct
-            elif correct_left_right_order(other_center, main_center) == -1:
-                # swap main and other
-                print("Swapping left and right")
-                other_label, main_label = main_label, other_label
-                # other_valid_detection_list, main_valid_detection_list = main_valid_detection_list, other_valid_detection_list
-                # other_valid_annotation_list, main_valid_annotation_list = main_valid_annotation_list, other_valid_annotation_list
-            else:
-                raise ValueError("Detections are in the same place. No way to tell left from right")
-
-            # now other is on the left, and main is on the right, decide which one is annotated based on the suffix
-            if suffs[0] == '_left':
-                print("Choosing left")
-                recognition_label_dict[other_annotation_file.stem] = other_label
-                annotated_detection_fnames[other_annotation_file.stem] = other_valid_detection_list
-                validated_annotations[other_annotation_file.stem] = other_valid_annotation_list
-                discarded_annotations[other_annotation_file.stem] = other_discarded_list
-                detection_not_found[other_annotation_file.stem] = other_detection_not_found_list
-            else: # suffs[0] == '_right':
-                print("Choosing right")
-                recognition_label_dict[main_annotation_file.stem] = main_label
-                annotated_detection_fnames[main_annotation_file.stem] = main_valid_detection_list
-                validated_annotations[main_annotation_file.stem] = main_valid_annotation_list
-                discarded_annotations[main_annotation_file.stem] = main_discarded_list
-                detection_not_found[main_annotation_file.stem] = main_detection_not_found_list
-        else:
-            if len(suffs) > 2:
-                print(f"Unexpected number of suffixes found {len(suffs)}")
-                print(suffs)
-                raise RuntimeError(f"Unexpected number of suffixes found {len(suffs)}")
-
-            most_frequent_count = list(counts2labels.keys())[0]
-            most_frequent_labels = counts2labels[most_frequent_count]
-
-            detection_fnames, detection_centers, detection_sizes, _ = \
-                self._get_detection_for_sequence(sequence_id)
-
-            # THE CASE OF ONE DOMINANT DETECTION AND ONE SMALLER ONE (NO SUFFIX vs LEFT/RIGHT)
-            if suffs[0] == '' and (suffs[1] == '_left' or suffs[1] == '_right'):
-                if len(most_frequent_labels) != 1:
-                    raise ValueError("There seem to be two people at the same time in all pictures but we only "
-                                     "have annotation for one")
-
-                main_label = most_frequent_labels[0]
-                main_detection_file_names = recognition_fnames[main_label]
-                main_annotation_file = annotations[0]
-                main_valid_detection_list, main_valid_annotation_list, main_discarded_list, main_detection_not_found_list\
-                    = self._map_detections_to_gt(main_detection_file_names, main_annotation_file, anno_type)
-
-                recognition_label_dict[main_annotation_file.stem] = main_label
-                annotated_detection_fnames[main_annotation_file.stem] = main_valid_detection_list
-                validated_annotations[main_annotation_file.stem] = main_valid_annotation_list
-                discarded_annotations[main_annotation_file.stem] = main_discarded_list
-                detection_not_found[main_annotation_file.stem] = main_detection_not_found_list
-
-
-                other_label = most_frequent_labels[1]
-                other_detection_file_names = recognition_fnames[other_label]
-                other_annotation_file = annotations[1]
-                other_valid_detection_list, other_valid_annotation_list, other_discarded_list, other_detection_not_found_list \
-                    = self._map_detections_to_gt(other_detection_file_names, other_annotation_file, anno_type)
-
-                recognition_label_dict[other_annotation_file.stem] = other_label
-                annotated_detection_fnames[other_annotation_file.stem] = other_valid_detection_list
-                validated_annotations[other_annotation_file.stem] = other_valid_annotation_list
-                discarded_annotations[other_annotation_file.stem] = other_discarded_list
-                detection_not_found[other_annotation_file.stem] = other_detection_not_found_list
-
-                other_center = self._get_bb_center_from_fname(other_detection_file_names[0], detection_fnames,
-                                                        detection_centers)
-                main_center = self._get_bb_center_from_fname(main_detection_file_names[0], detection_fnames,
-                                                       detection_centers)
-                if suffs[1] == '_left':
-                    if correct_left_right_order(other_center, main_center) != 1:
-                        raise RuntimeError("The main detection should be on the right and the other on the left but this is not the case")
-                elif suffs[1] == '_right':
-                    if correct_left_right_order(main_center, other_center) != 1:
-                        raise RuntimeError(
-                            "The main detection should be on the left and the other on the right but this is not the case")
-
-            # THE CASE OF TWO ROUGHLY EQUALY DOMINANT DETECTIONS (LEFT and RIGHT)
-            elif suffs[0] == '_left' and suffs[1] == '_right':
-                #TODO: figure out which one is left and which one is right by loading the bboxes and comparing
-                counts2labels.keys()
-                left_label = most_frequent_labels[0]
-                # if len(most_frequent_labels) == 2:
-                #     right_label = most_frequent_labels[1]
-                # elif len(most_frequent_labels) > 2:
-                #     raise RuntimeError(f"Too many labels occurred with the same frequency. Unclear which one to pick.")
-                # else:
-                #     most_frequent_count2 = list(counts2labels.keys())[1]
-                #     most_frequent_labels2 = counts2labels[most_frequent_count2]
-                #     if len(most_frequent_labels2) != 1:
-                #         raise RuntimeError(
-                #             f"Too many labels occurred with the same frequency. Unclear which one to pick.")
-                #     right_label = most_frequent_labels2[0]
-                right_label = second_most_frequent_label()
-
-                left_filename = recognition_fnames[left_label][0]
-                left_center = self._get_bb_center_from_fname(left_filename, detection_fnames, detection_centers)
-
-                right_filename = recognition_fnames[right_label][0]
-                right_center = self._get_bb_center_from_fname(right_filename, detection_fnames, detection_centers)
-
-                order = correct_left_right_order(left_center, right_center)
-                # if left is not left, swap
-                if order == -1:
-                    left_label, right_label = right_label, left_label
-                    left_filename, right_filename = right_filename, left_filename
-                elif order == 0:
-                    raise RuntimeError("Left and right detections have centers in the same place. "
-                                       "No way to tell left from right")
-
-                left_detection_file_names = recognition_fnames[left_label]
-                left_annotation_file = annotations[0]
-                left_valid_detection_list, left_annotation_list, left_discarded_list, left_detection_not_found_list \
-                    = self._map_detections_to_gt(left_detection_file_names, left_annotation_file, anno_type)
-                recognition_label_dict[left_annotation_file.stem] = left_label
-                annotated_detection_fnames[left_annotation_file.stem] = left_valid_detection_list
-                validated_annotations[left_annotation_file.stem] = left_annotation_list
-                discarded_annotations[left_annotation_file.stem] = left_discarded_list
-                detection_not_found[left_annotation_file.stem] = left_detection_not_found_list
-
-
-
-                right_detection_file_names = recognition_fnames[right_label]
-                right_annotation_file = annotations[1]
-
-                right_valid_detection_list, right_valid_annotation_list, right_discarded_list, right_detection_not_found_list \
-                    = self._map_detections_to_gt(right_detection_file_names, right_annotation_file, anno_type)
-                recognition_label_dict[right_annotation_file.stem] = right_label
-                annotated_detection_fnames[right_annotation_file.stem] = right_valid_detection_list
-                validated_annotations[right_annotation_file.stem] = right_valid_annotation_list
-                discarded_annotations[right_annotation_file.stem] = right_discarded_list
-                detection_not_found[right_annotation_file.stem] = right_detection_not_found_list
-
-                # THE FOLLOWING CASE SHOULD NEVER HAPPEN
-            else:
-                print(f"Unexpected annotation case found.")
-                print(suffs)
-                raise RuntimeError(f"Unexpected annotation case found: {str(suffs)}")
-
-        out_folder = self._get_path_to_sequence_detections(sequence_id)
-        out_file = out_folder / "valid_annotations.pkl"
-        FaceVideoDataModule._save_annotations(out_file, annotated_detection_fnames, validated_annotations,
-                                              recognition_label_dict, discarded_annotations, detection_not_found)
 
 def attach_audio_to_reconstruction_video(input_video, input_video_with_audio, output_video=None, overwrite=False):
     output_video = output_video or (Path(input_video).parent / (str(Path(input_video).stem) + "_with_sound.mp4"))
