@@ -66,13 +66,17 @@ class FaceVideoDataModule(FaceDataModuleBase):
                  face_detector_threshold=0.9,
                  image_size=224,
                  scale=1.25,
+                 processed_video_size=256,
                  device=None, 
                  unpack_videos=True, 
                  save_detection_images=True, 
                  save_landmarks=True, 
                  save_landmarks_one_file=False, 
                  save_segmentation_frame_by_frame=True, 
-                 save_segmentation_one_file=False):
+                 save_segmentation_one_file=False,    
+                 bb_center_shift_x=0, # in relative numbers
+                 bb_center_shift_y=0, # in relative numbers (i.e. -0.1 for 10% shift upwards, ...)
+                 ):
         super().__init__(root_dir, output_dir,
                          processed_subfolder=processed_subfolder,
                          face_detector=face_detector,
@@ -84,11 +88,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
                          save_landmarks_frame_by_frame=save_landmarks, 
                          save_landmarks_one_file=save_landmarks_one_file,
                          save_segmentation_frame_by_frame=save_segmentation_frame_by_frame, # default
-                         save_segmentation_one_file=save_segmentation_one_file # only use for large scale video datasets (that would produce too many files otherwise)
+                         save_segmentation_one_file=save_segmentation_one_file, # only use for large scale video datasets (that would produce too many files otherwise)
+                         bb_center_shift_x=bb_center_shift_x, # in relative numbers
+                         bb_center_shift_y=bb_center_shift_y, # in relative numbers (i.e. -0.1 for 10% shift upwards, ...)
                          )
         self.unpack_videos = unpack_videos
         self.detect_landmarks_on_restored_images = None
-
+        self.processed_video_size = processed_video_size
         # self._instantiate_detector()
         # self.face_recognition = InceptionResnetV1(pretrained='vggface2').eval().to(device)
 
@@ -1110,6 +1116,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
             vid_meta['width'] = int(vid_info['width'])
             vid_meta['height'] = int(vid_info['height'])
             vid_meta['num_frames'] = int(vid_info['nb_frames'])
+            vid_meta['bit_rate'] = vid_info['bit_rate']
+            vid_meta['bits_per_raw_sample'] = vid_info['bits_per_raw_sample']
             self.video_metas += [vid_meta]
 
             # audio codec
@@ -1779,8 +1787,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
         else:
             print("Faces for video %d not detected" % sequence_id)
             detection_fnames = []
+            landmark_fnames = []
             centers = []
             sizes = []
+
         if with_recognitions:
             return detection_fnames, landmark_fnames, centers, sizes, embeddings, recognized_detections_fnames
         return detection_fnames, landmark_fnames, centers, sizes
@@ -1822,13 +1832,22 @@ class FaceVideoDataModule(FaceDataModuleBase):
     def _identify_recognitions_for_sequence(self, sequence_id, distance_threshold = None):
         if distance_threshold is None:
             distance_threshold = self.get_default_recognition_threshold()
+        out_file = self._get_recognition_filename(sequence_id, distance_threshold)
+        if out_file.is_file():
+            print("Recognitions for video %d already processed. Skipping" % sequence_id)
+            return 
+
         print("Identifying recognitions for sequence %d: '%s'" % (sequence_id, self.video_list[sequence_id]))
 
         detection_fnames, landmark_fnames, centers, sizes, embeddings, recognized_detections_fnames = \
             self._gather_detections_for_sequence(sequence_id, with_recognitions=True)
 
         out_folder = self._get_path_to_sequence_detections(sequence_id)
-        out_file = self._get_recognition_filename(sequence_id, distance_threshold)
+
+
+        if embeddings is None or embeddings.size == 0:
+            print("No embeddings found for sequence %d" % sequence_id)
+            return 
 
         from collections import Counter, OrderedDict
         from sklearn.cluster import DBSCAN
@@ -1878,13 +1897,63 @@ class FaceVideoDataModule(FaceDataModuleBase):
     def _extract_personal_recognition_sequences(self, sequence_id, distance_threshold = None): 
         detection_fnames, landmark_fnames, centers, sizes, embeddings, recognized_detections_fnames = \
             self._gather_detections_for_sequence(sequence_id, with_recognitions=True)
+
+        output_video_file = self._get_path_to_sequence_files(sequence_id, "videos_aligned").with_suffix(".mp4")
+        
+        # if output_video_file.is_file():
+        #     print("Aligned personal video for sequence %d already extracted" % sequence_id)
+        #     return
+
+        desired_processed_video_size = self.processed_video_size
+
+        # 1) first handle the case with no successful detections
+        if embeddings is None or embeddings.size == 0:
+            video = skvideo.io.vread(str(self.root_dir / self.video_list[sequence_id]))
+            
+            height = video.shape[1]
+            width = video.shape[2]
+
+            if height < width: 
+                diff = (width - height) // 2
+                video = video[..., :, diff: diff + height]
+            elif height > width: 
+                diff = (height - width) // 2
+                video = video[..., diff :diff + width, :]
+
+            # resize the video to desired size  
+            video_resized = np.zeros((video.shape[0], desired_processed_video_size, desired_processed_video_size, video.shape[-1]), dtype=video.dtype)
+
+            from skimage.transform import resize
+            for i in range(video.shape[0]):
+                # resize the image with skimage 
+                video_resized[i] = resize(video[i], (video_resized.shape[1], video_resized.shape[2]))
+            
+            # save the video to disk
+            # skvideo.io.vwrite(str(output_video_file), video_resized)
+
+            output_dict = {
+                '-c:v': 'h264', 
+                '-r': self.video_metas[sequence_id]['fps'],
+                '-b': self.video_metas[sequence_id].get('bit_rate', '300000000'),
+            }
+            writer = skvideo.io.FFmpegWriter(str(output_video_file), outputdict=output_dict)
+            for i in range(video_resized.shape[0]):
+                writer.writeFrame(video_resized[i])
+            writer.close()
+
+
+            return
+
+        # 2) handle the case with successful detections
         landmark_file = self._get_path_to_sequence_landmarks(sequence_id) / "landmarks_original.pkl"
         landmarks = FaceVideoDataModule.load_landmark_list(landmark_file)
+
+        num_frames = len(landmarks)
 
         distance_threshold = self.get_default_recognition_threshold() if distance_threshold is None else distance_threshold
 
         indices, labels, mean, cov, fnames = self._get_recognition_for_sequence(sequence_id, distance_threshold)
-        print("yam ta dee ta daa")
+
         # 1) extract the most numerous recognition 
         exclusive_indices = OrderedDict({key: np.unique(value) for key, value in indices.items()})
         exclusive_sizes = OrderedDict({key: value.size for key, value in exclusive_indices.items()})
@@ -1892,18 +1961,25 @@ class FaceVideoDataModule(FaceDataModuleBase):
         max_size = max(exclusive_sizes.values())
         max_size = -1 
         max_index = -1
+        same_occurence_count = []
         for k,v in exclusive_sizes.items():
             if exclusive_sizes[k] > max_size:
                 max_size = exclusive_sizes[k]
-                max_index = k
-
-        print("max_index: %d" % max_index)
+                max_index = k 
+                same_occurence_count.clear()
+                same_occurence_count.append(k)
+            elif exclusive_sizes[k] == max_size:
+                same_occurence_count.append(k) 
+                #TODO: handle this case - how to break the ambiguity?
+                
+        if len(same_occurence_count) > 1: 
+            print(f"Warning: ambiguous recognition for sequence {sequence_id}. There are {len(same_occurence_count)} of faces" 
+                "that have dominant detections across the video. Choosing the first one")
 
         main_occurence_mean = mean[max_index]
         main_occurence_cov = cov[max_index]
 
-
-        # 2) retrieve its detections 
+        # 2) retrieve its detections/landmarks
         total_len = 0
         frame_map = OrderedDict() # detection index to frame map
         index_for_frame_map = OrderedDict() # detection index to frame map
@@ -1949,10 +2025,14 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
         # 3) compute bounding box for frames without detection (via fitting/interpolating the curve) 
         from scipy.interpolate import griddata, RBFInterpolator
+        import scipy
 
-        used_frames = np.array(used_frames)[:,np.newaxis]
+        used_frames = np.array(used_frames, dtype=np.int32)[:,np.newaxis]
         main_occurence_centers = np.stack(main_occurence_centers, axis=0)
         main_occurence_sizes = np.stack(main_occurence_sizes, axis=0)
+
+        used_frames_bin = np.zeros((num_frames,), dtype=np.int32) 
+        used_frames_bin[used_frames] = 1
 
         # only iterpolates
         # interpolated_centers = griddata(used_frames, main_occurence_centers, np.arange(len(landmarks)), method='linear')
@@ -1963,29 +2043,78 @@ class FaceVideoDataModule(FaceDataModuleBase):
         interpolated_sizes = RBFInterpolator(used_frames, main_occurence_sizes)(np.arange(len(landmarks))[:, np.newaxis])
         interpolated_landmarks = RBFInterpolator(used_frames, used_landmarks)(np.arange(len(landmarks))[:, np.newaxis])
 
+        # convolve with a gaussian kernel to smooth the curve
+        smoothed_centers = np.zeros(interpolated_centers.shape)
+        
+        smoothed_sizes = scipy.ndimage.filters.gaussian_filter1d(interpolated_sizes, sigma=3)
+        for i in range(interpolated_centers.shape[1]):
+            smoothed_centers[:, i] = scipy.ndimage.filters.gaussian_filter1d(interpolated_centers[:, i], sigma=3)
+        
+        # do we need to smooth landmarks?
+        # smoothed_landmarks = np.zeros(interpolated_landmarks.shape)
+        # for i in range(interpolated_landmarks.shape[0]):
+        #     smoothed_landmarks[:, i] = scipy.ndimage.filters.gaussian_filter1d(interpolated_landmarks[:, i], sigma=3)
+
+        # # plot the centers over time 
+        # from matplotlib import pyplot as plt
+        # plt.figure()
+        # plt.plot(np.arange(len(landmarks)), interpolated_centers[:, 0], 'r-', label="center x")
+        # # plt.plot(np.arange(len(landmarks)), interpolated_centers[:, 1], 'b-', label="center y")
+        # plt.plot(np.arange(len(landmarks)), smoothed_centers[:, 0], 'r.', label="smoothed center x")
+        # # plt.plot(np.arange(len(landmarks)), smoothed_centers[:, 1], 'b.', label="smoothed center y")
+        # plt.legend()
+        # plt.show()
+
         # 4) generate a new video 
 
         video = skvideo.io.vread(str(self.root_dir / self.video_list[sequence_id]))
-        aligned_video = []
-        warped_landmarks = []
-        for i in range(len(interpolated_centers)): 
-            img_warped, lmk_warped = bbpoint_warp(video[i], interpolated_centers[i], interpolated_sizes[i], target_size_height=256, target_size_width=256, 
-                    landmarks=interpolated_landmarks[i])
-            aligned_video.append(img_warped)
-            warped_landmarks += [lmk_warped] 
+        
+        from gdl.datasets.FaceAlignmentTools import align_video
 
-        aligned_video = np.stack(aligned_video, axis=0)
+        aligned_video, aligned_landmarks = align_video(video, interpolated_centers, interpolated_sizes, interpolated_landmarks, 
+            target_size_height=desired_processed_video_size, target_size_width=desired_processed_video_size)
+        # smoothed_video, aligned_smoothed_landmarks = align_video(video, smoothed_centers, smoothed_sizes, smoothed_landmarks, 
+        #     target_size_height=desired_processed_video_size, target_size_width=desired_processed_video_size)
+        smoothed_video, aligned_smoothed_landmarks = align_video(video, smoothed_centers, smoothed_sizes, interpolated_landmarks, 
+            target_size_height=desired_processed_video_size, target_size_width=desired_processed_video_size)
 
-        # 5) save the video
-        video_file = self._get_path_to_sequence_files(sequence_id, "videos_aligned").with_suffix(".mp4")
-        skvideo.io.vwrite(str(video_file), aligned_video)
+        # 5) save the video and the landmarks 
+
+        trasformed_landmarks_path = self._get_path_to_sequence_landmarks(sequence_id) / "landmarks_aligned_video.pkl"
+        smoothed_trasformed_landmarks_path = self._get_path_to_sequence_landmarks(sequence_id) / "landmarks_aligned_video_smoothed.pkl"
+        used_indices_landmarks_path = self._get_path_to_sequence_landmarks(sequence_id) / "landmarks_alignment_used_frame_indices.pkl"
+
+        FaceVideoDataModule.save_landmark_list(trasformed_landmarks_path, aligned_landmarks)
+        FaceVideoDataModule.save_landmark_list(smoothed_trasformed_landmarks_path, aligned_smoothed_landmarks)
+        FaceVideoDataModule.save_landmark_list(used_indices_landmarks_path, used_frames)
+
+        output_video_file = self._get_path_to_sequence_files(sequence_id, "videos_aligned").with_suffix(".mp4")
+        video_file_smooth = self._get_path_to_sequence_files(sequence_id, "videos_aligned").parent / (output_video_file.stem + "_smooth.mp4")
+        output_video_file.parent.mkdir(parents=True, exist_ok=True)
 
 
-        # 5) resample the video to a target framerate
+        aligned_video = (aligned_video * 255).astype(np.uint8)
+        smoothed_video = (smoothed_video * 255).astype(np.uint8)
 
-        # 6) save the video 
+        output_dict = {
+            '-c:v': 'h264', 
+            # '-q:v': '1',
+            '-r': self.video_metas[sequence_id]['fps'],
+            '-b': self.video_metas[sequence_id].get('bit_rate', '300000000'),
+        }
+        writer = skvideo.io.FFmpegWriter(str(output_video_file), outputdict=output_dict)
+        for i in range(aligned_video.shape[0]):
+            writer.writeFrame(aligned_video[i])
+        writer.close()
+
+        writer = skvideo.io.FFmpegWriter(str(video_file_smooth), outputdict=output_dict)
+        for i in range(smoothed_video.shape[0]):
+            writer.writeFrame(smoothed_video[i])
+        writer.close()
 
 
+        # skvideo.io.vwrite(str(output_video_file), (aligned_video * 255).astype(np.uint8))
+        # skvideo.io.vwrite(str(video_file_smooth), (smoothed_video * 255).astype(np.uint8))
 
 
     @staticmethod

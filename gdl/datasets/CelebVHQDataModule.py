@@ -14,6 +14,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
             landmarks_from=None,
             face_detector_threshold=0.5, 
             image_size=224, scale=1.25, 
+            processed_video_size=256,
             batch_size_train=16,
             batch_size_val=16,
             batch_size_test=16,
@@ -22,7 +23,9 @@ class CelebVHQDataModule(FaceVideoDataModule):
             sequence_length_test=16,
             # occlusion_length_train=0,
             # occlusion_length_val=0,
-            # occlusion_length_test=0,
+            # occlusion_length_test=0,            
+            bb_center_shift_x=0., # in relative numbers
+            bb_center_shift_y=0, # in relative numbers (i.e. -0.1 for 10% shift upwards, ...)
             occlusion_settings_train=None,
             occlusion_settings_val=None,
             occlusion_settings_test=None,
@@ -33,13 +36,17 @@ class CelebVHQDataModule(FaceVideoDataModule):
             drop_last=True,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
-            face_detector, face_detector_threshold, image_size, scale, device, 
+            face_detector, face_detector_threshold, image_size, scale, 
+            processed_video_size=processed_video_size,
+            device=device, 
             unpack_videos=False, save_detection_images=False, 
             # save_landmarks=True,
             save_landmarks=False, # trying out this option
             save_landmarks_one_file=True, 
             save_segmentation_frame_by_frame=False, 
             save_segmentation_one_file=True,
+            bb_center_shift_x=bb_center_shift_x, # in relative numbers
+            bb_center_shift_y=bb_center_shift_y, # in relative numbers (i.e. -0.1 for 10% shift upwards, ...)
             )
         # self.detect_landmarks_on_restored_images = landmarks_from
         self.batch_size_train = batch_size_train
@@ -189,7 +196,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
         print("Done processing shard")
 
     def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix=""): 
-        assert file_type in ['videos', 'detections', "landmarks", "landmarks_original", "segmentations", 
+        assert file_type in ['videos', 'videos_aligned', 'detections', "landmarks", "landmarks_original", "segmentations", 
             "emotions", "reconstructions", "audio"]
         video_file = self.video_list[sequence_id]
         if len(method) > 0:

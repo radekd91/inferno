@@ -33,7 +33,11 @@ import pickle as pkl
 class VideoFaceDetectionDataset(torch.utils.data.Dataset):
 
     def __init__(self, video_name, landmark_path, image_transforms=None, 
-                align_landmarks=False, vid_read=None, output_im_range=None):
+                align_landmarks=False, vid_read=None, output_im_range=None, 
+                scale_adjustment=1.25,
+                target_size_height=256, 
+                target_size_width=256,
+                ):
         super().__init__()
         self.video_name = video_name
         self.landmark_path = landmark_path / "landmarks_original.pkl"
@@ -42,6 +46,10 @@ class VideoFaceDetectionDataset(torch.utils.data.Dataset):
         self.image_transforms = image_transforms
         self.vid_read = vid_read or 'skvread'
         self.prev_index = -1
+
+        self.scale_adjustment=scale_adjustment
+        self.target_size_height=target_size_height
+        self.target_size_width=target_size_width
 
         self.video_frames = None 
         if self.vid_read == "skvread": 
