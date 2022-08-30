@@ -1998,6 +1998,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # main_occurence_centers = OrderedDict()
 
         used_frames = []
+        per_frame_landmark_indices = np.zeros((num_frames,), dtype=np.int32) 
         main_occurence_centers = []
         main_occurence_sizes = []
         used_landmarks = []
@@ -2014,6 +2015,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
             # find the closest detection to the main recognition
             closest_detection = np.argmin(distances)
             closest_detection_index = first_index + closest_detection
+
+            per_frame_landmark_indices[frame_num] = closest_detection
 
             if distances.min() < distance_threshold:
                 main_occurence_sizes += [sizes[frame_num][closest_detection]]
@@ -2083,10 +2086,12 @@ class FaceVideoDataModule(FaceDataModuleBase):
         trasformed_landmarks_path = self._get_path_to_sequence_landmarks(sequence_id) / "landmarks_aligned_video.pkl"
         smoothed_trasformed_landmarks_path = self._get_path_to_sequence_landmarks(sequence_id) / "landmarks_aligned_video_smoothed.pkl"
         used_indices_landmarks_path = self._get_path_to_sequence_landmarks(sequence_id) / "landmarks_alignment_used_frame_indices.pkl"
+        used_detection_indices_path = self._get_path_to_sequence_landmarks(sequence_id) / "landmarks_alignment_per_frame_detection_indices.pkl"
 
         FaceVideoDataModule.save_landmark_list(trasformed_landmarks_path, aligned_landmarks)
         FaceVideoDataModule.save_landmark_list(smoothed_trasformed_landmarks_path, aligned_smoothed_landmarks)
         FaceVideoDataModule.save_landmark_list(used_indices_landmarks_path, used_frames)
+        FaceVideoDataModule.save_landmark_list(used_detection_indices_path, per_frame_landmark_indices)
 
         output_video_file = self._get_path_to_sequence_files(sequence_id, "videos_aligned").with_suffix(".mp4")
         video_file_smooth = self._get_path_to_sequence_files(sequence_id, "videos_aligned").parent / (output_video_file.stem + "_smooth.mp4")
