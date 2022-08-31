@@ -1900,9 +1900,9 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
         output_video_file = self._get_path_to_sequence_files(sequence_id, "videos_aligned").with_suffix(".mp4")
         
-        # if output_video_file.is_file():
-        #     print("Aligned personal video for sequence %d already extracted" % sequence_id)
-        #     return
+        if output_video_file.is_file():
+            print("Aligned personal video for sequence %d already extracted" % sequence_id)
+            return
 
         desired_processed_video_size = self.processed_video_size
 
