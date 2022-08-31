@@ -141,7 +141,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
             restore_videos=True, 
             detect_landmarks=True, 
             recognize_faces=True,
-            cut_out_faces=True,
+            # cut_out_faces=True,
             segment_videos=True, 
             reconstruct_faces=False,):
         if extract_audio: 
@@ -154,8 +154,8 @@ class CelebVHQDataModule(FaceVideoDataModule):
             self._recognize_faces_in_sequence(idx)
             self._identify_recognitions_for_sequence(idx)
             self._extract_personal_recognition_sequences(idx)
-        if cut_out_faces: 
-            self._cut_out_detected_faces_in_sequence(idx)
+        # if cut_out_faces: 
+        #     self._cut_out_detected_faces_in_sequence(idx)
         if segment_videos:
             self._segment_faces_in_sequence(idx)
             # raise NotImplementedError()
