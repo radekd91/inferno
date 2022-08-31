@@ -2093,13 +2093,30 @@ class FaceVideoDataModule(FaceDataModuleBase):
         FaceVideoDataModule.save_landmark_list(used_indices_landmarks_path, used_frames)
         FaceVideoDataModule.save_landmark_list(used_detection_indices_path, per_frame_landmark_indices)
 
-        output_video_file = self._get_path_to_sequence_files(sequence_id, "videos_aligned").with_suffix(".mp4")
-        video_file_smooth = self._get_path_to_sequence_files(sequence_id, "videos_aligned").parent / (output_video_file.stem + "_smooth.mp4")
-        output_video_file.parent.mkdir(parents=True, exist_ok=True)
-
 
         aligned_video = (aligned_video * 255).astype(np.uint8)
         smoothed_video = (smoothed_video * 255).astype(np.uint8)
+
+        # output_video_file = self._get_path_to_sequence_files(sequence_id, "videos_aligned").with_suffix(".mp4")
+        # video_file_smooth = self._get_path_to_sequence_files(sequence_id, "videos_aligned").parent / (output_video_file.stem + "_smooth.mp4")
+        # output_dict = {
+        #     '-c:v': 'h264', 
+        #     # '-q:v': '1',
+        #     '-r': self.video_metas[sequence_id]['fps'],
+        #     '-b': self.video_metas[sequence_id].get('bit_rate', '300000000'),
+        # }
+        # writer = skvideo.io.FFmpegWriter(str(output_video_file), outputdict=output_dict)
+        # for i in range(aligned_video.shape[0]):
+        #     writer.writeFrame(aligned_video[i])
+        # writer.close()
+
+        # writer = skvideo.io.FFmpegWriter(str(video_file_smooth), outputdict=output_dict)
+        # for i in range(smoothed_video.shape[0]):
+        #     writer.writeFrame(smoothed_video[i])
+        # writer.close()
+
+        output_video_file = self._get_path_to_sequence_files(sequence_id, "videos_aligned").with_suffix(".mp4")
+        output_video_file.parent.mkdir(parents=True, exist_ok=True)
 
         output_dict = {
             '-c:v': 'h264', 
@@ -2109,17 +2126,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
         }
         writer = skvideo.io.FFmpegWriter(str(output_video_file), outputdict=output_dict)
         for i in range(aligned_video.shape[0]):
-            writer.writeFrame(aligned_video[i])
-        writer.close()
-
-        writer = skvideo.io.FFmpegWriter(str(video_file_smooth), outputdict=output_dict)
-        for i in range(smoothed_video.shape[0]):
             writer.writeFrame(smoothed_video[i])
         writer.close()
-
-
-        # skvideo.io.vwrite(str(output_video_file), (aligned_video * 255).astype(np.uint8))
-        # skvideo.io.vwrite(str(video_file_smooth), (smoothed_video * 255).astype(np.uint8))
 
 
     @staticmethod
