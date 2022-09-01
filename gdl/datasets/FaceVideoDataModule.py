@@ -372,8 +372,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     sequence_id, method=self.detect_landmarks_on_restored_images)
             assert video_name.is_file()
             if start_fid == 0:
-                # videogen =  vreader(str(video_name))
-                videogen =  vread(str(video_name))
+                videogen =  vreader(str(video_name))
+                # videogen =  vread(str(video_name))
                 # for i in range(start_fid): 
                     # _discarded_frame = next(videogen
             else: 
