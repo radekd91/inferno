@@ -1908,26 +1908,46 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
         # 1) first handle the case with no successful detections
         if embeddings is None or embeddings.size == 0:
-            video = skvideo.io.vread(str(self.root_dir / self.video_list[sequence_id]))
-            
-            height = video.shape[1]
-            width = video.shape[2]
+            # video = skvideo.io.vread(str(self.root_dir / self.video_list[sequence_id]))
+            # height = video.shape[1]
+            # width = video.shape[2]
 
-            if height < width: 
-                diff = (width - height) // 2
-                video = video[..., :, diff: diff + height]
-            elif height > width: 
-                diff = (height - width) // 2
-                video = video[..., diff :diff + width, :]
+            videogen = skvideo.io.vreader(str(self.root_dir / self.video_list[sequence_id]))
+            first_frame = None
+            for frame in videogen:
+                first_frame = frame 
+                break
+            height = first_frame.shape[0]
+            width = first_frame.shape[1]
+
+            assert first_frame is not None, "No frames found in video"
+
+            # if height < width: 
+            #     diff = (width - height) // 2
+            #     video = video[..., :, diff: diff + height, :]
+            # elif height > width: 
+            #     diff = (height - width) // 2
+            #     video = video[..., diff :diff + width, :]
 
             # resize the video to desired size  
-            video_resized = np.zeros((video.shape[0], desired_processed_video_size, desired_processed_video_size, video.shape[-1]), dtype=video.dtype)
+            # video_resized = np.zeros((video.shape[0], desired_processed_video_size, desired_processed_video_size, video.shape[-1]), dtype=video.dtype)
+            # video_resized = []
 
             from skimage.transform import resize
-            for i in range(video.shape[0]):
-                # resize the image with skimage 
-                video_resized[i] = resize(video[i], (video_resized.shape[1], video_resized.shape[2]))
-            
+            # for i in range(video.shape[0]):
+            #     # resize the image with skimage 
+            #     video_resized[i] = resize(video[i], (video_resized.shape[1], video_resized.shape[2]))
+
+            # for frame in videogen:
+            #     if height < width: 
+            #         diff = (width - height) // 2
+            #         frame = frame[..., :, diff: diff + height,:]        
+            #     elif height > width: 
+            #         diff = (height - width) // 2
+            #         frame = frame[..., diff :diff + width, :]
+            #     video_resized += [frame]
+            # video_resized = np.stack(video_resized, axis=0)
+
             # save the video to disk
             # skvideo.io.vwrite(str(output_video_file), video_resized)
 
@@ -1937,8 +1957,28 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 '-b': self.video_metas[sequence_id].get('bit_rate', '300000000'),
             }
             writer = skvideo.io.FFmpegWriter(str(output_video_file), outputdict=output_dict)
-            for i in range(video_resized.shape[0]):
-                writer.writeFrame(video_resized[i])
+
+            # write the first already read out frame
+            if height < width: 
+                diff = (width - height) // 2
+                first_frame = first_frame[..., :, diff: diff + height, :]        
+            elif height > width: 
+                diff = (height - width) // 2
+                first_frame = first_frame[..., diff :diff + width, :]
+            writer.writeFrame(first_frame)
+
+            # write the rest of the frames
+            for frame in videogen:
+                if height < width: 
+                    diff = (width - height) // 2
+                    frame = frame[..., :, diff: diff + height, :]        
+                elif height > width: 
+                    diff = (height - width) // 2
+                    frame = frame[..., diff :diff + width, :]
+                frame_resized = resize(frame, (desired_processed_video_size, desired_processed_video_size))
+                writer.writeFrame(frame_resized)
+            # for i in range(video_resized.shape[0]):
+                # writer.writeFrame(video_resized[i])
             writer.close()
 
 
@@ -2070,12 +2110,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
         # 4) generate a new video 
 
-        video = skvideo.io.vread(str(self.root_dir / self.video_list[sequence_id]))
-        
+        # video = skvideo.io.vread(str(self.root_dir / self.video_list[sequence_id]))
+        video = skvideo.io.vreader(str(self.root_dir / self.video_list[sequence_id]))
+
         from gdl.datasets.FaceAlignmentTools import align_video
 
-        aligned_video, aligned_landmarks = align_video(video, interpolated_centers, interpolated_sizes, interpolated_landmarks, 
-            target_size_height=desired_processed_video_size, target_size_width=desired_processed_video_size)
+        # aligned_video, aligned_landmarks = align_video(video, interpolated_centers, interpolated_sizes, interpolated_landmarks, 
+        #     target_size_height=desired_processed_video_size, target_size_width=desired_processed_video_size)
         # smoothed_video, aligned_smoothed_landmarks = align_video(video, smoothed_centers, smoothed_sizes, smoothed_landmarks, 
         #     target_size_height=desired_processed_video_size, target_size_width=desired_processed_video_size)
         smoothed_video, aligned_smoothed_landmarks = align_video(video, smoothed_centers, smoothed_sizes, interpolated_landmarks, 
@@ -2088,13 +2129,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
         used_indices_landmarks_path = self._get_path_to_sequence_landmarks(sequence_id) / "landmarks_alignment_used_frame_indices.pkl"
         used_detection_indices_path = self._get_path_to_sequence_landmarks(sequence_id) / "landmarks_alignment_per_frame_detection_indices.pkl"
 
-        FaceVideoDataModule.save_landmark_list(trasformed_landmarks_path, aligned_landmarks)
+        # FaceVideoDataModule.save_landmark_list(trasformed_landmarks_path, aligned_landmarks)
         FaceVideoDataModule.save_landmark_list(smoothed_trasformed_landmarks_path, aligned_smoothed_landmarks)
         FaceVideoDataModule.save_landmark_list(used_indices_landmarks_path, used_frames)
         FaceVideoDataModule.save_landmark_list(used_detection_indices_path, per_frame_landmark_indices)
 
 
-        aligned_video = (aligned_video * 255).astype(np.uint8)
+        # aligned_video = (aligned_video * 255).astype(np.uint8)
         smoothed_video = (smoothed_video * 255).astype(np.uint8)
 
         # output_video_file = self._get_path_to_sequence_files(sequence_id, "videos_aligned").with_suffix(".mp4")
@@ -2125,7 +2166,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             '-b': self.video_metas[sequence_id].get('bit_rate', '300000000'),
         }
         writer = skvideo.io.FFmpegWriter(str(output_video_file), outputdict=output_dict)
-        for i in range(aligned_video.shape[0]):
+        for i in range(smoothed_video.shape[0]):
             writer.writeFrame(smoothed_video[i])
         writer.close()
 

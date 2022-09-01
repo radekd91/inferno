@@ -2,6 +2,7 @@ import numpy as np
 from pathlib import Path
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 import skvideo
+import types
 
 
 def align_face(image, landmarks, landmark_type, scale_adjustment, target_size_height, target_size_width=None,):
@@ -40,20 +41,28 @@ def align_video(video, centers, sizes, landmarks, target_size_height, target_siz
     """
     if isinstance(video, (str, Path)):
         video = skvideo.io.vread(video)
-    elif isinstance(video, np.ndarray):
+    elif isinstance(video, (np.ndarray, types.GeneratorType)):
         pass
     else:
         raise ValueError("video must be a string, Path, or numpy array")
 
     aligned_video = []
     warped_landmarks = []
-    for i in range(len(centers)): 
-        img_warped, lmk_warped = bbpoint_warp(video[i], centers[i], sizes[i], 
-                target_size_height=target_size_height, target_size_width=target_size_width, 
-                landmarks=landmarks[i])
-        aligned_video.append(img_warped)
-        warped_landmarks += [lmk_warped] 
+    if isinstance(video, np.ndarray):
+        for i in range(len(centers)): 
+            img_warped, lmk_warped = bbpoint_warp(video[i], centers[i], sizes[i], 
+                    target_size_height=target_size_height, target_size_width=target_size_width, 
+                    landmarks=landmarks[i])
+            aligned_video.append(img_warped)
+            warped_landmarks += [lmk_warped]
+            
+    elif isinstance(video, types.GeneratorType): 
+        for i, frame in enumerate(video):
+            img_warped, lmk_warped = bbpoint_warp(frame, centers[i], sizes[i], 
+                    target_size_height=target_size_height, target_size_width=target_size_width, 
+                    landmarks=landmarks[i])
+            aligned_video.append(img_warped)
+            warped_landmarks += [lmk_warped] 
 
     aligned_video = np.stack(aligned_video, axis=0)
-
     return aligned_video, warped_landmarks
