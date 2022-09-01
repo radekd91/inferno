@@ -678,7 +678,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
             dataset = VideoFaceDetectionDataset(video_path, landmark_file, output_im_range=255)
         else:
             dataset = UnsupervisedImageDataset(detections_fnames)
-        loader = DataLoader(dataset, batch_size=64, num_workers=num_workers, shuffle=False)
+        # loader = DataLoader(dataset, batch_size=64, num_workers=num_workers, shuffle=False)
+        loader = DataLoader(dataset, batch_size=64, num_workers=1, shuffle=False)
         # loader = DataLoader(dataset, batch_size=2, num_workers=0, shuffle=False)
         all_embeddings = []
         for i, batch in enumerate(tqdm(loader)):
@@ -1965,7 +1966,12 @@ class FaceVideoDataModule(FaceDataModuleBase):
             elif height > width: 
                 diff = (height - width) // 2
                 first_frame = first_frame[..., diff :diff + width, :]
-            writer.writeFrame(first_frame)
+            first_frame_resized = resize(frame, (desired_processed_video_size, desired_processed_video_size))
+            if first_frame_resized.dtype in [np.float32, np.float64]: 
+                if first_frame_resized.max() < 5.: # likely to be in range [0, 1]
+                    first_frame_resized *= 255.0
+                    first_frame_resized = first_frame_resized.astype(np.uint8)
+            writer.writeFrame(first_frame_resized)
 
             # write the rest of the frames
             for frame in videogen:
@@ -1974,8 +1980,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     frame = frame[..., :, diff: diff + height, :]        
                 elif height > width: 
                     diff = (height - width) // 2
-                    frame = frame[..., diff :diff + width, :]
+                    frame = frame[..., diff :diff + width, :, :]
                 frame_resized = resize(frame, (desired_processed_video_size, desired_processed_video_size))
+                if frame_resized.dtype in [np.float32, np.float64]: 
+                    if frame_resized.max() < 5.: # likely to be in range [0, 1] (yeah, it's hacky, bite me)
+                        frame_resized *= 255.0
+                    frame_resized = frame_resized.astype(np.uint8)
+
                 writer.writeFrame(frame_resized)
             # for i in range(video_resized.shape[0]):
                 # writer.writeFrame(video_resized[i])
@@ -2113,14 +2124,27 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # video = skvideo.io.vread(str(self.root_dir / self.video_list[sequence_id]))
         video = skvideo.io.vreader(str(self.root_dir / self.video_list[sequence_id]))
 
-        from gdl.datasets.FaceAlignmentTools import align_video
+        from gdl.datasets.FaceAlignmentTools import align_video, align_and_save_video
 
-        # aligned_video, aligned_landmarks = align_video(video, interpolated_centers, interpolated_sizes, interpolated_landmarks, 
+        # # aligned_video, aligned_landmarks = align_video(video, interpolated_centers, interpolated_sizes, interpolated_landmarks, 
+        # #     target_size_height=desired_processed_video_size, target_size_width=desired_processed_video_size)
+        # # smoothed_video, aligned_smoothed_landmarks = align_video(video, smoothed_centers, smoothed_sizes, smoothed_landmarks, 
+        # #     target_size_height=desired_processed_video_size, target_size_width=desired_processed_video_size)
+        # smoothed_video, aligned_smoothed_landmarks = align_video(video, smoothed_centers, smoothed_sizes, interpolated_landmarks, 
         #     target_size_height=desired_processed_video_size, target_size_width=desired_processed_video_size)
-        # smoothed_video, aligned_smoothed_landmarks = align_video(video, smoothed_centers, smoothed_sizes, smoothed_landmarks, 
-        #     target_size_height=desired_processed_video_size, target_size_width=desired_processed_video_size)
-        smoothed_video, aligned_smoothed_landmarks = align_video(video, smoothed_centers, smoothed_sizes, interpolated_landmarks, 
-            target_size_height=desired_processed_video_size, target_size_width=desired_processed_video_size)
+
+
+        output_video_file = self._get_path_to_sequence_files(sequence_id, "videos_aligned").with_suffix(".mp4")
+        output_video_file.parent.mkdir(parents=True, exist_ok=True)
+        output_dict = {
+            '-c:v': 'h264', 
+            # '-q:v': '1',
+            '-r': self.video_metas[sequence_id]['fps'],
+            '-b': self.video_metas[sequence_id].get('bit_rate', '300000000'),
+        }
+        aligned_smoothed_landmarks = align_and_save_video(video, output_video_file, smoothed_centers, smoothed_sizes, interpolated_landmarks, 
+            target_size_height=desired_processed_video_size, target_size_width=desired_processed_video_size, output_dict=output_dict)
+
 
         # 5) save the video and the landmarks 
 
@@ -2135,8 +2159,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
         FaceVideoDataModule.save_landmark_list(used_detection_indices_path, per_frame_landmark_indices)
 
 
-        # aligned_video = (aligned_video * 255).astype(np.uint8)
-        smoothed_video = (smoothed_video * 255).astype(np.uint8)
+        # # aligned_video = (aligned_video * 255).astype(np.uint8)
+        # smoothed_video = (smoothed_video * 255).astype(np.uint8)
 
         # output_video_file = self._get_path_to_sequence_files(sequence_id, "videos_aligned").with_suffix(".mp4")
         # video_file_smooth = self._get_path_to_sequence_files(sequence_id, "videos_aligned").parent / (output_video_file.stem + "_smooth.mp4")
@@ -2156,19 +2180,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
         #     writer.writeFrame(smoothed_video[i])
         # writer.close()
 
-        output_video_file = self._get_path_to_sequence_files(sequence_id, "videos_aligned").with_suffix(".mp4")
-        output_video_file.parent.mkdir(parents=True, exist_ok=True)
-
-        output_dict = {
-            '-c:v': 'h264', 
-            # '-q:v': '1',
-            '-r': self.video_metas[sequence_id]['fps'],
-            '-b': self.video_metas[sequence_id].get('bit_rate', '300000000'),
-        }
-        writer = skvideo.io.FFmpegWriter(str(output_video_file), outputdict=output_dict)
-        for i in range(smoothed_video.shape[0]):
-            writer.writeFrame(smoothed_video[i])
-        writer.close()
+        # writer = skvideo.io.FFmpegWriter(str(output_video_file), outputdict=output_dict)
+        # for i in range(smoothed_video.shape[0]):
+        #     writer.writeFrame(smoothed_video[i])
+        # writer.close()
 
 
     @staticmethod

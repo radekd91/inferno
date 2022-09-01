@@ -27,7 +27,8 @@ from torchvision.transforms import ToTensor
 from gdl.utils.FaceDetector import load_landmark
 from gdl.datasets.FaceAlignmentTools import align_face
 
-from skvideo.io import vread
+from skvideo.io import vread, vreader 
+from types import GeneratorType
 import pickle as pkl
 
 class VideoFaceDetectionDataset(torch.utils.data.Dataset):
@@ -44,7 +45,7 @@ class VideoFaceDetectionDataset(torch.utils.data.Dataset):
         # if landmark_list is not None and len(lanmark_file_name) != len(image_list):
         #     raise RuntimeError("There must be a landmark for every image")
         self.image_transforms = image_transforms
-        self.vid_read = vid_read or 'skvread'
+        self.vid_read = vid_read or 'skvreader' # 'skvread'
         self.prev_index = -1
 
         self.scale_adjustment=scale_adjustment
@@ -54,6 +55,8 @@ class VideoFaceDetectionDataset(torch.utils.data.Dataset):
         self.video_frames = None 
         if self.vid_read == "skvread": 
             self.video_frames = vread(str(self.video_name))
+        elif self.vid_read == "skvreader": 
+            self.video_frames = vreader(str(self.video_name))
 
         with open(self.landmark_path, "rb") as f: 
             self.landmark_list = pkl.load(f)
@@ -78,17 +81,19 @@ class VideoFaceDetectionDataset(torch.utils.data.Dataset):
         #     x = self.mnist_data[index]
         # raise IndexError("Out of bounds")
         if index != self.prev_index+1 and self.vid_read != 'skvread': 
-            raise RuntimeError("This dataset is meant to be accessed in ordered way only")
+            raise RuntimeError("This dataset is meant to be accessed in ordered way only (and with 0 or 1 workers)")
 
         frame_index = self.frame_map[index]
         detection_in_frame_index = self.index_for_frame_map[index]
         landmark = self.landmark_list[frame_index][detection_in_frame_index]
         landmark_type = self.landmark_types[frame_index][detection_in_frame_index]
 
-        if self.video_frames is not None: 
+        if isinstance(self.video_frames, np.ndarray): 
             img = self.video_frames[frame_index, ...]
+        elif isinstance(self.video_frames, GeneratorType):
+            img = next(self.video_frames)
         else: 
-            raise RuntimeError("Not implemented")
+            raise NotImplementedError() 
 
         # try:
         #     if self.vid_read == 'skvread':
@@ -127,7 +132,6 @@ class VideoFaceDetectionDataset(torch.utils.data.Dataset):
 
         if self.image_transforms is not None:
             img_torch = self.image_transforms(img_torch)
-
 
         batch = {"image" : img_torch,
         #         "path" : path
