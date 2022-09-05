@@ -72,7 +72,7 @@ class FaceformerVocasetDM(pl.LightningDataModule):
             templates = pickle.load(fin,encoding='latin1')
         
         for r, ds, fs in os.walk(audio_path):
-            idx = 0
+            # idx = 0
             for f in tqdm(fs):
                 if f.endswith("wav"):
                     wav_path = os.path.join(r,f)
@@ -109,9 +109,9 @@ class FaceformerVocasetDM(pl.LightningDataModule):
                             data[key]["vertice"] = np.load(vertice_path,allow_pickle=True)
                         else: 
                             raise NotImplementedError("Dataset not implemented")
-                        idx += 1
-                if idx == 10: 
-                    break
+                #         idx += 1
+                # if idx == 10: 
+                #     break
 
 
         subjects_dict = {}
