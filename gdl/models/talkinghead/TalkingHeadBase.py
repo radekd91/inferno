@@ -171,8 +171,8 @@ class TalkingHeadBase(pl.LightningModule):
     def encode_sequence(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
         return self.sequence_encoder(sample, input_key="audio_feature", **kwargs)
 
-    def decode_sequence(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
-        return self.sequence_decoder(sample, train=train, **kwargs)
+    def decode_sequence(self, sample: Dict, train=False, teacher_forcing=False, **kwargs: Any) -> Dict:
+        return self.sequence_decoder(sample, train=train, teacher_forcing=teacher_forcing, **kwargs)
 
 
     def forward(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
@@ -181,6 +181,7 @@ class TalkingHeadBase(pl.LightningModule):
             - audio: (B, T, F)
             # - masked_audio: (B, T, F)
         """
+        teacher_forcing = kwargs.pop("teacher_forcing", False)
         sample = self.forward_audio(sample, train=train, **kwargs)
         # if self.uses_text():
         #     sample = self.forward_text(sample, **kwargs)
@@ -193,7 +194,7 @@ class TalkingHeadBase(pl.LightningModule):
         sample = self.encode_sequence(sample, train=train, **kwargs)
         # self.check_nan(sample)
         # decode the sequence
-        sample = self.decode_sequence(sample, train=train, **kwargs)
+        sample = self.decode_sequence(sample, train=train, teacher_forcing=teacher_forcing, **kwargs)
         # self.check_nan(sample)
         # project the output sequence vector into the code vector (shape model, rendering, ...)
         # sample = self.code_vector_projection(sample, train=train, **kwargs)

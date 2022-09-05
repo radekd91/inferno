@@ -9,8 +9,8 @@ class AutoRegressiveDecoder(nn.Module):
     def __init__(self) -> None:
         super().__init__()
 
-    def forward(self, sample, train=False): 
-        teacher_forcing = not train
+    def forward(self, sample, train=False, teacher_forcing=True): 
+        # teacher_forcing = not train
         hidden_states = sample["seq_encoder_output"]
         sample["hidden_feature"] = hidden_states # first "hidden state" is the audio feature
         if teacher_forcing:
