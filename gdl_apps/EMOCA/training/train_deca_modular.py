@@ -93,8 +93,8 @@ def train_deca(configs: list, stage_types: list, stage_prefixes: list, stage_nam
 
     full_run_dir.mkdir(parents=True, exist_ok=exist_ok)
     print(f"The run will be saved  to: '{str(full_run_dir)}'")
-    with open("out_folder.txt", "w") as f:
-        f.write(str(full_run_dir))
+    # with open("out_folder.txt", "w") as f:
+        # f.write(str(full_run_dir))
 
     cfg_first_checkpoint_dir = full_run_dir / stage_names[start_i] / "checkpoints"
     cfg_first_checkpoint_dir.mkdir(parents=True, exist_ok=exist_ok)

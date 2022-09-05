@@ -65,6 +65,9 @@ class SequenceDecoder(torch.nn.Module):
     def output_feature_dim(self): 
         raise NotImplementedError("Subclasses must implement this method")
 
+    def get_trainable_parameters(self): 
+        raise NotImplementedError()
+
 
 class ShapeModel(torch.nn.Module):
 

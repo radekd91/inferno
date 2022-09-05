@@ -176,10 +176,12 @@ class LinearSequenceEncoder(SequenceEncoder):
     def __init__(self, cfg):
         super().__init__()
         self.cfg = cfg
-        self.linear = torch.nn.Linear(cfg.feature_dim, cfg.feature_dim)
+        input_feature_dim = self.cfg.get('input_feature_dim', None) or self.cfg.feature_dim 
+        output_feature_dim = self.cfg.feature_dim
+        self.linear = torch.nn.Linear(input_feature_dim, output_feature_dim)
 
-    def forward(self, sample):
-        feat = sample["fused_feature"] 
+    def forward(self, sample, input_key="fused_feature"):
+        feat = sample[input_key] 
         # B, T, D -> B * T, D 
         out = feat.view(-1, feat.shape[-1])
         out = self.linear(feat) 

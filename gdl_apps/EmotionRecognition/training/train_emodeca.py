@@ -352,8 +352,8 @@ def train_emodeca(cfg, start_i=-1, resume_from_previous = True,
 
     full_run_dir.mkdir(parents=True, exist_ok=exist_ok)
     print(f"The run will be saved  to: '{str(full_run_dir)}'")
-    with open("out_folder.txt", "w") as f:
-        f.write(str(full_run_dir))
+    # with open("out_folder.txt", "w") as f:
+        # f.write(str(full_run_dir))
 
     checkpoint_dir = full_run_dir / "checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=exist_ok)

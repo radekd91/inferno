@@ -1,0 +1,4 @@
+# @package model
+
+pl_module_class: FaceFormer
+max_epochs: 100

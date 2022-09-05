@@ -191,8 +191,8 @@ def train_deca(cfg_coarse_pretraining, cfg_coarse, cfg_detail, start_i=-1, resum
 
     full_run_dir.mkdir(parents=True, exist_ok=exist_ok)
     print(f"The run will be saved  to: '{str(full_run_dir)}'")
-    with open("out_folder.txt", "w") as f:
-        f.write(str(full_run_dir))
+    # with open("out_folder.txt", "w") as f:
+        # f.write(str(full_run_dir))
 
     coarse_pretrain_checkpoint_dir = full_run_dir / "coarse_pretrain" / "checkpoints"
     coarse_pretrain_checkpoint_dir.mkdir(parents=True, exist_ok=exist_ok)

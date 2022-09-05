@@ -1,0 +1,13 @@
+# @package learning
+losses:
+  exp_loss: 
+    weight: 1.
+    metric: l2
+  jaw_loss: 
+    weight: 1. 
+    rotation_rep: 6d
+    metric: l2
+metrics: 
+  vertex_loss:
+    weight: 1.
+    metric: l2

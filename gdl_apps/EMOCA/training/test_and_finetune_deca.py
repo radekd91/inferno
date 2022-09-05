@@ -536,8 +536,8 @@ def finetune_deca(cfg_coarse, cfg_detail, test_first=True, start_i=-1, resume_fr
 
     full_run_dir.mkdir(parents=True, exist_ok=exist_ok)
     print(f"The run will be saved  to: '{str(full_run_dir)}'")
-    with open("out_folder.txt", "w") as f:
-        f.write(str(full_run_dir))
+    # with open("out_folder.txt", "w") as f:
+        # f.write(str(full_run_dir))
 
     coarse_checkpoint_dir = full_run_dir / "coarse" / "checkpoints"
     coarse_checkpoint_dir.mkdir(parents=True, exist_ok=exist_ok)

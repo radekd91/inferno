@@ -209,15 +209,23 @@ class Wav2Vec2ModelResampled(Wav2Vec2Model):
 
 class Wav2Vec2Encoder(TemporalAudioEncoder):
 
-    def __init__(self, model_specifier, trainable):
+    def __init__(self, model_specifier, trainable, with_processor=True, target_fps=25, expected_fps=50):
         super().__init__() 
         self.model_specifier = model_specifier
         self.cfg  =  Wav2Vec2Config.from_pretrained(model_specifier)
-        self.input_processor = Wav2Vec2Processor.from_pretrained(model_specifier)
+        if with_processor:
+            self.input_processor = Wav2Vec2Processor.from_pretrained(model_specifier)
+        else: 
+            self.input_processor = None
         # self.model = Wav2Vec2Model.from_pretrained(model_specifier)
-        self.model = Wav2Vec2ModelResampled.from_pretrained(model_specifier)
-        self.model.model_expected_fps = 50 
-        self.model.target_fps = 25 
+        if not target_fps or not expected_fps:
+            self.model = Wav2Vec2Model.from_pretrained(model_specifier)
+            self.resampling = False
+        else:
+            self.model = Wav2Vec2ModelResampled.from_pretrained(model_specifier)
+            self.resampling = True
+            self.model.model_expected_fps = expected_fps
+            self.model.target_fps = target_fps
         self.trainable = trainable
         if not trainable: 
             self.model.requires_grad_(False)
@@ -228,17 +236,28 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
         return []
 
     def _forward(self, sample, train=False): 
-        B = sample["raw_audio"].shape[0]
-        T = sample["raw_audio"].shape[1]
-        # proc = self.input_processor(sample["raw_audio"], sampling_rate=sample["samplerate"], return_tensors="pt")[0]
-        # raw_audio = sample["raw_audio"].view( B, -1)
-        raw_audio = sample["raw_audio"].view( B, -1)
-        proc = self.input_processor(raw_audio, sampling_rate=sample["samplerate"][0], return_tensors="pt")
-        feats_ = self.model(proc.input_values[0].to(device=raw_audio.device), num_output_frames=T)
+        if self.input_processor is not None:
+            B = sample["raw_audio"].shape[0]
+            T = sample["raw_audio"].shape[1]
+            # proc = self.input_processor(sample["raw_audio"], sampling_rate=sample["samplerate"], return_tensors="pt")[0]
+            # raw_audio = sample["raw_audio"].view( B, -1)
+            raw_audio = sample["raw_audio"].view( B, -1)
+            proc = self.input_processor(raw_audio, sampling_rate=sample["samplerate"][0], return_tensors="pt")
+            input = proc.input_values[0].to(device=raw_audio.device)
+            sample["processed_audio"] = input
+        else: 
+            B = sample["processed_audio"].shape[0]
+            T = sample["processed_audio"].shape[1]
+            input = sample["processed_audio"]
+        if isinstance(self.model, Wav2Vec2ModelResampled):
+            feats_ = self.model(input, num_output_frames=T)
+        else:
+            feats_ = self.model(input)
         F = feats_.last_hidden_state.shape[-1]
         T2 = feats_.last_hidden_state.shape[1]
 
-        assert T2 == T # sanity checking that the feature got resampled to the proper length
+        if self.resampling:
+            assert T2 == T # sanity checking that the feature got resampled to the proper length
 
         sample["audio_feature"] = feats_.last_hidden_state 
         return sample

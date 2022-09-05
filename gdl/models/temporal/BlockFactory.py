@@ -6,6 +6,7 @@ from gdl.models.temporal.TemporalFLAME import FlameShapeModel
 from gdl.models.temporal.Renderers import FlameRenderer
 from gdl.models.temporal.AudioEncoders import AvHubertAudioEncoder, Wav2Vec2Encoder
 from gdl.models.temporal.VideoEncoders import EmocaVideoEncoder
+from omegaconf import open_dict
 
 
 def load_avhubert_model(ckpt_path):
@@ -173,7 +174,10 @@ def audio_model_from_cfg(cfg):
             raise ValueError("This AVHubert model does not support audio")
         encoder = AvHubertAudioEncoder(models[0], cfg.trainable)
     elif cfg.type == "wav2vec2": 
-        encoder = Wav2Vec2Encoder(cfg.model_specifier, cfg.trainable)
+        encoder = Wav2Vec2Encoder(cfg.model_specifier, cfg.trainable, cfg.get('with_processor', True), 
+            cfg.get('model_expected_fps', 50), 
+            cfg.get('target_fps', 25),
+        )
     else: 
         raise ValueError(f"Unknown audio model type '{cfg.type}'")
 
@@ -214,7 +218,18 @@ def sequence_decoder_from_cfg(cfg):
 
         decoder = FairSeqModifiedDecoder(decoder_cfg)
 
+    elif decoder_cfg.type == "FaceFormerDecoder":
+        from gdl.models.talkinghead.FaceFormerDecoder import FaceFormerDecoder
+        with open_dict(decoder_cfg):
+            decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
+        decoder = FaceFormerDecoder(decoder_cfg)
+    elif decoder_cfg.type == "FlameFormerDecoder":
+        from gdl.models.talkinghead.FaceFormerDecoder import FlameFormerDecoder
+        with open_dict(decoder_cfg):
+            decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
+        decoder = FlameFormerDecoder(decoder_cfg)
+
     else: 
-        raise ValueError(f"Unknown sequence decoder model type '{cfg.type}'")
+        raise ValueError(f"Unknown sequence decoder model type '{decoder_cfg.type}'")
 
     return decoder

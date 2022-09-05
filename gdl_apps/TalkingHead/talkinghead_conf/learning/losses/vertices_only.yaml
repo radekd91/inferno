@@ -1,0 +1,7 @@
+# @package learning
+losses:
+  vertex_loss:
+    weight: 1.
+    metric: l2
+metrics: 
+  {}
