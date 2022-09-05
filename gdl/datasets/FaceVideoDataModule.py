@@ -1909,90 +1909,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
         # 1) first handle the case with no successful detections
         if embeddings is None or embeddings.size == 0:
-            # video = skvideo.io.vread(str(self.root_dir / self.video_list[sequence_id]))
-            # height = video.shape[1]
-            # width = video.shape[2]
-
-            videogen = skvideo.io.vreader(str(self.root_dir / self.video_list[sequence_id]))
-            first_frame = None
-            for frame in videogen:
-                first_frame = frame 
-                break
-            height = first_frame.shape[0]
-            width = first_frame.shape[1]
-
-            assert first_frame is not None, "No frames found in video"
-
-            # if height < width: 
-            #     diff = (width - height) // 2
-            #     video = video[..., :, diff: diff + height, :]
-            # elif height > width: 
-            #     diff = (height - width) // 2
-            #     video = video[..., diff :diff + width, :]
-
-            # resize the video to desired size  
-            # video_resized = np.zeros((video.shape[0], desired_processed_video_size, desired_processed_video_size, video.shape[-1]), dtype=video.dtype)
-            # video_resized = []
-
-            from skimage.transform import resize
-            # for i in range(video.shape[0]):
-            #     # resize the image with skimage 
-            #     video_resized[i] = resize(video[i], (video_resized.shape[1], video_resized.shape[2]))
-
-            # for frame in videogen:
-            #     if height < width: 
-            #         diff = (width - height) // 2
-            #         frame = frame[..., :, diff: diff + height,:]        
-            #     elif height > width: 
-            #         diff = (height - width) // 2
-            #         frame = frame[..., diff :diff + width, :]
-            #     video_resized += [frame]
-            # video_resized = np.stack(video_resized, axis=0)
-
-            # save the video to disk
-            # skvideo.io.vwrite(str(output_video_file), video_resized)
-
-            output_dict = {
-                '-c:v': 'h264', 
-                '-r': self.video_metas[sequence_id]['fps'],
-                '-b': self.video_metas[sequence_id].get('bit_rate', '300000000'),
-            }
-            writer = skvideo.io.FFmpegWriter(str(output_video_file), outputdict=output_dict)
-
-            # write the first already read out frame
-            if height < width: 
-                diff = (width - height) // 2
-                first_frame = first_frame[..., :, diff: diff + height, :]        
-            elif height > width: 
-                diff = (height - width) // 2
-                first_frame = first_frame[..., diff :diff + width, :]
-            first_frame_resized = resize(frame, (desired_processed_video_size, desired_processed_video_size))
-            if first_frame_resized.dtype in [np.float32, np.float64]: 
-                if first_frame_resized.max() < 5.: # likely to be in range [0, 1]
-                    first_frame_resized *= 255.0
-                    first_frame_resized = first_frame_resized.astype(np.uint8)
-            writer.writeFrame(first_frame_resized)
-
-            # write the rest of the frames
-            for frame in videogen:
-                if height < width: 
-                    diff = (width - height) // 2
-                    frame = frame[..., :, diff: diff + height, :]        
-                elif height > width: 
-                    diff = (height - width) // 2
-                    frame = frame[..., diff :diff + width, :, :]
-                frame_resized = resize(frame, (desired_processed_video_size, desired_processed_video_size))
-                if frame_resized.dtype in [np.float32, np.float64]: 
-                    if frame_resized.max() < 5.: # likely to be in range [0, 1] (yeah, it's hacky, bite me)
-                        frame_resized *= 255.0
-                    frame_resized = frame_resized.astype(np.uint8)
-
-                writer.writeFrame(frame_resized)
-            # for i in range(video_resized.shape[0]):
-                # writer.writeFrame(video_resized[i])
-            writer.close()
-
-
+            self._save_unsuccessfully_aligned_video(sequence_id, output_video_file)
             return
 
         # 2) handle the case with successful detections
@@ -2093,9 +2010,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # interpolated_sizes = griddata(used_frames, main_occurence_sizes, np.arange(len(landmarks)), method='linear')
 
         # can extrapolate
-        interpolated_centers = RBFInterpolator(used_frames, main_occurence_centers)(np.arange(len(landmarks))[:, np.newaxis])
-        interpolated_sizes = RBFInterpolator(used_frames, main_occurence_sizes)(np.arange(len(landmarks))[:, np.newaxis])
-        interpolated_landmarks = RBFInterpolator(used_frames, used_landmarks)(np.arange(len(landmarks))[:, np.newaxis])
+        if len(used_landmarks) >= 2:
+            interpolated_centers = RBFInterpolator(used_frames, main_occurence_centers)(np.arange(len(landmarks))[:, np.newaxis])
+            interpolated_sizes = RBFInterpolator(used_frames, main_occurence_sizes)(np.arange(len(landmarks))[:, np.newaxis])
+            interpolated_landmarks = RBFInterpolator(used_frames, used_landmarks)(np.arange(len(landmarks))[:, np.newaxis])
+        else: 
+            self._save_unsuccessfully_aligned_video(sequence_id, output_video_file)
+            return
 
         # convolve with a gaussian kernel to smooth the curve
         smoothed_centers = np.zeros(interpolated_centers.shape)
@@ -2184,6 +2105,63 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # for i in range(smoothed_video.shape[0]):
         #     writer.writeFrame(smoothed_video[i])
         # writer.close()
+
+
+    def _save_unsuccessfully_aligned_video(self, sequence_id, output_video_file): 
+        desired_processed_video_size = self.processed_video_size
+        videogen = skvideo.io.vreader(str(self.root_dir / self.video_list[sequence_id]))
+        first_frame = None
+        for frame in videogen:
+            first_frame = frame 
+            break
+        height = first_frame.shape[0]
+        width = first_frame.shape[1]
+
+        assert first_frame is not None, "No frames found in video"
+
+
+        from skimage.transform import resize
+
+
+        output_dict = {
+            '-c:v': 'h264', 
+            '-r': self.video_metas[sequence_id]['fps'],
+            '-b': self.video_metas[sequence_id].get('bit_rate', '300000000'),
+        }
+        writer = skvideo.io.FFmpegWriter(str(output_video_file), outputdict=output_dict)
+
+        # write the first already read out frame
+        if height < width: 
+            diff = (width - height) // 2
+            first_frame = first_frame[..., :, diff: diff + height, :]        
+        elif height > width: 
+            diff = (height - width) // 2
+            first_frame = first_frame[..., diff :diff + width, :]
+        first_frame_resized = resize(frame, (desired_processed_video_size, desired_processed_video_size))
+        if first_frame_resized.dtype in [np.float32, np.float64]: 
+            if first_frame_resized.max() < 5.: # likely to be in range [0, 1]
+                first_frame_resized *= 255.0
+                first_frame_resized = first_frame_resized.astype(np.uint8)
+        writer.writeFrame(first_frame_resized)
+
+        # write the rest of the frames
+        for frame in videogen:
+            if height < width: 
+                diff = (width - height) // 2
+                frame = frame[..., :, diff: diff + height, :]        
+            elif height > width: 
+                diff = (height - width) // 2
+                frame = frame[..., diff :diff + width, :, :]
+            frame_resized = resize(frame, (desired_processed_video_size, desired_processed_video_size))
+            if frame_resized.dtype in [np.float32, np.float64]: 
+                if frame_resized.max() < 5.: # likely to be in range [0, 1] (yeah, it's hacky, bite me)
+                    frame_resized *= 255.0
+                frame_resized = frame_resized.astype(np.uint8)
+
+            writer.writeFrame(frame_resized)
+        # for i in range(video_resized.shape[0]):
+            # writer.writeFrame(video_resized[i])
+        writer.close()
 
 
     @staticmethod
