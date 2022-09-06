@@ -218,6 +218,10 @@ class FaceFormerDecoder(FaceFormerDecoderBase):
         super().__init__(cfg)
         self.vertex_map = nn.Linear(cfg.feature_dim, cfg.vertices_dim)
 
+        # the init is done this way in the paper for some reason
+        nn.init.constant_(self.vertex_map.weight, 0)
+        nn.init.constant_(self.vertex_map.bias, 0)
+
     def _decode_vertices(self, sample, transformer_out): 
         vertice_out = self.vertex_map(transformer_out)
         return vertice_out
