@@ -55,6 +55,7 @@ def create_single_dm(cfg, data_class):
                 # sequence_length_val=cfg.learning.batching.sequence_length_val, 
                 # sequence_length_test=cfg.learning.batching.sequence_length_test, 
                 num_workers=cfg.data.num_workers,
+                debug_mode= cfg.data.get('debug_mode', False),
                 )
         dataset_name = "Vocaset"
     else:

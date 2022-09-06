@@ -227,6 +227,8 @@ def sequence_decoder_from_cfg(cfg):
         from gdl.models.talkinghead.FaceFormerDecoder import FlameFormerDecoder
         with open_dict(decoder_cfg):
             decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
+            decoder_cfg.predict_exp = cfg.model.output.predict_expcode
+            decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
         decoder = FlameFormerDecoder(decoder_cfg)
 
     else: 

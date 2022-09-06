@@ -1,6 +1,7 @@
 # THIS CODE IS TAKEN OVER FROM THE FACEFORMER REPO AND ADAPTED TO OUR NEEDS
 
 
+from distutils.log import debug
 from re import template
 import pytorch_lightning as pl
 from collections import defaultdict
@@ -28,6 +29,7 @@ class FaceformerVocasetDM(pl.LightningDataModule):
             sequence_length_train=None,
             sequence_length_val=None,
             sequence_length_test=None,
+            debug_mode=False,
             num_workers=1):
         super().__init__()
         self.root_dir = root_dir
@@ -50,6 +52,7 @@ class FaceformerVocasetDM(pl.LightningDataModule):
         self.jaw_path = "jaw_npy"
         self.dataset_name = "vocaset"
         self.use_flame = True
+        self.debug_mode = debug_mode
 
     def prepare_data(self):
         pass 
@@ -72,7 +75,7 @@ class FaceformerVocasetDM(pl.LightningDataModule):
             templates = pickle.load(fin,encoding='latin1')
         
         for r, ds, fs in os.walk(audio_path):
-            # idx = 0
+            idx = 0
             for f in tqdm(fs):
                 if f.endswith("wav"):
                     wav_path = os.path.join(r,f)
@@ -109,9 +112,9 @@ class FaceformerVocasetDM(pl.LightningDataModule):
                             data[key]["vertice"] = np.load(vertice_path,allow_pickle=True)
                         else: 
                             raise NotImplementedError("Dataset not implemented")
-                #         idx += 1
-                # if idx == 10: 
-                #     break
+                        idx += 1
+                if self.debug_mode and idx == 10: 
+                    break
 
 
         subjects_dict = {}

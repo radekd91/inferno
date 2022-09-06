@@ -273,13 +273,13 @@ class FlameFormerDecoder(FaceFormerDecoderBase):
             jaw_pose = transformer_out[..., :3].view(batch_size*T_size, -1)
             vector_idx += 3
         else: 
-            jaw = sample["gt_jaw"]
+            jaw = sample["gt_jaw"][:, :T_size, ...]
             jaw_pose = jaw.view(batch_size*T_size, -1)
         if self.predict_exp: 
             expression_params = transformer_out[..., vector_idx:].view(batch_size*T_size, -1)
             vector_idx += self.flame_config.n_exp
         else: 
-            exp = sample["gt_exp"]
+            exp = sample["gt_exp"][:, :T_size, ...]
             expression_params = exp.view(batch_size*T_size, -1)
         
         sample["predicted_exp"] = expression_params.view(batch_size,T_size, -1)
