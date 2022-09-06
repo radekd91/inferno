@@ -17,10 +17,14 @@ class AutoRegressiveDecoder(nn.Module):
             sample = self._teacher_forced_step(sample)
         else:
             num_frames = sample["gt_vertices"].shape[1] if "gt_vertices" in sample.keys() else hidden_states.shape[1]
+            num_frames = min(num_frames, self._max_auto_regressive_steps())
             for i in range(num_frames):
                 sample = self._autoregressive_step(sample, i)
         sample = self._post_prediction(sample)
         return sample
+
+    def _max_auto_regressive_steps(self):
+        raise NotImplementedError("")
 
     def _teacher_forced_step(self): 
         raise NotImplementedError("")
@@ -61,6 +65,9 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
 
     def get_trainable_parameters(self):
         return list(self.parameters())
+
+    def _max_auto_regressive_steps(self):
+        return self.biased_mask.shape[1]
 
     def _autoregressive_step(self, sample, i):
         hidden_states = sample["hidden_feature"]
