@@ -19,11 +19,14 @@ from tqdm import auto
 
 
 def main(): 
+    # model_name = "2022_09_05_19-09-35_3326505631348969242_FaceFormer_Facef_Awav2vec2_Elinear_predV" # first trainings
+    # model_name = "2022_09_05_19-24-53_-1831723491699865120_FaceFormer_Facef_Awav2vec2_Elinear_predV" # first trainings
+    model_name = "2022_09_06_16-09-09_158799827207587146_FaceFormer_Facef_Awav2vec2_Elinear_DFaceFormerDecoder_predV" # looking promising
+
     # add argparser here
     parser = argparse.ArgumentParser(description='Talking Head') 
     parser.add_argument('--path_to_models', type=str, default='/is/cluster/work/rdanecek/talkinghead/trainings', help='Path to trained models')
-    parser.add_argument('--model_name', type=str, default='2022_09_05_19-09-35_3326505631348969242_FaceFormer_Facef_Awav2vec2_Elinear_predV', help='Name of the model to use')
-    # parser.add_argument('--model_name', type=str, default='2022_09_05_19-24-53_-1831723491699865120_FaceFormer_Facef_Awav2vec2_Elinear_predV', help='Name of the model to use')
+    parser.add_argument('--model_name', type=str, default=model_name, help='Name of the model to use')
     parser.add_argument('--mode', type=str, default='latest', help='Checkpoint to use (best vs latest)')
     parser.add_argument('--wav_path', type=str, 
         default='/is/cluster/work/rdanecek/data/lrs3/processed2/audio/pretrain/0af00UcTOSc/00021.wav', 

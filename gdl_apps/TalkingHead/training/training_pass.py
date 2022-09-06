@@ -223,10 +223,10 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
     loss_to_monitor = 'val/loss_total'
     dm.setup()
     val_data = dm.val_dataloader()
-    filename_pattern = 'model-{epoch:02d}-{' + loss_to_monitor + ':.8f}'
+    filename_pattern = 'model-{epoch:04d}-{' + loss_to_monitor + ':.12f}'
     if isinstance(val_data, list):
         loss_to_monitor = loss_to_monitor + "/dataloader_idx_0"
-        filename_pattern = 'model-{epoch:02d}-{' + loss_to_monitor + ':.8f}'
+        filename_pattern = 'model-{epoch:04d}-{' + loss_to_monitor + ':.12f}'
         # loss_to_monitor = '0_' + loss_to_monitor + "/dataloader_idx_0"
     # if len(prefix) > 0:
     #     loss_to_monitor = prefix + "_" + loss_to_monitor
