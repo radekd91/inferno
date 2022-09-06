@@ -1998,6 +1998,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
         from scipy.interpolate import griddata, RBFInterpolator
         import scipy
 
+        if len(used_frames) < 2: 
+            self._save_unsuccessfully_aligned_video(sequence_id, output_video_file)
+            return
+
         used_frames = np.array(used_frames, dtype=np.int32)[:,np.newaxis]
         main_occurence_centers = np.stack(main_occurence_centers, axis=0)
         main_occurence_sizes = np.stack(main_occurence_sizes, axis=0)
