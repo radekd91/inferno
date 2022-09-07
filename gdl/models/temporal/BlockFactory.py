@@ -175,8 +175,8 @@ def audio_model_from_cfg(cfg):
         encoder = AvHubertAudioEncoder(models[0], cfg.trainable)
     elif cfg.type == "wav2vec2": 
         encoder = Wav2Vec2Encoder(cfg.model_specifier, cfg.trainable, cfg.get('with_processor', True), 
-            cfg.get('model_expected_fps', 50), 
-            cfg.get('target_fps', 25),
+            expected_fps=cfg.get('model_expected_fps', 50), 
+            target_fps=cfg.get('target_fps', 25),
         )
     else: 
         raise ValueError(f"Unknown audio model type '{cfg.type}'")

@@ -64,7 +64,8 @@ def temporal_interpolation(features, input_fps, output_fps, output_len=None):
     features = features.transpose(1, 2)
     seq_len = features.shape[2] / float(input_fps)
     if output_len is None:
-        output_len = int(math.ceil(seq_len * output_fps))
+        # output_len = int(math.ceil(seq_len * output_fps))
+        output_len = int(math.ceil(seq_len) * output_fps)
     output_features = F.interpolate(features,size=output_len,align_corners=True,mode='linear')
     return output_features.transpose(1, 2)
 
@@ -252,8 +253,8 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
             T = None
             input = sample["processed_audio"]
         if isinstance(self.model, Wav2Vec2ModelResampled):
-            # feats_ = self.model(input, num_output_frames=T)
-            feats_ = self.model(input)
+            feats_ = self.model(input, num_output_frames=T)
+            # feats_ = self.model(input)
         else:
             feats_ = self.model(input)
         F = feats_.last_hidden_state.shape[-1]
