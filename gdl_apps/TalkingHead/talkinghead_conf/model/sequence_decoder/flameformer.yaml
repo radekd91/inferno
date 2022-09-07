@@ -28,8 +28,8 @@ flame:
   n_exp: 100
   flame_lmk_embedding_path: /ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy 
 
-predict_exp: True 
-predict_jaw: True 
+# predict_exp: True 
+# predict_jaw: True 
 
 flame_space_loss: False 
 rotation_loss_space: 6d 

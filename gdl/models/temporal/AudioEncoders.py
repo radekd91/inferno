@@ -229,6 +229,7 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
         self.trainable = trainable
         if not trainable: 
             self.model.requires_grad_(False)
+            self.model.feature_extractor._freeze_parameters()
 
     def get_trainable_parameters(self): 
         if self.trainable:
@@ -247,16 +248,18 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
             sample["processed_audio"] = input
         else: 
             B = sample["processed_audio"].shape[0]
-            T = sample["processed_audio"].shape[1]
+            # T = sample["processed_audio"].shape[1]
+            T = None
             input = sample["processed_audio"]
         if isinstance(self.model, Wav2Vec2ModelResampled):
-            feats_ = self.model(input, num_output_frames=T)
+            # feats_ = self.model(input, num_output_frames=T)
+            feats_ = self.model(input)
         else:
             feats_ = self.model(input)
         F = feats_.last_hidden_state.shape[-1]
         T2 = feats_.last_hidden_state.shape[1]
 
-        if self.resampling:
+        if self.resampling and T is not None:
             assert T2 == T # sanity checking that the feature got resampled to the proper length
 
         sample["audio_feature"] = feats_.last_hidden_state 

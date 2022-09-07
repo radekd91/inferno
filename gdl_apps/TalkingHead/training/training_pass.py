@@ -220,33 +220,43 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
     #     os.environ['LOCAL_RANK'] = '0'
 
     # loss_to_monitor = 'val_loss_total'
-    loss_to_monitor = 'val/loss_total'
+    train_loss_to_monitor = 'train/loss_total'
+    val_loss_to_monitor = 'val/loss_total'
     dm.setup()
     val_data = dm.val_dataloader()
-    filename_pattern = 'model-{epoch:04d}-{' + loss_to_monitor + ':.12f}'
+    train_filename_pattern = 'model-{epoch:04d}-{' + train_loss_to_monitor + ':.12f}'
+    val_filename_pattern = 'model-{epoch:04d}-{' + val_loss_to_monitor + ':.12f}'
     if isinstance(val_data, list):
-        loss_to_monitor = loss_to_monitor + "/dataloader_idx_0"
-        filename_pattern = 'model-{epoch:04d}-{' + loss_to_monitor + ':.12f}'
+        val_loss_to_monitor = val_loss_to_monitor + "/dataloader_idx_0"
+        val_filename_pattern = 'model-{epoch:04d}-{' + val_loss_to_monitor + ':.12f}'
         # loss_to_monitor = '0_' + loss_to_monitor + "/dataloader_idx_0"
     # if len(prefix) > 0:
     #     loss_to_monitor = prefix + "_" + loss_to_monitor
 
     callbacks = []
-    checkpoint_callback = ModelCheckpoint(
-        monitor=loss_to_monitor,
-        filename=filename_pattern,
+    val_checkpoint_callback = ModelCheckpoint(
+        monitor=val_loss_to_monitor,
+        filename=val_filename_pattern,
         save_top_k=3,
         save_last=True,
         mode='min',
         dirpath=cfg.inout.checkpoint_dir
     )
-    callbacks += [checkpoint_callback]
+    train_checkpoint_callback = ModelCheckpoint(
+        monitor=train_loss_to_monitor,
+        filename=train_filename_pattern,
+        save_top_k=2,
+        save_last=True,
+        mode='min',
+        dirpath=cfg.inout.checkpoint_dir
+    )
+    callbacks += [val_checkpoint_callback, train_checkpoint_callback]
     if hasattr(cfg.learning, 'early_stopping') and cfg.learning.early_stopping:
         patience = 3
         if hasattr(cfg.learning.early_stopping, 'patience') and cfg.learning.early_stopping.patience:
             patience = cfg.learning.early_stopping.patience
 
-        early_stopping_callback = EarlyStopping(monitor=loss_to_monitor,
+        early_stopping_callback = EarlyStopping(monitor=val_loss_to_monitor,
                                                 mode='min',
                                                 patience=patience,
                                                 strict=True)
@@ -285,8 +295,8 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
         trainer.fit(model, datamodule=dm)
         if hasattr(cfg.learning, 'checkpoint_after_training'):
             if cfg.learning.checkpoint_after_training == 'best':
-                print(f"Loading the best checkpoint after training '{checkpoint_callback.best_model_path}'.")
-                model = pl_module_class.load_from_checkpoint(checkpoint_callback.best_model_path,
+                print(f"Loading the best checkpoint after training '{val_checkpoint_callback.best_model_path}'.")
+                model = pl_module_class.load_from_checkpoint(val_checkpoint_callback.best_model_path,
                                                        model_params=cfg.model,
                                                        learning_params=cfg.learning,
                                                        inout_params=cfg.inout,

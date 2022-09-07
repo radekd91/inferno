@@ -6,6 +6,7 @@ defaults:
   - model/sizes@model/sizes : default
   # - model/neural_rendering : none
   # - model/flame_tex: bfm_desktop
+  # - model/audio@model/audio: avhubert
   # - model/audio@model/audio: wav2vec2
   - model/audio@model/audio: wav2vec2_resampled
   # - model/audio@model/audio: hubert
@@ -13,10 +14,10 @@ defaults:
   # - model/face@model/face: full_space
   - model/settings: faceformer
   - model/sequence_encoder@model/sequence_encoder: linear
-  - model/sequence_decoder@model/sequence_decoder: faceformer
-  # - model/output@model/output: exp_jaw
-  - model/output@model/output: vertices
-  - learning/losses: vertices_only
+  - model/sequence_decoder@model/sequence_decoder: flameformer
+  - model/output@model/output: exp
+  # - model/output@model/output: vertices
+  - learning/losses: vertices
   - learning/optimizer: adam
   - learning/batching@learning/batching: default
   # - learning/callbacks: early_stopping
