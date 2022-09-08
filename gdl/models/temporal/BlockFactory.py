@@ -231,6 +231,20 @@ def sequence_decoder_from_cfg(cfg):
             decoder_cfg.predict_exp = cfg.model.output.predict_expcode
             decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
         decoder = FlameFormerDecoder(decoder_cfg)
+    elif decoder_cfg.type == "LinearDecoder":
+        from gdl.models.talkinghead.FaceFormerDecoder import LinearDecoder
+        with open_dict(decoder_cfg):
+            decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
+            decoder_cfg.predict_exp = cfg.model.output.predict_expcode
+            decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
+        decoder = LinearDecoder(decoder_cfg)
+    elif decoder_cfg.type == "LinearAutoRegDecoder":
+        from gdl.models.talkinghead.FaceFormerDecoder import LinearAutoRegDecoder
+        with open_dict(decoder_cfg):
+            decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
+            decoder_cfg.predict_exp = cfg.model.output.predict_expcode
+            decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
+        decoder = LinearAutoRegDecoder(decoder_cfg)
 
     else: 
         raise ValueError(f"Unknown sequence decoder model type '{decoder_cfg.type}'")

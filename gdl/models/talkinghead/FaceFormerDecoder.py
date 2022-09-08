@@ -336,3 +336,125 @@ def enc_dec_mask(device, T, S, dataset="vocaset"):
     else:
         raise NotImplementedError("Unknown dataset")
     return (mask==1).to(device=device)
+
+
+class LinearDecoder(nn.Module):
+
+    def __init__(self, cfg) -> None:
+        super().__init__()
+        self.decoder = nn.Linear(cfg.feature_dim, cfg.vertices_dim)
+        self.obj_vector = nn.Linear(cfg.num_training_subjects, cfg.feature_dim, bias=False)
+
+    def forward(self, sample, train=False, teacher_forcing=True): 
+        one_hot = sample["one_hot"]
+        obj_embedding = self.obj_vector(one_hot)
+        style_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
+        sample["hidden_feature"] = sample["seq_encoder_output"]
+        hidden_states = sample["hidden_feature"]
+
+        styled_hidden_states = torch.cat([hidden_states + style_emb])
+
+        B, T = styled_hidden_states.shape[:2]
+        styled_hidden_states = styled_hidden_states.view(B*T, -1)
+        decoded_offsets = self.decoder(styled_hidden_states)
+        decoded_offsets = decoded_offsets.view(B, T, -1)
+        sample["predicted_vertices"] = decoded_offsets
+        sample = self._post_prediction(sample)
+        return sample
+
+    def _post_prediction(self, sample):
+        template = sample["template"]
+        vertices_out = sample["predicted_vertices"]
+        vertices_out = vertices_out + template
+        sample["predicted_vertices"] = vertices_out
+        return sample
+
+    def get_trainable_parameters(self): 
+        return [p for p in self.parameters() if p.requires_grad]
+
+
+class LinearAutoRegDecoder(AutoRegressiveDecoder):
+
+    def __init__(self, cfg):
+        super().__init__()
+        # self.flame_config = cfg.flame
+        self.decoder = nn.Linear(2*cfg.feature_dim, cfg.vertices_dim)
+        self.obj_vector = nn.Linear(cfg.num_training_subjects, cfg.feature_dim, bias=False)
+        self.vertice_map = nn.Linear(cfg.vertices_dim, cfg.feature_dim)
+        self.PE = None
+
+    def get_trainable_parameters(self): 
+        return [p for p in self.parameters() if p.requires_grad]
+
+    def _max_auto_regressive_steps(self):
+        return 2000
+
+    def _autoregressive_step(self, sample, i):
+        hidden_states = sample["hidden_feature"]
+        if i==0:
+            one_hot = sample["one_hot"]
+            obj_embedding = self.obj_vector(one_hot)
+            vertice_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
+            style_emb = vertice_emb
+            sample["style_emb"] = style_emb
+            # vertices_input = self.PE(style_emb)
+            vertices_input = style_emb
+        else:
+            vertice_emb = sample["embedded_output"]
+            style_emb = sample["style_emb"]
+            vertices_input = vertice_emb
+        if self.PE is not None:
+            vertices_input = self.PE(vertices_input)
+        vertices_out = self._decode(sample, vertices_input, hidden_states)
+        sample["predicted_vertices"] = vertices_out
+
+        new_output = self.vertice_map(vertices_out[:,-1,:]).unsqueeze(1)
+        new_output = new_output + style_emb
+        vertice_emb = torch.cat((vertice_emb, new_output), 1)
+        sample["embedded_output"] = vertice_emb
+        return sample
+
+    def _teacher_forced_step(self, sample): 
+        vertices = sample["gt_vertices"]
+        template = sample["template"].unsqueeze(1)
+        hidden_states = sample["hidden_feature"]
+        one_hot = sample["one_hot"]
+        obj_embedding = self.obj_vector(one_hot)
+
+        vertice_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
+        style_emb = vertice_emb  
+
+        vertices_input = torch.cat((template, vertices[:,:-1]), 1) # shift one position
+        vertices_input = vertices_input - template
+        vertices_input = self.vertice_map(vertices_input) # map to feature dim
+        vertices_input = vertices_input + style_emb # add style embedding
+        if self.PE is not None:
+            vertices_input = self.PE(vertices_input) # add positional encoding
+
+        vertices_out = self._decode(sample, vertices_input, hidden_states)
+        sample["predicted_vertices"] = vertices_out
+
+        return sample
+
+    def _decode(self, sample, vertices_input, hidden_states):
+        # dev = vertices_input.device
+        # tgt_mask = self.biased_mask[:, :vertices_input.shape[1], :vertices_input.shape[1]].clone().detach().to(device=dev)
+        # memory_mask = enc_dec_mask(dev, vertices_input.shape[1], hidden_states.shape[1])
+        # transformer_out = self.transformer_decoder(vertices_input, hidden_states, tgt_mask=tgt_mask, memory_mask=memory_mask)
+        
+        #TODO: we can also consider feeding the hidden states of a large perceptive field (further back in the past/future) to the decoder
+        decoder_input = torch.cat([vertices_input, hidden_states[:,:vertices_input.shape[1], ...]], dim=-1)
+        B, T = decoder_input.shape[:2]
+        vertices_out = self.decoder(decoder_input)
+        vertices_out = vertices_out.view(B, T, -1)
+        return vertices_out
+
+    def _post_prediction(self, sample):
+        template = sample["template"]
+        vertices_out = sample["predicted_vertices"]
+        vertices_out = vertices_out + template
+        sample["predicted_vertices"] = vertices_out
+        return sample
+
+    def _decode_vertices(self, sample, vertices_input):
+        return self.decoder(vertices_input)
