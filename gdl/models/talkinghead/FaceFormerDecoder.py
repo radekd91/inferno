@@ -325,11 +325,13 @@ def init_biased_mask(n_head, max_seq_len, period):
 # Alignment Bias
 def enc_dec_mask(device, T, S, dataset="vocaset"):
     mask = torch.ones(T, S)
+    smaller_dim = min(T, S)
+    # smaller_dim = T
     if dataset == "BIWI":
-        for i in range(T):
+        for i in range(smaller_dim):
             mask[i, i*2:i*2+2] = 0
     elif dataset == "vocaset":
-        for i in range(T):
+        for i in range(smaller_dim):
             mask[i, i] = 0
     else:
         raise NotImplementedError("Unknown dataset")

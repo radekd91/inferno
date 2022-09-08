@@ -23,7 +23,7 @@ class AvHubertAudioEncoder(TemporalAudioEncoder):
         del self.avhubert.final_proj # figure out what to do with this one
         self.trainable = trainable
 
-    def forward(self, sample, train=False): 
+    def forward(self, sample, train=False, desired_output_length=None, **kwargs): 
         audio = sample["audio"]
         # B = audio.shape[0]
         # T = audio.shape[1] 
@@ -64,9 +64,10 @@ def temporal_interpolation(features, input_fps, output_fps, output_len=None):
     features = features.transpose(1, 2)
     seq_len = features.shape[2] / float(input_fps)
     if output_len is None:
-        # output_len = int(math.ceil(seq_len * output_fps))
-        output_len = int(math.ceil(seq_len) * output_fps)
-    output_features = F.interpolate(features,size=output_len,align_corners=True,mode='linear')
+        output_len = int(math.ceil(seq_len * output_fps))
+        # output_len = int(math.ceil(seq_len) * output_fps)
+        # output_len = int(seq_len * output_fps)
+    output_features = F.interpolate(features,size=output_len,align_corners=True, mode='linear')
     return output_features.transpose(1, 2)
 
 
@@ -81,78 +82,6 @@ class Wav2Vec2ModelResampled(Wav2Vec2Model):
         self.model_expected_fps = model_expected_fps # default is 50 (at least for pretrained "facebook/wav2vec2-base-960h")
         self.target_fps = target_fps # default is 25 because that is what LRS3 dataset framerate is
 
-    # def forward(
-    #     self,
-    #     input_values,
-    #     attention_mask=None,
-    #     output_attentions=None,
-    #     output_hidden_states=None,
-    #     return_dict=None,
-    #     num_output_frames=None
-    # ):
-    #     self.config.output_attentions = True
-    #     output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-    #     output_hidden_states = (
-    #         output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-    #     )
-    #     return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-    #     hidden_states = self.feature_extractor(input_values)
-    #     hidden_states = hidden_states.transpose(1, 2)
-
-    #     ## This is where we do the temporal resampling, if necessary. It is the only difference to the base class.
-    #     if self.model_expected_fps != self.target_fps or num_output_frames is not None:
-    #         hidden_states = temporal_interpolation(hidden_states, self.model_expected_fps, self.target_fps, output_len=num_output_frames)
-    #     ## End of temporal resampling. From here on, everything is identical to the base class.
-
-    #     if attention_mask is not None:
-    #         output_lengths = self._get_feat_extract_output_lengths(attention_mask.sum(-1))
-    #         attention_mask = torch.zeros(
-    #             hidden_states.shape[:2], dtype=hidden_states.dtype, device=hidden_states.device
-    #         )
-    #         attention_mask[
-    #             (torch.arange(attention_mask.shape[0], device=hidden_states.device), output_lengths - 1)
-    #         ] = 1
-    #         attention_mask = attention_mask.flip([-1]).cumsum(-1).flip([-1]).bool()
-
-    #     hidden_states, extract_features = self.feature_projection(hidden_states)
-
-    #     if self.config.apply_spec_augment and self.training:
-    #         batch_size, sequence_length, hidden_size = hidden_states.size()
-    #         if self.config.mask_time_prob > 0:
-    #             mask_time_indices = _compute_mask_indices(
-    #                 (batch_size, sequence_length),
-    #                 self.config.mask_time_prob,
-    #                 self.config.mask_time_length,
-    #                 attention_mask=attention_mask,
-    #                 min_masks=2,
-    #             )
-    #             hidden_states[torch.from_numpy(mask_time_indices)] = self.masked_spec_embed.to(hidden_states.dtype)
-    #         if self.config.mask_feature_prob > 0:
-    #             mask_feature_indices = _compute_mask_indices(
-    #                 (batch_size, hidden_size),
-    #                 self.config.mask_feature_prob,
-    #                 self.config.mask_feature_length,
-    #             )
-    #             mask_feature_indices = torch.from_numpy(mask_feature_indices).to(hidden_states.device)
-    #             hidden_states[mask_feature_indices[:, None].expand(-1, sequence_length, -1)] = 0
-    #     encoder_outputs = self.encoder(
-    #         hidden_states,
-    #         attention_mask=attention_mask,
-    #         output_attentions=output_attentions,
-    #         output_hidden_states=output_hidden_states,
-    #         return_dict=return_dict,
-    #     )
-    #     hidden_states = encoder_outputs[0]
-    #     if not return_dict:
-    #         return (hidden_states,) + encoder_outputs[1:]
-
-    #     return BaseModelOutput(
-    #         last_hidden_state=hidden_states,
-    #         hidden_states=encoder_outputs.hidden_states,
-    #         attentions=encoder_outputs.attentions,
-    #     )
-
     def forward(
         self,
         input_values,
@@ -161,7 +90,7 @@ class Wav2Vec2ModelResampled(Wav2Vec2Model):
         output_attentions=None,
         output_hidden_states=None,
         return_dict=None,
-        num_output_frames=None
+        desired_output_length=None
     ):
 
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
@@ -174,8 +103,8 @@ class Wav2Vec2ModelResampled(Wav2Vec2Model):
         extract_features = extract_features.transpose(1, 2)
 
         ## This is where we do the temporal resampling, if necessary. It is the only difference to the base class.
-        if self.model_expected_fps != self.target_fps or num_output_frames is not None:
-            extract_features = temporal_interpolation(extract_features, self.model_expected_fps, self.target_fps, output_len=num_output_frames)
+        if self.model_expected_fps != self.target_fps or desired_output_length is not None:
+            extract_features = temporal_interpolation(extract_features, self.model_expected_fps, self.target_fps, output_len=desired_output_length)
         ## End of temporal resampling. From here on, everything is identical to the base class.
 
         if attention_mask is not None:
@@ -237,7 +166,7 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
             return list(self.model.parameters())
         return []
 
-    def _forward(self, sample, train=False): 
+    def _forward(self, sample, train=False, desired_output_length=None): 
         if self.input_processor is not None:
             B = sample["raw_audio"].shape[0]
             T = sample["raw_audio"].shape[1]
@@ -253,7 +182,8 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
             T = None
             input = sample["processed_audio"]
         if isinstance(self.model, Wav2Vec2ModelResampled):
-            feats_ = self.model(input, num_output_frames=T)
+            desired_output_length = desired_output_length or T
+            feats_ = self.model(input, desired_output_length=desired_output_length)
             # feats_ = self.model(input)
         else:
             feats_ = self.model(input)
@@ -294,12 +224,12 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
         self.model.train(mode)
         return self
 
-    def forward(self, sample, train=False): 
+    def forward(self, sample, train=False, desired_output_length=None): 
         if self.trainable:
-            return self._forward(sample, train=train)
+            return self._forward(sample, train=train, desired_output_length=desired_output_length)
         else: 
             with torch.no_grad(): 
-                return self._forward(sample, train=train)
+                return self._forward(sample, train=train, desired_output_length=desired_output_length)
 
     def output_feature_dim(self):
         return self.cfg.hidden_size

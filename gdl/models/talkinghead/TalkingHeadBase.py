@@ -165,8 +165,8 @@ class TalkingHeadBase(pl.LightningModule):
 
         return total_loss
 
-    def forward_audio(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
-        return self.audio_model(sample, train=train, **kwargs)
+    def forward_audio(self, sample: Dict, train=False, desired_output_length=None, **kwargs: Any) -> Dict:
+        return self.audio_model(sample, train=train, desired_output_length=desired_output_length, **kwargs)
 
     def encode_sequence(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
         return self.sequence_encoder(sample, input_key="audio_feature", **kwargs)
@@ -182,32 +182,17 @@ class TalkingHeadBase(pl.LightningModule):
             # - masked_audio: (B, T, F)
         """
         teacher_forcing = kwargs.pop("teacher_forcing", False)
-        sample = self.forward_audio(sample, train=train, **kwargs)
+        desired_output_length = sample["gt_vertices"].shape[1] if "gt_vertices" in sample.keys() else None
+        sample = self.forward_audio(sample, train=train, desired_output_length=desired_output_length, **kwargs)
         # if self.uses_text():
         #     sample = self.forward_text(sample, **kwargs)
-        # self.check_nan(sample)
-        # signal fusion (if any)
-        # if self.is_multi_modal():
-        # sample = self.signal_fusion(sample, train=train, **kwargs) 
-        # self.check_nan(sample)
+        check_nan(sample)
         # encode the sequence
         sample = self.encode_sequence(sample, train=train, **kwargs)
-        # self.check_nan(sample)
+        check_nan(sample)
         # decode the sequence
         sample = self.decode_sequence(sample, train=train, teacher_forcing=teacher_forcing, **kwargs)
-        # self.check_nan(sample)
-        # project the output sequence vector into the code vector (shape model, rendering, ...)
-        # sample = self.code_vector_projection(sample, train=train, **kwargs)
-        # self.check_nan(sample)
-        # # decompose the code vector
-        # sample = self.decompose_code(sample, train=train, **kwargs)
-        # self.check_nan(sample)
-        # # decode the shape
-        # sample = self.decode_shape(sample, train=train, **kwargs)
-        # # self.check_nan(sample)
-        # # rendering step
-        # sample = self.rendering_pass(sample, train=train)
-        # self.check_nan(sample)
+        check_nan(sample)
         return sample
 
 
@@ -242,3 +227,18 @@ class TalkingHeadBase(pl.LightningModule):
 
         losses["loss_total"] = total_loss
         return total_loss, losses, metrics
+
+
+def check_nan(sample: Dict): 
+    ok = True
+    nans = []
+    for key, value in sample.items():
+        if isinstance(value, torch.Tensor):
+            if torch.isnan(value).any():
+                print(f"NaN found in '{key}'")
+                nans.append(key)
+                ok = False
+                # raise ValueError("Nan found in sample")
+    if len(nans) > 0:
+        raise ValueError(f"NaN found in {nans}")
+    return ok

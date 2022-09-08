@@ -6,7 +6,7 @@ class TemporalAudioEncoder(torch.nn.Module):
     def __init__(self):
         super().__init__() 
 
-    def forward(self, sample, **kwargs): 
+    def forward(self, sample, train=False, desired_output_length=None, **kwargs): 
         raise NotImplementedError("Subclasses must implement this method")
 
     def get_trainable_parameters(self): 
