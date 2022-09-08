@@ -293,8 +293,8 @@ def main():
             config = sys.argv[1]
             config_override = []
     elif len(sys.argv) < 2:
-        # config = "faceformer"
-        config = "flameformer"
+        config = "faceformer"
+        # config = "flameformer"
         config_override = []
         
     elif len(sys.argv) >= 2:

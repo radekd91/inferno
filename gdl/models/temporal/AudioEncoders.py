@@ -139,7 +139,7 @@ class Wav2Vec2ModelResampled(Wav2Vec2Model):
 
 class Wav2Vec2Encoder(TemporalAudioEncoder):
 
-    def __init__(self, model_specifier, trainable, with_processor=True, target_fps=25, expected_fps=50):
+    def __init__(self, model_specifier, trainable, with_processor=True, target_fps=25, expected_fps=50, freeze_feature_extractor=True):
         super().__init__() 
         self.model_specifier = model_specifier
         self.cfg  =  Wav2Vec2Config.from_pretrained(model_specifier)
@@ -157,13 +157,14 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
             self.model.model_expected_fps = expected_fps
             self.model.target_fps = target_fps
         self.trainable = trainable
+        if freeze_feature_extractor:
+            self.model.feature_extractor._freeze_parameters()
         if not trainable: 
             self.model.requires_grad_(False)
-            self.model.feature_extractor._freeze_parameters()
 
     def get_trainable_parameters(self): 
         if self.trainable:
-            return list(self.model.parameters())
+            return [p for p in self.model.parameters() if p.requires_grad]
         return []
 
     def _forward(self, sample, train=False, desired_output_length=None): 
