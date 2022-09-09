@@ -232,7 +232,7 @@ def rotation_rep_size(rep):
     if rep in ["quat", "quaternion"]:
         return 4
     elif rep in ["aa", "axis-angle"]:
-        return 4
+        return 3
     elif rep in ["matrix", "mat"]:
         return 9
     elif rep in ["euler", "euler-angles"]:
