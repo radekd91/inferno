@@ -11,6 +11,8 @@ if str(path_to_av_hubert) not in sys.path:
     sys.path.insert(0, str(path_to_av_hubert))
 import avhubert
 
+from torch.nn import Dropout
+from gdl.utils.other import class_from_str
 
 class AvHubertAudioEncoder(TemporalAudioEncoder):
 
@@ -139,10 +141,18 @@ class Wav2Vec2ModelResampled(Wav2Vec2Model):
 
 class Wav2Vec2Encoder(TemporalAudioEncoder):
 
-    def __init__(self, model_specifier, trainable, with_processor=True, target_fps=25, expected_fps=50, freeze_feature_extractor=True):
+    def __init__(self, model_specifier, trainable, with_processor=True, target_fps=25, expected_fps=50, 
+                freeze_feature_extractor=True, 
+                dropout_cfg=None,):
         super().__init__() 
         self.model_specifier = model_specifier
         self.cfg  =  Wav2Vec2Config.from_pretrained(model_specifier)
+        if dropout_cfg is not None:
+            dropout_type = dropout_cfg.pop("type") 
+            assert dropout_type is not None, "audio_dropout_cfg must have a 'type' key"
+            self.dropout = class_from_str(dropout_type)(**dropout_cfg)
+        else: 
+            self.dropout = None
         if with_processor:
             self.input_processor = Wav2Vec2Processor.from_pretrained(model_specifier)
         else: 
@@ -195,6 +205,10 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
             assert T2 == T # sanity checking that the feature got resampled to the proper length
 
         sample["audio_feature"] = feats_.last_hidden_state 
+
+        if self.dropout is not None:
+            sample["audio_feature"] = self.dropout(sample["audio_feature"])
+
         return sample
 
         # assert T2 + 1  == 2*T # Wav2Vec doubles the feature dimensionality and then this is reduced by 1 

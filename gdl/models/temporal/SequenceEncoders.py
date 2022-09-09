@@ -98,6 +98,9 @@ def pos_enc_from_cfg(cfg):
         return DummyPositionalEncoding
     if cfg.type == "PositionalEncoding":
         return PositionalEncoding
+    if cfg.type == "PeriodicPositionalEncoding":
+        from gdl.models.talkinghead.FaceFormerDecoder import PeriodicPositionalEncoding
+        return PeriodicPositionalEncoding
     raise ValueError("Unknown positional encoding type: {}".format(cfg.type))
 
 
@@ -111,15 +114,24 @@ class SimpleTransformerSequenceEncoder(SequenceEncoder):
         pe_kwargs = OmegaConf.to_container(cfg.positional_encoding)
         del pe_kwargs["type"]
         # if pe_type is not None:
-        self.pos_encoder = pe_type(d_model=cfg.feature_dim, dropout=cfg.dropout, **pe_kwargs)
+        # self.pos_encoder = pe_type(d_model=cfg.feature_dim, dropout=cfg.dropout, **pe_kwargs)
+        self.pos_encoder = pe_type(d_model=cfg.feature_dim, **pe_kwargs)
+
+        self.input_feature_dim = self.cfg.get('input_feature_dim', None) or self.cfg.feature_dim 
+        if self.input_feature_dim is not None and self.input_feature_dim != self.cfg.feature_dim:
+            self.input_projection = torch.nn.Linear(self.input_feature_dim, self.cfg.feature_dim)
+        else:
+            self.input_projection = None
 
         encoder_layer = torch.nn.TransformerEncoderLayer(d_model=cfg.feature_dim * self.pos_encoder.output_size_factor(), 
                     nhead=cfg.nhead, dim_feedforward=cfg.feature_dim, activation=cfg.activation,
                     dropout=cfg.dropout, batch_first=True, )        
         self.transformer_encoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=cfg.num_layers)
 
-    def forward(self, sample):
-        feat = sample["fused_feature"] 
+    def forward(self, sample, input_key='fused_feature'):
+        feat = sample[input_key] 
+        if self.input_projection is not None:
+            feat = self.input_projection(feat)
         if self.pos_encoder is not None:
             feat = self.pos_encoder(feat.transpose(1, 0)).transpose(0,1)
         out = self.transformer_encoder.forward(feat) 
@@ -130,7 +142,7 @@ class SimpleTransformerSequenceEncoder(SequenceEncoder):
         return list(self.parameters())
 
     def input_feature_dim(self):
-        return self.cfg.feature_dim
+        return self.input_feature_dim or self.cfg.feature_dim
 
     def output_feature_dim(self):
         return self.cfg.feature_dim * self.pos_encoder.output_size_factor()

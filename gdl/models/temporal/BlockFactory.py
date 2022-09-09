@@ -178,6 +178,7 @@ def audio_model_from_cfg(cfg):
             expected_fps=cfg.get('model_expected_fps', 50), # 50 fps is the default for wav2vec2 (but not sure if this holds universally)
             target_fps=cfg.get('target_fps', 25), # 25 fps is the default since we use 25 fps for the videos 
             freeze_feature_extractor=cfg.get('freeze_feature_extractor', True),
+            dropout_cfg=cfg.get('dropout_cfg', None),
         )
     else: 
         raise ValueError(f"Unknown audio model type '{cfg.type}'")
@@ -219,6 +220,7 @@ def sequence_decoder_from_cfg(cfg):
 
         decoder = FairSeqModifiedDecoder(decoder_cfg)
 
+    ## FaceFormer related
     elif decoder_cfg.type == "FaceFormerDecoder":
         from gdl.models.talkinghead.FaceFormerDecoder import FaceFormerDecoder
         with open_dict(decoder_cfg):
@@ -245,6 +247,7 @@ def sequence_decoder_from_cfg(cfg):
             decoder_cfg.predict_exp = cfg.model.output.predict_expcode
             decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
         decoder = LinearAutoRegDecoder(decoder_cfg)
+    # elif decoder_cfg.type == "":
 
     else: 
         raise ValueError(f"Unknown sequence decoder model type '{decoder_cfg.type}'")
