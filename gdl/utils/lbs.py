@@ -140,7 +140,7 @@ def vertices2landmarks(vertices, faces, lmk_faces_idx, lmk_bary_coords):
 
 
 def lbs(betas, pose, v_template, shapedirs, posedirs, J_regressor, parents,
-        lbs_weights, pose2rot=True, dtype=torch.float32, detach_pose_correctives=True):
+        lbs_weights, pose2rot=True, dtype=torch.float32, detach_pose_correctives=False):
     ''' Performs Linear Blend Skinning with the given shape and pose parameters
 
         Parameters
@@ -168,6 +168,8 @@ def lbs(betas, pose, v_template, shapedirs, posedirs, J_regressor, parents,
             matrices. The default value is True. If False, then the pose tensor
             should already contain rotation matrices and have a size of
             Bx(J + 1)x9
+        detach_pose_correctives: bool, optional
+            Flag on whether to detach the pose corrective gradient from the computational graph. 
         dtype: torch.dtype, optional
 
         Returns

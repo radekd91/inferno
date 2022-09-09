@@ -30,7 +30,9 @@ class FaceFormer(TalkingHeadBase):
         
         if loss_type in ["jawpose_loss", "jaw_loss"]:
             loss_value = compute_rotation_loss(sample["predicted_jaw"], sample["gt_jaw"],  
-                input_rep=self._rotation_representation(), output_rep=loss_cfg.get('rotation_rep', 'quat'), 
+                r1_input_rep=self._rotation_representation(), 
+                r2_input_rep="aa", # gt is in axis-angle
+                output_rep=loss_cfg.get('rotation_rep', 'quat'), 
                 metric=loss_cfg.get('metric', 'l2')
                 )
         elif loss_type in ["expression_loss", "exp_loss"]:

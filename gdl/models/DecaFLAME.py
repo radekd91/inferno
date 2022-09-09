@@ -209,7 +209,8 @@ class FLAME(nn.Module):
         vertices, _ = lbs(betas, full_pose, template_vertices,
                           self.shapedirs, self.posedirs,
                           self.J_regressor, self.parents,
-                          self.lbs_weights, dtype=self.dtype)
+                          self.lbs_weights, dtype=self.dtype, 
+                          detach_pose_correctives=False)
 
         lmk_faces_idx = self.lmk_faces_idx.unsqueeze(dim=0).expand(batch_size, -1)
         lmk_bary_coords = self.lmk_bary_coords.unsqueeze(dim=0).expand(batch_size, -1, -1)

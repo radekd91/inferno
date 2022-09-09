@@ -1,41 +1,53 @@
 import torch
 import torch.nn.functional as F
 
+from gdl.utils.DecaUtils import quaternion_to_angle_axis, quaternion_to_rotation_matrix
+
 
 def convert_rot(r, input_rep, output_rep):
-    from pytorch3d.transforms import matrix_to_quaternion, matrix_to_rotation_6d
+    from pytorch3d.transforms import matrix_to_quaternion, matrix_to_rotation_6d, rotation_6d_to_matrix
     from gdl.utils.DecaUtils import batch_rodrigues, aa2euler_batch, rot_mat_to_euler
     # assert input_rep != output_rep
     if input_rep == output_rep: 
         return r
-    if input_rep == 'aa': 
-        if output_rep == 'quat': 
+    if input_rep in ['aa', 'axis-angle', 'axisangle']:
+        if output_rep in ['quat', 'quaternion']: 
             return matrix_to_quaternion(batch_rodrigues(r))
         elif output_rep == 'euler': 
             return aa2euler_batch(r)
-        elif output_rep == 'mat':
+        elif output_rep in ['mat', 'matrix']:
             return batch_rodrigues(r)
-        elif output_rep == '6d': 
+        elif output_rep in ['6d', '6dof', '6dof']: 
             return matrix_to_rotation_6d(batch_rodrigues(r))
         else: 
             raise NotImplementedError(f"The conversion from {input_rep} {output_rep} is not yet implemented")
-    
-    rot_mat = aa2euler_batch(r)
-    if output_rep == 'quat': 
+    elif input_rep in ['quat', 'quaternion']: 
+        rot_mat = quaternion_to_rotation_matrix(r)
+    elif input_rep in ['6d', '6dof', '6dof']: 
+        rot_mat = rotation_6d_to_matrix(r)
+    elif input_rep in ['mat', 'matrix']:
+        rot_mat = r.view(-1, 3, 3)
+    else:
+        raise NotImplementedError(f"The conversion from {input_rep} {output_rep} is not yet implemented")
+    # rot_mat = aa2euler_batch(r)
+    if output_rep in ['quat', 'quaternion']: 
         return matrix_to_quaternion(rot_mat)
     elif output_rep == 'euler': 
         return rot_mat_to_euler(rot_mat)
-    elif output_rep == '6d': 
+    elif output_rep in ['6d', '6dof', '6dof']: 
         return matrix_to_rotation_6d(rot_mat)
-
+    elif output_rep in ['aa', 'axis-angle', 'axisangle']:
+        return quaternion_to_angle_axis(matrix_to_quaternion(rot_mat))
     raise NotImplementedError(f"The conversion from {input_rep} {output_rep} is not yet implemented")
 
 
-def compute_rotation_loss(r1, r2, mask=None, input_rep='aa', output_rep='aa', metric='l2'): 
+def compute_rotation_loss(r1, r2, mask=None, 
+        r1_input_rep='aa', r2_input_rep='aa', output_rep='aa',
+        metric='l2'): 
     B = r1.shape[0]
     T = r1.shape[1] 
-    r1 = convert_rot(r1.view((B*T,-1)), input_rep, output_rep).view((B,T,-1))
-    r2 = convert_rot(r2.view((B*T,-1)), input_rep, output_rep).view((B,T,-1))
+    r1 = convert_rot(r1.view((B*T,-1)), r1_input_rep, output_rep).view((B,T,-1))
+    r2 = convert_rot(r2.view((B*T,-1)), r2_input_rep, output_rep).view((B,T,-1))
     
     # bt_reduction_dim = list(range(len(r1.shape)-1))
     # vec_reduction_dim = len(r1.shape) -1 

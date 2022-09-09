@@ -2,6 +2,7 @@ from turtle import forward
 import torch 
 from torch import nn
 import math
+from gdl.models.rotation_loss import convert_rot
 
 
 class AutoRegressiveDecoder(nn.Module):
@@ -227,6 +228,21 @@ class FaceFormerDecoder(FaceFormerDecoderBase):
         return vertice_out
 
 
+def rotation_rep_size(rep):
+    if rep in ["quat", "quaternion"]:
+        return 4
+    elif rep in ["aa", "axis-angle"]:
+        return 4
+    elif rep in ["matrix", "mat"]:
+        return 9
+    elif rep in ["euler", "euler-angles"]:
+        return 3
+    elif rep in ["rot6d", "rot6dof", "6d"]:
+        return 6
+    else:
+        raise ValueError("Unknown rotation representation: {}".format(rep))
+
+
 class FlameFormerDecoder(FaceFormerDecoderBase):
 
     def __init__(self, cfg):
@@ -243,10 +259,12 @@ class FlameFormerDecoder(FaceFormerDecoderBase):
         pred_dim = 0
         self.predict_exp = cfg.predict_exp
         self.predict_jaw = cfg.predict_jaw
+        self.rotation_representation = cfg.get("rotation_representation", "aa")
+        self.flame_rotation_rep = "aa"
         if self.predict_exp: 
             pred_dim += self.flame_config.n_exp
         if self.predict_jaw:
-            pred_dim += 3
+            pred_dim += rotation_rep_size(self.rotation_representation)
 
         self.post_transformer = nn.Linear(cfg.feature_dim, pred_dim)
         self.flame_space_loss = cfg.flame_space_loss
@@ -254,7 +272,7 @@ class FlameFormerDecoder(FaceFormerDecoderBase):
 
 
     def _rotation_representation(self):
-        return 'aa'
+        return self.rotation_representation
 
 
     def _decode_vertices(self, sample, transformer_out): 
@@ -270,8 +288,14 @@ class FlameFormerDecoder(FaceFormerDecoderBase):
 
         vector_idx = 0
         if self.predict_jaw:
-            jaw_pose = transformer_out[..., :3].view(batch_size*T_size, -1)
-            vector_idx += 3
+            rotation_rep_size_ = rotation_rep_size(self.rotation_representation)
+            jaw_pose = transformer_out[..., :rotation_rep_size_].view(batch_size*T_size, -1)
+            vector_idx += rotation_rep_size_
+            if self.rotation_representation in ['mat', 'matrix']:
+                jaw_pose = jaw_pose.view(-1, 3, 3) 
+                U, S, Vh = torch.linalg.svd(jaw_pose) # do SVD to ensure orthogonality
+                jaw_pose = U.contiguous()
+            
         else: 
             jaw = sample["gt_jaw"][:, :T_size, ...]
             jaw_pose = jaw.view(batch_size*T_size, -1)
@@ -287,7 +311,8 @@ class FlameFormerDecoder(FaceFormerDecoderBase):
         
         assert vector_idx == transformer_out.shape[-1]
 
-        pose_params = torch.cat([ pose_params[..., :3], jaw_pose], dim=-1)
+        flame_jaw_pose = convert_rot(jaw_pose, self.rotation_representation, self.flame_rotation_rep)
+        pose_params = torch.cat([ pose_params[..., :3], flame_jaw_pose], dim=-1)
         shape_params = torch.zeros((batch_size*T_size, self.flame_config.n_shape), device=transformer_out.device)
         with torch.no_grad():
             vertice_neutral, _, _ = self.flame.forward(shape_params[0:1, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
