@@ -11,4 +11,13 @@ losses:
     rotation_rep: 6d
     metric: l2
 metrics: 
-  {}
+  vertex_velocity_loss: 
+    weight: 1.
+    metric: l2
+  exp_velocity_loss: 
+    weight: 1.
+    metric: l2
+  jaw_velocity_loss: 
+    weight: 1.    
+    rotation_rep: 6d
+    metric: l2

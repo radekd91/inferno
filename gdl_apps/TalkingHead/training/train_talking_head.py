@@ -117,6 +117,25 @@ def create_experiment_name(cfg, version=0):
         if cfg.model.output.predict_vertices:
             experiment_name += "V"
 
+        experiment_name += "_L"
+        
+        losses = [key for key in cfg.learning.losses.keys()]
+
+        for loss_type in losses:
+            if loss_type in ["jawpose_loss", "jaw_loss"]:
+                experiment_name += "J" + cfg.learning.losses[loss_type].get('rotation_rep', 'quat') 
+            elif loss_type in ["expression_loss", "exp_loss"]:
+                experiment_name += "E"
+            elif loss_type == "vertex_loss":
+                experiment_name += "V"
+            # velocity losses
+            elif loss_type == "vertex_velocity_loss":
+                experiment_name += "Vv"
+            elif loss_type in ["expression_velocity_loss", "exp_velocity_loss"]:
+                experiment_name += "Ev"
+            elif loss_type in ["jawpose_velocity_loss", "jaw_velocity_loss"]:
+                experiment_name += "Jv" +  cfg.learning.losses[loss_type].get('rotation_rep', 'quat')
+                
         if 'augmentation' in cfg.data.keys() and len(cfg.data.augmentation) > 0:
             experiment_name += "_Aug"
 
