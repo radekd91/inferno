@@ -98,6 +98,10 @@ def create_experiment_name(cfg, version=0):
         sequence_decoder_name = cfg.model.sequence_decoder.type
         experiment_name += "_D" + sequence_decoder_name
 
+        nl = cfg.model.sequence_decoder.num_layers 
+        if nl is not None: 
+            experiment_name += f"{nl}"
+
         if cfg.model.get('code_vector_projection', None) is not None:
             projector_name = cfg.model.code_vector_projection.name if cfg.model.code_vector_projection.type == 'parallel' \
                 else cfg.model.code_vector_projection.type
