@@ -1,5 +1,5 @@
 import imp
-from pathlib import Path 
+from pathlib import Path
 from gdl.models.temporal.SequenceEncoders import *
 from gdl.models.temporal.SequenceDecoders import *
 from gdl.models.temporal.TemporalFLAME import FlameShapeModel
@@ -220,7 +220,7 @@ def sequence_decoder_from_cfg(cfg):
 
         decoder = FairSeqModifiedDecoder(decoder_cfg)
 
-    ## FaceFormer related
+    ## FaceFormer related (TODP: probably should be moved to the gdl_apps part. maybe each project should have a BlockFactory)
     elif decoder_cfg.type == "FaceFormerDecoder":
         from gdl.models.talkinghead.FaceFormerDecoder import FaceFormerDecoder
         with open_dict(decoder_cfg):
@@ -247,8 +247,13 @@ def sequence_decoder_from_cfg(cfg):
             decoder_cfg.predict_exp = cfg.model.output.predict_expcode
             decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
         decoder = LinearAutoRegDecoder(decoder_cfg)
-    # elif decoder_cfg.type == "":
-
+    elif decoder_cfg.type == "BertDecoder":
+        from gdl.models.talkinghead.FaceFormerDecoder import BertDecoder 
+        with open_dict(decoder_cfg):
+            decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
+            decoder_cfg.predict_exp = cfg.model.output.predict_expcode
+            decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
+        decoder = BertDecoder(decoder_cfg)
     else: 
         raise ValueError(f"Unknown sequence decoder model type '{decoder_cfg.type}'")
 

@@ -42,6 +42,8 @@ def positional_encoding_from_cfg(cfg):
         return PeriodicPositionalEncoding(cfg.feature_dim, **cfg.positional_encoding)
     elif cfg.positional_encoding.type == 'PositionalEncoding':
         return PositionalEncoding(cfg.feature_dim, **cfg.positional_encoding)
+    elif not cfg.positional_encoding.type: 
+        return None
     raise ValueError("Unsupported positional encoding")
 
 
@@ -363,29 +365,67 @@ def enc_dec_mask(device, T, S, dataset="vocaset"):
     return (mask==1).to(device=device)
 
 
-class LinearDecoder(nn.Module):
+class FeedForwardDecoder(nn.Module): 
 
     def __init__(self, cfg) -> None:
         super().__init__()
-        self.decoder = nn.Linear(cfg.feature_dim, cfg.vertices_dim)
         self.obj_vector = nn.Linear(cfg.num_training_subjects, cfg.feature_dim, bias=False)
+        self.style_op = cfg.get('style_op', 'add')
+        self.PE = positional_encoding_from_cfg(cfg)
 
     def forward(self, sample, train=False, teacher_forcing=True): 
         one_hot = sample["one_hot"]
         obj_embedding = self.obj_vector(one_hot)
         style_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
         sample["hidden_feature"] = sample["seq_encoder_output"]
-        hidden_states = sample["hidden_feature"]
+        hidden_states = self._positional_enc(sample)
 
-        styled_hidden_states = torch.cat([hidden_states + style_emb])
+        styled_hidden_states = self._style(sample, hidden_states, style_emb)
 
-        B, T = styled_hidden_states.shape[:2]
-        styled_hidden_states = styled_hidden_states.view(B*T, -1)
-        decoded_offsets = self.decoder(styled_hidden_states)
-        decoded_offsets = decoded_offsets.view(B, T, -1)
+        decoded_offsets = self._decode(sample, styled_hidden_states)
+
         sample["predicted_vertices"] = decoded_offsets
         sample = self._post_prediction(sample)
         return sample
+
+    def _positional_enc(self, sample): 
+        hidden_states = sample["hidden_feature"] 
+        if self.PE is not None:
+            hidden_states = self.PE(hidden_states)
+        return hidden_states
+
+    def _style_dim_factor(self): 
+        if self.style_op == "add":
+            return 1
+        elif self.style_op == "cat":
+            return 2
+        raise ValueError(f"Invalid operation: '{self.style_op}'")
+       
+    def _pe_dim_factor(self):
+        dim_factor = 1
+        if self.PE is not None: 
+            dim_factor = self.PE.output_size_factor()
+        return dim_factor
+
+    def _total_dim_factor(self): 
+        return self._style_dim_factor() * self._pe_dim_factor()
+
+    def _style(self, sample, hidden_states, style_emb): 
+        if self.style_op == "add":
+            styled_hidden_states = hidden_states + style_emb
+        elif self.style_op == "cat":
+            styled_hidden_states = torch.cat([hidden_states, style_emb], dim=-1)
+        else: 
+            raise ValueError(f"Invalid operation: '{self.style_op}'")
+        
+        return styled_hidden_states
+
+    def _decode(self, sample, hidden_states) :
+        """
+        Hiddent states are the ouptut of the encoder
+        Returns a tensor of vertex offsets.
+        """
+        raise NotImplementedError("The subdclass must implement this")
 
     def _post_prediction(self, sample):
         template = sample["template"]
@@ -396,6 +436,44 @@ class LinearDecoder(nn.Module):
 
     def get_trainable_parameters(self): 
         return [p for p in self.parameters() if p.requires_grad]
+
+
+class LinearDecoder(FeedForwardDecoder):
+
+    def __init__(self, cfg) -> None:
+        super().__init__(cfg)
+        dim_factor = self._total_dim_factor()
+        self.decoder = nn.Linear(dim_factor*cfg.feature_dim, cfg.vertices_dim)
+
+    def _decode(self, sample, styled_hidden_states) :
+        B, T = styled_hidden_states.shape[:2]
+        styled_hidden_states = styled_hidden_states.view(B*T, -1)
+        decoded_offsets = self.decoder(styled_hidden_states)
+        decoded_offsets = decoded_offsets.view(B, T, -1)
+        return decoded_offsets
+
+
+class BertDecoder(FeedForwardDecoder):
+
+    def __init__(self, cfg) -> None:
+        super().__init__(cfg)
+        dim_factor = self._total_dim_factor()
+        encoder_layer = torch.nn.TransformerEncoderLayer(
+                    d_model=cfg.feature_dim * dim_factor, 
+                    nhead=cfg.nhead, dim_feedforward=dim_factor*cfg.feature_dim, 
+                    activation=cfg.activation,
+                    dropout=cfg.dropout, batch_first=True
+        )        
+        self.bert_decoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=cfg.num_layers)
+        self.decoder = nn.Linear(dim_factor*cfg.feature_dim, cfg.vertices_dim)
+
+    def _decode(self, sample, styled_hidden_states) :
+        decoded_offsets = self.bert_decoder(styled_hidden_states)
+        B, T = decoded_offsets.shape[:2]
+        decoded_offsets = decoded_offsets.view(B*T, -1)
+        decoded_offsets = self.decoder(styled_hidden_states)
+        decoded_offsets = decoded_offsets.view(B, T, -1)
+        return decoded_offsets
 
 
 class LinearAutoRegDecoder(AutoRegressiveDecoder):
