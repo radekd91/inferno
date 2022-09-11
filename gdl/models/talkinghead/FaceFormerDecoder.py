@@ -82,11 +82,15 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
             sample["style_emb"] = style_emb
             if self.PE is not None:
                 vertices_input = self.PE(style_emb)
+            else: 
+                vertices_input = vertice_emb
         else:
             vertice_emb = sample["embedded_output"]
             style_emb = sample["style_emb"]
             if self.PE is not None:
                 vertices_input = self.PE(vertice_emb)
+            else: 
+                vertices_input = vertice_emb
         
         vertices_out = self._decode(sample, vertices_input, hidden_states)
         sample["predicted_vertices"] = vertices_out
@@ -114,6 +118,8 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
         vertices_input = vertices_input + style_emb
         if self.PE is not None:
             vertices_input = self.PE(vertices_input)
+        # else: 
+        #     vertices_input = vertices_input
 
         vertices_out = self._decode(sample, vertices_input, hidden_states)
         sample["predicted_vertices"] = vertices_out
