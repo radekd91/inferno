@@ -42,7 +42,7 @@ def positional_encoding_from_cfg(cfg):
         return PeriodicPositionalEncoding(cfg.feature_dim, **cfg.positional_encoding)
     elif cfg.positional_encoding.type == 'PositionalEncoding':
         return PositionalEncoding(cfg.feature_dim, **cfg.positional_encoding)
-    elif not cfg.positional_encoding.type: 
+    elif not cfg.positional_encoding.type or str(cfg.positional_encoding.type).lower() == 'none':
         return None
     raise ValueError("Unsupported positional encoding")
 
@@ -80,11 +80,13 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
             vertice_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
             style_emb = vertice_emb
             sample["style_emb"] = style_emb
-            vertices_input = self.PE(style_emb)
+            if self.PE is not None:
+                vertices_input = self.PE(style_emb)
         else:
             vertice_emb = sample["embedded_output"]
             style_emb = sample["style_emb"]
-            vertices_input = self.PE(vertice_emb)
+            if self.PE is not None:
+                vertices_input = self.PE(vertice_emb)
         
         vertices_out = self._decode(sample, vertices_input, hidden_states)
         sample["predicted_vertices"] = vertices_out
@@ -110,7 +112,8 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
         vertices_input = vertices_input - template
         vertices_input = self.vertice_map(vertices_input)
         vertices_input = vertices_input + style_emb
-        vertices_input = self.PE(vertices_input)
+        if self.PE is not None:
+            vertices_input = self.PE(vertices_input)
 
         vertices_out = self._decode(sample, vertices_input, hidden_states)
         sample["predicted_vertices"] = vertices_out

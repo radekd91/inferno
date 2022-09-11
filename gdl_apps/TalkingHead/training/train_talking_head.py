@@ -107,6 +107,8 @@ def create_experiment_name(cfg, version=0):
                 experiment_name += "PPE"
             elif cfg.model.sequence_decoder.positional_encoding.type == 'PositionalEncoding':
                 experiment_name += "PE"
+            elif str(cfg.model.sequence_decoder.positional_encoding.type).lower() == 'none':
+                experiment_name += "NPE"
         else: 
             experiment_name += "NPE"
 
