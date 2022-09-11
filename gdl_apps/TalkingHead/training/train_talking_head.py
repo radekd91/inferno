@@ -100,7 +100,16 @@ def create_experiment_name(cfg, version=0):
 
         nl = cfg.model.sequence_decoder.num_layers 
         if nl is not None: 
-            experiment_name += f"{nl}"
+            experiment_name += f"{nl}" 
+        
+        if cfg.model.sequence_decoder.get('positional_encoding', False):
+            if cfg.model.sequence_decoder.positional_encoding.type == 'PeriodicPositionalEncoding':
+                experiment_name += "PPE"
+            elif cfg.model.sequence_decoder.positional_encoding.type == 'PositionalEncoding':
+                experiment_name += "PE"
+        else: 
+            experiment_name += "NPE"
+
 
         if cfg.model.get('code_vector_projection', None) is not None:
             projector_name = cfg.model.code_vector_projection.name if cfg.model.code_vector_projection.type == 'parallel' \
