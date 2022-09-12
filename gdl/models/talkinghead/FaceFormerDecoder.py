@@ -59,7 +59,7 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'faceformer')
         if self.temporal_bias_type == 'faceformer':
             self.biased_mask = init_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
-        if self.temporal_bias_type == 'faceformer_future':
+        elif self.temporal_bias_type == 'faceformer_future':
             self.biased_mask = init_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
         elif self.temporal_bias_type == 'classic':
             self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
@@ -376,8 +376,8 @@ def get_slopes(n):
         return get_slopes_power_of_2(closest_power_of_2) + get_slopes(2*closest_power_of_2)[0::2][:n-closest_power_of_2]
 
 # Temporal Bias, inspired by ALiBi: https://github.com/ofirpress/attention_with_linear_biases
-def init_biased_mask(n_head, max_seq_len, period):
-    slopes = torch.Tensor(get_slopes(n_head))
+def init_biased_mask(num_heads, max_seq_len, period):
+    slopes = torch.Tensor(get_slopes(num_heads))
     bias = torch.arange(start=0, end=max_seq_len, step=period).unsqueeze(1).repeat(1,period).view(-1)//(period)
     bias = - torch.flip(bias,dims=[0])
     alibi = torch.zeros(max_seq_len, max_seq_len)

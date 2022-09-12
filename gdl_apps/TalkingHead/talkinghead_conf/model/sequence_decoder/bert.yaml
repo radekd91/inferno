@@ -1,6 +1,6 @@
 # @package model
 type: BertDecoder 
-num_layers: 
+num_layers: 1
 feature_dim: 64
 nhead: 4
 dropout: 0.25
