@@ -54,8 +54,21 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
         # periodic positional encoding 
         # self.PPE = PeriodicPositionalEncoding(cfg.feature_dim, period = cfg.period)
         self.PE = positional_encoding_from_cfg(cfg)
+        self.max_len = cfg.max_len
         # temporal bias
-        self.biased_mask = init_biased_mask(n_head = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+        self.temporal_bias_type = cfg.get('temporal_bias_type', 'faceformer')
+        if self.temporal_bias_type == 'faceformer':
+            self.biased_mask = init_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+        if self.temporal_bias_type == 'faceformer_future':
+            self.biased_mask = init_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+        elif self.temporal_bias_type == 'classic':
+            self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        elif self.temporal_bias_type == 'classic_future':
+            self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        elif self.temporal_bias_type == 'none':
+            self.biased_mask = None
+        else:
+            raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
 
         decoder_layer = nn.TransformerDecoderLayer(
             d_model = cfg.feature_dim, 
@@ -66,11 +79,16 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
         self.vertice_map = nn.Linear(cfg.vertices_dim, cfg.feature_dim)
         self.obj_vector = nn.Linear(cfg.num_training_subjects, cfg.feature_dim, bias=False)
 
+        self.use_alignment_bias = cfg.get('use_alignment_bias', True)
+
     def get_trainable_parameters(self):
         return list(self.parameters())
 
     def _max_auto_regressive_steps(self):
-        return self.biased_mask.shape[1]
+        if self.biased_mask is not None:
+            return self.biased_mask.shape[1]
+        else: 
+            return self.max_len
 
     def _autoregressive_step(self, sample, i):
         hidden_states = sample["hidden_feature"]
@@ -128,8 +146,16 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
 
     def _decode(self, sample, vertices_input, hidden_states):
         dev = vertices_input.device
-        tgt_mask = self.biased_mask[:, :vertices_input.shape[1], :vertices_input.shape[1]].clone().detach().to(device=dev)
-        memory_mask = enc_dec_mask(dev, vertices_input.shape[1], hidden_states.shape[1])
+        if self.biased_mask is not None:
+            tgt_mask = self.biased_mask[:, :vertices_input.shape[1], :vertices_input.shape[1]].clone().detach().to(device=dev)
+        else: 
+            tgt_mask = None
+        if self.use_alignment_bias:
+            # attends to diagonals only
+            memory_mask = enc_dec_mask(dev, vertices_input.shape[1], hidden_states.shape[1])
+        else:
+            # attends to everything
+            memory_mask = torch.zeros(vertices_input.shape[1], hidden_states.shape[1], device=dev, dtype=torch.bool)
         transformer_out = self.transformer_decoder(vertices_input, hidden_states, tgt_mask=tgt_mask, memory_mask=memory_mask)
 
         vertices_out = self._decode_vertices(sample, transformer_out)
@@ -333,18 +359,19 @@ class FlameFormerDecoder(FaceFormerDecoderBase):
         return vertice_out
 
 
+def get_slopes(n):
+    def get_slopes_power_of_2(n):
+        start = (2**(-2**-(math.log2(n)-3)))
+        ratio = start
+        return [start*ratio**i for i in range(n)]
+    if math.log2(n).is_integer():
+        return get_slopes_power_of_2(n)                   
+    else:                                                 
+        closest_power_of_2 = 2**math.floor(math.log2(n)) 
+        return get_slopes_power_of_2(closest_power_of_2) + get_slopes(2*closest_power_of_2)[0::2][:n-closest_power_of_2]
+
 # Temporal Bias, inspired by ALiBi: https://github.com/ofirpress/attention_with_linear_biases
 def init_biased_mask(n_head, max_seq_len, period):
-    def get_slopes(n):
-        def get_slopes_power_of_2(n):
-            start = (2**(-2**-(math.log2(n)-3)))
-            ratio = start
-            return [start*ratio**i for i in range(n)]
-        if math.log2(n).is_integer():
-            return get_slopes_power_of_2(n)                   
-        else:                                                 
-            closest_power_of_2 = 2**math.floor(math.log2(n)) 
-            return get_slopes_power_of_2(closest_power_of_2) + get_slopes(2*closest_power_of_2)[0::2][:n-closest_power_of_2]
     slopes = torch.Tensor(get_slopes(n_head))
     bias = torch.arange(start=0, end=max_seq_len, step=period).unsqueeze(1).repeat(1,period).view(-1)//(period)
     bias = - torch.flip(bias,dims=[0])
@@ -356,6 +383,28 @@ def init_biased_mask(n_head, max_seq_len, period):
     mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
     mask = mask.unsqueeze(0) + alibi
     return mask
+
+def init_biased_mask_future(num_heads, max_seq_len, period):
+    slopes = torch.Tensor(get_slopes(num_heads))
+    bias = torch.arange(start=0, end=max_seq_len, step=period).unsqueeze(1).repeat(1,period).view(-1)//(period)
+    bias = - torch.flip(bias,dims=[0])
+    alibi = torch.zeros(max_seq_len, max_seq_len)
+    for i in range(max_seq_len):
+        alibi[i, :i+1] = bias[-(i+1):]
+    alibi = slopes.unsqueeze(1).unsqueeze(1) * alibi.unsqueeze(0)
+    # mask = alibi - torch.flip(alibi, [1, 2])
+    mask = alibi + torch.flip(alibi, [1, 2])
+    return mask
+
+def init_mask(num_heads, max_seq_len):
+    mask = (torch.triu(torch.ones(max_seq_len, max_seq_len)) == 1).transpose(0, 1)
+    mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+    return mask.unsqueeze(0).repeat(num_heads,1,1)
+
+def init_mask_future(num_heads, max_seq_len):
+    return torch.ones(num_heads, max_seq_len, max_seq_len)
+
+
 
 
 # Alignment Bias

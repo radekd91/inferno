@@ -112,6 +112,18 @@ def create_experiment_name(cfg, version=0):
         else: 
             experiment_name += "NPE"
 
+        temporal_bias_type = cfg.model.sequence_decoder.get('temporal_bias_type', False) 
+        if temporal_bias_type == 'faceformer_future':
+            experiment_name += "_Tff"
+        elif temporal_bias_type == 'classic':
+            experiment_name += "_Tc"
+        elif temporal_bias_type == 'classic_future':
+            experiment_name += "_Tcf"
+        elif temporal_bias_type == 'none':
+            experiment_name += "_Tn"
+
+        if not cfg.model.sequence_decoder.get('use_alignment_bias', False):
+            experiment_name += "_NAB"
 
         if cfg.model.get('code_vector_projection', None) is not None:
             projector_name = cfg.model.code_vector_projection.name if cfg.model.code_vector_projection.type == 'parallel' \
