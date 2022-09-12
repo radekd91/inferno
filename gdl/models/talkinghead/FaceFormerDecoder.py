@@ -304,6 +304,11 @@ class FlameFormerDecoder(FaceFormerDecoderBase):
             pred_dim += rotation_rep_size(self.rotation_representation)
 
         self.post_transformer = nn.Linear(cfg.feature_dim, pred_dim)
+        # initialize the weights to zero to prevent the model from overshooting in the beginning 
+        # and to prevent convergence issues
+        nn.init.constant_(self.post_transformer.weight, 0)
+        nn.init.constant_(self.post_transformer.bias, 0)
+
         self.flame_space_loss = cfg.flame_space_loss
         # self.rotation_loss_space = cfg.rotation_loss_space
 
