@@ -524,6 +524,10 @@ class BertDecoder(FeedForwardDecoder):
         )        
         self.bert_decoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=cfg.num_layers)
         self.decoder = nn.Linear(dim_factor*cfg.feature_dim, cfg.vertices_dim)
+        
+        # trying init to prevent the loss from exploding in the beginning
+        nn.init.constant_(self.decoder.weight, 0)
+        nn.init.constant_(self.decoder.bias, 0)
 
     def _decode(self, sample, styled_hidden_states) :
         decoded_offsets = self.bert_decoder(styled_hidden_states)
