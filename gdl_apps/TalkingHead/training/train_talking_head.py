@@ -18,6 +18,7 @@ All rights reserved.
 """
 
 
+from urllib.parse import uses_relative
 from gdl_apps.TalkingHead.training.training_pass import( single_stage_training_pass, 
             get_checkpoint_with_kwargs, create_logger, configure_and_train, configure)
 # from gdl.datasets.DecaDataModule import DecaDataModule
@@ -122,7 +123,8 @@ def create_experiment_name(cfg, version=0):
         elif temporal_bias_type == 'none':
             experiment_name += "_Tn"
 
-        if not cfg.model.sequence_decoder.get('use_alignment_bias', False):
+        use_alignment_bias = cfg.model.sequence_decoder.get('use_alignment_bias', True)
+        if not use_alignment_bias:
             experiment_name += "_NAB"
 
         if cfg.model.get('code_vector_projection', None) is not None:

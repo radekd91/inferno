@@ -254,6 +254,13 @@ def sequence_decoder_from_cfg(cfg):
             decoder_cfg.predict_exp = cfg.model.output.predict_expcode
             decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
         decoder = BertDecoder(decoder_cfg)
+    elif decoder_cfg.type == "FlameBertDecoder":
+        from gdl.models.talkinghead.FaceFormerDecoder import FlameBertDecoder 
+        with open_dict(decoder_cfg):
+            decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
+            decoder_cfg.predict_exp = cfg.model.output.predict_expcode
+            decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
+        decoder = FlameBertDecoder(decoder_cfg)
     else: 
         raise ValueError(f"Unknown sequence decoder model type '{decoder_cfg.type}'")
 

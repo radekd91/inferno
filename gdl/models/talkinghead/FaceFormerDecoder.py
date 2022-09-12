@@ -3,6 +3,7 @@ import torch
 from torch import nn
 import math
 from gdl.models.rotation_loss import convert_rot
+from pytorch3d.transforms import rotation_6d_to_matrix, matrix_to_rotation_6d
 
 
 class AutoRegressiveDecoder(nn.Module):
@@ -435,6 +436,7 @@ class FeedForwardDecoder(nn.Module):
         self.obj_vector = nn.Linear(cfg.num_training_subjects, cfg.feature_dim, bias=False)
         self.style_op = cfg.get('style_op', 'add')
         self.PE = positional_encoding_from_cfg(cfg)
+        self.cfg = cfg
 
     def forward(self, sample, train=False, teacher_forcing=True): 
         one_hot = sample["one_hot"]
@@ -528,7 +530,7 @@ class BertDecoder(FeedForwardDecoder):
                     dropout=cfg.dropout, batch_first=True
         )        
         self.bert_decoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=cfg.num_layers)
-        self.decoder = nn.Linear(dim_factor*cfg.feature_dim, cfg.vertices_dim)
+        self.decoder = nn.Linear(dim_factor*cfg.feature_dim, self.decoder_output_dim())
         
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'none')
         if self.temporal_bias_type == 'faceformer':
@@ -548,6 +550,9 @@ class BertDecoder(FeedForwardDecoder):
         nn.init.constant_(self.decoder.weight, 0)
         nn.init.constant_(self.decoder.bias, 0)
 
+    def decoder_output_dim(self):
+        return self.cfg.vertices_dim
+
     def _decode(self, sample, styled_hidden_states):
         if self.biased_mask is not None: 
             mask = self.biased_mask[:, :styled_hidden_states.shape[1], :styled_hidden_states.shape[1]].clone() \
@@ -560,6 +565,84 @@ class BertDecoder(FeedForwardDecoder):
         decoded_offsets = self.decoder(styled_hidden_states)
         decoded_offsets = decoded_offsets.view(B, T, -1)
         return decoded_offsets
+
+
+
+class FlameBertDecoder(BertDecoder):
+
+    def __init__(self, cfg) -> None:
+        from gdl.models.DecaFLAME import FLAME
+        self.flame_config = cfg.flame
+        self.pred_dim = 0
+        self.predict_exp = cfg.predict_exp
+        self.predict_jaw = cfg.predict_jaw
+        self.rotation_representation = cfg.get("rotation_representation", "aa")
+        self.flame_rotation_rep = "aa"
+        if self.predict_exp: 
+            self.pred_dim += self.flame_config.n_exp
+        if self.predict_jaw:
+            self.pred_dim += rotation_rep_size(self.rotation_representation)
+        assert self.pred_dim > 0, "No parameters to predict"
+        super().__init__(cfg)
+        self.flame = FLAME(self.flame_config)
+        # trying init to prevent the loss from exploding in the beginning
+        nn.init.constant_(self.decoder.weight, 0)
+        nn.init.constant_(self.decoder.bias, 0)
+
+        # nn.init.normal_(self.decoder.weight, mean=0.0, std=0.00001)
+        # nn.init.normal_(self.decoder.bias, mean=0.0, std=0.00001)
+
+    def decoder_output_dim(self):
+        return self.pred_dim
+
+    def _rotation_representation(self): 
+        return self.rotation_representation
+
+    def _decode(self, sample, styled_hidden_states): 
+        transformer_out = super()._decode(sample, styled_hidden_states)
+        B, T = transformer_out.shape[:2]
+
+        vector_idx = 0
+        if self.predict_jaw:
+            rotation_rep_size_ = rotation_rep_size(self.rotation_representation)
+            jaw_pose = transformer_out[..., :rotation_rep_size_].view(B*T, -1)
+            # ensure orthonogonality of the 6D rotation
+            if self._rotation_representation() in ["6d", "6dof"]:
+                jaw_pose = matrix_to_rotation_6d(rotation_6d_to_matrix(jaw_pose))
+            vector_idx += rotation_rep_size_
+            if self.rotation_representation in ['mat', 'matrix']:
+                jaw_pose = jaw_pose.view(-1, 3, 3) 
+                U, S, Vh = torch.linalg.svd(jaw_pose) # do SVD to ensure orthogonality
+                jaw_pose = U.contiguous()
+            
+        else: 
+            jaw = sample["gt_jaw"][:, :T, ...]
+            jaw_pose = jaw.view(B*T, -1)
+        if self.predict_exp: 
+            expression_params = transformer_out[..., vector_idx:].view(B*T, -1)
+            vector_idx += self.flame_config.n_exp
+        else: 
+            exp = sample["gt_exp"][:, :T, ...]
+            expression_params = exp.view(B*T, -1)
+        
+        assert vector_idx == transformer_out.shape[-1]
+
+        sample["predicted_exp"] = expression_params.view(B,T, -1)
+        sample["predicted_jaw"] = jaw_pose.view(B,T, -1)
+        template = sample["template"]
+        self.flame.v_template = template.squeeze(1).view(-1, 3)
+
+        flame_jaw_pose = convert_rot(jaw_pose, self.rotation_representation, self.flame_rotation_rep)
+        pose_params = self.flame.eye_pose.expand(B*T, -1)
+        pose_params = torch.cat([ pose_params[..., :3], flame_jaw_pose], dim=-1)
+        shape_params = torch.zeros((B*T, self.flame_config.n_shape), device=transformer_out.device)
+        with torch.no_grad():
+            vertice_neutral, _, _ = self.flame.forward(shape_params[0:1, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
+        vertice_out, _, _ = self.flame(shape_params, expression_params, pose_params)
+        vertex_offsets = vertice_out - vertice_neutral # compute the offset that is then added to the template shape
+        vertex_offsets = vertex_offsets.view(B, T, -1)
+
+        return vertex_offsets
 
 
 class LinearAutoRegDecoder(AutoRegressiveDecoder):
