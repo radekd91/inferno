@@ -530,12 +530,31 @@ class BertDecoder(FeedForwardDecoder):
         self.bert_decoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=cfg.num_layers)
         self.decoder = nn.Linear(dim_factor*cfg.feature_dim, cfg.vertices_dim)
         
+        self.temporal_bias_type = cfg.get('temporal_bias_type', 'none')
+        if self.temporal_bias_type == 'faceformer':
+            self.biased_mask = init_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+        elif self.temporal_bias_type == 'faceformer_future':
+            self.biased_mask = init_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+        elif self.temporal_bias_type == 'classic':
+            self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        elif self.temporal_bias_type == 'classic_future':
+            self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        elif self.temporal_bias_type == 'none':
+            self.biased_mask = None
+        else:
+            raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
+
         # trying init to prevent the loss from exploding in the beginning
         nn.init.constant_(self.decoder.weight, 0)
         nn.init.constant_(self.decoder.bias, 0)
 
-    def _decode(self, sample, styled_hidden_states) :
-        decoded_offsets = self.bert_decoder(styled_hidden_states)
+    def _decode(self, sample, styled_hidden_states):
+        if self.biased_mask is not None: 
+            mask = self.biased_mask[:, :styled_hidden_states.shape[1], :styled_hidden_states.shape[1]].clone() \
+                .detach().to(device=styled_hidden_states.device)
+        else: 
+            mask = None
+        decoded_offsets = self.bert_decoder(styled_hidden_states, mask=mask)
         B, T = decoded_offsets.shape[:2]
         decoded_offsets = decoded_offsets.view(B*T, -1)
         decoded_offsets = self.decoder(styled_hidden_states)
