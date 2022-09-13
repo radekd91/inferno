@@ -360,7 +360,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 # if fid % detector_instantion_frequency == 0:
                 #     self._instantiate_detector(overwrite=True)
 
-                self._detect_faces_in_image_wrapper(frame_list, fid, out_detection_folder, out_landmark_folder, out_file,
+                self._detect_faces_in_image_wrapper(frame_list, fid, out_detection_folder, out_landmark_folder, out_file_boxes,
                                             centers_all, sizes_all, detection_fnames_all, landmark_fnames_all)
 
         else: 
