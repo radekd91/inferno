@@ -1,6 +1,6 @@
 # @package model
-type: LinearDecoder 
-# num_layers: 1
+type: MLPDecoder 
+num_layers: 3
 feature_dim: 64
 vertices_dim: 15069
 positional_encoding: 

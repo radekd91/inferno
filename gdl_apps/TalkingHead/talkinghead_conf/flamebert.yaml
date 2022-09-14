@@ -13,7 +13,8 @@ defaults:
   # - model/face@model/face: full_space
   - model/settings: faceformer
   - model/sequence_encoder@model/sequence_encoder: linear
-  - model/sequence_decoder@model/sequence_decoder: flamebert
+  # - model/sequence_decoder@model/sequence_decoder: flamebert
+  - model/sequence_decoder@model/sequence_decoder: flamebert_npe
   - model/output@model/output: exp_jaw
   - learning/losses: vertices
   - learning/optimizer: adam

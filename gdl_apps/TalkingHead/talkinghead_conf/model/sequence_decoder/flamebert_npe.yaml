@@ -10,13 +10,13 @@ max_len: 600
 period: 30
 vertices_dim: 15069
 positional_encoding: 
-  # type: none
-  # type: PositionalEncoding
-  type: PeriodicPositionalEncoding
-  op: add
-  # op: concat
-  max_len: 600 
-  dropout: 0.1
+  type: none
+  # # type: PositionalEncoding
+  # type: PeriodicPositionalEncoding
+  # op: add
+  # # op: concat
+  # max_len: 600 
+  # dropout: 0.1
 
 flame: 
   flame_model_path: /ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl 

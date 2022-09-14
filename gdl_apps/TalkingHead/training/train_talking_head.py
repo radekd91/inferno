@@ -99,7 +99,7 @@ def create_experiment_name(cfg, version=0):
         sequence_decoder_name = cfg.model.sequence_decoder.type
         experiment_name += "_D" + sequence_decoder_name
 
-        nl = cfg.model.sequence_decoder.num_layers 
+        nl = cfg.model.sequence_decoder.get('num_layers ', None)
         if nl is not None: 
             experiment_name += f"{nl}" 
         

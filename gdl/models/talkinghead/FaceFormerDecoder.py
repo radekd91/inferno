@@ -3,6 +3,7 @@ import torch
 from torch import nn
 import math
 from gdl.models.rotation_loss import convert_rot
+from gdl.models.MLP import MLP
 from pytorch3d.transforms import rotation_6d_to_matrix, matrix_to_rotation_6d
 
 
@@ -536,6 +537,28 @@ class LinearDecoder(FeedForwardDecoder):
         super().__init__(cfg)
         dim_factor = self._total_dim_factor()
         self.decoder = nn.Linear(dim_factor*cfg.feature_dim, cfg.vertices_dim)
+        nn.init.constant_(self.decoder.weight, 0)
+        nn.init.constant_(self.decoder.bias, 0)
+
+    def _decode(self, sample, styled_hidden_states) :
+        B, T = styled_hidden_states.shape[:2]
+        styled_hidden_states = styled_hidden_states.view(B*T, -1)
+        decoded_offsets = self.decoder(styled_hidden_states)
+        decoded_offsets = decoded_offsets.view(B, T, -1)
+        return decoded_offsets
+
+
+class MLPDecoder(FeedForwardDecoder):
+
+    def __init__(self, cfg) -> None:
+        super().__init__(cfg)
+        dim_factor = self._total_dim_factor()
+        dim = dim_factor*cfg.feature_dim
+        hidden_layer_sizes = cfg.num_layers*[dim]
+        self.decoder = MLP(in_size = dim, out_size=cfg.vertices_dim, 
+            hidden_layer_sizes=hidden_layer_sizes, hidden_activation=nn.LeakyReLU(), batch_norm=None)
+        nn.init.constant_(self.decoder.model[-1].weight, 0)
+        nn.init.constant_(self.decoder.model[-1].bias, 0)
 
     def _decode(self, sample, styled_hidden_states) :
         B, T = styled_hidden_states.shape[:2]
@@ -678,8 +701,12 @@ class LinearAutoRegDecoder(AutoRegressiveDecoder):
         super().__init__()
         # self.flame_config = cfg.flame
         self.decoder = nn.Linear(2*cfg.feature_dim, cfg.vertices_dim)
+        nn.init.constant_(self.decoder.weight, 0)
+        nn.init.constant_(self.decoder.bias, 0)
         self.obj_vector = nn.Linear(cfg.num_training_subjects, cfg.feature_dim, bias=False)
         self.vertice_map = nn.Linear(cfg.vertices_dim, cfg.feature_dim)
+        nn.init.constant_(self.vertice_map.weight, 0)
+        nn.init.constant_(self.vertice_map.bias, 0)
         self.PE = None
 
     def get_trainable_parameters(self): 
