@@ -21,7 +21,34 @@ from tqdm import auto
 def main(): 
     # model_name = "2022_09_05_19-09-35_3326505631348969242_FaceFormer_Facef_Awav2vec2_Elinear_predV" # first trainings
     # model_name = "2022_09_05_19-24-53_-1831723491699865120_FaceFormer_Facef_Awav2vec2_Elinear_predV" # first trainings
-    model_name = "2022_09_06_16-09-09_158799827207587146_FaceFormer_Facef_Awav2vec2_Elinear_DFaceFormerDecoder_predV" # looking promising
+    # model_name = "2022_09_06_16-09-09_158799827207587146_FaceFormer_Facef_Awav2vec2_Elinear_DFaceFormerDecoder_predV" # not good enough
+    # model_name = "2022_09_06_18-57-51_-4531631262283512130_FaceFormer_Facef_Awav2vec2_Elinear_DFaceFormerDecoder_predV" # not good enough
+    # model_name = "2022_09_06_18-58-04_-8145049632705930270_FaceFormer_Facef_Awav2vec2_Elinear_DFlameFormerDecoder_predEJ" # not good enough
+    # model_name = "2022_09_07_15-23-32_9054186072148635306_FaceFormer_Facef_Awav2vec2_Elinear_DFaceFormerDecoder_predV" # not good enough
+    # model_name = "2022_09_08_18-22-35_-5082924037183487904_FaceFormer_Facef_Awav2vec2T_Elinear_DFaceFormerDecoder_predV" # promising
+    # model_name = "2022_09_08_18-21-12_-1074603920524203560_FaceFormer_Facef_Awav2vec2T_Elinear_DFaceFormerDecoder_predV" # promising
+    # model_name = "2022_09_08_18-22-36_6903650459323198617_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameFormerDecoder_predEJ"
+    # model_name = "2022_09_08_18-38-39_2713943321348760067_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameFormerDecoder_predEJ"
+    # model_name = "2022_09_09_13-32-26_-1721131782444898775_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameFormerDecoder_predEJ" # long training, 6D prediction
+    # model_name = "2022_09_10_20-03-08_-1412790012237496553_FaceFormer_Facef_Awav2vec2T_Elinear_DFaceFormerDecoder_predV_LV" # faceformer, velocity metric not used but measured
+    # model_name = "2022_09_10_20-07-21_-3441816657521570286_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameFormerDecoder_predEJ_LVVv" # not yet finished FlameFormer 
+    # model_name = "2022_09_10_20-03-27_7326717866113306532_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameFormerDecoder_predEJ_LV"
+    # model_name = "2022_09_10_20-07-18_8911584479033387564_FaceFormer_Facef_Awav2vec2T_Elinear_DFaceFormerDecoder_predV_LVVv" # faceformer with velocity
+    # model_name = "2022_09_10_20-18-06_-3860295090740618656_FaceFormer_Facef_Awav2vec2T_Elinear_DBertDecoder1_predV_LV" # bert-like
+    # model_name = "2022_09_10_20-18-26_-2697804222243016036_FaceFormer_Facef_Awav2vec2T_Elinear_DBertDecoder1_predV_LVVv" # bert-like with velocity
+    # model_name = "2022_09_11_15-31-29_556028787792822791_FaceFormer_Facef_Awav2vec2T_Elinear_DFaceFormerDecoder1NPE_predV_LV" # faceformer no positional enc
+    # model_name = "2022_09_11_15-27-58_7969814270557703130_FaceFormer_Facef_Awav2vec2T_Elinear_DFaceFormerDecoder4PPE_predV_LV" # faceformer no positional enc
+    # model_name = "2022_09_11_15-28-13_-8699916949864340316_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameFormerDecoder4PPE_predEJ_LVVv" # flameformer 4 layers, velocity
+    # model_name = "2022_09_11_15-27-26_-2679574166217615782_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameFormerDecoder4PPE_predEJ_LV"
+    # model_name = "2022_09_12_14-10-39_-8321657434285622693_FaceFormer_Facef_Awav2vec2T_Elinear_DBertDecoder4NPE_NAB_predV_LV" # bert with zero init for last layer, no positional enc, no attention bias
+    # model_name = "2022_09_12_14-10-23_-6578255391856750064_FaceFormer_Facef_Awav2vec2T_Elinear_DBertDecoder4PPE_NAB_predV_LV" # bert with zero init for last layer, positional enc, no attention bias
+    # model_name = "2022_09_12_14-10-27_697855882805977705_FaceFormer_Facef_Awav2vec2T_Elinear_DBertDecoder1NPE_NAB_predV_LV" # bert with zero init for last layer, no positional enc, no attention bias
+    # model_name = "2022_09_12_14-10-00_6383928147122437552_FaceFormer_Facef_Awav2vec2T_Elinear_DBertDecoder1PPE_NAB_predV_LV" # bert with zero init for last layer, positional enc, no attention bias
+    # model_name = "2022_09_12_19-10-20_-7648949959771599137_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameBertDecoder4PPE_predEJ_LV" # flamebert
+    # model_name = "2022_09_12_19-10-15_1345185436813455300_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameBertDecoder4PPE_Tff_predEJ_LV"
+    # model_name = "2022_09_12_15-46-18_3526214713565015856_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameFormerDecoder1PPE_NAB_predEJ_LV"
+    model_name = "2022_09_13_08-44-20_-4903461877341645113_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameBertDecoder1NPE_predEJ_LV"
+
 
     # add argparser here
     parser = argparse.ArgumentParser(description='Talking Head') 

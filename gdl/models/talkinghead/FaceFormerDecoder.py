@@ -48,10 +48,21 @@ def positional_encoding_from_cfg(cfg):
     raise ValueError("Unsupported positional encoding")
 
 
+def style_from_cfg(cfg):
+    style_type = cfg.get('style_embedding', 'onehot_linear')
+    if style_type == 'onehot_linear':
+        return nn.Linear(cfg.num_training_subjects, cfg.feature_dim, bias=False)
+    elif style_type == 'none':
+        return None
+    else:
+        raise ValueError(f"Unsupported style embedding type '{style_type}'")
+
+
 class FaceFormerDecoderBase(AutoRegressiveDecoder):
 
     def __init__(self, cfg) -> None:
         super().__init__()
+        self.cfg = cfg
         # periodic positional encoding 
         # self.PPE = PeriodicPositionalEncoding(cfg.feature_dim, period = cfg.period)
         self.PE = positional_encoding_from_cfg(cfg)
@@ -78,7 +89,9 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
         
         self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers=cfg.num_layers)
         self.vertice_map = nn.Linear(cfg.vertices_dim, cfg.feature_dim)
-        self.obj_vector = nn.Linear(cfg.num_training_subjects, cfg.feature_dim, bias=False)
+
+        self.style_type = cfg.get('style_embedding', 'onehot_linear')
+        self.obj_vector = style_from_cfg(cfg)
 
         self.use_alignment_bias = cfg.get('use_alignment_bias', True)
 
@@ -94,10 +107,13 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
     def _autoregressive_step(self, sample, i):
         hidden_states = sample["hidden_feature"]
         if i==0:
-            one_hot = sample["one_hot"]
-            obj_embedding = self.obj_vector(one_hot)
-            vertice_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
-            style_emb = vertice_emb
+            # one_hot = sample["one_hot"]
+            # obj_embedding = self.obj_vector(one_hot)
+            # vertice_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
+            # style_emb = vertice_emb
+            # sample["style_emb"] = style_emb
+            style_emb = self._style(sample, hidden_states.device)
+            vertice_emb = style_emb
             sample["style_emb"] = style_emb
             if self.PE is not None:
                 vertices_input = self.PE(style_emb)
@@ -120,16 +136,24 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
         sample["embedded_output"] = vertice_emb
         return sample
 
+    def _style(self, sample, device):
+        if self.obj_vector is None:
+            return torch.zeros(1,1,self.cfg.feature_dim).to(device)
+        one_hot = sample["one_hot"]
+        obj_embedding = self.obj_vector(one_hot)
+        style_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
+        return style_emb
 
     def _teacher_forced_step(self, sample): 
         vertices = sample["gt_vertices"]
         template = sample["template"].unsqueeze(1)
         hidden_states = sample["hidden_feature"]
-        one_hot = sample["one_hot"]
-        obj_embedding = self.obj_vector(one_hot)
+        # one_hot = sample["one_hot"]
+        # obj_embedding = self.obj_vector(one_hot)
 
-        vertice_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
-        style_emb = vertice_emb  
+        # vertice_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
+        # style_emb = vertice_emb  
+        style_emb = self._style(sample, hidden_states.device)
 
         vertices_input = torch.cat((template, vertices[:,:-1]), 1) # shift one position
         vertices_input = vertices_input - template
@@ -433,19 +457,17 @@ class FeedForwardDecoder(nn.Module):
 
     def __init__(self, cfg) -> None:
         super().__init__()
-        self.obj_vector = nn.Linear(cfg.num_training_subjects, cfg.feature_dim, bias=False)
+        self.style_type = cfg.get('style_embedding', 'onehot_linear')
+        self.obj_vector = style_from_cfg(cfg)
         self.style_op = cfg.get('style_op', 'add')
         self.PE = positional_encoding_from_cfg(cfg)
         self.cfg = cfg
 
     def forward(self, sample, train=False, teacher_forcing=True): 
-        one_hot = sample["one_hot"]
-        obj_embedding = self.obj_vector(one_hot)
-        style_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
         sample["hidden_feature"] = sample["seq_encoder_output"]
         hidden_states = self._positional_enc(sample)
 
-        styled_hidden_states = self._style(sample, hidden_states, style_emb)
+        styled_hidden_states = self._style(sample, hidden_states)
 
         decoded_offsets = self._decode(sample, styled_hidden_states)
 
@@ -460,7 +482,7 @@ class FeedForwardDecoder(nn.Module):
         return hidden_states
 
     def _style_dim_factor(self): 
-        if self.style_op == "add":
+        if self.obj_vector is None or self.style_op == "add":
             return 1
         elif self.style_op == "cat":
             return 2
@@ -475,7 +497,12 @@ class FeedForwardDecoder(nn.Module):
     def _total_dim_factor(self): 
         return self._style_dim_factor() * self._pe_dim_factor()
 
-    def _style(self, sample, hidden_states, style_emb): 
+    def _style(self, sample, hidden_states): 
+        if self.obj_vector is None:
+            return hidden_states
+        one_hot = sample["one_hot"]
+        obj_embedding = self.obj_vector(one_hot)
+        style_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
         if self.style_op == "add":
             styled_hidden_states = hidden_states + style_emb
         elif self.style_op == "cat":
@@ -609,11 +636,11 @@ class FlameBertDecoder(BertDecoder):
             # ensure orthonogonality of the 6D rotation
             if self._rotation_representation() in ["6d", "6dof"]:
                 jaw_pose = matrix_to_rotation_6d(rotation_6d_to_matrix(jaw_pose))
-            vector_idx += rotation_rep_size_
-            if self.rotation_representation in ['mat', 'matrix']:
+            elif self._rotation_representation() in ['mat', 'matrix']:
                 jaw_pose = jaw_pose.view(-1, 3, 3) 
                 U, S, Vh = torch.linalg.svd(jaw_pose) # do SVD to ensure orthogonality
                 jaw_pose = U.contiguous()
+            vector_idx += rotation_rep_size_
             
         else: 
             jaw = sample["gt_jaw"][:, :T, ...]

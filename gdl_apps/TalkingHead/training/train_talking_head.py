@@ -103,6 +103,12 @@ def create_experiment_name(cfg, version=0):
         if nl is not None: 
             experiment_name += f"{nl}" 
         
+        style = cfg.model.sequence_decoder.get('style_embedding', 'onehot_linear')
+        if style == 'onehot_linear':
+            pass 
+        elif style == 'none':
+            experiment_name += "_Sno"
+
         if cfg.model.sequence_decoder.get('positional_encoding', False):
             if cfg.model.sequence_decoder.positional_encoding.type == 'PeriodicPositionalEncoding':
                 experiment_name += "PPE"
