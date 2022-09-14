@@ -58,6 +58,13 @@ class MLP(torch.nn.Module):
         layers += [Linear(layer_sizes[-1], self.out_size)]
         self.model = Sequential(*layers)
 
+    def _reset_parameters(self): 
+        for m in self.modules():
+            if isinstance(m, torch.nn.Linear):
+                torch.nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    torch.nn.init.zeros_(m.bias)
+
     def forward(self, x):
         y = self.model(x)
         return y

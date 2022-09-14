@@ -117,9 +117,9 @@ class SimpleTransformerSequenceEncoder(SequenceEncoder):
         # self.pos_encoder = pe_type(d_model=cfg.feature_dim, dropout=cfg.dropout, **pe_kwargs)
         self.pos_encoder = pe_type(d_model=cfg.feature_dim, **pe_kwargs)
 
-        self.input_feature_dim = self.cfg.get('input_feature_dim', None) or self.cfg.feature_dim 
-        if self.input_feature_dim is not None and self.input_feature_dim != self.cfg.feature_dim:
-            self.input_projection = torch.nn.Linear(self.input_feature_dim, self.cfg.feature_dim)
+        self.input_feature_dim_ = self.cfg.get('input_feature_dim', None) or self.cfg.feature_dim 
+        if self.input_feature_dim_ is not None and self.input_feature_dim != self.cfg.feature_dim:
+            self.input_projection = torch.nn.Linear(self.input_feature_dim_, self.cfg.feature_dim)
         else:
             self.input_projection = None
 
@@ -142,7 +142,7 @@ class SimpleTransformerSequenceEncoder(SequenceEncoder):
         return list(self.parameters())
 
     def input_feature_dim(self):
-        return self.input_feature_dim or self.cfg.feature_dim
+        return self.input_feature_dim_ or self.cfg.feature_dim
 
     def output_feature_dim(self):
         return self.cfg.feature_dim * self.pos_encoder.output_size_factor()
