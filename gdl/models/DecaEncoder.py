@@ -66,6 +66,12 @@ class BaseEncoder(nn.Module):
     def _create_encoder(self):
         raise NotImplementedError()
 
+    def reset_last_layer(self):
+        # initialize the last layer to zero to help the network 
+        # predict the initial pose a bit more stable
+        torch.nn.init.constant_(self.layers[-1].weight, 0)
+        torch.nn.init.constant_(self.layers[-1].bias, 0)
+
 
 class ResnetEncoder(BaseEncoder):
     def __init__(self, outsize, last_op=None):
@@ -120,6 +126,13 @@ class SecondHeadResnet(nn.Module):
         #here we NEVER modify the eval/train status of the resnet backbone, only the FC layers of the second head
         self.layers.train(mode)
         return self
+
+    def reset_last_layer(self):
+        # initialize the last layer to zero to help the network 
+        # predict the initial pose a bit more stable
+        torch.nn.init.constant_(self.layers[-1].weight, 0)
+        torch.nn.init.constant_(self.layers[-1].bias, 0)
+
 
 
 class SwinEncoder(BaseEncoder):

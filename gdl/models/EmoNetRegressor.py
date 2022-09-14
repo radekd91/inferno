@@ -55,6 +55,12 @@ class EmoNetRegressor(torch.nn.Module):
         out = self.layers(out[self.feature_to_use])
         return out
 
+    def reset_last_layer(self):
+        # initialize the last layer to zero to help the network 
+        # predict the initial pose a bit more stable
+        torch.nn.init.constant_(self.layers[-1].weight, 0)
+        torch.nn.init.constant_(self.layers[-1].bias, 0)
+
 
 class EmonetRegressorStatic(EmoNetRegressor):
 
@@ -69,3 +75,9 @@ class EmonetRegressorStatic(EmoNetRegressor):
         self.layers.train(mode)
         return self
 
+
+    def reset_last_layer(self):
+        # initialize the last layer to zero to help the network 
+        # predict the initial pose a bit more stable
+        torch.nn.init.constant_(self.layers[-1].weight, 0)
+        torch.nn.init.constant_(self.layers[-1].bias, 0)

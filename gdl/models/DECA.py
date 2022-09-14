@@ -2813,6 +2813,9 @@ class ExpDECA(DECA):
             self.E_expression = EmonetRegressorStatic(self.n_exp_param)
         else:
             raise ValueError(f"Invalid expression backbone: '{self.config.expression_backbone}'")
+        
+        if self.config.get('zero_out_last_enc_layer', False):
+            self.E_expression.reset_last_layer()
 
     def _get_coarse_trainable_parameters(self):
         print("Add E_expression.parameters() to the optimizer")
