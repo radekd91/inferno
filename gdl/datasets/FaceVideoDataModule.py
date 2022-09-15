@@ -1118,7 +1118,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
             vid_meta['height'] = int(vid_info['height'])
             vid_meta['num_frames'] = int(vid_info['nb_frames'])
             vid_meta['bit_rate'] = vid_info['bit_rate']
-            vid_meta['bits_per_raw_sample'] = vid_info['bits_per_raw_sample']
+            if 'bits_per_raw_sample' in vid_info.keys():
+                vid_meta['bits_per_raw_sample'] = vid_info['bits_per_raw_sample']
             self.video_metas += [vid_meta]
 
             # audio codec
