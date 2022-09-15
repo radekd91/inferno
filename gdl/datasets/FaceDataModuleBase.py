@@ -27,6 +27,7 @@ import pytorch_lightning as pl
 import torch
 from PIL import Image
 from skimage.io import imread, imsave
+import skvideo
 from torch.utils.data import DataLoader
 from torchvision.transforms import Resize, Compose, Normalize
 from tqdm import tqdm
@@ -280,11 +281,12 @@ class FaceDataModuleBase(pl.LightningDataModule):
         print(device)
         net, seg_type, batch_size = self._get_segmentation_net(device)
 
-        if self.save_detection_images:
-            ref_im = imread(detection_fnames_or_ims[0])
-        else: 
-            ref_im = detection_fnames_or_ims[0]
-        ref_size = Resize((ref_im.shape[0], ref_im.shape[1]), interpolation=Image.NEAREST)
+        # if self.save_detection_images:
+        #     ref_im = imread(detection_fnames_or_ims[0])
+        # else: 
+        #     ref_im = detection_fnames_or_ims[0]
+        # ref_size = Resize((ref_im.shape[0], ref_im.shape[1]), interpolation=Image.NEAREST)
+        ref_size = None
 
         # transforms = Compose([
         #     Resize((512, 512)),
@@ -293,10 +295,18 @@ class FaceDataModuleBase(pl.LightningDataModule):
         transforms=None
         # batch_size = 16
 
+        if isinstance(detection_fnames_or_ims, types.GeneratorType): 
+            im_read = "skvreader"
+        elif isinstance(detection_fnames_or_ims, (skvideo.io.FFmpegReader)):
+            im_read = "skvffmpeg"
+        else:
+            im_read = 'pil' if not isinstance(detection_fnames_or_ims[0], np.ndarray) else None
+
         dataset = UnsupervisedImageDataset(detection_fnames_or_ims, image_transforms=transforms,
                                            landmark_list = landmarks,
-                                           im_read='pil' if not isinstance(detection_fnames_or_ims[0], np.ndarray) else None)
-        loader = DataLoader(dataset, batch_size=batch_size, num_workers=4, shuffle=False)
+                                           im_read=im_read)
+        loader = DataLoader(dataset, batch_size=batch_size, num_workers=4 if im_read not in ["skvreader", "skvffmpeg"] else 1, 
+            shuffle=False)
 
         # import matplotlib.pyplot as plt
 
@@ -312,10 +322,13 @@ class FaceDataModuleBase(pl.LightningDataModule):
             # start = time.time()
             with torch.no_grad():
                 segmentation = net(images)
-            segmentation = segmentation.cpu()
             # end = time.time()
+
+            if ref_size is None:
+                ref_size = Resize((images.shape[2], images.shape[3]), interpolation=Image.NEAREST)
+
             segmentation = ref_size(segmentation)
-            segmentation = segmentation.numpy()
+            segmentation = segmentation.cpu().numpy()
 
             if self.save_segmentation_frame_by_frame:
                 start = time.time()
@@ -329,17 +342,20 @@ class FaceDataModuleBase(pl.LightningDataModule):
                         segmentation_path = out_segmentation_folder / (Path(image_path).stem + ".pkl")
                     segmentation_path.parent.mkdir(exist_ok=True, parents=True)
                     # im = images[j]
-                    # im = im.transpose([1,2,0])
+                    # im = im.permute(1,2,0).cpu().numpy()
+                    # from gdl.datasets.IO import process_segmentation 
+                    # import matplotlib.pyplot as plt
+                    # from gdl.datasets.FaceVideoDataModule import FaceDataModuleBase
                     # seg = process_segmentation(segmentation[j], seg_type)
                     # imsave("seg.png", seg)
                     # imsave("im.png", im)
-                    # FaceVideoDataModule.vis_parsing_maps(im, segmentation[j], stride=1, save_im=True,
+                    # FaceDataModuleBase.vis_parsing_maps(im, segmentation[j], stride=1, save_im=True,
                     #                  save_path='overlay.png')
                     # plt.figure()
                     # plt.imshow(im)
                     # plt.show()
                     # plt.figure()
-                    # plt.imshow(seg)
+                    # plt.imshow(seg[0])
                     # plt.show()
                     save_segmentation(segmentation_path, segmentation[j], seg_type)
                 print(f" Saving batch {i} took: {end - start}")

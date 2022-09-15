@@ -38,10 +38,22 @@ class UnsupervisedImageDataset(torch.utils.data.Dataset):
             raise RuntimeError("There must be a landmark for every image")
         self.image_transforms = image_transforms
         self.im_read = im_read or 'skio'
+        if self.im_read in ['skvreader', 'skvffmpeg']:
+            self.ordered = True
+            self.last_index = -1
+        else: 
+            self.ordered = False
+        if self.im_read == 'skvffmpeg':
+            self.next_frame_it = self.image_list.nextFrame()
+
         if isinstance(self.image_list, np.ndarray): 
             self.im_read = None
 
     def __getitem__(self, index):
+        if self.ordered: 
+            if index != self.last_index + 1:
+                raise RuntimeError("The images must be read in order because of the skvideo reader")
+            self.last_index = index
         # if index < len(self.image_list):
         #     x = self.mnist_data[index]
         # raise IndexError("Out of bounds")
@@ -60,6 +72,16 @@ class UnsupervisedImageDataset(torch.utils.data.Dataset):
                 img_torch = ToTensor()(img)
                 path = str(self.image_list[index])
                 # path = f"{index:05d}"
+            elif self.im_read == 'skvreader':
+                img = next(self.image_list)
+                img = img.transpose([2, 0, 1]).astype(np.float32)
+                img_torch = torch.from_numpy(img) / 255.
+                path = f"{index:05d}"
+            elif self.im_read == 'skvffmpeg':
+                img = next(self.next_frame_it)
+                img = img.transpose([2, 0, 1]).astype(np.float32)
+                img_torch = torch.from_numpy(img) / 255.
+                path = f"{index:05d}"
             else:
                 raise ValueError(f"Invalid image reading method {self.im_read}")
         except Exception as e:
@@ -84,4 +106,6 @@ class UnsupervisedImageDataset(torch.utils.data.Dataset):
         return batch
 
     def __len__(self):
+        if self.im_read in ['skvreader', 'skvffmpeg']:
+            return self.image_list.getShape()[0]
         return len(self.image_list)

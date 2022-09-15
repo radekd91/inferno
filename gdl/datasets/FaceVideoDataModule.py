@@ -253,10 +253,12 @@ class FaceVideoDataModule(FaceDataModuleBase):
     def _get_segmentation_method(self):
         return ""
 
-    def _get_path_to_sequence_segmentations(self, sequence_id):
+    def _get_path_to_sequence_segmentations(self, sequence_id, use_aligned_videos=False):
         if self.save_detection_images: 
             # landmarks will be saved wrt to the detection images
             segmentation_subfolder = "segmentations" 
+        elif use_aligned_videos: 
+            segmentation_subfolder = "segmentations_aligned"
         else: 
             # landmarks will be saved wrt to the original images (not the detection images), 
             # so better put them in a different folder to make it clear
@@ -441,7 +443,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
         return net, "emo_net"
 
-    def _segment_faces_in_sequence(self, sequence_id):
+    def _segment_faces_in_sequence(self, sequence_id, use_aligned_videos=False):
         video_file = self.video_list[sequence_id]
         print("Segmenting faces in sequence: '%s'" % video_file)
         # suffix = Path(self._video_category(sequence_id)) / 'detections' /self._video_set(sequence_id) / video_file.stem
@@ -449,11 +451,17 @@ class FaceVideoDataModule(FaceDataModuleBase):
         if self.save_detection_images:
             out_detection_folder = self._get_path_to_sequence_detections(sequence_id)
             detections = sorted(list(out_detection_folder.glob("*.png")))
+        elif use_aligned_videos:
+            video_path = str( Path(self.output_dir) / "videos_aligned" / self.video_list[sequence_id])
+            # detections = vreader( video_path)
+            detections = skvideo.io.FFmpegReader(video_path)
+            # detections = detections.astype(np.float32) / 255.
         else: 
             detections = vread( str(self.root_dir / self.video_list[sequence_id]))
             detections = detections.astype(np.float32) / 255.
+            
 
-        out_segmentation_folder = self._get_path_to_sequence_segmentations(sequence_id)
+        out_segmentation_folder = self._get_path_to_sequence_segmentations(sequence_id, use_aligned_videos=use_aligned_videos)
         out_segmentation_folder.mkdir(exist_ok=True, parents=True)
 
         # if self.save_landmarks_frame_by_frame: 

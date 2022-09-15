@@ -157,7 +157,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
         # if cut_out_faces: 
         #     self._cut_out_detected_faces_in_sequence(idx)
         if segment_videos:
-            self._segment_faces_in_sequence(idx)
+            self._segment_faces_in_sequence(idx, use_aligned_videos=True)
             # raise NotImplementedError()
         if reconstruct_faces: 
             # self._reconstruct_faces_in_sequence(idx, 
@@ -196,7 +196,8 @@ class CelebVHQDataModule(FaceVideoDataModule):
         print("Done processing shard")
 
     def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix=""): 
-        assert file_type in ['videos', 'videos_aligned', 'detections', "landmarks", "landmarks_original", "segmentations", 
+        assert file_type in ['videos', 'videos_aligned', 'detections', "landmarks", "landmarks_original", 
+            "segmentations", "segmentations_aligned",
             "emotions", "reconstructions", "audio"]
         video_file = self.video_list[sequence_id]
         if len(method) > 0:
@@ -207,6 +208,42 @@ class CelebVHQDataModule(FaceVideoDataModule):
         suffix = Path(file_type) / video_file.stem
         out_folder = Path(self.output_dir) / suffix
         return out_folder
+
+
+# import imgaug
+
+
+# class CelebVHQDataset(TemporalDatasetBase):
+
+#     def __init__(self,
+#             root_path,
+#             output_dir,
+#             video_list, 
+#             video_metas,
+#             video_indices,
+#             # audio_paths, 
+#             audio_metas,
+#             sequence_length,
+#             audio_noise_prob=0.0,
+#             stack_order_audio=4,
+#             audio_normalization="layer_norm",
+#             landmark_types="mediapipe", 
+#             segmentation_type = "bisenet",
+#             landmark_source = "original",
+#             segmentation_source = "original",
+#             occlusion_length=0,
+#             occlusion_probability_mouth = 0.0,
+#             occlusion_probability_left_eye = 0.0,
+#             occlusion_probability_right_eye = 0.0,
+#             occlusion_probability_face = 0.0,
+#             image_size=None, 
+#             transforms : imgaug.augmenters.Augmenter = None,
+#             hack_length=False,
+#     ) -> None:
+#         super().__init__()
+
+
+
 
 def main(): 
     root_dir = Path("/ps/project/EmotionalFacialAnimation/data/celebvhq/auto_processed")
