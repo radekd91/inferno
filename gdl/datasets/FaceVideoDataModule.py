@@ -1116,7 +1116,12 @@ class FaceVideoDataModule(FaceDataModuleBase):
             vid_meta['fps'] = vid_info['avg_frame_rate']
             vid_meta['width'] = int(vid_info['width'])
             vid_meta['height'] = int(vid_info['height'])
-            vid_meta['num_frames'] = int(vid_info['nb_frames'])
+            if 'nb_frames' in vid_info.keys():
+                vid_meta['num_frames'] = int(vid_info['nb_frames'])
+            elif 'num_frames' in vid_info.keys():
+                vid_meta['num_frames'] = int(vid_info['num_frames'])
+            else: 
+                vid_meta['num_frames'] = 0
             vid_meta['bit_rate'] = vid_info['bit_rate']
             if 'bits_per_raw_sample' in vid_info.keys():
                 vid_meta['bits_per_raw_sample'] = vid_info['bits_per_raw_sample']

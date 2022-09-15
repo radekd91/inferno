@@ -48,11 +48,14 @@ def main():
     # model_name = "2022_09_12_19-10-15_1345185436813455300_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameBertDecoder4PPE_Tff_predEJ_LV"
     # model_name = "2022_09_12_15-46-18_3526214713565015856_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameFormerDecoder1PPE_NAB_predEJ_LV"
     # model_name = "2022_09_13_08-44-20_-4903461877341645113_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameBertDecoder1NPE_predEJ_LV"
+    # model_name = "2022_09_14_15-02-46_-2516580837500186411_FaceFormer_Facef_Awav2vec2T_Elinear_DMLPDecoderNPE_predV_LV" # mlp
+    # model_name = "2022_09_14_15-04-42_-6705703325717568620_FaceFormer_Facef_Awav2vec2T_Elinear_DLinearDecoderNPE_predV_LV" # linear
 
     # models without conditionng
     # model_name = "2022_09_14_10-01-55_4418334335717242648_FaceFormer_Facef_Awav2vec2T_Elinear_DBertDecoder1_SnoPPE_Tff_predV_LV"
-    model_name = "2022_09_14_10-02-06_7507315077752011123_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameBertDecoder1_SnoNPE_Tff_predEJ_LV"
-
+    # model_name = "2022_09_14_10-02-06_7507315077752011123_FaceFormer_Facef_Awav2vec2T_Elinear_DFlameBertDecoder1_SnoNPE_Tff_predEJ_LV"
+    model_name = "2022_09_14_15-01-52_435416857314710552_FaceFormer_Facef_Awav2vec2T_Elinear_DLinearDecoder_SnoNPE_predV_LV" # linear
+    # model_name = "2022_09_14_15-01-52_-8313895241432443176_FaceFormer_Facef_Awav2vec2T_Elinear_DMLPDecoder_SnoNPE_predV_LV" # mlp
 
     # add argparser here
     parser = argparse.ArgumentParser(description='Talking Head') 
