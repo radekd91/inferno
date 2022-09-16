@@ -143,6 +143,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
             recognize_faces=True,
             # cut_out_faces=True,
             segment_videos=True, 
+            detect_aligned_landmarks=False,
             reconstruct_faces=False,):
         if extract_audio: 
             self._extract_audio_for_video(idx)
@@ -159,6 +160,9 @@ class CelebVHQDataModule(FaceVideoDataModule):
         if segment_videos:
             self._segment_faces_in_sequence(idx, use_aligned_videos=True)
             # raise NotImplementedError()
+        if detect_aligned_landmarks: 
+            self._detect_landmarkes_in_aligned_sequence(idx)
+
         if reconstruct_faces: 
             # self._reconstruct_faces_in_sequence(idx, 
             #     reconstruction_net=self._get_reconstruction_network('emoca'))
@@ -176,7 +180,9 @@ class CelebVHQDataModule(FaceVideoDataModule):
   
 
     def _process_shard(self, videos_per_shard, shard_idx, extract_audio=True,
-        restore_videos=True, detect_landmarks=True, segment_videos=True, reconstruct_faces=False,
+        restore_videos=True, detect_landmarks=True, segment_videos=True, 
+        detect_aligned_landmarks=False,
+        reconstruct_faces=False,
     ):
         num_shards = self._get_num_shards(videos_per_shard)
         start_idx = shard_idx * videos_per_shard
@@ -187,16 +193,26 @@ class CelebVHQDataModule(FaceVideoDataModule):
         idxs = np.arange(self.num_sequences, dtype=np.int32)
         np.random.seed(0)
         np.random.shuffle(idxs)
-        
+
+        if detect_aligned_landmarks: 
+            self.face_detector_type = 'fan'
+            self._instantiate_detector(overwrite=True)
+
         for i in range(start_idx, end_idx):
             idx = idxs[i]
-            self._process_video(idx, extract_audio=extract_audio, restore_videos=restore_videos,
-                detect_landmarks=detect_landmarks, segment_videos=segment_videos, reconstruct_faces=reconstruct_faces)
+            self._process_video(idx, 
+                extract_audio=extract_audio, 
+                restore_videos=restore_videos,
+                detect_landmarks=detect_landmarks, 
+                segment_videos=segment_videos, 
+                detect_aligned_landmarks=detect_aligned_landmarks,
+                reconstruct_faces=reconstruct_faces)
             
         print("Done processing shard")
 
     def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix=""): 
-        assert file_type in ['videos', 'videos_aligned', 'detections', "landmarks", "landmarks_original", 
+        assert file_type in ['videos', 'videos_aligned', 'detections', 
+            "landmarks", "landmarks_original", "landmarks_aligned",
             "segmentations", "segmentations_aligned",
             "emotions", "reconstructions", "audio"]
         video_file = self.video_list[sequence_id]

@@ -46,6 +46,9 @@ import skvideo
 import torch.nn.functional as F
 
 from gdl.datasets.VideoFaceDetectionDataset import VideoFaceDetectionDataset
+import types
+
+from gdl.utils.FaceDetector import save_landmark, save_landmark_v2
 
 # from memory_profiler import profile
 
@@ -230,17 +233,22 @@ class FaceVideoDataModule(FaceDataModuleBase):
     def _get_path_to_sequence_frames(self, sequence_id):
         return self._get_path_to_sequence_files(sequence_id, "videos")
 
+    def _get_path_to_aligned_videos(self, sequence_id):
+        return self._get_path_to_sequence_files(sequence_id, "videos_aligned").with_suffix(".mp4")
+
     def _get_path_to_sequence_detections(self, sequence_id): 
         return self._get_path_to_sequence_files(sequence_id, "detections")
 
     def _get_landmark_method(self):
         return "" # for backwards compatibility (AffectNet, ...), the inheriting classes should specify the method
 
-    def _get_path_to_sequence_landmarks(self, sequence_id):
+    def _get_path_to_sequence_landmarks(self, sequence_id, use_aligned_videos):
 
         if self.save_detection_images: 
             # landmarks will be saved wrt to the detection images
             landmark_subfolder = "landmarks" 
+        elif use_aligned_videos: 
+            landmark_subfolder = "landmarks_aligned"
         else: 
             # landmarks will be saved wrt to the original images (not the detection images), 
             # so better put them in a different folder to make it clear
@@ -410,6 +418,141 @@ class FaceVideoDataModule(FaceDataModuleBase):
                                             detection_fnames_all, landmark_fnames_all, centers_all, sizes_all, fid)
         print("Done detecting faces in sequence: '%s'" % self.video_list[sequence_id])
         return 
+
+
+    # @profile
+    def _detect_landmarkes_in_aligned_sequence(self, sequence_id):
+        video_file = self._get_path_to_aligned_videos(sequence_id)
+        print("Detecting landmarks in aligned sequence: '%s'" % video_file)
+
+        out_landmark_folder = self._get_path_to_sequence_landmarks(sequence_id, use_aligned_videos=True)
+        out_landmark_folder.mkdir(exist_ok=True, parents=True)
+
+        if self.save_landmarks_one_file: 
+            overwrite = False
+            if not overwrite and (out_landmark_folder / "landmarks.pkl").is_file() and (out_landmark_folder / "landmarks_original.pkl").is_file() and (out_landmark_folder / "landmark_types.pkl").is_file(): 
+                print("Files with landmarks already found in '%s'. Skipping" % out_landmark_folder)
+                return
+
+        # start_fid = 0
+
+        if self.unpack_videos:
+            raise NotImplementedError("Not implemented and should not be. Unpacking videos into a sequence of images is pricy.")
+            # frame_list = self.frame_lists[sequence_id]
+            # fid = 0
+            # if len(frame_list) == 0:
+            #     print("Nothing to detect in: '%s'. All frames have been processed" % self.video_list[sequence_id])
+            # for fid, frame_fname in enumerate(tqdm(range(start_fid, len(frame_list)))):
+
+            #     # if fid % detector_instantion_frequency == 0:
+            #     #     self._instantiate_detector(overwrite=True)
+
+            #     self._detect_faces_in_image_wrapper(frame_list, fid, out_detection_folder, out_landmark_folder, out_file_boxes,
+            #                                 centers_all, sizes_all, detection_fnames_all, landmark_fnames_all)
+
+        else: 
+            # if start_fid == 0:
+                # videogen =  vreader(str(video_name))
+            videogen =  skvideo.io.FFmpegReader(str(video_file))
+                # videogen =  vread(str(video_name))
+                # for i in range(start_fid): 
+                    # _discarded_frame = next(videogen)
+            # else: 
+            #     videogen =  vread(str(video_name))
+            self._detect_landmarks_no_face_detection(videogen, out_landmark_folder)
+
+
+    def _detect_landmarks_no_face_detection(self, detection_fnames_or_ims, out_landmark_folder, path_depth = 0):
+        """
+        Just detects landmarks without face detection. The images should already be cropped to the face.
+        """
+        import time
+        if self.save_landmarks_one_file: 
+            overwrite = False 
+            single_out_file = out_landmark_folder / "landmarks.pkl"
+            if single_out_file.is_file() and not overwrite:
+                print(f"Landmarks already found in {single_out_file}, skipping")
+                return
+
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        print(device)
+        # net, landmark_type, batch_size = self._get_segmentation_net(device)
+
+        # if self.save_detection_images:
+        #     ref_im = imread(detection_fnames_or_ims[0])
+        # else: 
+        #     ref_im = detection_fnames_or_ims[0]
+        # ref_size = Resize((ref_im.shape[0], ref_im.shape[1]), interpolation=Image.NEAREST)
+        # ref_size = None
+
+        optimal_landmark_detector_size = self.face_detector.optimal_landmark_detector_im_size()
+
+        transforms = Compose([
+            Resize((optimal_landmark_detector_size, optimal_landmark_detector_size)),
+        #     Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        ])
+        # transforms=None
+        batch_size = 64
+
+        if isinstance(detection_fnames_or_ims, types.GeneratorType): 
+            im_read = "skvreader"
+        elif isinstance(detection_fnames_or_ims, (skvideo.io.FFmpegReader)):
+            im_read = "skvffmpeg"
+        else:
+            im_read = 'pil' if not isinstance(detection_fnames_or_ims[0], np.ndarray) else None
+
+        dataset = UnsupervisedImageDataset(detection_fnames_or_ims, image_transforms=transforms,
+                                           im_read=im_read)
+        num_workers = 4 if im_read not in ["skvreader", "skvffmpeg"] else 1 # videos can only be read on 1 thread frame by frame
+        loader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
+
+        # import matplotlib.pyplot as plt
+
+        if self.save_landmarks_one_file: 
+            # out_landmark_names = []
+            out_landmarks = []
+            out_landmark_types = []
+            out_landmarks_scores = []
+
+        for i, batch in enumerate(tqdm(loader)):
+            # facenet_pytorch expects this stanadrization for the input to the net
+            # images = fixed_image_standardization(batch['image'].to(device))
+            images = batch['image'].cuda()
+            # start = time.time()
+            with torch.no_grad():
+                landmarks, landmark_scores = self.face_detector.landmarks_from_batch_no_face_detection(images)
+            # end = time.time()
+
+            # import matplotlib.pyplot as plt 
+            # plt.imshow(images[0].cpu().numpy().transpose(1,2,0))
+            # # plot the landmark points 
+            # plt.scatter(landmarks[0, :, 0] * images.shape[3], landmarks[0, :, 1] * images.shape[2], s=10, marker='.', c='r')
+            # plt.show()
+
+            if self.save_landmarks_frame_by_frame:
+                start = time.time()
+                for j in range(landmarks.shape[0]):
+                    image_path = batch['path'][j]
+                    # if isinstance(out_segmentation_folder, list):
+                    if path_depth > 0:
+                        rel_path = Path(image_path).parent.relative_to(Path(image_path).parents[path_depth])
+                        landmark_path = out_landmark_folder / rel_path / (Path(image_path).stem + ".pkl")
+                    else:
+                        landmark_path = out_landmark_folder / (Path(image_path).stem + ".pkl")
+                    landmark_path.parent.mkdir(exist_ok=True, parents=True)
+                    save_landmark_v2(landmark_path, landmarks[j], landmark_scores[j], self.face_detector.landmark_type())
+                print(f" Saving batch {i} took: {end - start}")
+                end = time.time()
+            if self.save_landmarks_one_file: 
+                out_landmarks += [landmarks]
+                out_landmarks_scores += [landmark_scores]
+                out_landmark_types += [self.face_detector.landmark_type()] * len(landmarks)
+
+        if self.save_landmarks_one_file: 
+            out_landmarks = np.concatenate(out_landmarks, axis=0)
+            out_landmarks_scores = np.concatenate(out_landmarks_scores, axis=0)
+            FaceVideoDataModule.save_landmark_list_v2(single_out_file, out_landmarks, landmark_scores, out_landmark_types)
+            print("Landmarks saved to %s" % single_out_file)
 
 
     def _cut_out_detected_faces_in_sequence(self, sequence_id):

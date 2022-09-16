@@ -212,7 +212,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
             frame_fname =Path(f"{fid:05d}.png")
             if isinstance(frame_list, np.ndarray):
                 frame = frame_list[fid]
-            else:
+            else:   
                 frame = next(frame_list)
             detection_ims, centers, sizes, bbox_type, landmarks, orig_landmarks = self._detect_faces_in_image(frame)
             # if len(detection_ims) > 0: # debug visualization
@@ -452,6 +452,23 @@ class FaceDataModuleBase(pl.LightningDataModule):
         with open(fname, "rb" ) as f:
             landmarks = pkl.load(f)
         return landmarks
+
+
+    @staticmethod
+    def save_landmark_list_v2(fname, landmarks, landmark_confidences, landmark_types):
+        with open(fname, "wb" ) as f:
+            pkl.dump(landmarks, f)
+            pkl.dump(landmark_confidences, f)
+            pkl.dump(landmark_types, f)
+
+    @staticmethod
+    def load_landmark_list_v2(fname):
+        with open(fname, "rb" ) as f:
+            landmarks = pkl.load(f)
+            landmark_confidences = pkl.load(f)
+            landmark_types = pkl.load(f)
+        return landmarks, landmark_confidences, landmark_types
+
 
     @staticmethod
     def save_detections(fname, detection_fnames, landmark_fnames, centers, sizes, last_frame_id):
