@@ -79,6 +79,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
                  save_segmentation_one_file=False,    
                  bb_center_shift_x=0, # in relative numbers
                  bb_center_shift_y=0, # in relative numbers (i.e. -0.1 for 10% shift upwards, ...)
+                 include_processed_audio = True,
+                 include_raw_audio = True,
                  ):
         super().__init__(root_dir, output_dir,
                          processed_subfolder=processed_subfolder,
@@ -101,7 +103,6 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # self._instantiate_detector()
         # self.face_recognition = InceptionResnetV1(pretrained='vggface2').eval().to(device)
 
-
         # self.version = 2
         self.version = 3
 
@@ -116,6 +117,9 @@ class FaceVideoDataModule(FaceDataModuleBase):
         self.detection_fnames = []
         self.detection_centers = []
         self.detection_sizes = []
+
+        self.include_processed_audio = include_processed_audio
+        self.include_raw_audio = include_raw_audio
 
     @property
     def metadata_path(self):

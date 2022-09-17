@@ -606,23 +606,11 @@ class LRS3DataModule(FaceVideoDataModule):
                           batch_size=self.batch_size_test, drop_last=self.drop_last)
 
 
-class TemporalDatasetBase(torch.utils.data.Dataset):
-# class TemporalDatasetBase(EmotionalImageDatasetBase):
-
-    def __init__(self) -> None:
-        super().__init__()
-
-    def _augment_sequence_sample(self, sample):
-        raise NotImplementedError()
-
-    def visualize_sample(self, sample):
-        raise NotImplementedError()
-
-
 
 from gdl.transforms.keypoints import KeypointNormalization, KeypointScale
+from gdl.datasets.VideoDatasetBase import AbstractVideoDataset
 
-class LRS3Dataset(TemporalDatasetBase):
+class LRS3Dataset(AbstractVideoDataset):
 
     def __init__(self,
             root_path,

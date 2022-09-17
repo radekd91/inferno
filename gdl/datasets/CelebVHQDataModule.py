@@ -2,12 +2,18 @@ from pathlib import Path
 from gdl.datasets.FaceDataModuleBase import FaceDataModuleBase
 from gdl.datasets.FaceVideoDataModule import FaceVideoDataModule 
 import numpy as np
+import torch
+from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
+from gdl.transforms.imgaug import create_image_augmenter
 
 
 
 class CelebVHQDataModule(FaceVideoDataModule): 
 
-    def __init__(self, root_dir, output_dir, 
+    def __init__(self, 
+            ## begin args of FaceVideoDataModule
+            root_dir, 
+            output_dir, 
             processed_subfolder=None, 
             face_detector='mediapipe', 
             # landmarks_from='sr_res',
@@ -34,6 +40,14 @@ class CelebVHQDataModule(FaceVideoDataModule):
             device=None,
             augmentation=None,
             drop_last=True,
+            include_processed_audio = True,
+            include_raw_audio = True,
+            ## end args of FaceVideoDataModule
+            ## begin CelebVHQDataModule specific params
+            training_sampler="uniform",
+            landmark_types = None,
+            landmark_sources=None,
+            segmentation_source=None,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, 
@@ -47,6 +61,8 @@ class CelebVHQDataModule(FaceVideoDataModule):
             save_segmentation_one_file=True,
             bb_center_shift_x=bb_center_shift_x, # in relative numbers
             bb_center_shift_y=bb_center_shift_y, # in relative numbers (i.e. -0.1 for 10% shift upwards, ...)
+            include_processed_audio = include_processed_audio,
+            include_raw_audio = include_raw_audio,
             )
         # self.detect_landmarks_on_restored_images = landmarks_from
         self.batch_size_train = batch_size_train
@@ -68,8 +84,14 @@ class CelebVHQDataModule(FaceVideoDataModule):
         self.occlusion_settings_test = occlusion_settings_test or {}
         self.augmentation = augmentation
 
+        self.training_sampler = training_sampler.lower()
         self.annotation_json_path = Path(root_dir).parent / "celebvhq_info.json" 
         assert self.annotation_json_path.is_file()
+
+        self.landmark_types = landmark_types or ["mediapipe", "fan"]
+        self.landmark_sources = landmark_sources or ["original", "aligned"]
+        self.segmentation_source = segmentation_source or "aligned"
+        self.use_original_video = False
 
     def prepare_data(self):
         # super().prepare_data()
@@ -226,44 +248,272 @@ class CelebVHQDataModule(FaceVideoDataModule):
         return out_folder
 
 
-# import imgaug
+    def _get_subsets(self, set_type=None):
+        set_type = set_type or "original"
+        set_type = set_type or "original"
+        if "specific_video" in set_type: 
+            res = set_type.split("_")
+            video = res[-1]
+            train = float(res[-3])
+            val = float(res[-2])
+            train = train / (train + val)
+            val = 1 - train
+            indices = [i for i in range(len(self.video_list)) if self._video_set(i) + "/" + self._video_supername(i) == video]
+
+            training = indices[:int(train * len(indices))] 
+            validation = indices[int(train * len(indices)):]
+            import random
+            seed = 4
+            random.Random(seed).shuffle(training)
+            random.Random(seed).shuffle(validation)
+            return training, validation, []
+        elif "random" in set_type:
+            res = set_type.split("_")
+            assert len(res) >= 3, "Specify the train/val/test split by 'random_train_val_test' to the set_type"
+            train = int(res[1])
+            val = int(res[2])
+            if len(res) == 4:
+                test = int(res[3])
+            else:
+                test = 0
+            train_ = train / (train + val + test)
+            val_ = val / (train + val + test)
+            test_ = 1 - train_ - val_
+            indices = [i for i in range(len(self.video_list))]
+            import random
+            seed = 4
+            random.Random(seed).shuffle(indices)
+            num_train = int(train_ * len(indices))
+            num_val = int(val_ * len(indices))
+            num_test = len(indices) - num_train - num_val
+
+            training = indices[:num_train] 
+            validation = indices[num_train:(num_train + num_val)]
+            test = indices[(num_train + num_val):]
+            return training, validation, test
+        elif set_type == "all":
+            pretrain = list(range(len(self.video_list)))
+            trainval = list(range(len(self.video_list)))
+            test = list(range(len(self.video_list)))
+            return pretrain, trainval, test
+        else: 
+            raise ValueError(f"Unknown set type: {set_type}")
 
 
-# class CelebVHQDataset(TemporalDatasetBase):
+    def setup(self, stage=None):
+        train, val, test = self._get_subsets(self.split)
+        training_augmenter = create_image_augmenter(self.image_size, self.augmentation)
+        self.training_set = CelebVHQDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, train, 
+                self.audio_metas, self.sequence_length_train, image_size=self.image_size, 
+                transforms=training_augmenter,
+                **self.occlusion_settings_train,
+                hack_length='auto',
+                use_original_video=self.use_original_video,
+                include_processed_audio = self.include_processed_audio,
+                include_raw_audio = self.include_raw_audio,
+                landmark_types=self.landmark_types,
+                landmark_source=self.landmark_sources,
+                segmentation_source=self.segmentation_source,
+              )
+                    
+        self.validation_set = CelebVHQDataset(self.root_dir, self.output_dir, 
+                self.video_list, self.video_metas, val, self.audio_metas, 
+                self.sequence_length_val, image_size=self.image_size,  
+                **self.occlusion_settings_val,
+                hack_length=False, 
+                use_original_video=self.use_original_video,
+                include_processed_audio = self.include_processed_audio,
+                include_raw_audio = self.include_raw_audio,
+                landmark_types=self.landmark_types,
+                landmark_source=self.landmark_sources,
+                segmentation_source=self.segmentation_source,
+            )
 
-#     def __init__(self,
-#             root_path,
-#             output_dir,
-#             video_list, 
-#             video_metas,
-#             video_indices,
-#             # audio_paths, 
-#             audio_metas,
-#             sequence_length,
-#             audio_noise_prob=0.0,
-#             stack_order_audio=4,
-#             audio_normalization="layer_norm",
-#             landmark_types="mediapipe", 
-#             segmentation_type = "bisenet",
-#             landmark_source = "original",
-#             segmentation_source = "original",
-#             occlusion_length=0,
-#             occlusion_probability_mouth = 0.0,
-#             occlusion_probability_left_eye = 0.0,
-#             occlusion_probability_right_eye = 0.0,
-#             occlusion_probability_face = 0.0,
-#             image_size=None, 
-#             transforms : imgaug.augmenters.Augmenter = None,
-#             hack_length=False,
-#     ) -> None:
-#         super().__init__()
+        self.test_set = CelebVHQDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
+                self.sequence_length_test, image_size=self.image_size, 
+                **self.occlusion_settings_test,
+                hack_length=False, 
+                use_original_video=self.use_original_video,
+                include_processed_audio = self.include_processed_audio,
+                include_raw_audio = self.include_raw_audio,
+                landmark_types=self.landmark_types,
+                landmark_source=self.landmark_sources,
+                segmentation_source=self.segmentation_source,
+                )
+
+    def train_sampler(self):
+        if self.training_sampler == "uniform":
+            sampler = None
+        else:
+            raise ValueError(f"Invalid sampler value: '{self.training_sampler}'")
+        return sampler
+
+    def train_dataloader(self):
+        sampler = self.train_sampler()
+        dl =  torch.utils.data.DataLoader(self.training_set, shuffle=sampler is None, num_workers=self.num_workers, pin_memory=True,
+                        batch_size=self.batch_size_train, drop_last=self.drop_last, sampler=sampler)
+        return dl
+
+    def val_dataloader(self):
+        dl = torch.utils.data.DataLoader(self.validation_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                          batch_size=self.batch_size_val, 
+                        #   drop_last=self.drop_last
+                          drop_last=False
+                          )
+        if hasattr(self, "validation_set_2"): 
+            dl2 =  torch.utils.data.DataLoader(self.validation_set_2, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                            batch_size=self.batch_size_val, 
+                            # drop_last=self.drop_last, 
+                            drop_last=False
+                            )
+            return [dl, dl2]
+        return dl 
+
+    def test_dataloader(self):
+        return torch.utils.data.DataLoader(self.test_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                          batch_size=self.batch_size_test, drop_last=self.drop_last)
+
+import imgaug
+from gdl.datasets.VideoDatasetBase import VideoDatasetBase
+
+class CelebVHQDataset(VideoDatasetBase):
+
+    def __init__(self,
+            root_path,
+            output_dir,
+            video_list, 
+            video_metas,
+            video_indices,
+            # audio_paths, 
+            audio_metas,
+            sequence_length,
+            audio_noise_prob=0.0,
+            stack_order_audio=4,
+            audio_normalization="layer_norm",
+            landmark_types=None, 
+            segmentation_type = "bisenet",
+            landmark_source = "original",
+            segmentation_source = "aligned",
+            occlusion_length=0,
+            occlusion_probability_mouth = 0.0,
+            occlusion_probability_left_eye = 0.0,
+            occlusion_probability_right_eye = 0.0,
+            occlusion_probability_face = 0.0,
+            image_size=None, 
+            transforms : imgaug.augmenters.Augmenter = None,
+            hack_length=False,
+            use_original_video=False,
+            include_processed_audio = True,
+            include_raw_audio = True,
+            
+    ) -> None:
+        landmark_types = landmark_types or ["mediapipe", "fan"]
+        super().__init__(
+            root_path,
+            output_dir,
+            video_list, 
+            video_metas,
+            video_indices,
+            # audio_paths, 
+            audio_metas,
+            sequence_length,
+            audio_noise_prob=audio_noise_prob,
+            stack_order_audio=stack_order_audio,
+            audio_normalization=audio_normalization,
+            landmark_types=landmark_types, 
+            segmentation_type = segmentation_type,
+            landmark_source = landmark_source,
+            segmentation_source = segmentation_source,
+            occlusion_length=occlusion_length,
+            occlusion_probability_mouth = occlusion_probability_mouth,
+            occlusion_probability_left_eye = occlusion_probability_left_eye,
+            occlusion_probability_right_eye = occlusion_probability_right_eye,
+            occlusion_probability_face = occlusion_probability_face,
+            image_size=image_size, 
+            transforms = transforms,
+            hack_length=hack_length,
+            use_original_video=use_original_video,
+            include_processed_audio = include_processed_audio,
+            include_raw_audio = include_raw_audio,
+        )
+
+
+    def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
+        landmark_dict = {}
+        landmark_validity_dict = {}
+        for lti, landmark_type in enumerate(self.landmark_types):
+            landmark_source = self.landmark_source[lti]
+            # landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}" / landmark_type /  self.video_list[self.video_indices[index]]).with_suffix("")
+            landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}_{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
+            landmarks = []
+            if landmark_source == "original":
+                # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{landmark_source}.pkl")  
+                landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_aligned_video.pkl")  
+                # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_aligned_video_smoothed.pkl")  
+                landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
+                landmarks = landmark_list[start_frame: self.sequence_length + start_frame] 
+                landmarks = np.stack(landmarks, axis=0)
+
+                landmark_valid_indices = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_alignment_used_frame_indices.pkl")  
+                landmark_validity = np.zeros((len(landmark_list), 1), dtype=np.float32)
+                landmark_validity[landmark_valid_indices] = 1.0
+                landmark_validity = landmark_validity[start_frame: self.sequence_length + start_frame]
+
+            elif landmark_source == "aligned":
+                landmarks, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
+
+                # scale by image size 
+                landmarks = landmarks * sample["video"].shape[1]
+
+                landmarks = landmarks[start_frame: self.sequence_length + start_frame]
+                # landmark_confidences = landmark_confidences[start_frame: self.sequence_length + start_frame]
+                # landmark_validity = landmark_confidences
+                landmark_validity = None
+
+            # landmark_validity = np.ones(len(landmarks), dtype=np.bool)
+            # for li in range(len(landmarks)): 
+            #     if len(landmarks[li]) == 0: # dropped detection
+            #         if landmark_type == "mediapipe":
+            #             # [WARNING] mediapipe landmarks coordinates are saved in the scale [0.0-1.0] (for absolute they need to be multiplied by img size)
+            #             landmarks[li] = np.zeros((478, 3))
+            #         elif landmark_type in ["fan", "kpt68"]:
+            #             landmarks[li] = np.zeros((68, 2))
+            #         else: 
+            #             raise ValueError(f"Unknown landmark type '{landmark_type}'")
+            #         landmark_validity[li] = False
+            #     elif len(landmarks[li]) > 1: # multiple faces detected
+            #         landmarks[li] = landmarks[li][0] # just take the first one for now
+            #     else: \
+            #         landmarks[li] = landmarks[li][0] 
+
+            # landmarks = np.stack(landmarks, axis=0)
+
+            # pad landmarks with zeros if necessary to match the desired video length
+            if landmarks.shape[0] < self.sequence_length:
+                landmarks = np.concatenate([landmarks, np.zeros(
+                    (self.sequence_length - landmarks.shape[0], *landmarks.shape[1:]), 
+                    dtype=landmarks.dtype)], axis=0)
+                landmark_validity = np.concatenate([landmark_validity, np.zeros((self.sequence_length - landmark_validity.shape[0]), 
+                    dtype=landmark_validity.dtype)], axis=0)
+
+            landmark_dict[landmark_type] = landmarks
+            if landmark_validity is not None:
+                landmark_validity_dict[landmark_type] = landmark_validity
+
+        sample["landmarks"] = landmark_dict
+        sample["landmarks_validity"] = landmark_validity_dict
+        return sample
+
+
+    def _path_to_segmentations(self, index): 
+        return (Path(self.output_dir) / f"segmentations_{self.segmentation_source}_{self.segmentation_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
 
 
 
 
 def main(): 
-    root_dir = Path("/ps/project/EmotionalFacialAnimation/data/celebvhq/auto_processed")
-    output_dir = Path("/ps/scratch/rdanecek/data/celebvhq/")
+    root_dir = Path("/ps/project/EmotionalFacialAnimation/data/celebvhq/auto_processed_online_25fps")
+    output_dir = Path("/is/cluster/work/rdanecek/data/celebvhq/")
 
     # root_dir = Path("/ps/project/EmotionalFacialAnimation/data/lrs2/mvlrs_v1")
     # output_dir = Path("/ps/scratch/rdanecek/data/lrs2")
@@ -271,33 +521,47 @@ def main():
     processed_subfolder = "processed"
 
     # Create the dataset
-    dm = CelebVHQDataModule(root_dir, output_dir, processed_subfolder)
+    dm = CelebVHQDataModule(
+        root_dir, output_dir, processed_subfolder,
+        split="all",
+        image_size=224, 
+        scale=1.25, 
+        processed_video_size=256,
+        batch_size_train=2,
+        batch_size_val=2,
+        batch_size_test=2,
+        sequence_length_train=16,
+        sequence_length_val=16,
+        sequence_length_test=16,
+        num_workers=0,            
+        include_processed_audio = False,
+        include_raw_audio = False,
+    )
 
     # Create the dataloader
     dm.prepare_data() 
+    dm.setup() 
 
-    from skvideo.io import vread 
+    dl = dm.train_dataloader()
+    dataset = dm.training_set
 
-    # frames = vread(str(dm.root_dir / dm.video_list[0]))
-    # audio_file = dm._get_path_to_sequence_audio(0)
+    for i in range(10): 
+        dataset.visualize_sample(i)
 
-    # # read audio with scipy 
-    # import scipy.io.wavfile as wavfile
-    # import scipy.signal as signal
-    # import numpy as np
-    # #  read audio
-    # fs, audio = wavfile.read(audio_file)
+    # from tqdm import auto
+    
+    # for bi, batch in enumerate(auto.tqdm( dl)):
+    #     print(batch.keys())
 
-    # dm._extract_audio()
-    # dm._detect_faces()
+    #     break
 
     # dm._segment_faces_in_sequence(0)
-    idxs = np.arange(dm.num_sequences)
-    np.random.seed(0)
-    np.random.shuffle(idxs)
+    # idxs = np.arange(dm.num_sequences)
+    # np.random.seed(0)
+    # np.random.shuffle(idxs)
 
-    for i in range(dm.num_sequences):
-        dm._deep_restore_sequence_sr_res(idxs[i])
+    # for i in range(dm.num_sequences):
+    #     dm._deep_restore_sequence_sr_res(idxs[i])
 
     # dm.setup()
 
