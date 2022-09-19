@@ -57,6 +57,10 @@ class VideoDatasetBase(AbstractVideoDataset):
             use_original_video=True,
             include_processed_audio = True,
             include_raw_audio = True,
+            temporal_split_start=None,
+            temporal_split_end=None,
+            preload_videos=False,
+            inflate_by_video_size=False,
         ) -> None:
         super().__init__()
         self.root_path = root_path
@@ -120,6 +124,226 @@ class VideoDatasetBase(AbstractVideoDataset):
         assert self.occlusion_length[0] >= 0
         # assert self.occlusion_length[1] <= self.sequence_length + 1
 
+        self.temporal_split_start = temporal_split_start
+        self.temporal_split_end = temporal_split_end
+
+        self.preload_videos = preload_videos
+        self.inflate_by_video_size = inflate_by_video_size
+
+        self.video_cache = {}
+        self.seg_cache = {}
+        if self.preload_videos:
+            self._preload_videos()
+            
+        self.video_sample_indices = None
+        if self.inflate_by_video_size: 
+            self._inflate_by_video_size()
+
+    def _preload_videos(self): 
+        # indices = np.unique(self.video_indices)
+        for i in range(len(self.video_indices)):
+            video_path = str(self._get_video_path(i))
+            if video_path not in self.video_cache:
+                self.video_cache[video_path] = vread(video_path)
+                self.seg_cache[video_path] = self._read_segmentations(i)
+    
+
+        print("Video cache loaded")
+
+    def _inflate_by_video_size(self):
+        inflated_video_indices = []
+        video_sample_indices = []
+        for i in range(len(self.video_indices)):
+        # for i in self.video_indices:
+            idx = self.video_indices[i]
+            num_frames = self._get_num_frames(i)
+            if self.temporal_split_start is not None and self.temporal_split_end is not None:
+                num_frames = int((self.temporal_split_end - self.temporal_split_start) * num_frames)
+            num_samples_in_video = num_frames // self.sequence_length
+            num_samples_in_video = max(1, num_samples_in_video)
+            inflated_video_indices += [idx] * num_samples_in_video
+            video_sample_indices += list(range(num_samples_in_video))
+        self.video_indices = np.array(inflated_video_indices, dtype=np.int32)
+        self.video_sample_indices = np.array(video_sample_indices, dtype=np.int32)
+
+    def __getitem__(self, index):
+        max_attempts = 10
+        for i in range(max_attempts):
+            # try: 
+                return self._getitem(index)
+            # except Exception as e:
+            #     old_index = index
+            #     index = np.random.randint(0, self.__len__())
+            #     tb = traceback.format_exc()
+            #     print(f"[ERROR] Exception in {self.__class__.__name__} dataset while retrieving sample {old_index}, retrying with new index {index}")
+            #     print(tb)
+        print("[ERROR] Failed to retrieve sample after {} attempts".format(max_attempts))
+        raise RuntimeError("Failed to retrieve sample after {} attempts".format(max_attempts))
+
+    def _getitem(self, index):
+        if self.hack_length: 
+            index = index % self._true_len()
+
+        # 1) VIDEO
+        # load the video 
+        sample, start_frame, num_read_frames, video_fps, num_frames, num_available_frames = self._get_video(index)
+
+        # 2) AUDIO
+        sample = self._get_audio(index, start_frame, num_read_frames, video_fps, num_frames, sample)
+
+        # 3) LANDMARKS 
+        sample = self._get_landmarks(index, start_frame, num_read_frames, video_fps, num_frames, sample)
+
+        # 4) SEGMENTATIONS
+        sample = self._get_segmentations(index, start_frame, num_read_frames, video_fps, num_frames, sample)
+
+        # 5) FACE ALIGNMENT IF ANY
+        sample = self._align_faces(sample)
+
+        # 6) AUGMENTATION
+        sample = self._augment_sequence_sample(sample)
+
+        # TO TORCH
+        sample = to_torch(sample)
+
+        # T,H,W,C to T,C,H,W
+        sample["video"] = sample["video"].permute(0, 3, 1, 2)
+        sample["video_masked"] = sample["video_masked"].permute(0, 3, 1, 2)
+        # sample["segmenation"] = sample["segmenation"].permute(0, 2, 1)
+        # sample["segmentation_masked"] = sample["segmentation_masked"].permute(0, 2, 1)
+
+
+        # # normalize landmarks 
+        # if self.landmark_normalizer is not None:
+        #     if isinstance(self.landmark_normalizer, KeypointScale):
+        #         raise NotImplementedError("Landmark normalization is deprecated")
+        #         self.landmark_normalizer.set_scale(
+        #             img.shape[0] / input_img_shape[0],
+        #             img.shape[1] / input_img_shape[1])
+        #     elif isinstance(self.landmark_normalizer, KeypointNormalization):
+        #         self.landmark_normalizer.set_scale(sample["video"].shape[2], sample["video"].shape[3])
+        #     else:
+        #         raise ValueError(f"Unsupported landmark normalizer type: {type(self.landmark_normalizer)}")
+        #     for key in sample["landmarks"].keys():
+        #         sample["landmarks"][key] = self.landmark_normalizer(sample["landmarks"][key])
+        return sample
+
+    def _get_video_path(self, index):
+        if self.use_original_video:
+            video_path = self.root_path / self.video_list[self.video_indices[index]]
+        else: 
+            video_path = Path(self.output_dir) / "videos_aligned" / self.video_list[self.video_indices[index]]
+        return video_path
+
+    def _get_num_frames(self, index):
+        video_meta = self.video_metas[self.video_indices[index]]
+        # print("Video path: ", video_path)
+        # num video frames 
+        num_frames = video_meta["num_frames"]
+        video_path = self._get_video_path(index)
+        if num_frames == 0: 
+            # use ffprobe to get the number of frames
+            num_frames = int(subprocess.check_output(["ffprobe", "-v", "error", "-select_streams", "v:0", "-count_packets", "-show_entries", "stream=nb_read_packets", "-of", "csv=p=0", str(video_path)]))
+        if num_frames == 0: 
+            _vr =  FFmpegReader(str(video_path))
+            num_frames = _vr.getShape()[0]
+            del _vr
+        return num_frames
+
+    def _get_video(self, index):
+        video_path = self._get_video_path(index)
+        video_meta = self.video_metas[self.video_indices[index]]
+        # print("Video path: ", video_path)
+        # num video frames 
+        num_frames = self._get_num_frames(index)
+        assert num_frames > 0, "Number of frames is 0 for video {}".format(video_path)
+        video_fps = video_meta["fps"]
+        n1, n2 = video_fps.split("/")
+        n1 = int(n1)
+        n2 = int(n2)
+        assert n1 % n2 == 0
+        video_fps = n1 // n2
+
+        # assert num_frames >= self.sequence_length, f"Video {video_path} has only {num_frames} frames, but sequence length is {self.sequence_length}"
+        # TODO: handle the case when sequence length is longer than the video length
+
+        # pick the starting video frame 
+        if self.temporal_split_start is not None and self.temporal_split_end is not None:
+            temporal_split_start = int(self.temporal_split_start * num_frames)
+            temporal_split_end = int(self.temporal_split_end * num_frames) 
+            num_available_frames = temporal_split_end - temporal_split_start
+            # start_frame = np.random.randint(temporal_split_start, temporal_split_end - self.sequence_length)
+        else: 
+            temporal_split_start = 0
+            temporal_split_end = num_frames
+            num_available_frames = num_frames
+
+        if num_available_frames <= self.sequence_length:
+            start_frame = temporal_split_start
+        else:
+            if self.video_sample_indices is None: # one video is one sample
+                start_frame = np.random.randint(temporal_split_start, temporal_split_end - self.sequence_length)
+            else: # one video is multiple samples (as many as the sequence length allows without repetition)
+                start_frame = temporal_split_start + (self.video_sample_indices[index] * self.sequence_length)
+            # start_frame = np.random.randint(0, num_frames - self.sequence_length)
+
+        # TODO: picking the starting frame should probably be done a bit more robustly 
+        # (e.g. by ensuring the sequence has at least some valid landmarks) ... 
+        # maybe the video should be skipped altogether if it can't provide that 
+
+        # load the frames
+        # frames = []
+        # for i in range(start_frame, start_frame + self.sequence_length):
+        #     frame_path = video_path / f"frame_{i:04d}.jpg"
+        #     frame = imread(str(frame_path))
+        #     frames.append(frame)
+        assert video_path.is_file(), f"Video {video_path} does not exist"
+        num_read_frames = 0
+        try:
+            if not self.preload_videos:
+                frames = vread(video_path.as_posix())
+            else: 
+                frames = self.video_cache[video_path.as_posix()]
+            assert len(frames) == num_frames, f"Video {video_path} has {len(frames)} frames, but meta says it has {num_frames}"
+            frames = frames[start_frame:(start_frame + self.sequence_length)] 
+            if frames.shape[0] < self.sequence_length:
+                # pad with zeros if video shorter than sequence length
+                frames = np.concatenate([frames, np.zeros((self.sequence_length - frames.shape[0], frames.shape[1], frames.shape[2]), dtype=frames.dtype)])
+        except ValueError: 
+            # reader = vreader(video_path.as_posix())
+            # create an opencv video reader 
+            import cv2
+            reader = cv2.VideoCapture(video_path.as_posix())
+            fi = 0 
+            frames = []
+            while fi < start_frame:
+                fi += 1
+                # _ = next(reader) 
+                _, frame = reader.read()
+            for i in range(self.sequence_length):
+                # frames.append(next(reader))
+                if reader.isOpened():
+                    _, frame = reader.read()
+                    if frame is None: 
+                        # frame = np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
+                        frame = np.zeros_like(frames[0])
+                        frames.append(frame)
+                        continue
+                    num_read_frames += 1
+                    # bgr to rgb 
+                    frame = frame[:, :, ::-1]
+                else: 
+                    # if we ran out of frames, pad with black
+                    frame = np.zeros_like(frames[0])
+                frames.append(frame)
+            reader.release()
+            frames = np.stack(frames, axis=0)
+        frames = frames.astype(np.float32) / 255.0
+
+        sample = { 
+            "video": frames,
+        }
+        return sample, start_frame, num_read_frames, video_fps, num_frames, num_available_frames
 
     def _get_audio(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
         # load the audio 
@@ -263,14 +487,33 @@ class VideoDatasetBase(AbstractVideoDataset):
     def _path_to_segmentations(self, index): 
         return (Path(self.output_dir) / f"segmentations_{self.segmentation_source}" / self.segmentation_type /  self.video_list[self.video_indices[index]]).with_suffix("")
 
+    def _read_segmentations(self, index):
+        segmentations_dir = self._path_to_segmentations(index)
+        seg_images, seg_types, seg_names = load_segmentation_list(segmentations_dir / "segmentations.pkl")
+        segmentations = np.stack(seg_images, axis=0)[:,0,...]
+        return segmentations, seg_types, seg_names
+
+    def _retrieve_segmentations(self, index):
+        if not self._preload_videos:
+            segmentations_dir = self._path_to_segmentations(index)
+            seg_images, seg_types, seg_names = load_segmentation_list(segmentations_dir / "segmentations.pkl")
+            segmentations = np.stack(seg_images, axis=0)[:,0,...]
+            return segmentations, seg_types, seg_names
+        else:
+            video_path = str(self._get_video_path(index))
+            return self.seg_cache[video_path]
+
+
     def _get_segmentations(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
         segmentations_dir = self._path_to_segmentations(index)
         segmentations = []
 
         if (segmentations_dir / "segmentations.pkl").exists(): # segmentations are saved in a single file-per video 
-            seg_images, seg_types, seg_names = load_segmentation_list(segmentations_dir / "segmentations.pkl")
-            segmentations = seg_images[start_frame: self.sequence_length + start_frame]
-            segmentations = np.stack(segmentations, axis=0)[:,0,...]
+            # seg_images, seg_types, seg_names = load_segmentation_list(segmentations_dir / "segmentations.pkl")
+            # segmentations = seg_images[start_frame: self.sequence_length + start_frame]
+            # segmentations = np.stack(segmentations, axis=0)[:,0,...]
+            segmentations, seg_types, seg_names  = self._retrieve_segmentations(index)
+            segmentations = segmentations[start_frame: self.sequence_length + start_frame]
             segmentations = process_segmentation(segmentations, seg_types[0]).astype(np.uint8)
             # assert segmentations.shape[0] == self.sequence_length
         else: # segmentations are saved per-frame
@@ -380,154 +623,6 @@ class VideoDatasetBase(AbstractVideoDataset):
                 for k,v in lmk_warped.items():
                     sample["landmarks"][k][i][:,:2] = v
         return sample
-
-
-    def _getitem(self, index):
-        if self.hack_length: 
-            index = index % self._true_len()
-
-        sample = {}
-
-        # 1) VIDEO
-        # load the video 
-        if self.use_original_video:
-            video_path = self.root_path / self.video_list[self.video_indices[index]]
-        else: 
-            video_path = Path(self.output_dir) / "videos_aligned" / self.video_list[self.video_indices[index]]
-        video_meta = self.video_metas[self.video_indices[index]]
-        # print("Video path: ", video_path)
-        # num video frames 
-        num_frames = video_meta["num_frames"]
-        if num_frames == 0: 
-            # use ffprobe to get the number of frames
-            num_frames = int(subprocess.check_output(["ffprobe", "-v", "error", "-select_streams", "v:0", "-count_packets", "-show_entries", "stream=nb_read_packets", "-of", "csv=p=0", str(video_path)]))
-        if num_frames == 0: 
-            _vr =  FFmpegReader(str(video_path))
-            num_frames = _vr.getShape()[0]
-            del _vr
-        assert num_frames > 0, "Number of frames is 0 for video {}".format(video_path)
-        video_fps = video_meta["fps"]
-        n1, n2 = video_fps.split("/")
-        n1 = int(n1)
-        n2 = int(n2)
-        assert n1 % n2 == 0
-        video_fps = n1 // n2
-
-        # assert num_frames >= self.sequence_length, f"Video {video_path} has only {num_frames} frames, but sequence length is {self.sequence_length}"
-        # TODO: handle the case when sequence length is longer than the video length
-
-        # pick the starting video frame 
-        if num_frames <= self.sequence_length:
-            start_frame = 0
-        else:
-            start_frame = np.random.randint(0, num_frames - self.sequence_length)
-
-        # TODO: picking the starting frame should probably be done a bit more robustly 
-        # (e.g. by ensuring the sequence has at least some valid landmarks) ... 
-        # maybe the video should be skipped altogether if it can't provide that 
-
-        # load the frames
-        # frames = []
-        # for i in range(start_frame, start_frame + self.sequence_length):
-        #     frame_path = video_path / f"frame_{i:04d}.jpg"
-        #     frame = imread(str(frame_path))
-        #     frames.append(frame)
-        assert video_path.is_file(), f"Video {video_path} does not exist"
-        num_read_frames = 0
-        try:
-            frames = vread(video_path.as_posix())
-            assert len(frames) == num_frames, f"Video {video_path} has {len(frames)} frames, but meta says it has {num_frames}"
-            frames = frames[start_frame:(start_frame + self.sequence_length)] 
-            if frames.shape[0] < self.sequence_length:
-                # pad with zeros if video shorter than sequence length
-                frames = np.concatenate([frames, np.zeros((self.sequence_length - frames.shape[0], frames.shape[1], frames.shape[2]), dtype=frames.dtype)])
-        except ValueError: 
-            # reader = vreader(video_path.as_posix())
-            # create an opencv video reader 
-            import cv2
-            reader = cv2.VideoCapture(video_path.as_posix())
-            fi = 0 
-            frames = []
-            while fi < start_frame:
-                fi += 1
-                # _ = next(reader) 
-                _, frame = reader.read()
-            for i in range(self.sequence_length):
-                # frames.append(next(reader))
-                if reader.isOpened():
-                    _, frame = reader.read()
-                    if frame is None: 
-                        frame = np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
-                        frames.append(frame)
-                        continue
-                    num_read_frames += 1
-                    # bgr to rgb 
-                    frame = frame[:, :, ::-1]
-                else: 
-                    # if we ran out of frames, pad with black
-                    frame = np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
-                frames.append(frame)
-            reader.release()
-            frames = np.stack(frames, axis=0)
-        frames = frames.astype(np.float32) / 255.0
-
-        sample = { 
-            "video": frames,
-        }
-
-        # 2) AUDIO
-        sample = self._get_audio(index, start_frame, num_read_frames, video_fps, num_frames, sample)
-
-        # 3) LANDMARKS 
-        sample = self._get_landmarks(index, start_frame, num_read_frames, video_fps, num_frames, sample)
-
-        # 4) SEGMENTATIONS
-        sample = self._get_segmentations(index, start_frame, num_read_frames, video_fps, num_frames, sample)
-
-        # 5) FACE ALIGNMENT IF ANY
-        sample = self._align_faces(sample)
-
-        # 6) AUGMENTATION
-        sample = self._augment_sequence_sample(sample)
-
-        # TO TORCH
-        sample = to_torch(sample)
-
-        # T,H,W,C to T,C,H,W
-        sample["video"] = sample["video"].permute(0, 3, 1, 2)
-        sample["video_masked"] = sample["video_masked"].permute(0, 3, 1, 2)
-        # sample["segmenation"] = sample["segmenation"].permute(0, 2, 1)
-        # sample["segmentation_masked"] = sample["segmentation_masked"].permute(0, 2, 1)
-
-
-        # # normalize landmarks 
-        # if self.landmark_normalizer is not None:
-        #     if isinstance(self.landmark_normalizer, KeypointScale):
-        #         raise NotImplementedError("Landmark normalization is deprecated")
-        #         self.landmark_normalizer.set_scale(
-        #             img.shape[0] / input_img_shape[0],
-        #             img.shape[1] / input_img_shape[1])
-        #     elif isinstance(self.landmark_normalizer, KeypointNormalization):
-        #         self.landmark_normalizer.set_scale(sample["video"].shape[2], sample["video"].shape[3])
-        #     else:
-        #         raise ValueError(f"Unsupported landmark normalizer type: {type(self.landmark_normalizer)}")
-        #     for key in sample["landmarks"].keys():
-        #         sample["landmarks"][key] = self.landmark_normalizer(sample["landmarks"][key])
-        return sample
-
-    def __getitem__(self, index):
-        max_attempts = 10
-        for i in range(max_attempts):
-            # try: 
-                return self._getitem(index)
-            # except Exception as e:
-            #     old_index = index
-            #     index = np.random.randint(0, self.__len__())
-            #     tb = traceback.format_exc()
-            #     print(f"[ERROR] Exception in {self.__class__.__name__} dataset while retrieving sample {old_index}, retrying with new index {index}")
-            #     print(tb)
-        print("[ERROR] Failed to retrieve sample after {} attempts".format(max_attempts))
-        raise RuntimeError("Failed to retrieve sample after {} attempts".format(max_attempts))
 
     def _augment(self, img, seg_image, landmark, input_img_shape=None):
         # workaround to make sure each sequence is augmented the same

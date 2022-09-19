@@ -82,6 +82,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
                  bb_center_shift_y=0, # in relative numbers (i.e. -0.1 for 10% shift upwards, ...)
                  include_processed_audio = True,
                  include_raw_audio = True,
+                 preload_videos = False,
+                 inflate_by_video_size = False,
                  ):
         super().__init__(root_dir, output_dir,
                          processed_subfolder=processed_subfolder,
@@ -121,6 +123,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
         self.include_processed_audio = include_processed_audio
         self.include_raw_audio = include_raw_audio
+        self.preload_videos = preload_videos
+        self.inflate_by_video_size = inflate_by_video_size
 
     @property
     def metadata_path(self):

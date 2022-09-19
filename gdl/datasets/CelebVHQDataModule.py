@@ -21,7 +21,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
             landmarks_from=None,
             face_detector_threshold=0.5, 
             image_size=224, scale=1.25, 
-            processed_video_size=256,
+            processed_video_size=384,
             batch_size_train=16,
             batch_size_val=16,
             batch_size_test=16,
@@ -43,12 +43,15 @@ class CelebVHQDataModule(FaceVideoDataModule):
             drop_last=True,
             include_processed_audio = True,
             include_raw_audio = True,
+            preload_videos=False,
+            inflate_by_video_size=False,
             ## end args of FaceVideoDataModule
             ## begin CelebVHQDataModule specific params
             training_sampler="uniform",
             landmark_types = None,
             landmark_sources=None,
             segmentation_source=None,
+
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, 
@@ -64,6 +67,8 @@ class CelebVHQDataModule(FaceVideoDataModule):
             bb_center_shift_y=bb_center_shift_y, # in relative numbers (i.e. -0.1 for 10% shift upwards, ...)
             include_processed_audio = include_processed_audio,
             include_raw_audio = include_raw_audio,
+            preload_videos=preload_videos,
+            inflate_by_video_size=inflate_by_video_size,
             )
         # self.detect_landmarks_on_restored_images = landmarks_from
         self.batch_size_train = batch_size_train
@@ -251,23 +256,29 @@ class CelebVHQDataModule(FaceVideoDataModule):
 
     def _get_subsets(self, set_type=None):
         set_type = set_type or "original"
-        set_type = set_type or "original"
-        if "specific_video" in set_type: 
+        self.temporal_split = None
+        if "specific_video_temporal" in set_type: 
             res = set_type.split("_")
-            video = res[-1]
+            # the video name should be enclosed in single quotes 'vid_name'
+            # vid = set_type.split("'")
+            vid = "_".join(res[3:-3])
+            assert len(vid) > 0 # the result should be 3 elements
+            # vid = vid[1] # the video name is the second (middle) element
             train = float(res[-3])
             val = float(res[-2])
-            train = train / (train + val)
-            val = 1 - train
-            indices = [i for i in range(len(self.video_list)) if self._video_set(i) + "/" + self._video_supername(i) == video]
-
-            training = indices[:int(train * len(indices))] 
-            validation = indices[int(train * len(indices)):]
-            import random
-            seed = 4
-            random.Random(seed).shuffle(training)
-            random.Random(seed).shuffle(validation)
-            return training, validation, []
+            test = float(res[-1])
+            train_ = train / (train + val + test)
+            val_ = val / (train + val + test)
+            test_ = test / (train + val + test)
+            indices = [i for i in range(len(self.video_list)) if self.video_list[i].stem == vid]
+            assert len(indices) == 1
+            training = [indices[0]]
+            validation = [indices[0]]
+            test = [indices[0]]
+            self.temporal_split = [train_, val_, test_]
+            self.preload_videos = True
+            self.inflate_by_video_size = True
+            return training, validation, test
         elif "random" in set_type:
             res = set_type.split("_")
             assert len(res) >= 3, "Specify the train/val/test split by 'random_train_val_test' to the set_type"
@@ -292,6 +303,24 @@ class CelebVHQDataModule(FaceVideoDataModule):
             validation = indices[num_train:(num_train + num_val)]
             test = indices[(num_train + num_val):]
             return training, validation, test
+        elif "temporal" in set_type:
+            # this means first part of the videos are training, second part is validation, third part is test (if any)
+            res = set_type.split("_")
+            assert len(res) >= 3, "Specify the train/val/test split by 'temporal_train_val_test' to the set_type"
+            train = int(res[1])
+            val = int(res[2])
+            if len(res) == 4:
+                test = int(res[3])
+            else:
+                test = 0
+            train_ = train / (train + val + test)
+            val_ = val / (train + val + test)
+            test_ = 1 - train_ - val_
+            self.temporal_split = [train_, val_, test_]
+            pretrain = list(range(len(self.video_list)))
+            trainval = list(range(len(self.video_list)))
+            test = list(range(len(self.video_list)))
+            return pretrain, trainval, test
         elif set_type == "all":
             pretrain = list(range(len(self.video_list)))
             trainval = list(range(len(self.video_list)))
@@ -308,13 +337,17 @@ class CelebVHQDataModule(FaceVideoDataModule):
                 self.audio_metas, self.sequence_length_train, image_size=self.image_size, 
                 transforms=training_augmenter,
                 **self.occlusion_settings_train,
-                hack_length='auto',
+                hack_length=False,
                 use_original_video=self.use_original_video,
                 include_processed_audio = self.include_processed_audio,
                 include_raw_audio = self.include_raw_audio,
                 landmark_types=self.landmark_types,
                 landmark_source=self.landmark_sources,
                 segmentation_source=self.segmentation_source,
+                temporal_split_start= 0 if self.temporal_split is not None else None,
+                temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
+                preload_videos=self.preload_videos,
+                inflate_by_video_size=self.inflate_by_video_size,
               )
                     
         self.validation_set = CelebVHQDataset(self.root_dir, self.output_dir, 
@@ -328,6 +361,10 @@ class CelebVHQDataModule(FaceVideoDataModule):
                 landmark_types=self.landmark_types,
                 landmark_source=self.landmark_sources,
                 segmentation_source=self.segmentation_source,
+                temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
+                temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                preload_videos=self.preload_videos,
+                inflate_by_video_size=self.inflate_by_video_size,
             )
 
         self.test_set = CelebVHQDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
@@ -340,6 +377,10 @@ class CelebVHQDataModule(FaceVideoDataModule):
                 landmark_types=self.landmark_types,
                 landmark_source=self.landmark_sources,
                 segmentation_source=self.segmentation_source,
+                temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
+                preload_videos=self.preload_videos,
+                inflate_by_video_size=self.inflate_by_video_size,
                 )
 
     def train_sampler(self):
@@ -406,7 +447,10 @@ class CelebVHQDataset(VideoDatasetBase):
             use_original_video=False,
             include_processed_audio = True,
             include_raw_audio = True,
-            
+            temporal_split_start=None,
+            temporal_split_end=None,
+            preload_videos=False,
+            inflate_by_video_size=False,
     ) -> None:
         landmark_types = landmark_types or ["mediapipe", "fan"]
         super().__init__(
@@ -436,8 +480,11 @@ class CelebVHQDataset(VideoDatasetBase):
             use_original_video=use_original_video,
             include_processed_audio = include_processed_audio,
             include_raw_audio = include_raw_audio,
+            temporal_split_start=temporal_split_start,
+            temporal_split_end=temporal_split_end,
+            preload_videos=preload_videos,
+            inflate_by_video_size=inflate_by_video_size,
         )
-
 
     def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
         landmark_dict = {}
@@ -504,8 +551,11 @@ class CelebVHQDataset(VideoDatasetBase):
                 landmarks = np.concatenate([landmarks, np.zeros(
                     (self.sequence_length - landmarks.shape[0], *landmarks.shape[1:]), 
                     dtype=landmarks.dtype)], axis=0)
-                landmark_validity = np.concatenate([landmark_validity, np.zeros((self.sequence_length - landmark_validity.shape[0]), 
-                    dtype=landmark_validity.dtype)], axis=0)
+                if landmark_validity is not None:
+                    landmark_validity = np.concatenate([landmark_validity, np.zeros((self.sequence_length - landmark_validity.shape[0], 1), 
+                        dtype=landmark_validity.dtype)], axis=0)
+                else: 
+                    landmark_validity = np.zeros((self.sequence_length, 1), dtype=np.float32)
 
             landmark_dict[landmark_type] = landmarks
             if landmark_validity is not None:
@@ -532,15 +582,46 @@ def main():
 
     processed_subfolder = "processed"
 
-    seq_len = 50
+    # seq_len = 50
+    seq_len = 16
     # bs = 100
     bs = 1
 
 
+    import yaml
+    from munch import Munch, munchify
+    augmenter = yaml.load(open(Path(__file__).parents[2] / "gdl_apps" / "Speech4D" / "tempface_conf" / "data" / "augmentations" / "default_no_jpeg.yaml"), 
+        Loader=yaml.FullLoader)["augmentation"]
+    augmenter = munchify(augmenter)
+    # augmenter = None
+    occlusion_settings_train = {
+        "occlusion_length": [5, 15],
+        "occlusion_probability_mouth": 0.5,
+        "occlusion_probability_left_eye": 0.33,
+        "occlusion_probability_right_eye": 0.33,
+        "occlusion_probability_face": 0.2,
+    }
+# occlusion_settings_val:
+#     occlusion_length: [5, 10]
+#     occlusion_probability_mouth: 1.0
+#     occlusion_probability_left_eye: 0.33
+#     occlusion_probability_right_eye: 0.33
+#     occlusion_probability_face: 0.2
+
+# occlusion_settings_test:
+#     occlusion_length: [5, 10]
+#     occlusion_probability_mouth: 1.0
+#     occlusion_probability_left_eye: 0.33
+#     occlusion_probability_right_eye: 0.33
+#     occlusion_probability_face: 0.2
+
     # Create the dataset
     dm = CelebVHQDataModule(
         root_dir, output_dir, processed_subfolder,
-        split="all",
+        # split="all",
+        # split="temporal_80_10_10",
+        # split="specific_video_temporal_z0ecgTX08pI_0_1_80_10_10",
+        split="specific_video_temporal_eknCAJ0ik8c_0_0_80_10_10",
         image_size=224, 
         scale=1.25, 
         processed_video_size=256,
@@ -553,6 +634,8 @@ def main():
         num_workers=6,            
         include_processed_audio = False,
         include_raw_audio = False,
+        augmentation=augmenter,
+        occlusion_settings_train=occlusion_settings_train,
     )
 
     # Create the dataloader
@@ -560,28 +643,31 @@ def main():
     dm.setup() 
 
     dl = dm.train_dataloader()
+    # dl = dm.val_dataloader()
     dataset = dm.training_set
-    # indices = np.arange(len(dataset), dtype=np.int32)
-    # np.random.shuffle(indices)
+    # dataset = dm.validation_set
+    indices = np.arange(len(dataset), dtype=np.int32)
+    np.random.shuffle(indices)
 
-    # for i in range(len(indices)): 
-    #     start = time.time()
-    #     sample = dataset[indices[i]]
-    #     end = time.time()
-    #     print(f"Loading sample {i} took {end-start:.3f} s")
-    #     # dataset.visualize_sample(sample)
+    for i in range(len(indices)): 
+        start = time.time()
+        sample = dataset[indices[i]]
+        end = time.time()
+        print(f"Loading sample {i} took {end-start:.3f} s")
+        dataset.visualize_sample(sample)
 
-    from tqdm import auto
-    for bi, batch in enumerate(auto.tqdm(dl)): 
-        pass
+    # from tqdm import auto
+    # for bi, batch in enumerate(auto.tqdm(dl)): 
+    #     pass
+
+
     # iter_ = iter(dl)
     # for i in range(len(dl)): 
     #     start = time.time()
     #     batch = next(iter_)
     #     end = time.time()
     #     print(f"Loading batch {i} took {end-start:.3f} s")
-    #     # dataset.visualize_batch(batch)
-    #     print(batch.keys())
+        # dataset.visualize_batch(batch)
 
     #     break
 
