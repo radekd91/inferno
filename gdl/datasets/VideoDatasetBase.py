@@ -11,8 +11,9 @@ from gdl.datasets.IO import load_and_process_segmentation, process_segmentation,
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 from gdl.utils.FaceDetector import load_landmark
 import pandas as pd
-from skvideo.io import vread, vreader
+from skvideo.io import vread, vreader, FFmpegReader
 import torch.nn.functional as F
+import subprocess 
 
 
 class AbstractVideoDataset(torch.utils.data.Dataset):
@@ -397,6 +398,14 @@ class VideoDatasetBase(AbstractVideoDataset):
         # print("Video path: ", video_path)
         # num video frames 
         num_frames = video_meta["num_frames"]
+        if num_frames == 0: 
+            # use ffprobe to get the number of frames
+            num_frames = int(subprocess.check_output(["ffprobe", "-v", "error", "-select_streams", "v:0", "-count_packets", "-show_entries", "stream=nb_read_packets", "-of", "csv=p=0", str(video_path)]))
+        if num_frames == 0: 
+            _vr =  FFmpegReader(str(video_path))
+            num_frames = _vr.getShape()[0]
+            del _vr
+        assert num_frames > 0, "Number of frames is 0 for video {}".format(video_path)
         video_fps = video_meta["fps"]
         n1, n2 = video_fps.split("/")
         n1 = int(n1)
@@ -728,7 +737,7 @@ class VideoDatasetBase(AbstractVideoDataset):
     def visualize_sample(self, sample_or_index):
         from gdl.utils.MediaPipeLandmarkDetector import np2mediapipe
         
-        if isinstance(sample_or_index, int):
+        if isinstance(sample_or_index, (int, np.int32, np.int64)):
             index = sample_or_index
             sample = self[index]
         else:

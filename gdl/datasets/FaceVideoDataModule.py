@@ -20,6 +20,7 @@ All rights reserved.
 
 from torch.utils.data.dataloader import DataLoader
 import os, sys
+import subprocess
 from pathlib import Path
 import numpy as np
 import torch
@@ -1256,7 +1257,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
         self.audio_metas = []
 
         for vi, vid_file in enumerate(tqdm(self.video_list)):
-            vid = ffmpeg.probe(str( Path(self.root_dir) / vid_file))
+            video_path = str( Path(self.root_dir) / vid_file)
+            vid = ffmpeg.probe(video_path)
             # codec_idx = [idx for idx in range(len(vid)) if vid['streams'][idx]['codec_type'] == 'video']
             codec_idx = [idx for idx in range(len(vid['streams'])) if vid['streams'][idx]['codec_type'] == 'video']
             if len(codec_idx) == 0:
@@ -1277,6 +1279,14 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 vid_meta['num_frames'] = int(vid_info['num_frames'])
             else: 
                 vid_meta['num_frames'] = 0
+            # make the frame number reading a bit more robest, sometims the above does not work and gives zeros
+            if vid_meta['num_frames'] == 0: 
+                vid_meta['num_frames'] = int(subprocess.check_output(["ffprobe", "-v", "error", "-select_streams", "v:0", "-count_packets", "-show_entries", "stream=nb_read_packets", "-of", "csv=p=0", 
+                    video_path]))
+            if vid_meta['num_frames'] == 0: 
+                _vr = skvideo.io.FFmpegReader(video_path)
+                vid_meta['num_frames'] = _vr.getShape()[0]
+                del _vr
             vid_meta['bit_rate'] = vid_info['bit_rate']
             if 'bits_per_raw_sample' in vid_info.keys():
                 vid_meta['bits_per_raw_sample'] = vid_info['bits_per_raw_sample']

@@ -1,4 +1,5 @@
 from pathlib import Path
+from time import time
 from gdl.datasets.FaceDataModuleBase import FaceDataModuleBase
 from gdl.datasets.FaceVideoDataModule import FaceVideoDataModule 
 import numpy as np
@@ -448,16 +449,26 @@ class CelebVHQDataset(VideoDatasetBase):
             landmarks = []
             if landmark_source == "original":
                 # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{landmark_source}.pkl")  
-                landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_aligned_video.pkl")  
-                # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_aligned_video_smoothed.pkl")  
-                landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
-                landmarks = landmark_list[start_frame: self.sequence_length + start_frame] 
-                landmarks = np.stack(landmarks, axis=0)
+                # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_aligned_video.pkl")  
+                landmark_list_file = landmarks_dir / f"landmarks_aligned_video_smoothed.pkl"
+                if landmark_list_file.exists():
+                    landmark_list = FaceDataModuleBase.load_landmark_list(landmark_list_file)  
+                    landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
+                    landmarks = landmark_list[start_frame: self.sequence_length + start_frame] 
+                    landmarks = np.stack(landmarks, axis=0)
 
-                landmark_valid_indices = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_alignment_used_frame_indices.pkl")  
-                landmark_validity = np.zeros((len(landmark_list), 1), dtype=np.float32)
-                landmark_validity[landmark_valid_indices] = 1.0
-                landmark_validity = landmark_validity[start_frame: self.sequence_length + start_frame]
+                    landmark_valid_indices = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_alignment_used_frame_indices.pkl")  
+                    landmark_validity = np.zeros((len(landmark_list), 1), dtype=np.float32)
+                    landmark_validity[landmark_valid_indices] = 1.0
+                    landmark_validity = landmark_validity[start_frame: self.sequence_length + start_frame]
+                else:
+                    if landmark_type == "mediapipe":
+                        num_landmarks = 468
+                    elif landmark_type == "fan":
+                        num_landmarks = 68
+                    landmarks = np.zeros((self.sequence_length, num_landmarks, 2), dtype=np.float32)
+                    landmark_validity = np.zeros((self.sequence_length, 1), dtype=np.float32)
+
 
             elif landmark_source == "aligned":
                 landmarks, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
@@ -512,6 +523,7 @@ class CelebVHQDataset(VideoDatasetBase):
 
 
 def main(): 
+    import time
     root_dir = Path("/ps/project/EmotionalFacialAnimation/data/celebvhq/auto_processed_online_25fps")
     output_dir = Path("/is/cluster/work/rdanecek/data/celebvhq/")
 
@@ -520,6 +532,11 @@ def main():
 
     processed_subfolder = "processed"
 
+    seq_len = 50
+    # bs = 100
+    bs = 1
+
+
     # Create the dataset
     dm = CelebVHQDataModule(
         root_dir, output_dir, processed_subfolder,
@@ -527,13 +544,13 @@ def main():
         image_size=224, 
         scale=1.25, 
         processed_video_size=256,
-        batch_size_train=2,
-        batch_size_val=2,
-        batch_size_test=2,
-        sequence_length_train=16,
-        sequence_length_val=16,
-        sequence_length_test=16,
-        num_workers=0,            
+        batch_size_train=bs,
+        batch_size_val=bs,
+        batch_size_test=bs,
+        sequence_length_train=seq_len,
+        sequence_length_val=seq_len,
+        sequence_length_test=seq_len,
+        num_workers=6,            
         include_processed_audio = False,
         include_raw_audio = False,
     )
@@ -544,13 +561,26 @@ def main():
 
     dl = dm.train_dataloader()
     dataset = dm.training_set
+    # indices = np.arange(len(dataset), dtype=np.int32)
+    # np.random.shuffle(indices)
 
-    for i in range(10): 
-        dataset.visualize_sample(i)
+    # for i in range(len(indices)): 
+    #     start = time.time()
+    #     sample = dataset[indices[i]]
+    #     end = time.time()
+    #     print(f"Loading sample {i} took {end-start:.3f} s")
+    #     # dataset.visualize_sample(sample)
 
-    # from tqdm import auto
-    
-    # for bi, batch in enumerate(auto.tqdm( dl)):
+    from tqdm import auto
+    for bi, batch in enumerate(auto.tqdm(dl)): 
+        pass
+    # iter_ = iter(dl)
+    # for i in range(len(dl)): 
+    #     start = time.time()
+    #     batch = next(iter_)
+    #     end = time.time()
+    #     print(f"Loading batch {i} took {end-start:.3f} s")
+    #     # dataset.visualize_batch(batch)
     #     print(batch.keys())
 
     #     break
