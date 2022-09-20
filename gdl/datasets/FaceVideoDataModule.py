@@ -251,7 +251,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
     def _get_landmark_method(self):
         return "" # for backwards compatibility (AffectNet, ...), the inheriting classes should specify the method
 
-    def _get_path_to_sequence_landmarks(self, sequence_id, use_aligned_videos):
+    def _get_path_to_sequence_landmarks(self, sequence_id, use_aligned_videos=False):
 
         if self.save_detection_images: 
             # landmarks will be saved wrt to the detection images
