@@ -620,8 +620,31 @@ def main():
         root_dir, output_dir, processed_subfolder,
         # split="all",
         # split="temporal_80_10_10",
-        # split="specific_video_temporal_z0ecgTX08pI_0_1_80_10_10",
-        split="specific_video_temporal_eknCAJ0ik8c_0_0_80_10_10",
+        # split="specific_video_temporal_z0ecgTX08pI_0_1_80_10_10",  # missing audio
+        # split="specific_video_temporal_eknCAJ0ik8c_0_0_80_10_10",
+        # split="specific_video_temporal_YgJ5ZEn67tk_2_80_10_10",
+        # split="specific_video_temporal_zZrDihnANpM_4_80_10_10", 
+        # split="specific_video_temporal_T0BMVyJ1OXk_0_0_80_10_10", # missing audio
+        # split="specific_video_temporal_2T3YWtHj_Ag_0_0_80_10_10", # missing audio
+        # split="specific_video_temporal_7Eha1lreIyg_0_0_80_10_10", # missing audio
+        # split="specific_video_temporal_UHY7k99ugXc_0_2_80_10_10", # missing audio
+        # split="specific_video_temporal_e4Ylz6WgBrg_0_0_80_10_10", # missing audio
+        # split="specific_video_temporal_Px5769-CPaQ_0_0_80_10_10", # missing audio
+        # split="specific_video_temporal_HhlT8RJaQEY_0_0_80_10_10", # missing audio
+        # split="specific_video_temporal_eQZ-f9Vll3c_0_0_80_10_10", # missing audio
+        # split="specific_video_temporal_IubhiJFulKk_2_0_80_10_10", # missing audio
+        # split="specific_video_temporal_uYC1dIPHoRQ_0_0_80_10_10", # missing audio
+        # split="specific_video_temporal_20n3XeaEd1c_0_0_80_10_10", # missing audio
+        # split="specific_video_temporal_CWdm32em3xQ_0_80_10_10",
+        # split="specific_video_temporal_Px5769-CPaQ_0_0_80_10_10",  # missing audio
+        # split="specific_video_temporal_HhlT8RJaQEY_0_0_80_10_10",  # missing audio
+        # split="specific_video_temporal_uYC1dIPHoRQ_0_0_80_10_10", # missing audio
+        # split="specific_video_temporal_OfVYgE_hT88_0_0_80_10_10", # missing audio
+        # split="specific_video_temporal_lBwtMLK_qEE_1_0_80_10_10", # missing audio
+        # split="specific_video_temporal_Gq17Orwh4c4_9_1_80_10_10", # missing audio
+        split="specific_video_temporal_-rjR4El7qzg_4_80_10_10",
+        # split="specific_video_temporal_lBwtMLK_qEE_1_0_80_10_10",
+        # split="specific_video_temporal_lBwtMLK_qEE_1_0_80_10_10",
         image_size=224, 
         scale=1.25, 
         processed_video_size=256,
@@ -632,8 +655,8 @@ def main():
         sequence_length_val=seq_len,
         sequence_length_test=seq_len,
         num_workers=6,            
-        include_processed_audio = False,
-        include_raw_audio = False,
+        include_processed_audio = True,
+        include_raw_audio = True,
         augmentation=augmenter,
         occlusion_settings_train=occlusion_settings_train,
     )
@@ -645,6 +668,7 @@ def main():
     dl = dm.train_dataloader()
     # dl = dm.val_dataloader()
     dataset = dm.training_set
+    print( f"Dataset length: {len(dataset)}")
     # dataset = dm.validation_set
     indices = np.arange(len(dataset), dtype=np.int32)
     np.random.shuffle(indices)

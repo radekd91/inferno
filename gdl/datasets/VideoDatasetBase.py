@@ -206,6 +206,14 @@ class VideoDatasetBase(AbstractVideoDataset):
         # TO TORCH
         sample = to_torch(sample)
 
+
+        # AUDIO NORMALIZATION (if any)
+        if self.audio_normalization is not None:
+            if self.audio_normalization == "layer_norm":
+                sample["audio"] = F.layer_norm(sample["audio"], sample["audio"].shape[1:])
+            else: 
+                raise ValueError(f"Unsupported audio normalization {self.audio_normalization}")
+
         # T,H,W,C to T,C,H,W
         sample["video"] = sample["video"].permute(0, 3, 1, 2)
         sample["video_masked"] = sample["video_masked"].permute(0, 3, 1, 2)
@@ -350,14 +358,21 @@ class VideoDatasetBase(AbstractVideoDataset):
         if self.include_raw_audio:
             audio_path = (Path(self.output_dir) / "audio" / self.video_list[self.video_indices[index]]).with_suffix(".wav")
             audio_meta = self.audio_metas[self.video_indices[index]]
-            samplerate, wavdata = wavfile.read(audio_path.as_posix())
-            assert samplerate == 16000 and len(wavdata.shape) == 1
+            # sampling_rate, wavdata = wavfile.read(audio_path.as_posix())
+            import librosa
+            sampling_rate = 16000
+            wavdata, sampling_rate = librosa.load(audio_path, sr=sampling_rate)
+            # wavdata, sampling_rate = librosa.load(audio_path, sr=sampling_rate)
+            if wavdata.ndim > 1:
+                wavdata = librosa.to_mono(wavdata)
+            wavdata = (wavdata.astype(np.float64) * 32768.0).astype(np.int16)
+            # assert samplerate == 16000 and len(wavdata.shape) == 1
 
             # audio augmentation
             if np.random.rand() < self.audio_noise_prob:
                 wavdata = self.add_noise(wavdata)
 
-            audio_feats = logfbank(wavdata, samplerate=samplerate).astype(np.float32) # [T (num audio frames), F (num filters)]
+            audio_feats = logfbank(wavdata, samplerate=sampling_rate).astype(np.float32) # [T (num audio frames), F (num filters)]
             # the audio feats frequency (and therefore num frames) is too high, so we stack them together to match num visual frames 
             audio_feats = stacker(audio_feats, self.stack_order_audio)
 
@@ -373,16 +388,10 @@ class VideoDatasetBase(AbstractVideoDataset):
             # stack the frames and audio feats together
             sample["audio"] = audio_feats
 
-            # AUDIO NORMALIZATION (if any)
-            if self.audio_normalization is not None:
-                if self.audio_normalization == "layer_norm":
-                    sample["audio"] = F.layer_norm(sample["audio"], audio_feats.shape[1:])
-                else: 
-                    raise ValueError(f"Unsupported audio normalization {self.audio_normalization}")
             
         if self.include_raw_audio:
-            assert samplerate % video_fps == 0 
-            wav_per_frame = samplerate // video_fps 
+            assert sampling_rate % video_fps == 0 
+            wav_per_frame = sampling_rate // video_fps 
             wavdata_ = np.zeros((num_frames, wav_per_frame), dtype=wavdata.dtype) 
             wavdata_ = wavdata_.reshape(-1)
             if wavdata.size > wavdata_.size:
@@ -403,7 +412,7 @@ class VideoDatasetBase(AbstractVideoDataset):
             # wavdata_[:wavdata.shape[0]] = wavdata 
             # wavdata_ = wavdata_.reshape((frames.shape[0], -1))
             sample["raw_audio"] = wavdata_ 
-            sample["samplerate"] = samplerate
+            sample["samplerate"] = sampling_rate
 
         return sample
 
@@ -494,7 +503,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         return segmentations, seg_types, seg_names
 
     def _retrieve_segmentations(self, index):
-        if not self._preload_videos:
+        if not self.preload_videos:
             segmentations_dir = self._path_to_segmentations(index)
             seg_images, seg_types, seg_names = load_segmentation_list(segmentations_dir / "segmentations.pkl")
             segmentations = np.stack(seg_images, axis=0)[:,0,...]
