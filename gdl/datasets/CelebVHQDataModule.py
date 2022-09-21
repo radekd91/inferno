@@ -559,7 +559,7 @@ class CelebVHQDataset(VideoDatasetBase):
 
             landmark_dict[landmark_type] = landmarks
             if landmark_validity is not None:
-                landmark_validity_dict[landmark_type] = landmark_validity
+                landmark_validity_dict[landmark_type] = landmark_validity.squeeze(-1)
 
         sample["landmarks"] = landmark_dict
         sample["landmarks_validity"] = landmark_validity_dict
@@ -574,13 +574,17 @@ class CelebVHQDataset(VideoDatasetBase):
 
 def main(): 
     import time
-    root_dir = Path("/ps/project/EmotionalFacialAnimation/data/celebvhq/auto_processed_online_25fps")
+    # root_dir = Path("/ps/project/EmotionalFacialAnimation/data/celebvhq/auto_processed_online_25fps")
+    # output_dir = Path("/is/cluster/work/rdanecek/data/celebvhq/")
+
+    root_dir = Path("/ps/project/EmotionalFacialAnimation/data/celebvhq/auto_processed_combined_25fps")
     output_dir = Path("/is/cluster/work/rdanecek/data/celebvhq/")
 
     # root_dir = Path("/ps/project/EmotionalFacialAnimation/data/lrs2/mvlrs_v1")
     # output_dir = Path("/ps/scratch/rdanecek/data/lrs2")
 
-    processed_subfolder = "processed"
+    # processed_subfolder = "processed"
+    processed_subfolder = "processed_orig"
 
     # seq_len = 50
     seq_len = 16
@@ -621,9 +625,12 @@ def main():
         # split="all",
         # split="temporal_80_10_10",
         # split="specific_video_temporal_z0ecgTX08pI_0_1_80_10_10",  # missing audio
+        # split="specific_video_temporal_8oKLUz8phdg_1_0_80_10_10",
         # split="specific_video_temporal_eknCAJ0ik8c_0_0_80_10_10",
         # split="specific_video_temporal_YgJ5ZEn67tk_2_80_10_10",
         # split="specific_video_temporal_zZrDihnANpM_4_80_10_10", 
+        # split = "specific_video_temporal_6jRVZQMKlxw_1_0_80_10_10",
+        split = "specific_video_temporal_6jRVZQMKlxw_1_0_80_10_10",
         # split="specific_video_temporal_T0BMVyJ1OXk_0_0_80_10_10", # missing audio
         # split="specific_video_temporal_2T3YWtHj_Ag_0_0_80_10_10", # missing audio
         # split="specific_video_temporal_7Eha1lreIyg_0_0_80_10_10", # missing audio
@@ -642,7 +649,7 @@ def main():
         # split="specific_video_temporal_OfVYgE_hT88_0_0_80_10_10", # missing audio
         # split="specific_video_temporal_lBwtMLK_qEE_1_0_80_10_10", # missing audio
         # split="specific_video_temporal_Gq17Orwh4c4_9_1_80_10_10", # missing audio
-        split="specific_video_temporal_-rjR4El7qzg_4_80_10_10",
+        # split="specific_video_temporal_-rjR4El7qzg_4_80_10_10",
         # split="specific_video_temporal_lBwtMLK_qEE_1_0_80_10_10",
         # split="specific_video_temporal_lBwtMLK_qEE_1_0_80_10_10",
         image_size=224, 
