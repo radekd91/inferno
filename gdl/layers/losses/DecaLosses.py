@@ -155,17 +155,60 @@ def batch_kp_2d_l1_loss(real_2d_kp, predicted_2d_kp, weights=None):
     return torch.matmul(dif_abs, vis) * 1.0 / k
 
 
-def landmark_loss(predicted_landmarks, landmarks_gt, weight=1.):
+def landmark_loss(
+    predicted_landmarks, 
+    landmarks_gt, 
+    weight=1. # deprecated, do not use
+):
     # (predicted_theta, predicted_verts, predicted_landmarks) = ringnet_outputs[-1]
     if torch.is_tensor(landmarks_gt) is not True:
         real_2d = torch.cat(landmarks_gt) #.cuda()
     else:
-        real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1))#.cuda()
+        real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1), device=landmarks_gt.device)#.cuda()
                              ], dim=-1)
     # real_2d = torch.cat(landmarks_gt).cuda()
 
     loss_lmk_2d = batch_kp_2d_l1_loss(real_2d, predicted_landmarks)
     return loss_lmk_2d * weight
+
+
+CONTOUR_INDICES = torch.arange(0, 17).long()
+
+def landmark_loss_contour(
+    predicted_landmarks, 
+    landmarks_gt, 
+):
+    # (predicted_theta, predicted_verts, predicted_landmarks) = ringnet_outputs[-1]
+    if torch.is_tensor(landmarks_gt) is not True:
+        real_2d = torch.cat(landmarks_gt) #.cuda()
+    else:
+        real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1,), device=landmarks_gt.device)#.cuda()
+                             ], dim=-1)
+    # real_2d = torch.cat(landmarks_gt).cuda()
+    if CONTOUR_INDICES.device != predicted_landmarks.device:
+        CONTOUR_INDICES.to(predicted_landmarks.device)
+
+    loss_lmk_2d = batch_kp_2d_l1_loss(real_2d[:, CONTOUR_INDICES, ...], predicted_landmarks[:, CONTOUR_INDICES, ...])
+    return loss_lmk_2d 
+
+
+NOSE_INDICES = torch.arange(27, 36).long()
+
+def landmark_loss_nose(
+    predicted_landmarks, 
+    landmarks_gt, 
+):
+    # (predicted_theta, predicted_verts, predicted_landmarks) = ringnet_outputs[-1]
+    if torch.is_tensor(landmarks_gt) is not True:
+        real_2d = torch.cat(landmarks_gt) #.cuda()
+    else:
+        real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1), device=landmarks_gt.device)#.cuda()
+                             ], dim=-1)
+    # real_2d = torch.cat(landmarks_gt).cuda()
+    if NOSE_INDICES.device != predicted_landmarks.device:
+        NOSE_INDICES.to(predicted_landmarks.device)
+    loss_lmk_2d = batch_kp_2d_l1_loss(real_2d[:, NOSE_INDICES], predicted_landmarks[:, NOSE_INDICES])
+    return loss_lmk_2d 
 
 
 def eye_dis(landmarks):

@@ -172,19 +172,19 @@ def copy_parameter_from_resnet(model, resnet_dict):
     print('copy resnet state dict finished!')
     # import ipdb; ipdb.set_trace()
 
-def load_ResNet50Model():
+def load_ResNet50Model(pretrained = True):
     model = ResNet(Bottleneck, [3, 4, 6, 3])
-    copy_parameter_from_resnet(model, torchvision.models.resnet50(pretrained = True).state_dict())
+    copy_parameter_from_resnet(model, torchvision.models.resnet50(pretrained = pretrained).state_dict())
     return model
 
-def load_ResNet101Model():
+def load_ResNet101Model(pretrained = True):
     model = ResNet(Bottleneck, [3, 4, 23, 3])
-    copy_parameter_from_resnet(model, torchvision.models.resnet101(pretrained = True).state_dict())
+    copy_parameter_from_resnet(model, torchvision.models.resnet101(pretrained = pretrained).state_dict())
     return model
 
-def load_ResNet152Model():
+def load_ResNet152Model(pretrained = True):
     model = ResNet(Bottleneck, [3, 8, 36, 3])
-    copy_parameter_from_resnet(model, torchvision.models.resnet152(pretrained = True).state_dict())
+    copy_parameter_from_resnet(model, torchvision.models.resnet152(pretrained = pretrained).state_dict())
     return model
 
 # model.load_state_dict(checkpoint['model_state_dict'])

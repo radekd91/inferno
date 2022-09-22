@@ -6,6 +6,7 @@ from gdl.models.temporal.TemporalFLAME import FlameShapeModel
 from gdl.models.temporal.Renderers import FlameRenderer
 from gdl.models.temporal.AudioEncoders import AvHubertAudioEncoder, Wav2Vec2Encoder
 from gdl.models.temporal.VideoEncoders import EmocaVideoEncoder
+from gdl.models.temporal.ResNetVideoEncoder import TemporalResNetEncoder
 from omegaconf import open_dict
 
 
@@ -157,6 +158,8 @@ def video_encoder_from_cfg(cfg):
         model_name = Path(cfg.path_to_models).name
         deca =  load_model(path_to_models, model_name, mode)
         return deca
+    elif cfg.type == "ResNetVideoEncoder": 
+        return TemporalResNetEncoder(cfg)
 
     # elif cfg.type == "linear":
     #     LinearVideoEncoder
