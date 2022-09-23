@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 from gdl.transforms.imgaug import create_image_augmenter
-
+from gdl.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
 
 
 class CelebVHQDataModule(FaceVideoDataModule): 
@@ -510,8 +510,8 @@ class CelebVHQDataset(VideoDatasetBase):
                     landmark_validity = landmark_validity[start_frame: self.sequence_length + start_frame]
                 else:
                     if landmark_type == "mediapipe":
-                        num_landmarks = 468
-                    elif landmark_type == "fan":
+                        num_landmarks = MEDIAPIPE_LANDMARK_NUMBER
+                    elif landmark_type in ["fan", "kpt68"]:
                         num_landmarks = 68
                     landmarks = np.zeros((self.sequence_length, num_landmarks, 2), dtype=np.float32)
                     landmark_validity = np.zeros((self.sequence_length, 1), dtype=np.float32)
