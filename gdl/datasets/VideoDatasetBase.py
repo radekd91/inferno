@@ -14,6 +14,7 @@ import pandas as pd
 from skvideo.io import vread, vreader, FFmpegReader
 import torch.nn.functional as F
 import subprocess 
+import traceback
 
 
 class AbstractVideoDataset(torch.utils.data.Dataset):
@@ -169,14 +170,19 @@ class VideoDatasetBase(AbstractVideoDataset):
     def __getitem__(self, index):
         max_attempts = 10
         for i in range(max_attempts):
-            # try: 
+            try: 
                 return self._getitem(index)
-            # except Exception as e:
-            #     old_index = index
-            #     index = np.random.randint(0, self.__len__())
-            #     tb = traceback.format_exc()
-            #     print(f"[ERROR] Exception in {self.__class__.__name__} dataset while retrieving sample {old_index}, retrying with new index {index}")
-            #     print(tb)
+            except AssertionError as e:
+                if not hasattr(self, "num_total_failed_attempts"):
+                    self.num_total_failed_attempts = 0
+                old_index = index
+                index = np.random.randint(0, self.__len__())
+                tb = traceback.format_exc()
+                self.num_total_failed_attempts += 1
+                print(f"[ERROR] AssertionError in {self.__class__.__name__} dataset while retrieving sample {old_index}, retrying with new index {index}")
+                print(f"In total, there has been {self.num_total_failed_attempts} failed attempts. This number should be very small. If it's not, check the data.")
+                print("See the exception message for more details.")
+                print(tb)
         print("[ERROR] Failed to retrieve sample after {} attempts".format(max_attempts))
         raise RuntimeError("Failed to retrieve sample after {} attempts".format(max_attempts))
 
@@ -625,7 +631,8 @@ class VideoDatasetBase(AbstractVideoDataset):
                     order=0 # nearest neighbor interpolation for segmentation
                     )
                 # img_warped *= 255.
-                assert np.isnan(img_warped).sum() == 0 
+                assert np.isnan(img_warped).sum() == 0, f"NaNs in image {i} after face aligning image warp." \
+                    f"Center: {center[i]}, size: {size[i]}. Are these values valid?"
                 sample["video"][i] = img_warped 
                 # sample["segmentation"][i] = seg_warped * 255.
                 sample["segmentation"][i] = seg_warped
