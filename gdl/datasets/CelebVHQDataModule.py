@@ -7,6 +7,7 @@ import torch
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 from gdl.transforms.imgaug import create_image_augmenter
 from gdl.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
+from torch.utils.data import DataLoader
 
 
 class CelebVHQDataModule(FaceVideoDataModule): 
@@ -392,22 +393,24 @@ class CelebVHQDataModule(FaceVideoDataModule):
 
     def train_dataloader(self):
         sampler = self.train_sampler()
-        dl =  torch.utils.data.DataLoader(self.training_set, shuffle=sampler is None, num_workers=self.num_workers, pin_memory=True,
-                        batch_size=self.batch_size_train, drop_last=self.drop_last, sampler=sampler)
+        dl =  DataLoader(self.training_set, shuffle=sampler is None, num_workers=self.num_workers, pin_memory=True,
+                        batch_size=self.batch_size_train, drop_last=self.drop_last, sampler=sampler, 
+                        collate_fn=robust_collate)
         return dl
 
     def val_dataloader(self):
-        dl = torch.utils.data.DataLoader(self.validation_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+        dl = DataLoader(self.validation_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
                           batch_size=self.batch_size_val, 
                         #   drop_last=self.drop_last
-                          drop_last=False
-                          )
+                          drop_last=False, 
+                        collate_fn=robust_collate)
         if hasattr(self, "validation_set_2"): 
-            dl2 =  torch.utils.data.DataLoader(self.validation_set_2, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+            dl2 =  DataLoader(self.validation_set_2, shuffle=False, num_workers=self.num_workers, pin_memory=True,
                             batch_size=self.batch_size_val, 
                             # drop_last=self.drop_last, 
-                            drop_last=False
-                            )
+                            drop_last=False, 
+                            collate_fn=robust_collate)
+                            
             return [dl, dl2]
         return dl 
 
@@ -515,6 +518,7 @@ class CelebVHQDataset(VideoDatasetBase):
                         num_landmarks = 68
                     landmarks = np.zeros((self.sequence_length, num_landmarks, 2), dtype=np.float32)
                     landmark_validity = np.zeros((self.sequence_length, 1), dtype=np.float32)
+                    landmark_validity = landmark_validity.squeeze(-1)
 
 
             elif landmark_source == "aligned":
@@ -525,8 +529,11 @@ class CelebVHQDataset(VideoDatasetBase):
 
                 landmarks = landmarks[start_frame: self.sequence_length + start_frame]
                 # landmark_confidences = landmark_confidences[start_frame: self.sequence_length + start_frame]
-                # landmark_validity = landmark_confidences
-                landmark_validity = None
+                landmark_validity = landmark_confidences
+                # landmark_validity = None
+            
+            else: 
+                raise ValueError(f"Invalid landmark source: '{landmark_source}'")
 
             # landmark_validity = np.ones(len(landmarks), dtype=np.bool)
             # for li in range(len(landmarks)): 
@@ -558,8 +565,8 @@ class CelebVHQDataset(VideoDatasetBase):
                     landmark_validity = np.zeros((self.sequence_length, 1), dtype=np.float32)
 
             landmark_dict[landmark_type] = landmarks
-            if landmark_validity is not None:
-                landmark_validity_dict[landmark_type] = landmark_validity.squeeze(-1)
+            # if landmark_validity is not None:
+            landmark_validity_dict[landmark_type] = landmark_validity
 
         sample["landmarks"] = landmark_dict
         sample["landmarks_validity"] = landmark_validity_dict
@@ -569,6 +576,72 @@ class CelebVHQDataset(VideoDatasetBase):
     def _path_to_segmentations(self, index): 
         return (Path(self.output_dir) / f"segmentations_{self.segmentation_source}_{self.segmentation_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
 
+
+
+from torch.utils.data._utils.collate import default_collate, default_collate_err_msg_format, np_str_obj_array_pattern, string_classes
+import collections
+
+class NestedKeyError(Exception):
+    
+    def __init__(self, key) -> None:
+        self.keys = [key]
+
+
+def robust_collate(batch):
+    r"""Puts each data field into a tensor with outer dimension batch size. Copy of the default pytorch function, 
+        but with some try-except blocks to better report errors when some samples are missing some fields.
+    """
+    elem = batch[0]
+    elem_type = type(elem)
+    if isinstance(elem, torch.Tensor):
+        out = None
+        if torch.utils.data.get_worker_info() is not None:
+            # If we're in a background process, concatenate directly into a
+            # shared memory tensor to avoid an extra copy
+            numel = sum(x.numel() for x in batch)
+            storage = elem.storage()._new_shared(numel)
+            out = elem.new(storage)
+        return torch.stack(batch, 0, out=out)
+    elif elem_type.__module__ == 'numpy' and elem_type.__name__ != 'str_' \
+            and elem_type.__name__ != 'string_':
+        if elem_type.__name__ == 'ndarray' or elem_type.__name__ == 'memmap':
+            # array of string classes and object
+            if np_str_obj_array_pattern.search(elem.dtype.str) is not None:
+                raise TypeError(default_collate_err_msg_format.format(elem.dtype))
+
+            return robust_collate([torch.as_tensor(b) for b in batch])
+        elif elem.shape == ():  # scalars
+            return torch.as_tensor(batch)
+    elif isinstance(elem, float):
+        return torch.tensor(batch, dtype=torch.float64)
+    elif isinstance(elem, int):
+        return torch.tensor(batch)
+    elif isinstance(elem, string_classes):
+        return batch
+    elif isinstance(elem, collections.abc.Mapping):
+        result = {}
+        for key in elem: 
+            try: 
+                result[key] = robust_collate([d[key] for d in batch])
+            except KeyError as e: 
+                err = NestedKeyError(key)
+                raise err 
+            except NestedKeyError as e: 
+                e += [key]
+                raise e
+        return result
+    elif isinstance(elem, tuple) and hasattr(elem, '_fields'):  # namedtuple
+        return elem_type(*(robust_collate(samples) for samples in zip(*batch)))
+    elif isinstance(elem, collections.abc.Sequence):
+        # check to make sure that the elements in batch have consistent size
+        it = iter(batch)
+        elem_size = len(next(it))
+        if not all(len(elem) == elem_size for elem in it):
+            raise RuntimeError('each element in list of batch should be of equal size')
+        transposed = zip(*batch)
+        return [robust_collate(samples) for samples in transposed]
+
+    raise TypeError(default_collate_err_msg_format.format(elem_type))
 
 
 
@@ -661,7 +734,7 @@ def main():
         sequence_length_train=seq_len,
         sequence_length_val=seq_len,
         sequence_length_test=seq_len,
-        num_workers=6,            
+        num_workers=8,            
         include_processed_audio = True,
         include_raw_audio = True,
         augmentation=augmenter,
@@ -680,16 +753,16 @@ def main():
     indices = np.arange(len(dataset), dtype=np.int32)
     np.random.shuffle(indices)
 
-    for i in range(len(indices)): 
-        start = time.time()
-        sample = dataset[indices[i]]
-        end = time.time()
-        print(f"Loading sample {i} took {end-start:.3f} s")
-        dataset.visualize_sample(sample)
+    # for i in range(len(indices)): 
+    #     start = time.time()
+    #     sample = dataset[indices[i]]
+    #     end = time.time()
+    #     print(f"Loading sample {i} took {end-start:.3f} s")
+    #     dataset.visualize_sample(sample)
 
-    # from tqdm import auto
-    # for bi, batch in enumerate(auto.tqdm(dl)): 
-    #     pass
+    from tqdm import auto
+    for bi, batch in enumerate(auto.tqdm(dl)): 
+        pass
 
 
     # iter_ = iter(dl)
