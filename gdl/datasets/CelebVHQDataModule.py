@@ -695,7 +695,7 @@ def main():
     # Create the dataset
     dm = CelebVHQDataModule(
         root_dir, output_dir, processed_subfolder,
-        # split="all",
+        split="all",
         # split="temporal_80_10_10",
         # split="specific_video_temporal_z0ecgTX08pI_0_1_80_10_10",  # missing audio
         # split="specific_video_temporal_8oKLUz8phdg_1_0_80_10_10",
@@ -703,7 +703,7 @@ def main():
         # split="specific_video_temporal_YgJ5ZEn67tk_2_80_10_10",
         # split="specific_video_temporal_zZrDihnANpM_4_80_10_10", 
         # split = "specific_video_temporal_6jRVZQMKlxw_1_0_80_10_10",
-        split = "specific_video_temporal_6jRVZQMKlxw_1_0_80_10_10",
+        # split = "specific_video_temporal_6jRVZQMKlxw_1_0_80_10_10",
         # split="specific_video_temporal_T0BMVyJ1OXk_0_0_80_10_10", # missing audio
         # split="specific_video_temporal_2T3YWtHj_Ag_0_0_80_10_10", # missing audio
         # split="specific_video_temporal_7Eha1lreIyg_0_0_80_10_10", # missing audio
