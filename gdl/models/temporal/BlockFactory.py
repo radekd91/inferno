@@ -1,5 +1,8 @@
+from email.mime import image
 import imp
 from pathlib import Path
+from turtle import forward
+from gdl.models.temporal.Bases import Preprocessor
 from gdl.models.temporal.SequenceEncoders import *
 from gdl.models.temporal.SequenceDecoders import *
 from gdl.models.temporal.TemporalFLAME import FlameShapeModel
@@ -8,6 +11,8 @@ from gdl.models.temporal.AudioEncoders import AvHubertAudioEncoder, Wav2Vec2Enco
 from gdl.models.temporal.VideoEncoders import EmocaVideoEncoder
 from gdl.models.temporal.ResNetVideoEncoder import TemporalResNetEncoder
 from omegaconf import open_dict
+
+from gdl.utils.other import get_path_to_assets
 
 
 def load_avhubert_model(ckpt_path):
@@ -275,3 +280,73 @@ def sequence_decoder_from_cfg(cfg):
         raise ValueError(f"Unknown sequence decoder model type '{decoder_cfg.type}'")
 
     return decoder
+
+
+class EmocaPreprocessor(Preprocessor): 
+
+    def __init__(self, cfg, **kwargs):
+        super().__init__(**kwargs)
+        from gdl_apps.EMOCA.utils.io import load_model
+        if not cfg.model_path:
+            self.model_path = get_path_to_assets() / "EMOCA/models"
+        else:
+            self.model_path = Path(cfg.model_path)
+        self.model_name = cfg.model_name
+        self.stage = cfg.stage 
+        self.model, self.model_conf = load_model(self.model_path, self.model_name, self.stage)
+
+        for p in self.model.parameters():
+            p.requires_grad = False
+
+    @property
+    def device(self):
+        return self.model.device
+
+    def to(self, device):
+        self.model.to(device)
+
+    def forward(self, batch, input_key, *args, output_prefix="gt_", **kwargs):
+        # from gdl_apps.EMOCA.utils.io import test
+        images = batch[input_key]
+
+        B, T, C, H, W = images.shape
+
+        batch_ = {} 
+        batch_['image'] = images.view(B*T, C, H, W)
+
+        # vals, visdict = decode(deca, batch, vals, training=False)
+        values = self.model.encode(batch_, training=False)
+        values = self.model.decode(values, training=False)
+        
+                # compute the the shapecode only from frames where landmarks are valid
+        weights = batch["landmarks_validity"]["mediapipe"] / batch["landmarks_validity"]["mediapipe"].sum(axis=1, keepdims=True)
+        assert weights.isnan().any() == False, "NaN in weights"
+        avg_shapecode = (weights * values['shapecode'].view(B, T, -1)).sum(axis=1, keepdims=False)
+
+        verts, landmarks2d, landmarks3d = self.model.deca.flame(
+            shape_params=avg_shapecode, 
+            expression_params=torch.zeros(device = avg_shapecode.device, dtype = avg_shapecode.dtype, 
+                size = (avg_shapecode.shape[0], values['expcode'].shape[-1])),
+            pose_params=None
+        )
+
+
+
+        batch["template"] = verts.contiguous().view(B, -1)
+        # batch["template"] = verts.view(B, T, -1, 3)
+        # batch[output_prefix + "vertices"] = values['verts'].view(B, T, -1, 3)
+        batch[output_prefix + "vertices"] = values['verts'].contiguous().view(B, T, -1)
+        # batch[output_prefix + 'shape'] = values['shapecode'].view(B, T, -1)
+        batch[output_prefix + 'shape'] = avg_shapecode
+        batch[output_prefix + 'exp'] =  values['expcode'].view(B, T, -1)
+        batch[output_prefix + 'jaw'] = values['posecode'][..., 3:].contiguous().view(B, T, -1)
+        return batch
+
+
+def preprocessor_from_cfg(cfg):
+    if cfg.type == "none":
+        return None
+    elif cfg.type == "emoca":
+        return EmocaPreprocessor(cfg)
+    else: 
+        raise ValueError(f"Unknown preprocess model type '{cfg.model.preprocess.type}'")

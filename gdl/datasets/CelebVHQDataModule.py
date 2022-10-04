@@ -33,7 +33,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
             # occlusion_length_val=0,
             # occlusion_length_test=0,            
             bb_center_shift_x=0., # in relative numbers
-            bb_center_shift_y=0, # in relative numbers (i.e. -0.1 for 10% shift upwards, ...)
+            bb_center_shift_y=0., # in relative numbers (i.e. -0.1 for 10% shift upwards, ...)
             occlusion_settings_train=None,
             occlusion_settings_val=None,
             occlusion_settings_test=None,
@@ -667,17 +667,19 @@ def main():
 
     import yaml
     from munch import Munch, munchify
-    augmenter = yaml.load(open(Path(__file__).parents[2] / "gdl_apps" / "Speech4D" / "tempface_conf" / "data" / "augmentations" / "default_no_jpeg.yaml"), 
-        Loader=yaml.FullLoader)["augmentation"]
-    augmenter = munchify(augmenter)
-    # augmenter = None
-    occlusion_settings_train = {
-        "occlusion_length": [5, 15],
-        "occlusion_probability_mouth": 0.5,
-        "occlusion_probability_left_eye": 0.33,
-        "occlusion_probability_right_eye": 0.33,
-        "occlusion_probability_face": 0.2,
-    }
+    # augmenter = yaml.load(open(Path(__file__).parents[2] / "gdl_apps" / "Speech4D" / "tempface_conf" / "data" / "augmentations" / "default_no_jpeg.yaml"), 
+    #     Loader=yaml.FullLoader)["augmentation"]
+    # augmenter = munchify(augmenter)
+    augmenter = None
+    
+    occlusion_settings_train = None
+    # occlusion_settings_train = {
+    #     "occlusion_length": [5, 15],
+    #     "occlusion_probability_mouth": 0.5,
+    #     "occlusion_probability_left_eye": 0.33,
+    #     "occlusion_probability_right_eye": 0.33,
+    #     "occlusion_probability_face": 0.2,
+    # }
 # occlusion_settings_val:
 #     occlusion_length: [5, 10]
 #     occlusion_probability_mouth: 1.0
@@ -753,16 +755,16 @@ def main():
     indices = np.arange(len(dataset), dtype=np.int32)
     np.random.shuffle(indices)
 
-    # for i in range(len(indices)): 
-    #     start = time.time()
-    #     sample = dataset[indices[i]]
-    #     end = time.time()
-    #     print(f"Loading sample {i} took {end-start:.3f} s")
-    #     dataset.visualize_sample(sample)
+    for i in range(len(indices)): 
+        start = time.time()
+        sample = dataset[indices[i]]
+        end = time.time()
+        print(f"Loading sample {i} took {end-start:.3f} s")
+        dataset.visualize_sample(sample)
 
-    from tqdm import auto
-    for bi, batch in enumerate(auto.tqdm(dl)): 
-        pass
+    # from tqdm import auto
+    # for bi, batch in enumerate(auto.tqdm(dl)): 
+    #     pass
 
 
     # iter_ = iter(dl)

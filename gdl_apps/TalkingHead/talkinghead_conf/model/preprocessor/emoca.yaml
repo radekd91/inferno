@@ -1,0 +1,6 @@
+# @package model 
+type: emoca
+model_path: False
+model_name: EMOCA
+stage: detail 
+

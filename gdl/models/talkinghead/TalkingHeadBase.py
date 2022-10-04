@@ -15,6 +15,7 @@ class TalkingHeadBase(pl.LightningModule):
                 sequence_encoder : SequenceEncoder = None,
                 sequence_decoder : Optional[SequenceDecoder] = None,
                 shape_model: Optional[ShapeModel] = None,
+                preprocessor: Optional[Preprocessor] = None,
                 # renderer: Optional[Renderer] = None,
                 # post_fusion_norm: Optional = None,
                 *args: Any, **kwargs: Any) -> None:
@@ -24,6 +25,7 @@ class TalkingHeadBase(pl.LightningModule):
         self.sequence_encoder = sequence_encoder
         self.sequence_decoder = sequence_decoder
         self.shape_model = shape_model
+        self.preprocessor = preprocessor
         # self.renderer = renderer
 
         if self.sequence_decoder is None: 
@@ -119,7 +121,8 @@ class TalkingHeadBase(pl.LightningModule):
         return total_loss, losses_and_metrics_to_log
 
     def validation_step(self, batch, batch_idx, *args, **kwargs):
-        if batch["one_hot"].ndim <= 2: #one-hot specified
+        # if "one_hot" not in batch.keys():
+        if "one_hot" not in batch.keys() or batch["one_hot"].ndim <= 2: #one-hot specified
             total_loss, losses_and_metrics_to_log =  self._validation_step(batch, batch_idx, *args, **kwargs)
             if self.logger is not None:
                 self.log_dict(losses_and_metrics_to_log, on_step=False, on_epoch=True, sync_dist=True) # log per epoch, # recommended
@@ -174,6 +177,13 @@ class TalkingHeadBase(pl.LightningModule):
     def decode_sequence(self, sample: Dict, train=False, teacher_forcing=False, **kwargs: Any) -> Dict:
         return self.sequence_decoder(sample, train=train, teacher_forcing=teacher_forcing, **kwargs)
 
+    @torch.no_grad()
+    def preprocess_input(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
+        if self.preprocessor is not None:
+            if self.device != self.preprocessor.device:
+                self.preprocessor.to(self.device)
+            sample = self.preprocessor(sample, input_key="video", train=train, **kwargs)
+        return sample 
 
     def forward(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
         """
@@ -181,6 +191,10 @@ class TalkingHeadBase(pl.LightningModule):
             - audio: (B, T, F)
             # - masked_audio: (B, T, F)
         """
+        # preprocess input (for instance get 3D pseudo-GT )
+        sample = self.preprocess_input(sample, train=train, **kwargs)
+        check_nan(sample)
+        
         teacher_forcing = kwargs.pop("teacher_forcing", False)
         desired_output_length = sample["gt_vertices"].shape[1] if "gt_vertices" in sample.keys() else None
         sample = self.forward_audio(sample, train=train, desired_output_length=desired_output_length, **kwargs)

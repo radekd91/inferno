@@ -14,12 +14,14 @@ class FaceFormer(TalkingHeadBase):
             cfg.model.sequence_encoder.input_feature_dim = audio_encoder.output_feature_dim()
         sequence_encoder = sequence_encoder_from_cfg(cfg.model.sequence_encoder)
         sequence_decoder = sequence_decoder_from_cfg(cfg)
+        preprocessor = preprocessor_from_cfg(cfg.model.get('preprocessor', None))
 
         super().__init__(cfg, 
             audio_model=audio_encoder, 
             sequence_encoder= sequence_encoder, 
             sequence_decoder= sequence_decoder, 
             # shape_model=face_model,
+            preprocessor=preprocessor,
             )
 
     def _rotation_representation(self):
@@ -36,7 +38,8 @@ class FaceFormer(TalkingHeadBase):
                 metric=loss_cfg.get('metric', 'l2')
                 )
         elif loss_type in ["expression_loss", "exp_loss"]:
-            loss_value = F.mse_loss(sample["predicted_exp"], sample["gt_exp"])
+            min_dim = min(sample["predicted_exp"].shape[-1], sample["gt_exp"].shape[-1])
+            loss_value = F.mse_loss(sample["predicted_exp"][..., :min_dim], sample["gt_exp"][..., :min_dim])
         elif loss_type == "vertex_loss":
             loss_value = F.mse_loss(sample["predicted_vertices"], sample["gt_vertices"])
         
@@ -44,7 +47,8 @@ class FaceFormer(TalkingHeadBase):
         elif loss_type == "vertex_velocity_loss":
             loss_value = velocity_loss(sample["predicted_vertices"], sample["gt_vertices"], F.mse_loss)
         elif loss_type in ["expression_velocity_loss", "exp_velocity_loss"]:
-            loss_value = velocity_loss(sample["predicted_exp"], sample["gt_exp"], F.mse_loss)
+            min_dim = min(sample["predicted_exp"].shape[-1], sample["gt_exp"].shape[-1])
+            loss_value = velocity_loss(sample["predicted_exp"][..., :min_dim], sample["gt_exp"][..., :min_dim], F.mse_loss)
         elif loss_type in ["jawpose_velocity_loss", "jaw_velocity_loss"]:
             loss_value = rotation_velocity_loss(sample["predicted_jaw"], sample["gt_jaw"],
                 r1_input_rep=self._rotation_representation(), 

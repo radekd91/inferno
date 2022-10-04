@@ -168,7 +168,8 @@ class VideoDatasetBase(AbstractVideoDataset):
         self.video_sample_indices = np.array(video_sample_indices, dtype=np.int32)
 
     def __getitem__(self, index):
-        max_attempts = 10
+        # max_attempts = 10
+        max_attempts = 50
         for i in range(max_attempts):
             try: 
                 return self._getitem(index)
@@ -222,7 +223,8 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         # T,H,W,C to T,C,H,W
         sample["video"] = sample["video"].permute(0, 3, 1, 2)
-        sample["video_masked"] = sample["video_masked"].permute(0, 3, 1, 2)
+        if "video_masked" in sample.keys():
+            sample["video_masked"] = sample["video_masked"].permute(0, 3, 1, 2)
         # sample["segmenation"] = sample["segmenation"].permute(0, 2, 1)
         # sample["segmentation_masked"] = sample["segmentation_masked"].permute(0, 2, 1)
 
@@ -361,7 +363,8 @@ class VideoDatasetBase(AbstractVideoDataset):
 
     def _get_audio(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
         # load the audio 
-        if self.include_raw_audio:
+        # if self.include_raw_audio:
+        if self.include_processed_audio:
             audio_path = (Path(self.output_dir) / "audio" / self.video_list[self.video_indices[index]]).with_suffix(".wav")
             audio_meta = self.audio_metas[self.video_indices[index]]
             # sampling_rate, wavdata = wavfile.read(audio_path.as_posix())
@@ -620,22 +623,27 @@ class VideoDatasetBase(AbstractVideoDataset):
             size = (old_size * self.scale).astype(np.int32)
 
             video_frames = sample["video"]
-            seg_frames = sample["segmentation"]
             sample["video"] = np.zeros((video_frames.shape[0], self.image_size, self.image_size, video_frames.shape[-1]), dtype=video_frames.dtype)
-            sample["segmentation"] = np.zeros((seg_frames.shape[0], self.image_size, self.image_size), dtype=seg_frames.dtype)
+            
+            if "segmentation" in sample.keys():
+                seg_frames = sample["segmentation"]
+                sample["segmentation"] = np.zeros((seg_frames.shape[0], self.image_size, self.image_size), dtype=seg_frames.dtype)
 
             for i in range(self.sequence_length):
                 lmk_to_warp = {k: v[i] for k,v in sample["landmarks"].items()}
                 img_warped, lmk_warped = bbpoint_warp(video_frames[i], center[i], size[i], self.image_size, landmarks=lmk_to_warp)
-                seg_warped = bbpoint_warp(seg_frames[i], center[i], size[i], self.image_size, 
-                    order=0 # nearest neighbor interpolation for segmentation
-                    )
+                
+                if "segmentation" in sample.keys():
+                    seg_warped = bbpoint_warp(seg_frames[i], center[i], size[i], self.image_size, 
+                        order=0 # nearest neighbor interpolation for segmentation
+                        )
                 # img_warped *= 255.
                 assert np.isnan(img_warped).sum() == 0, f"NaNs in image {i} after face aligning image warp." \
                     f"Center: {center[i]}, size: {size[i]}. Are these values valid?"
                 sample["video"][i] = img_warped 
                 # sample["segmentation"][i] = seg_warped * 255.
-                sample["segmentation"][i] = seg_warped
+                if "segmentation" in sample.keys():
+                    sample["segmentation"][i] = seg_warped
                 for k,v in lmk_warped.items():
                     sample["landmarks"][k][i][:,:2] = v
         return sample
@@ -700,13 +708,17 @@ class VideoDatasetBase(AbstractVideoDataset):
         mediapipe_landmarks_valid = sample["landmarks_validity"]["mediapipe"]
         # mediapipe_landmarks = []
         images = sample["video"]
-        segmentation = sample["segmentation"]
+        segmentation=None
+        if "segmentation" in sample.keys():
+            segmentation = sample["segmentation"]
         
 
         images_masked = np.copy(images)
-        segmentation_masked = np.copy(segmentation)
+        segmentation_masked = None
+        if segmentation is not None:
+            segmentation_masked = np.copy(segmentation)
 
-        masked_frames = np.zeros(segmentation.shape[:1], dtype=np.float32)
+        masked_frames = np.zeros(images.shape[:1], dtype=np.float32)
 
         # compute mouth region bounding box
         if np.random.rand() < self.occlusion_probability_mouth: 
@@ -741,7 +753,14 @@ class VideoDatasetBase(AbstractVideoDataset):
 
 
         images_aug = np.concatenate([images, images_masked], axis=0) * 255.0
-        segmentation_aug = np.concatenate([segmentation, segmentation_masked], axis=0)
+        segmentation_aug = [] 
+        if segmentation is not None:
+            segmentation_aug += [segmentation]
+        if segmentation_masked is not None:
+            segmentation_aug += [segmentation_masked]
+
+        segmentation_aug = np.concatenate(segmentation_aug, axis=0) if len(segmentation_aug) > 0 else None
+        # segmentation_aug = np.concatenate([segmentation, segmentation_masked], axis=0)
         # mediapipe_landmarks_aug = np.concatenate([mediapipe_landmarks, mediapipe_landmarks], axis=0)
 
         # concatenate all the available landmarks s.t. it can be used for augmentation
@@ -760,16 +779,22 @@ class VideoDatasetBase(AbstractVideoDataset):
         images_aug, segmentation_aug, mediapipe_landmarks_aug = self._augment(images_aug, segmentation_aug, 
                     landmarks_to_augment_aug, images.shape[2:])
         images = images_aug[:images_aug.shape[0]//2]
-        segmentation = segmentation_aug[:segmentation_aug.shape[0]//2]
+
+        if segmentation is not None:
+            segmentation = segmentation_aug[:segmentation_aug.shape[0]//2]
         # mediapipe_landmarks = mediapipe_landmarks_aug[:mediapipe_landmarks_aug.shape[0]//2]
         landmarks_to_augment_aug = landmarks_to_augment_aug[:landmarks_to_augment_aug.shape[0]//2]
         images_masked = images_aug[images_aug.shape[0]//2 :]
-        segmentation_masked = segmentation_aug[segmentation_aug.shape[0]//2 :]
+
+        if segmentation_masked is not None:
+            segmentation_masked = segmentation_aug[segmentation_aug.shape[0]//2 :]
 
         sample["video"] = images / 255.0
         sample["video_masked"] = images_masked / 255.0
-        sample["segmentation"] = segmentation
-        sample["segmentation_masked"] = segmentation_masked
+        if segmentation is not None:
+            sample["segmentation"] = segmentation
+        if segmentation_masked is not None:
+            sample["segmentation_masked"] = segmentation_masked
         sample["masked_frames"] = masked_frames
         # sample["landmarks"]["mediapipe"] = mediapipe_landmarks 
 
@@ -828,8 +853,9 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         images = self.occluder.occlude_batch(images, region, landmarks=None, 
             bounding_box_batch=bounding_boxes, start_frame=start_frame, end_frame=end_frame)
-        segmentation = self.occluder.occlude_batch(segmentation, region, landmarks=None, 
-            bounding_box_batch=bounding_boxes, start_frame=start_frame, end_frame=end_frame)
+        if segmentation is not None:
+            segmentation = self.occluder.occlude_batch(segmentation, region, landmarks=None, 
+                bounding_box_batch=bounding_boxes, start_frame=start_frame, end_frame=end_frame)
         return images, segmentation, start_frame, end_frame
 
     def add_noise(self, wavdata):
@@ -856,9 +882,9 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         # visualize the video
         video_frames = sample["video"]
-        segmentation = sample["segmentation"]
-        video_frames_masked = sample["video_masked"]
-        segmentation_masked = sample["segmentation_masked"]
+        segmentation = sample.get("segmentation", None)
+        video_frames_masked = sample.get("video_masked", None)
+        segmentation_masked = sample.get("segmentation_masked", None)
 
         if "mediapipe" in sample["landmarks"]:
             landmarks_mp = sample["landmarks"]["mediapipe"]
@@ -867,16 +893,24 @@ class VideoDatasetBase(AbstractVideoDataset):
 
             # T, C, W, H to T, W, H, C 
             video_frames = video_frames.permute(0, 2, 3, 1)
-            video_frames_masked = video_frames_masked.permute(0, 2, 3, 1)
-            segmentation = segmentation[..., None]
-            segmentation_masked = segmentation_masked[..., None]
+            if video_frames_masked is not None:
+                video_frames_masked = video_frames_masked.permute(0, 2, 3, 1)
+            if segmentation is not None:
+                segmentation = segmentation[..., None]
+            
+            if segmentation_masked is not None:
+                segmentation_masked = segmentation_masked[..., None]
 
             # plot the video frames with plotly
             # horizontally concatenate the frames
             frames = np.concatenate(video_frames.numpy(), axis=1)
-            frames_masked = np.concatenate(video_frames_masked.numpy(), axis=1)
-            segmentation = np.concatenate(segmentation.numpy(), axis=1)
-            segmentation_masked = np.concatenate(segmentation_masked.numpy(), axis=1)
+            frames_masked=None
+            if video_frames_masked is not None:
+                frames_masked = np.concatenate(video_frames_masked.numpy(), axis=1)
+            if segmentation is not None:
+                segmentation = np.concatenate(segmentation.numpy(), axis=1)
+            if segmentation_masked is not None:
+                segmentation_masked = np.concatenate(segmentation_masked.numpy(), axis=1)
             landmarks_mp_list = [] 
             for i in range(landmarks_mp.shape[0]):
                 landmarks_mp_proto = np2mediapipe(landmarks_mp[i].numpy() / self.image_size)
@@ -920,8 +954,13 @@ class VideoDatasetBase(AbstractVideoDataset):
             #     fan_lmk_images += [lmk_im]
             # fan_lmk_images = np.concatenate(fan_lmk_images, axis=1)   
 
-        all_images = [frames*255, np.tile( segmentation*255, (1,1,3)), 
-            frames_masked*255, np.tile(segmentation_masked*255, (1,1,3))] 
+        all_images = [frames*255] 
+        if segmentation is not None:
+            all_images += [np.tile(segmentation*255, (1,1,3))] 
+        if frames_masked is not None: 
+            all_images += [frames_masked*255] 
+        if segmentation_masked is not None:
+            all_images += [np.tile(segmentation_masked*255, (1,1,3))] 
         if video_frames_landmarks_mp is not None:
             all_images += [video_frames_landmarks_mp]
         if fan_lmk_images is not None: 
