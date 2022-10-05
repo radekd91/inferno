@@ -498,6 +498,9 @@ class VideoDatasetBase(AbstractVideoDataset):
             landmark_dict[landmark_type] = landmarks
             landmark_validity_dict[landmark_type] = landmark_validity
 
+
+        lmk_weights = sample["landmarks_validity"]["mediapipe"] / sample["landmarks_validity"]["mediapipe"].sum(axis=1, keepdims=True)
+
         sample["landmarks"] = landmark_dict
         sample["landmarks_validity"] = landmark_validity_dict
         return sample

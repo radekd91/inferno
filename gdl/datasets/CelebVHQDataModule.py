@@ -518,7 +518,7 @@ class CelebVHQDataset(VideoDatasetBase):
                         num_landmarks = 68
                     landmarks = np.zeros((self.sequence_length, num_landmarks, 2), dtype=np.float32)
                     landmark_validity = np.zeros((self.sequence_length, 1), dtype=np.float32)
-                    landmark_validity = landmark_validity.squeeze(-1)
+                    # landmark_validity = landmark_validity.squeeze(-1)
 
 
             elif landmark_source == "aligned":

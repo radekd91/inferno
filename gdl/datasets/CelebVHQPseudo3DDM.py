@@ -55,6 +55,7 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                 self.audio_metas, self.sequence_length_train, image_size=self.image_size, 
                 transforms=training_augmenter,
                 **self.occlusion_settings_train,
+            
                 hack_length=False,
                 use_original_video=self.use_original_video,
                 include_processed_audio = self.include_processed_audio,
