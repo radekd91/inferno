@@ -24,7 +24,7 @@ from pathlib import Path
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
-from gdl.models.talkinghead.TalkingHeadBase import TalkingHeadBase, instantiate
+from gdl.models.talkinghead.TalkingHeadBase import TalkingHeadBase
 from pytorch_lightning.loggers import WandbLogger
 import datetime
 import time as t
