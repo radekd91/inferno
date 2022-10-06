@@ -287,7 +287,7 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
                       # num_sanity_val_steps=0
                       )
 
-    pl_module_class = TalkingHead # TODO: make configurable
+    pl_module_class = TalkingHeadBase # TODO: make configurable
 
 
     if stage == "train":
