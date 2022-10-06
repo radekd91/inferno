@@ -344,7 +344,7 @@ class EmocaPreprocessor(Preprocessor):
 
 
 def preprocessor_from_cfg(cfg):
-    if cfg.type == "none":
+    if cfg.type is None or cfg.type == "none":
         return None
     elif cfg.type == "emoca":
         return EmocaPreprocessor(cfg)
