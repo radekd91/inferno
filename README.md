@@ -92,18 +92,18 @@ bash pull_submodules.sh
 ```
 
 
-2) Set up a conda environment with one of the provided conda files. I recommend using `conda-environment_py36_cu11_ubuntu.yml`.  
+2) Set up a conda environment with one of the provided conda files. I recommend using `conda-environment_py38_cu11_ubuntu.yml`.  
 <!-- This is the one I use for the cluster `conda-environment_py36_cu11_cluster.yml`. The differences between tehse two are probably not important but I include both for completeness.  -->
 
 You can use [mamba](https://github.com/mamba-org/mamba) to create a conda environment (strongly recommended):
 
 ```bash
-mamba env create python=3.6 --file conda-environment_py36_cu11_ubuntu.yml
+mamba env create python=3.8 --file conda-environment_py38_cu11_ubuntu.yml
 ```
 
 but you can also use plain conda if you want (but it will be slower): 
 ```bash
-conda env create python=3.6 --file conda-environment_py36_cu11_ubuntu.yml
+conda env create python=3.8 --file conda-environment_py38_cu11_ubuntu.yml
 ```
 
 
@@ -111,7 +111,7 @@ Note: the environment might contain some packages. If you find an environment is
 
 2) Activate the environment: 
 ```bash 
-conda activate work36_cu11
+conda activate work38
 ```
 
 3) For some reason cython is glitching in the requirements file so install it separately: 
@@ -141,7 +141,7 @@ Note: EMOCA was developed with Pytorch 1.9.1 and Pytorch3d 0.6.0 running on CUDA
 
 0) Activate the environment: 
 ```bash
-conda activate work36_cu11
+conda activate work38
 ```
 
 1) For running EMOCA examples, go to [EMOCA](gdl_apps/EMOCA) 
