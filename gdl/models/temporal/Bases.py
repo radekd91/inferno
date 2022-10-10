@@ -107,7 +107,6 @@ class Preprocessor(object):
         raise NotImplementedError("Subclasses must implement this method")
 
 
-
 class Renderer(torch.nn.Module):
 
     def __init__(self):

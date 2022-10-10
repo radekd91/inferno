@@ -2,6 +2,8 @@ from email.mime import image
 import imp
 from pathlib import Path
 from turtle import forward
+
+import omegaconf
 from gdl.models.temporal.Bases import Preprocessor
 from gdl.models.temporal.SequenceEncoders import *
 from gdl.models.temporal.SequenceDecoders import *
@@ -10,6 +12,7 @@ from gdl.models.temporal.Renderers import FlameRenderer
 from gdl.models.temporal.AudioEncoders import AvHubertAudioEncoder, Wav2Vec2Encoder
 from gdl.models.temporal.VideoEncoders import EmocaVideoEncoder
 from gdl.models.temporal.ResNetVideoEncoder import TemporalResNetEncoder
+import omegaconf
 from omegaconf import open_dict
 
 from gdl.utils.other import get_path_to_assets
@@ -297,6 +300,7 @@ class EmocaPreprocessor(Preprocessor):
 
         for p in self.model.parameters():
             p.requires_grad = False
+        self.model = self.model.eval()
 
     @property
     def device(self):
@@ -330,8 +334,6 @@ class EmocaPreprocessor(Preprocessor):
             pose_params=None
         )
 
-
-
         batch["template"] = verts.contiguous().view(B, -1)
         # batch["template"] = verts.view(B, T, -1, 3)
         # batch[output_prefix + "vertices"] = values['verts'].view(B, T, -1, 3)
@@ -343,10 +345,88 @@ class EmocaPreprocessor(Preprocessor):
         return batch
 
 
+class EmotionRecognitionPreprocessor(Preprocessor):
+    def __init__(self, cfg, **kwargs):
+        super().__init__(**kwargs)
+    
+        from gdl_apps.EmotionRecognition.utils.io import load_model
+        self.cfg = cfg
+        if not cfg.model_path:
+            self.model_path = get_path_to_assets() / "EmotionRecognition" / "image_based_networks"
+        else:
+            self.model_path = Path(cfg.model_path)
+        self.model_name = cfg.model_name
+        self.model = load_model(self.model_path / self.model_name)
+        for p in self.model.parameters():
+            p.requires_grad = False
+        self.model = self.model.eval()
+
+    @property
+    def device(self):
+        return self.model.device
+
+    def to(self, device):
+        self.model.to(device)
+
+    def forward(self, batch, input_key, *args, output_prefix="gt_", **kwargs):
+        images = batch[input_key]
+        B, T, C, H, W = images.shape
+
+        batch_ = {} 
+        batch_['image'] = images.view(B*T, C, H, W)
+        output = self.model(batch_)
+
+        # output_keys = ["valence", "arousal", "emo_feat_2"]
+
+        # for i, key in enumerate(output_keys):
+        for i, key in enumerate(output.keys()):
+            batch[output_prefix + key] = output[key].view(B, T, -1)
+        return batch
+
+
+class NestedPreprocessor(Preprocessor): 
+
+    def __init__(self, cfg, **kwargs):
+        super().__init__(**kwargs)
+        self.preprocessors = {}
+        self.prepend_name = cfg.get('prepend_name', False)
+        if isinstance(cfg.preprocessors, (list, omegaconf.listconfig.ListConfig)):
+            for p in cfg.preprocessors:
+                l = list(p.keys())
+                assert len(l) == 1, f"Only one preprocessor per entry is allowed, got {l}"
+                name = l[0]
+                self.preprocessors[name] = preprocessor_from_cfg(p[name])
+        else:
+            for name, preprocessor_cfg in cfg.preprocessors:
+                preprocessor = preprocessor_from_cfg(preprocessor_cfg)
+                self.preprocessors[name] = preprocessor
+
+    def to(self, device):
+        for preprocessor_name, preprocessor in self.preprocessors.items():
+            preprocessor.to(device)
+        return self
+
+    def forward(self, batch, input_key, *args, output_prefix="gt_", **kwargs):
+        for preprocessor_name, preprocessor in self.preprocessors.items():
+            if self.prepend_name:
+                output_prefix = preprocessor_name + "_"
+            batch = preprocessor(batch, input_key, output_prefix=output_prefix)
+        return batch
+    
+    @property
+    def device(self):
+        return self.preprocessors[list(self.preprocessors.keys())[0]].device
+
+
+
 def preprocessor_from_cfg(cfg):
     if cfg.type is None or cfg.type == "none":
         return None
     elif cfg.type == "emoca":
         return EmocaPreprocessor(cfg)
+    elif cfg.type == "emorec":
+        return EmotionRecognitionPreprocessor(cfg)
+    elif cfg.type == "nested":
+        return NestedPreprocessor(cfg)
     else: 
         raise ValueError(f"Unknown preprocess model type '{cfg.model.preprocess.type}'")

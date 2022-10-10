@@ -164,6 +164,8 @@ class EmoCnnModule(EmotionRecognitionBaseModule):
         if self.predicts_AUs():
             values['AUs'] = emotion['AUs']
 
+        values["emo_feat_2"] = emotion["emo_feat_2"]
+
         # TODO: WARNING: HACK
         if 'n_expression' not in self.config.data:
             if self.n_expression == 8:
