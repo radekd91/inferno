@@ -16,6 +16,7 @@ import omegaconf
 from omegaconf import open_dict
 
 from gdl.utils.other import get_path_to_assets
+import torch.nn.functional as F
 
 
 def load_avhubert_model(ckpt_path):
@@ -380,7 +381,12 @@ class EmotionRecognitionPreprocessor(Preprocessor):
 
         # for i, key in enumerate(output_keys):
         for i, key in enumerate(output.keys()):
-            batch[output_prefix + key] = output[key].view(B, T, -1)
+            if key == "expr_classification": 
+                # the expression classification is in log space so it should be softmaxed
+                batch[output_prefix + "expression"] = F.softmax(output[key].view(B, T, -1), dim=-1)
+            else:
+                batch[output_prefix + key] = output[key].view(B, T, -1)
+
         return batch
 
 

@@ -32,5 +32,14 @@ flame_space_loss: False
 rotation_loss_space: 6d 
 rotation_representation: aa
 
-style_embedding: none
-# style_embedding: 
+# style_embedding: none
+style_embedding: 
+  type: emotion_linear 
+  use_expression: true
+  n_expression: 8
+
+  use_valence: true
+  use_arousal: true
+
+  use_emotion_feature: false
+  num_features: 2048 

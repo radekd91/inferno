@@ -1,10 +1,12 @@
 from turtle import forward
+from omegaconf import OmegaConf
 import torch 
 from torch import nn
 import math
 from gdl.models.rotation_loss import convert_rot
 from gdl.models.MLP import MLP
 from pytorch3d.transforms import rotation_6d_to_matrix, matrix_to_rotation_6d
+from omegaconf import DictConfig
 
 
 class AutoRegressiveDecoder(nn.Module):
@@ -51,12 +53,93 @@ def positional_encoding_from_cfg(cfg):
 
 def style_from_cfg(cfg):
     style_type = cfg.get('style_embedding', 'onehot_linear')
+    if isinstance(style_type, (DictConfig, dict)): 
+        # new preferred way
+        style_cfg = style_type
+        style_type = style_cfg.type 
+        if style_type == 'emotion_linear':
+            return LinearEmotionCondition(style_cfg, output_dim=cfg.feature_dim)
+        elif style_type in ['onehot_linear', 'onehot_identity_linear']:
+            return OneHotIdentityCondition(style_cfg, output_dim=cfg.feature_dim)
+        raise ValueError(f"Unsupported style embedding type '{style_type}'")
+
+    # old way (for backwards compatibility)
     if style_type == 'onehot_linear':
         return nn.Linear(cfg.num_training_subjects, cfg.feature_dim, bias=False)
     elif style_type == 'none':
         return None
     else:
         raise ValueError(f"Unsupported style embedding type '{style_type}'")
+
+
+class StyleConditioning(torch.nn.Module): 
+
+    def __init__(self): 
+        super().__init__()
+
+
+    def forward(self, sample, **kwargs): 
+        raise NotImplementedError("Subclasses must implement this method")
+
+
+class OneHotIdentityCondition(StyleConditioning): 
+
+    def __init__(self, cfg, output_dim): 
+        super().__init__()
+        self.output_dim = output_dim
+        self.map = nn.Linear(cfg.num_training_subjects, output_dim, bias=False) 
+
+    def forward(self, sample, **kwargs):
+        return self.map(sample["one_hot"])
+
+
+class EmotionCondition(StyleConditioning): 
+
+    def __init__(self, cfg, output_dim): 
+        super().__init__()
+        self.output_dim = output_dim
+        self.cfg = cfg
+        self.condition_dim = 0
+
+        if self.cfg.use_expression:
+            self.condition_dim += self.cfg.n_expression
+
+        if self.cfg.use_valence:
+            self.condition_dim += 1
+
+        if self.cfg.use_arousal:
+            self.condition_dim += 1
+
+        if self.cfg.use_emotion_feature:
+            self.condition_dim += self.cfg.num_features
+
+    def _gather_condition(self, sample):
+        condition = []
+        if self.cfg.use_expression:
+            condition += [sample["gt_expression"]]
+        if self.cfg.use_valence:
+            condition += [sample["gt_valence"]]
+        if self.cfg.use_arousal:
+            condition += [sample["gt_arousal"]]
+        if self.cfg.use_emotion_feature:
+            condition += [sample["gt_emo_feat_2"]]
+
+        condition = torch.cat(condition, dim=-1)
+        return condition
+
+
+    def forward(self, sample, **kwargs):
+        condition = self._gather_condition(sample)
+        return self.map(condition)
+        
+
+class LinearEmotionCondition(EmotionCondition): 
+
+    def __init__(self, cfg, output_dim): 
+        super().__init__(cfg, output_dim)
+        self.map = nn.Linear(self.condition_dim, output_dim, 
+            bias=True)
+            # bias=False)
 
 
 class FaceFormerDecoderBase(AutoRegressiveDecoder):
@@ -140,10 +223,19 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
     def _style(self, sample, device):
         if self.obj_vector is None:
             return torch.zeros(1,1,self.cfg.feature_dim).to(device)
-        one_hot = sample["one_hot"]
-        obj_embedding = self.obj_vector(one_hot)
-        style_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
-        return style_emb
+        
+        if isinstance(self.obj_vector, torch.nn.Linear):
+            # backwards compatibility (for FaceFormer's original one-hot identity embedding)
+            one_hot = sample["one_hot"]
+            obj_embedding = self.obj_vector(one_hot)
+            style_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
+            return style_emb 
+
+        if isinstance(self.obj_vector, StyleConditioning):
+            style_emb = self.obj_vector(sample)
+            return style_emb
+
+        raise ValueError(f"Unsupported style type '{self.style_type}'")
 
     def _teacher_forced_step(self, sample): 
         vertices = sample["gt_vertices"]
@@ -501,9 +593,15 @@ class FeedForwardDecoder(nn.Module):
     def _style(self, sample, hidden_states): 
         if self.obj_vector is None:
             return hidden_states
-        one_hot = sample["one_hot"]
-        obj_embedding = self.obj_vector(one_hot)
-        style_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
+        if isinstance(self.obj_vector, StyleConditioning):
+            # the new way
+            style_emb = self.obj_vector(sample)
+            # return style_emb
+        else:
+            # backwards compatibility
+            one_hot = sample["one_hot"]
+            obj_embedding = self.obj_vector(one_hot)
+            style_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
         if self.style_op == "add":
             styled_hidden_states = hidden_states + style_emb
         elif self.style_op == "cat":
