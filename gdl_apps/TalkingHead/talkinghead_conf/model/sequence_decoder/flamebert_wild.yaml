@@ -43,3 +43,5 @@ style_embedding:
 
   use_emotion_feature: false
   num_features: 2048 
+
+  use_bias: true

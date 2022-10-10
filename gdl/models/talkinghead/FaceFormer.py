@@ -14,7 +14,8 @@ class FaceFormer(TalkingHeadBase):
             cfg.model.sequence_encoder.input_feature_dim = audio_encoder.output_feature_dim()
         sequence_encoder = sequence_encoder_from_cfg(cfg.model.sequence_encoder)
         sequence_decoder = sequence_decoder_from_cfg(cfg)
-        preprocessor = preprocessor_from_cfg(cfg.model.get('preprocessor', None))
+        preprocessor_cfg = cfg.model.get('preprocessor', None)
+        preprocessor = preprocessor_from_cfg(preprocessor_cfg) if preprocessor_cfg is not None else None 
 
         super().__init__(cfg, 
             audio_model=audio_encoder, 

@@ -138,7 +138,7 @@ class LinearEmotionCondition(EmotionCondition):
     def __init__(self, cfg, output_dim): 
         super().__init__(cfg, output_dim)
         self.map = nn.Linear(self.condition_dim, output_dim, 
-            bias=True)
+            bias=cfg.get('use_bias', True))
             # bias=False)
 
 
@@ -197,8 +197,8 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
             # style_emb = vertice_emb
             # sample["style_emb"] = style_emb
             style_emb = self._style(sample, hidden_states.device)
-            vertice_emb = style_emb
             sample["style_emb"] = style_emb
+            vertice_emb = style_emb[:,0:1,:] # take the first to kick off the auto-regressive process
             if self.PE is not None:
                 vertices_input = self.PE(style_emb)
             else: 
@@ -215,7 +215,11 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
         sample["predicted_vertices"] = vertices_out
 
         new_output = self.vertice_map(vertices_out[:,-1,:]).unsqueeze(1)
-        new_output = new_output + style_emb
+        style_T = style_emb.shape[1]
+        if style_T == 1: # per sample style embeeding
+            new_output = new_output + style_emb
+        else: # per sample and frame style embedding
+            new_output = new_output + style_emb[:,i:i+1,:]
         vertice_emb = torch.cat((vertice_emb, new_output), 1)
         sample["embedded_output"] = vertice_emb
         return sample
