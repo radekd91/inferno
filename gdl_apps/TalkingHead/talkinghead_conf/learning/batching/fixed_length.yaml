@@ -1,8 +1,11 @@
 # @package learning
 
-sequence_length_train: 50
-sequence_length_val: 50
-sequence_length_test: 50
+# sequence_length_train: 100
+# sequence_length_val: 100
+# sequence_length_test: 100
+sequence_length_train: 70
+sequence_length_val: 70
+sequence_length_test: 70
 
 batch_size_train: 1
 batch_size_val: 1

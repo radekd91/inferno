@@ -559,7 +559,7 @@ class CelebVHQDataset(VideoDatasetBase):
                     (self.sequence_length - landmarks.shape[0], *landmarks.shape[1:]), 
                     dtype=landmarks.dtype)], axis=0)
                 if landmark_validity is not None:
-                    landmark_validity = np.concatenate([landmark_validity, np.zeros((self.sequence_length - landmark_validity.shape[0], 1), 
+                    landmark_validity = np.concatenate([landmark_validity, np.zeros((self.sequence_length - landmark_validity.shape[0], landmark_validity.shape[1]), 
                         dtype=landmark_validity.dtype)], axis=0)
                 else: 
                     landmark_validity = np.zeros((self.sequence_length, 1), dtype=np.float32)

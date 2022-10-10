@@ -19,7 +19,8 @@ defaults:
   # - model/output@model/output: vertices
   - learning/losses: vertices
   - learning/optimizer: adam
-  - learning/batching@learning/batching: default
+  # - learning/batching@learning/batching: default
+  - learning/batching@learning/batching: fixed_length
   # - learning/callbacks: early_stopping
   - learning/callbacks: none
   - learning/logging: wandb
