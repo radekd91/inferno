@@ -30,13 +30,27 @@ queue <<NJOBS>>
 # deactivate
 # """
 
+# script_template = """
+# source /home/rdanecek/.bashrc
+# source /home/rdanecek/anaconda3/etc/profile.d/conda.sh
+# eval "$(conda shell.bash hook)"
+# #/home/rdanecek/anaconda3/condabin/conda init bash
+# #/home/rdanecek/anaconda3/condabin/conda activate <<ENV>>
+# #source activate <<ENV>>
+# conda activate <<ENV>>
+# export PYTHONPATH=$PYTHONPATH:<<REPO_ROOT>>
+# <<MODULES>>
+# <<PYTHON_BIN>> <<SCRIPT_NAME>> $@
+# OUTFOLDER=$(cat out_folder.txt)
+# ln -s $PWD $OUTFOLDER/submission 
+# ln -s $OUTFOLDER results
+# # source deactivate
+# """
+
 script_template = """
-source /home/rdanecek/.bashrc
-source /home/rdanecek/anaconda3/etc/profile.d/conda.sh
+source /home/<<USERNAME>>/.bashrc
+source /home/<<USERNAME>>/anaconda3/etc/profile.d/conda.sh
 eval "$(conda shell.bash hook)"
-#/home/rdanecek/anaconda3/condabin/conda init bash
-#/home/rdanecek/anaconda3/condabin/conda activate <<ENV>>
-#source activate <<ENV>>
 conda activate <<ENV>>
 export PYTHONPATH=$PYTHONPATH:<<REPO_ROOT>>
 <<MODULES>>
@@ -90,6 +104,7 @@ def execute_on_cluster(cluster_script_path, args, submission_dir_local_mount,
     st = st.replace('<<PYTHON_BIN>>', python_bin)
     st = st.replace('<<SCRIPT_NAME>>', cluster_script_path)
     st = st.replace('<<ENV>>', env)
+    st = st.replace('<<USERNAME>>', username)
     modules = ""
     if len(modules_to_load) > 0:
         modules = f"module load {' '.join(modules_to_load)}"
