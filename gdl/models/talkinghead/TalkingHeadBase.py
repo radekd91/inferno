@@ -100,7 +100,8 @@ class TalkingHeadBase(pl.LightningModule):
         losses_and_metrics_to_log = {"train/" + k: v.item() if isinstance(v, (torch.Tensor, float)) else 0. for k, v in losses_and_metrics_to_log.items()}
         
         if self.logger is not None:
-            self.log_dict(losses_and_metrics_to_log, on_step=False, on_epoch=True, sync_dist=True) # log per epoch, # recommended
+            # self.log_dict(losses_and_metrics_to_log, on_step=False, on_epoch=True, sync_dist=True) # log per epoch, # recommended
+            self.log_dict(losses_and_metrics_to_log, on_step=True, on_epoch=True, sync_dist=True) # log per epoch, # recommended
 
         return total_loss
 
