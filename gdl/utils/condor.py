@@ -55,9 +55,9 @@ conda activate <<ENV>>
 export PYTHONPATH=$PYTHONPATH:<<REPO_ROOT>>
 <<MODULES>>
 <<PYTHON_BIN>> <<SCRIPT_NAME>> $@
-OUTFOLDER=$(cat out_folder.txt)
-ln -s $PWD $OUTFOLDER/submission 
-ln -s $OUTFOLDER results
+# OUTFOLDER=$(cat out_folder.txt)
+# ln -s $PWD $OUTFOLDER/submission 
+# ln -s $OUTFOLDER results
 # source deactivate
 """
 
