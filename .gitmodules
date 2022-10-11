@@ -30,3 +30,7 @@
 [submodule "external/av_hubert"]
 	path = external/av_hubert
 	url = https://github.com/facebookresearch/av_hubert
+[submodule "external/spectre"]
+	path = external/spectre
+	url = https://github.com/filby89/spectre 
+
