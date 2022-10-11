@@ -164,10 +164,33 @@ class SpectrePreprocessor(Preprocessor):
         non_temporal_keys = ['template', 'one_hot', 'samplerate'] 
 
         # invalidate the first and last frames for all the per-frame outputs
-        for key in batch: 
-            # if key.startswith(output_prefix):
-            if key in non_temporal_keys:
-                continue
-            batch[key] = batch[key][:, self.num_invalid_frames: T - self.num_invalid_frames, ...]
+
+        batch = slice_off_ends(batch, self.num_invalid_frames, non_temporal_keys)
+        # for key in batch: 
+        #     # if key.startswith(output_prefix):
+        #     if key in non_temporal_keys:
+        #         continue
+        #     entry = batch[key]
+        #     batch[key] = entry[:, self.num_invalid_frames: T - self.num_invalid_frames, ...]
             
         return batch
+
+
+def slice_off_ends(tensor_or_dict, num, keys_to_skip=None): 
+    if keys_to_skip is None: 
+        keys_to_skip = []
+    if isinstance(tensor_or_dict, dict): 
+        for key in tensor_or_dict:
+            if key in keys_to_skip:
+                continue
+            entry = tensor_or_dict[key]
+            if isinstance(entry, torch.Tensor): 
+                tensor_or_dict[key] = entry[:, num: -num, ...]
+            elif isinstance(entry, dict): 
+                tensor_or_dict[key] = slice_off_ends(entry, num, keys_to_skip)
+            else: 
+                raise ValueError("Unrecognized entry type")
+        return tensor_or_dict
+    else: 
+        return tensor_or_dict[:, num:tensor_or_dict.shape[1]-num, ...]
+
