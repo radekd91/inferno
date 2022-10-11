@@ -1,5 +1,6 @@
 name: work38
 channels:
+  - huggingface
   - pytorch
   - fastai
   - nvidia
@@ -36,3 +37,4 @@ dependencies:
   - yaml>=0.2.5
   - yarl>=1.6.3
   - requests=2.27.1
+  - transformers=4.11.3

@@ -48,7 +48,7 @@ pyasn1-modules~=0.2.8
 python-speech-features~=0.6
 pyzmq~=22.0.3
 scikit-sound~=0.2.3
-scipy~=1.5.4
+scipy>=1.8.1
 sentry-sdk~=0.19.2
 setuptools~=54.2.0
 shapely~=1.7.1
@@ -69,4 +69,5 @@ wrapt~=1.12.1
 youtube-dl~=2021.6.6
 mediapipe==0.8.10 
 plotly==5.8.0 
+librosa==0.9.2
 # pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git@v0.6.0
