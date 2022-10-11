@@ -16,7 +16,9 @@ try:
     from spectre.src.spectre import SPECTRE 
     from spectre.config import cfg as spectre_cfg
 except ImportError as e:
+    import traceback
     print("Could not import SPECTRE. Make sure you pull the repository with submodules to enable SPECTRE.")
+    print(traceback.format_exc())
 
 
 class SpectrePreprocessor(Preprocessor): 

@@ -38,3 +38,4 @@ dependencies:
   - yarl>=1.6.3
   - requests=2.27.1
   - transformers=4.11.3
+  - kornia==0.6.5
