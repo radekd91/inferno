@@ -148,13 +148,13 @@ class LRS3Pseudo3dDataset(LRS3Dataset):
     #     # don't load any landmarks+
         sample = super()._get_landmarks(index, start_frame, num_read_frames, video_fps, num_frames, sample)
         lmk_weights = sample["landmarks_validity"]["mediapipe"] / sample["landmarks_validity"]["mediapipe"].sum(axis=0, keepdims=True)
-        print(lmk_weights.mean())
-        if np.any(np.isnan(lmk_weights)): 
-            import matplotlib.pyplot as plt
-            image = np.concatenate( sample["video"].tolist(), axis=1)
-            plt.figure()
-            plt.imshow(image)
-            plt.show()
+        # print(lmk_weights.mean())
+        # if np.any(np.isnan(lmk_weights)): 
+        #     import matplotlib.pyplot as plt
+        #     image = np.concatenate( sample["video"].tolist(), axis=1)
+        #     plt.figure()
+        #     plt.imshow(image)
+        #     plt.show()
 
         assert np.any(np.isnan(lmk_weights)) == False, "NaN in weights" # throw an error if there are NaNs, this should cause a new sample to be loaded
         return sample
