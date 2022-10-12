@@ -162,7 +162,7 @@ class CelebVHQPseudo3dDataset(CelebVHQDataset):
     def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
     #     # don't load any landmarks+
         sample = super()._get_landmarks(index, start_frame, num_read_frames, video_fps, num_frames, sample)
-        lmk_weights = sample["landmarks_validity"]["mediapipe"] / sample["landmarks_validity"]["mediapipe"].sum(axis=1, keepdims=True)
+        lmk_weights = sample["landmarks_validity"]["mediapipe"] / sample["landmarks_validity"]["mediapipe"].sum(axis=0, keepdims=True)
         assert np.any(np.isnan(lmk_weights)) == False, "NaN in weights" # throw an error if there are NaNs, this should cause a new sample to be loaded
         return sample
 
