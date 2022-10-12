@@ -40,6 +40,11 @@ ring_size: none
 #     occlusion_probability_face: 0.
 
 
+train_subjects: []
+val_subjects: []
+test_subjects: []
+
+
 drop_last: true
 sampler: uniform
 

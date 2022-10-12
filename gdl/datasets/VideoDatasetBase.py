@@ -15,6 +15,7 @@ from skvideo.io import vread, vreader, FFmpegReader
 import torch.nn.functional as F
 import subprocess 
 import traceback
+from gdl.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
 
 
 class AbstractVideoDataset(torch.utils.data.Dataset):
@@ -440,17 +441,17 @@ class VideoDatasetBase(AbstractVideoDataset):
                 landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
                 landmarks = landmark_list[start_frame: self.sequence_length + start_frame] 
 
-                landmark_validity = np.ones(len(landmarks), dtype=np.bool)
+                landmark_validity = np.ones((len(landmarks), 1), dtype=np.float32)
                 for li in range(len(landmarks)): 
                     if len(landmarks[li]) == 0: # dropped detection
                         if landmark_type == "mediapipe":
                             # [WARNING] mediapipe landmarks coordinates are saved in the scale [0.0-1.0] (for absolute they need to be multiplied by img size)
-                            landmarks[li] = np.zeros((478, 3))
+                            landmarks[li] = np.zeros((MEDIAPIPE_LANDMARK_NUMBER, 3))
                         elif landmark_type in ["fan", "kpt68"]:
                             landmarks[li] = np.zeros((68, 2))
                         else: 
                             raise ValueError(f"Unknown landmark type '{landmark_type}'")
-                        landmark_validity[li] = False
+                        landmark_validity[li] = 0.
                     elif len(landmarks[li]) > 1: # multiple faces detected
                         landmarks[li] = landmarks[li][0] # just take the first one for now
                     else: \
@@ -466,14 +467,14 @@ class VideoDatasetBase(AbstractVideoDataset):
                 #     landmarks = np.concatenate([landmarks, np.zeros((self.sequence_length - landmarks.shape[0], landmarks.shape[1]))], axis=0)
                 #     landmark_validity = np.concatenate([landmark_validity, np.zeros((self.sequence_length - landmark_validity.shape[0]), dtype=np.bool)], axis=0)
             else: # landmarks are saved per frame
-                landmark_validity = np.ones(len(landmarks), dtype=np.bool)
+                landmark_validity = np.ones((len(landmarks), 1), dtype=np.float32)
                 for i in range(start_frame, self.sequence_length + start_frame):
                     landmark_path = landmarks_dir / f"{i:05d}_000.pkl"
                     landmark_type, landmark = load_landmark(landmark_path)
                     landmarks += [landmark]
                     if len(landmark) == 0: # dropped detection
                         landmark = [0, 0]
-                        landmark_validity[li] = False
+                        landmark_validity[li] = 0.
                     elif len(landmark) > 1: # multiple faces detected
                         landmarks[li] = landmarks[li][0] # just take the first one for now
                     else: 
@@ -492,14 +493,12 @@ class VideoDatasetBase(AbstractVideoDataset):
                 landmarks = np.concatenate([landmarks, np.zeros(
                     (self.sequence_length - landmarks.shape[0], *landmarks.shape[1:]), 
                     dtype=landmarks.dtype)], axis=0)
-                landmark_validity = np.concatenate([landmark_validity, np.zeros((self.sequence_length - landmark_validity.shape[0]), 
+                landmark_validity = np.concatenate([landmark_validity, np.zeros((self.sequence_length - landmark_validity.shape[0], 1), 
                     dtype=landmark_validity.dtype)], axis=0)
 
             landmark_dict[landmark_type] = landmarks
             landmark_validity_dict[landmark_type] = landmark_validity
 
-
-        lmk_weights = sample["landmarks_validity"]["mediapipe"] / sample["landmarks_validity"]["mediapipe"].sum(axis=1, keepdims=True)
 
         sample["landmarks"] = landmark_dict
         sample["landmarks_validity"] = landmark_validity_dict

@@ -18,7 +18,7 @@ All rights reserved.
 """
 
 
-from urllib.parse import uses_relative
+from gdl.datasets.LRS3Pseudo3DDM import LRS3Pseudo3DDM
 from gdl_apps.TalkingHead.training.training_pass import( single_stage_training_pass, 
             get_checkpoint_with_kwargs, create_logger, configure_and_train, configure)
 # from gdl.datasets.DecaDataModule import DecaDataModule
@@ -92,6 +92,38 @@ def create_single_dm(cfg, data_class):
                 segmentation_source=cfg.data.segmentation_source,
         )
         dataset_name = "CelebVHQ"
+    elif data_class == "LRS3Pseudo3DDM":
+        dm = LRS3Pseudo3DDM(
+                cfg.data.input_dir, 
+                cfg.data.output_dir, 
+                processed_subfolder=cfg.data.processed_subfolder, 
+                face_detector=cfg.data.face_detector,
+                landmarks_from=cfg.data.get('landmarks_from', None),
+                face_detector_threshold=cfg.data.face_detector_threshold, 
+                image_size=cfg.data.image_size, 
+                scale=cfg.data.scale, 
+                batch_size_train=cfg.learning.batching.batch_size_train,
+                batch_size_val=cfg.learning.batching.batch_size_val, 
+                batch_size_test=cfg.learning.batching.batch_size_test, 
+                sequence_length_train=cfg.learning.batching.sequence_length_train, 
+                sequence_length_val=cfg.learning.batching.sequence_length_val, 
+                sequence_length_test=cfg.learning.batching.sequence_length_test, 
+                # occlusion_settings_train = OmegaConf.to_container(cfg.data.occlusion_settings_train), 
+                # occlusion_settings_val = OmegaConf.to_container(cfg.data.occlusion_settings_val), 
+                # occlusion_settings_test = OmegaConf.to_container(cfg.data.occlusion_settings_test), 
+                split = cfg.data.split,
+                num_workers=cfg.data.num_workers,
+                # include_processed_audio = cfg.data.include_processed_audio,
+                # include_raw_audio = cfg.data.include_raw_audio,
+                drop_last=cfg.data.drop_last,
+                ## end args of FaceVideoDataModule
+                ## begin CelebVHQDataModule specific params
+                # training_sampler=cfg.data.training_sampler,
+                # landmark_types = cfg.data.landmark_types,
+                # landmark_sources=cfg.data.landmark_sources,
+                # segmentation_source=cfg.data.segmentation_source,
+        )
+        dataset_name = "LRS3"
     else:
         raise ValueError(f"Unknown data class: {data_class}")
 

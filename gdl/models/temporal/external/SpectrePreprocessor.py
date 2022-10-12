@@ -114,9 +114,9 @@ class SpectrePreprocessor(Preprocessor):
                 shape_im = np.concatenate( shape_images[i].tolist(), axis=1)
                 img = np.concatenate((input_im, shape_im), axis=0) 
 
-                plt.figure() 
-                plt.imshow(img)
-                plt.show()
+                # plt.figure() 
+                # plt.imshow(img)
+                # plt.show()
 
                 # for j in range(T):
                 #     plt.figure() 
