@@ -107,31 +107,15 @@ class SpectrePreprocessor(Preprocessor):
 
             # B, T, C, H, W to B, T, H, W, C
 
-            input_images = images.permute(0, 1, 3, 4, 2).cpu().numpy()
-            shape_images = visdict['shape_images'].permute(0, 1, 3, 4, 2).cpu().numpy()
-            for i in range(B):
-                input_im = np.concatenate( input_images[i].tolist(), axis=1)
-                shape_im = np.concatenate( shape_images[i].tolist(), axis=1)
-                img = np.concatenate((input_im, shape_im), axis=0) 
-
+            # input_images = images.permute(0, 1, 3, 4, 2).cpu().numpy()
+            # shape_images = visdict['shape_images'].permute(0, 1, 3, 4, 2).cpu().numpy()
+            # for i in range(B):
+            #     input_im = np.concatenate( input_images[i].tolist(), axis=1)
+            #     shape_im = np.concatenate( shape_images[i].tolist(), axis=1)
+            #     img = np.concatenate((input_im, shape_im), axis=0) 
                 # plt.figure() 
                 # plt.imshow(img)
                 # plt.show()
-
-                # for j in range(T):
-                #     plt.figure() 
-                #     # concatenate input and shape image 
-                #     # reshape the sequence to a single image
-                #     img = np.concatenate((input_images[i, j], shape_images[i, j]), axis=1)
-                #     plt.imshow(img)
-                #     plt.show()
-
-            visdict = torch.cat([visdict[key].cpu() for key in visdict.keys()], dim=1)
-            visdict = visdict[0].permute(0, 2, 3, 1)
-            visdict = visdict.reshape(B, T, H, W, -1)
-            # to numpy 
-            visdict = visdict.cpu().numpy()
-            visdict = visdict.astype(np.uint8)
 
 
         else: 
@@ -161,7 +145,7 @@ class SpectrePreprocessor(Preprocessor):
         batch[output_prefix + 'jaw'] = codedict['pose'][..., 3:].contiguous().view(B, T, -1)
 
         # TODO: this is a little hacky, we need to keep track of which entries are not per-frame (such as template and one_hot identity thingy)
-        non_temporal_keys = ['template', 'one_hot', 'samplerate'] 
+        non_temporal_keys = ['template', 'one_hot', 'samplerate', output_prefix + 'shape'] 
 
         # invalidate the first and last frames for all the per-frame outputs
 

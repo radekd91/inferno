@@ -1,4 +1,3 @@
-from turtle import forward
 from omegaconf import OmegaConf
 import torch 
 from torch import nn
@@ -270,6 +269,8 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
         dev = vertices_input.device
         if self.biased_mask is not None:
             tgt_mask = self.biased_mask[:, :vertices_input.shape[1], :vertices_input.shape[1]].clone().detach().to(device=dev)
+            if tgt_mask.ndim == 3: # the mask's first dimension needs to be num_head * batch_size
+                tgt_mask = tgt_mask.repeat(vertices_input.shape[0], 1, 1)
         else: 
             tgt_mask = None
         if self.use_alignment_bias:
@@ -286,7 +287,7 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
     def _post_prediction(self, sample):
         template = sample["template"]
         vertices_out = sample["predicted_vertices"]
-        vertices_out = vertices_out + template
+        vertices_out = vertices_out + template[:, None, ...]
         sample["predicted_vertices"] = vertices_out
         return sample
 
@@ -444,7 +445,7 @@ class FlameFormerDecoder(FaceFormerDecoderBase):
         # jaw = sample["gt_jaw"]
         # exp = sample["exp"]
 
-        self.flame.v_template = template.squeeze(1).view(-1, 3)
+        # self.flame.v_template = template.squeeze(1).view(-1, 3)
         transformer_out = self.post_transformer(transformer_out)
         batch_size = transformer_out.shape[0]
         T_size = transformer_out.shape[1]
@@ -475,14 +476,32 @@ class FlameFormerDecoder(FaceFormerDecoderBase):
         
         assert vector_idx == transformer_out.shape[-1]
 
+        B = transformer_out.shape[0]
+        if "gt_shape" not in sample.keys():
+            template = sample["template"]
+            assert B == 1, "Batch size must be 1 if we want to change the template inside FLAME"
+            self.flame.v_template = template.squeeze(1).view(-1, 3)
+            # shape_params = torch.zeros((B*T_size, self.flame_config.n_shape), device=transformer_out.device)
+            shape_params = torch.zeros((B, T_size, self.flame_config.n_shape), device=transformer_out.device)
+        else: 
+            # sample["gt_shape"].shape = (B, n_shape) -> add T dimension and repeat
+            shape_params = sample["gt_shape"][:, None, ...].repeat(1, T_size, 1)
+
         flame_jaw_pose = convert_rot(jaw_pose, self.rotation_representation, self.flame_rotation_rep)
         pose_params = torch.cat([ pose_params[..., :3], flame_jaw_pose], dim=-1)
-        shape_params = torch.zeros((batch_size*T_size, self.flame_config.n_shape), device=transformer_out.device)
+
         with torch.no_grad():
-            vertice_neutral, _, _ = self.flame.forward(shape_params[0:1, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
+            # vertice_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
+            zero_exp = torch.zeros((B, expression_params.shape[1]), dtype=shape_params.dtype, device=shape_params.device)
+            # compute neutral shape for each batch (but not each frame, unnecessary)
+            vertice_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], zero_exp) # compute neutral shape
+            vertice_neutral = vertice_neutral.contiguous().view(vertice_neutral.shape[0], -1)[:, None, ...]
+
+        shape_params = shape_params.view(B * T_size, -1)
         vertice_out, _, _ = self.flame(shape_params, expression_params, pose_params)
+        vertice_out = vertice_out.contiguous().view(batch_size, T_size, -1)
         vertice_out = vertice_out - vertice_neutral # compute the offset that is then added to the template shape
-        vertice_out = vertice_out.view(batch_size, T_size, -1)
+        
         return vertice_out
 
 
@@ -625,7 +644,7 @@ class FeedForwardDecoder(nn.Module):
     def _post_prediction(self, sample):
         template = sample["template"]
         vertices_out = sample["predicted_vertices"]
-        vertices_out = vertices_out + template
+        vertices_out = vertices_out + template[:, None, ...]
         sample["predicted_vertices"] = vertices_out
         return sample
 
@@ -709,6 +728,8 @@ class BertDecoder(FeedForwardDecoder):
         if self.biased_mask is not None: 
             mask = self.biased_mask[:, :styled_hidden_states.shape[1], :styled_hidden_states.shape[1]].clone() \
                 .detach().to(device=styled_hidden_states.device)
+            if mask.ndim == 3: # the mask's first dimension needs to be num_head * batch_size
+                mask = mask.repeat(styled_hidden_states.shape[0], 1, 1)
         else: 
             mask = None
         decoded_offsets = self.bert_decoder(styled_hidden_states, mask=mask)
@@ -781,16 +802,29 @@ class FlameBertDecoder(BertDecoder):
 
         sample["predicted_exp"] = expression_params.view(B,T, -1)
         sample["predicted_jaw"] = jaw_pose.view(B,T, -1)
-        template = sample["template"]
-        self.flame.v_template = template.squeeze(1).view(-1, 3)
+        if "gt_shape" not in sample.keys():
+            template = sample["template"]
+            assert B == 1, "Batch size must be 1 if we want to change the template inside FLAME"
+            self.flame.v_template = template.squeeze(1).view(-1, 3)
+            shape_params = torch.zeros((B,T, self.flame_config.n_shape), device=transformer_out.device)
+        else: 
+            # sample["gt_shape"].shape = (B, n_shape) -> add T dimension and repeat
+            shape_params = sample["gt_shape"][:, None, ...].repeat(1, T, 1)
 
         flame_jaw_pose = convert_rot(jaw_pose, self.rotation_representation, self.flame_rotation_rep)
         pose_params = self.flame.eye_pose.expand(B*T, -1)
         pose_params = torch.cat([ pose_params[..., :3], flame_jaw_pose], dim=-1)
-        shape_params = torch.zeros((B*T, self.flame_config.n_shape), device=transformer_out.device)
         with torch.no_grad():
-            vertice_neutral, _, _ = self.flame.forward(shape_params[0:1, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
+            # vertice_neutral, _, _ = self.flame.forward(shape_params[0:1, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
+                        # vertice_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
+            zero_exp = torch.zeros((B, expression_params.shape[1]), dtype=shape_params.dtype, device=shape_params.device)
+            # compute neutral shape for each batch (but not each frame, unnecessary)
+            vertice_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], zero_exp) # compute neutral shape
+            vertice_neutral = vertice_neutral.contiguous().view(vertice_neutral.shape[0], -1)[:, None, ...]
+
+        shape_params = shape_params.view(B * T, -1)
         vertice_out, _, _ = self.flame(shape_params, expression_params, pose_params)
+        vertice_out = vertice_out.contiguous().view(B, T, -1)
         vertex_offsets = vertice_out - vertice_neutral # compute the offset that is then added to the template shape
         vertex_offsets = vertex_offsets.view(B, T, -1)
 

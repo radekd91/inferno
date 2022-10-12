@@ -46,8 +46,8 @@ def compute_rotation_loss(r1, r2, mask=None,
         metric='l2'): 
     B = r1.shape[0]
     T = r1.shape[1] 
-    r1 = convert_rot(r1.view((B*T,-1)), r1_input_rep, output_rep).view((B,T,-1))
-    r2 = convert_rot(r2.view((B*T,-1)), r2_input_rep, output_rep).view((B,T,-1))
+    r1 = convert_rot(r1.contiguous().view((B*T,-1)), r1_input_rep, output_rep).view((B,T,-1))
+    r2 = convert_rot(r2.contiguous().view((B*T,-1)), r2_input_rep, output_rep).view((B,T,-1))
     
     # bt_reduction_dim = list(range(len(r1.shape)-1))
     # vec_reduction_dim = len(r1.shape) -1 

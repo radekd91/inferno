@@ -529,8 +529,8 @@ class CelebVHQDataset(VideoDatasetBase):
 
                 landmarks = landmarks[start_frame: self.sequence_length + start_frame]
                 # landmark_confidences = landmark_confidences[start_frame: self.sequence_length + start_frame]
-                landmark_validity = landmark_confidences
-                # landmark_validity = None
+                # landmark_validity = landmark_confidences #TODO: something is wrong here, the validity is not correct and has different dimensions
+                landmark_validity = None 
             
             else: 
                 raise ValueError(f"Invalid landmark source: '{landmark_source}'")
@@ -565,8 +565,8 @@ class CelebVHQDataset(VideoDatasetBase):
                     landmark_validity = np.zeros((self.sequence_length, 1), dtype=np.float32)
 
             landmark_dict[landmark_type] = landmarks
-            # if landmark_validity is not None:
-            landmark_validity_dict[landmark_type] = landmark_validity
+            if landmark_validity is not None:
+                landmark_validity_dict[landmark_type] = landmark_validity
 
         sample["landmarks"] = landmark_dict
         sample["landmarks_validity"] = landmark_validity_dict
@@ -627,7 +627,7 @@ def robust_collate(batch):
                 err = NestedKeyError(key)
                 raise err 
             except NestedKeyError as e: 
-                e += [key]
+                e.keys += [key]
                 raise e
         return result
     elif isinstance(elem, tuple) and hasattr(elem, '_fields'):  # namedtuple
