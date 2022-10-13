@@ -44,9 +44,9 @@ class FaceFormer(TalkingHeadBase):
         elif loss_type == "vertex_loss":
             loss_value = F.mse_loss(sample["predicted_vertices"], sample["gt_vertices"])
 
-            v_pred = sample["predicted_vertices"][0][0].view(-1, 3).cpu().numpy()
-            v_gt = sample["gt_vertices"][0][0].view(-1, 3).cpu().numpy()
-            f = self.sequence_decoder.flame.faces_tensor.cpu().numpy() 
+            # v_pred = sample["predicted_vertices"][0][0].view(-1, 3).cpu().numpy()
+            # v_gt = sample["gt_vertices"][0][0].view(-1, 3).cpu().numpy()
+            # f = self.sequence_decoder.flame.faces_tensor.cpu().numpy() 
             # # import pyvista as pv
             # # mesh_pred = pv.PolyData(v_pred, f)
             # # mesh_gt = pv.PolyData(v_gt, f)
