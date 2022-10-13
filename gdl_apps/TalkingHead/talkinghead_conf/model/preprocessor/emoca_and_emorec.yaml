@@ -10,4 +10,5 @@ preprocessors:
       model_path: False
       model_name: EMOCA
       stage: detail 
+      with_global_pose: False
 

@@ -43,7 +43,24 @@ class FaceFormer(TalkingHeadBase):
             loss_value = F.mse_loss(sample["predicted_exp"][..., :min_dim], sample["gt_exp"][..., :min_dim])
         elif loss_type == "vertex_loss":
             loss_value = F.mse_loss(sample["predicted_vertices"], sample["gt_vertices"])
-        
+
+            v_pred = sample["predicted_vertices"][0][0].view(-1, 3).cpu().numpy()
+            v_gt = sample["gt_vertices"][0][0].view(-1, 3).cpu().numpy()
+            f = self.sequence_decoder.flame.faces_tensor.cpu().numpy() 
+            # # import pyvista as pv
+            # # mesh_pred = pv.PolyData(v_pred, f)
+            # # mesh_gt = pv.PolyData(v_gt, f)
+            # # mesh_pred.plot()
+            # # mesh_gt.plot()
+            # import trimesh
+            # import numpy as np
+            # mesh_pred = trimesh.Trimesh(vertices=v_pred, faces=f, face_colors=np.ones_like(f, dtype=np.uint8)*128)
+            # mesh_gt = trimesh.Trimesh(vertices=v_gt, faces=f, face_colors=np.ones_like(f, dtype=np.uint8)*64)
+
+            # # plot the mesh
+            # scene = trimesh.Scene([mesh_pred, mesh_gt])
+            # scene.show()
+            
         # velocity losses
         elif loss_type == "vertex_velocity_loss":
             loss_value = velocity_loss(sample["predicted_vertices"], sample["gt_vertices"], F.mse_loss)

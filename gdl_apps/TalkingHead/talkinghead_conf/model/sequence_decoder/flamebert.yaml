@@ -8,7 +8,7 @@ dropout: 0.25
 activation: gelu
 max_len: 600 
 period: 30
-vertices_dim: 15069
+vertices_dim: 1506
 positional_encoding: 
   # type: none
   # type: PositionalEncoding

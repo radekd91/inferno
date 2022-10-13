@@ -23,6 +23,8 @@ class EmocaPreprocessor(Preprocessor):
             p.requires_grad = False
         self.model = self.model.eval()
 
+        self.with_global_pose = cfg.get('with_global_pose', False)
+
     @property
     def device(self):
         return self.model.device
@@ -41,6 +43,10 @@ class EmocaPreprocessor(Preprocessor):
 
         # vals, visdict = decode(deca, batch, vals, training=False)
         values = self.model.encode(batch_, training=False)
+
+        if not self.with_global_pose:
+            values['posecode'][..., :3] = 0
+
         values = self.model.decode(values, training=False)
         
         # compute the the shapecode only from frames where landmarks are valid

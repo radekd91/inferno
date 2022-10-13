@@ -37,6 +37,9 @@ class AutoRegressiveDecoder(nn.Module):
         raise NotImplementedError("")
 
     def _post_prediction(self): 
+        """
+        Adds the template vertices to the predicted offsets
+        """
         raise NotImplementedError("")
 
 
@@ -494,15 +497,15 @@ class FlameFormerDecoder(FaceFormerDecoderBase):
             # vertice_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
             zero_exp = torch.zeros((B, expression_params.shape[1]), dtype=shape_params.dtype, device=shape_params.device)
             # compute neutral shape for each batch (but not each frame, unnecessary)
-            vertice_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], zero_exp) # compute neutral shape
-            vertice_neutral = vertice_neutral.contiguous().view(vertice_neutral.shape[0], -1)[:, None, ...]
+            vertices_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], zero_exp) # compute neutral shape
+            vertices_neutral = vertices_neutral.contiguous().view(vertices_neutral.shape[0], -1)[:, None, ...]
 
         shape_params = shape_params.view(B * T_size, -1)
-        vertice_out, _, _ = self.flame(shape_params, expression_params, pose_params)
-        vertice_out = vertice_out.contiguous().view(batch_size, T_size, -1)
-        vertice_out = vertice_out - vertice_neutral # compute the offset that is then added to the template shape
+        vertices_out, _, _ = self.flame(shape_params, expression_params, pose_params)
+        vertices_out = vertices_out.contiguous().view(batch_size, T_size, -1)
+        vertices_out = vertices_out - vertices_neutral # compute the offset that is then added to the template shape
         
-        return vertice_out
+        return vertices_out
 
 
 def get_slopes(n):
@@ -642,6 +645,9 @@ class FeedForwardDecoder(nn.Module):
         raise NotImplementedError("The subdclass must implement this")
 
     def _post_prediction(self, sample):
+        """
+        Adds the template vertices to the predicted offsets
+        """
         template = sample["template"]
         vertices_out = sample["predicted_vertices"]
         vertices_out = vertices_out + template[:, None, ...]
@@ -739,8 +745,6 @@ class BertDecoder(FeedForwardDecoder):
         decoded_offsets = decoded_offsets.view(B, T, -1)
         return decoded_offsets
 
-
-
 class FlameBertDecoder(BertDecoder):
 
     def __init__(self, cfg) -> None:
@@ -819,15 +823,14 @@ class FlameBertDecoder(BertDecoder):
                         # vertice_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
             zero_exp = torch.zeros((B, expression_params.shape[1]), dtype=shape_params.dtype, device=shape_params.device)
             # compute neutral shape for each batch (but not each frame, unnecessary)
-            vertice_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], zero_exp) # compute neutral shape
-            vertice_neutral = vertice_neutral.contiguous().view(vertice_neutral.shape[0], -1)[:, None, ...]
+            vertices_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], zero_exp) # compute neutral shape
+            vertices_neutral = vertices_neutral.contiguous().view(vertices_neutral.shape[0], -1)[:, None, ...]
 
         shape_params = shape_params.view(B * T, -1)
-        vertice_out, _, _ = self.flame(shape_params, expression_params, pose_params)
-        vertice_out = vertice_out.contiguous().view(B, T, -1)
-        vertex_offsets = vertice_out - vertice_neutral # compute the offset that is then added to the template shape
+        vertices_out, _, _ = self.flame(shape_params, expression_params, pose_params)
+        vertices_out = vertices_out.contiguous().view(B, T, -1)
+        vertex_offsets = vertices_out - vertices_neutral # compute the offset that is then added to the template shape
         vertex_offsets = vertex_offsets.view(B, T, -1)
-
         return vertex_offsets
 
 
@@ -912,6 +915,9 @@ class LinearAutoRegDecoder(AutoRegressiveDecoder):
         return vertices_out
 
     def _post_prediction(self, sample):
+        """
+        Adds the template vertices to the predicted offsets
+        """
         template = sample["template"]
         vertices_out = sample["predicted_vertices"]
         vertices_out = vertices_out + template

@@ -3,13 +3,23 @@
 # sequence_length_train: 100
 # sequence_length_val: 100
 # sequence_length_test: 100
+
 sequence_length_train: 70
 sequence_length_val: 70
 sequence_length_test: 70
 
+# sequence_length_train: 20
+# sequence_length_val: 20
+# sequence_length_test: 20
+
+
 batch_size_train: 1
 batch_size_val: 1
 batch_size_test: 1
+
+# batch_size_train: 2
+# batch_size_val: 2
+# batch_size_test: 2
 
 #K_policy: sequential
 num_gpus: 1

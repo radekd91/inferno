@@ -52,6 +52,7 @@ class SpectrePreprocessor(Preprocessor):
 
         self.return_vis = cfg.get('return_vis', False)
         self.render = cfg.get('render', False)
+        self.with_global_pose = cfg.get('with_global_pose', False)
 
         self.spectre = SPECTRE(spectre_cfg)
         self.spectre.eval()
@@ -85,6 +86,9 @@ class SpectrePreprocessor(Preprocessor):
         codedict, initial_deca_exp, initial_deca_jaw = self.spectre.encode(images)
         codedict['exp'] = codedict['exp'] + initial_deca_exp
         codedict['pose'][..., 3:] = codedict['pose'][..., 3:] + initial_deca_jaw
+
+        if not self.with_global_pose:
+            codedict['pose'][..., :3] = 0
 
         # this filtering we probably don't need to do? it's done in spectre demo to handle overlapping chunks
         # for key in codedict.keys():
