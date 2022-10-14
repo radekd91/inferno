@@ -169,6 +169,8 @@ def create_experiment_name(cfg, version=0):
             experiment_name += f"{nl}" 
         
         style = cfg.model.sequence_decoder.get('style_embedding', 'onehot_linear')
+        if isinstance(style, DictConfig):
+            style = style.type
         if style == 'onehot_linear':
             pass 
         elif style == 'none':
@@ -176,7 +178,10 @@ def create_experiment_name(cfg, version=0):
         elif style == 'emotion_linear':
             experiment_name += "_Seml"
 
-        if cfg.model.sequence_decoder.get('positional_encoding', False):
+        pos_enc = cfg.model.sequence_decoder.get('positional_encoding', False)
+        if isinstance(pos_enc, DictConfig):
+            pos_enc = pos_enc.type
+        if pos_enc:
             if cfg.model.sequence_decoder.positional_encoding.type == 'PeriodicPositionalEncoding':
                 experiment_name += "PPE"
             elif cfg.model.sequence_decoder.positional_encoding.type == 'PositionalEncoding':
