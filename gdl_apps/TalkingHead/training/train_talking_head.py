@@ -173,6 +173,8 @@ def create_experiment_name(cfg, version=0):
             pass 
         elif style == 'none':
             experiment_name += "_Sno"
+        elif style == 'emotion_linear':
+            experiment_name += "_Seml"
 
         if cfg.model.sequence_decoder.get('positional_encoding', False):
             if cfg.model.sequence_decoder.positional_encoding.type == 'PeriodicPositionalEncoding':
