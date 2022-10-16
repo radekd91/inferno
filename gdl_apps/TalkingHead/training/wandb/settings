@@ -1,0 +1,5 @@
+[default]
+entity = kiranmpi
+project = TalkingHead
+base_url = https://api.wandb.ai
+

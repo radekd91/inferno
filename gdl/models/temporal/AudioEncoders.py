@@ -57,7 +57,7 @@ class AvHubertAudioEncoder(TemporalAudioEncoder):
 
 
 
-from transformers import Wav2Vec2Model, Wav2Vec2Processor, Wav2Vec2Config 
+from transformers import Wav2Vec2Model, Wav2Vec2Processor, Wav2Vec2Config, Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor 
 from transformers.models.wav2vec2.modeling_wav2vec2 import _compute_mask_indices, BaseModelOutput, Wav2Vec2BaseModelOutput
 import torch.nn.functional as F
 
@@ -248,4 +248,96 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
 
     def output_feature_dim(self):
         return self.cfg.hidden_size
+        # # return self.cfg.hidden_size * 2
+        
+        
+class Wav2Vec2SER(TemporalAudioEncoder):
+    """
+    Grokking notebook: https://colab.research.google.com/drive/1dNgohgrhtCqgZyqGJw91vOr4JEubZN_2
+    """
+    def __init__(self, model_specifier, trainable, target_fps=25, expected_fps=50, 
+                freeze_feature_extractor=False, 
+                dropout_cfg=None,):
+        super().__init__() 
+        self.model_specifier = model_specifier
+        if dropout_cfg is not None:
+            raise NotImplementedError("dropout not implemented yet")
+            # dropout_type = dropout_cfg.pop("type") 
+            # assert dropout_type is not None, "audio_dropout_cfg must have a 'type' key"
+            # self.dropout = class_from_str(dropout_type)(**dropout_cfg)
+        else: 
+            self.dropout = None
+        self.input_processor = Wav2Vec2FeatureExtractor.from_pretrained(model_specifier)
+        if not target_fps or not expected_fps:
+            self.model = Wav2Vec2ForSequenceClassification.from_pretrained(model_specifier)
+            self.resampling = False
+        else:
+            raise NotImplementedError("resampling not implemented yet")
+            # self.model = Wav2Vec2ModelResampled.from_pretrained(model_specifier)
+            # self.resampling = True
+            # self.model.model_expected_fps = expected_fps
+            # self.model.target_fps = target_fps
+        if freeze_feature_extractor:
+            self.model.feature_extractor._freeze_parameters()
+        if not trainable: 
+            self.model.requires_grad_(False)
+
+    def get_trainable_parameters(self): 
+        if self.trainable:
+            return [p for p in self.model.parameters() if p.requires_grad]
+        return []
+
+    def _forward(self, sample, train=False, desired_output_length=None): 
+        if self.input_processor is not None:
+            B = sample["raw_audio"].shape[0]
+            T = sample["raw_audio"].shape[1]
+            # proc = self.input_processor(sample["raw_audio"], sampling_rate=sample["samplerate"], return_tensors="pt")[0]
+            # raw_audio = sample["raw_audio"].view( B, -1)
+            raw_audio = sample["raw_audio"].view( B, -1)
+            proc = self.input_processor(raw_audio, sampling_rate=sample["samplerate"][0], padding=True, return_tensors="pt")
+            input = proc.input_values[0].to(device=raw_audio.device) # use index 0 because batch size is 1
+            sample["processed_audio"] = input
+        else: 
+            B = sample["processed_audio"].shape[0]
+            # T = sample["processed_audio"].shape[1]
+            T = None
+            input = sample["processed_audio"]
+        if isinstance(self.model, Wav2Vec2ModelResampled):
+            raise NotImplementedError("resampling not implemented yet")
+            # desired_output_length = desired_output_length or T
+            # feats_ = self.model(input, desired_output_length=desired_output_length)
+            # feats_ = self.model(input)
+        else:
+            logits = self.model(**input).logits
+            
+        predicted_ids = torch.argmax(logits, dim=-1)
+        labels = [self.model.config.id2label[_id] for _id in predicted_ids.tolist()]
+
+        sample["logits"] = logits # shape (B, 4)
+        sample["predicted_ids"] = predicted_ids # shape (B,)
+        sample["labels"] = labels # {0: 'neu', 1: 'hap', 2: 'ang', 3: 'sad'}, shape (B,)
+
+        if self.dropout is not None:
+            raise NotImplementedError("dropout not implemented yet")
+            # sample["audio_feature"] = self.dropout(sample["audio_feature"])
+
+        return sample
+
+    def train(self, mode: bool = False):
+        # return super().train(mode)
+        # mode = mode and self.trainable 
+        # self.model.train(mode)
+        # return self
+        pass
+
+    def forward(self, sample, train=False, desired_output_length=None): 
+        if self.trainable:
+            raise NotImplementedError("SER is not trainable. Set trainable=False")
+            # return self._forward(sample, train=train, desired_output_length=desired_output_length)
+        else: 
+            with torch.no_grad(): 
+                return self._forward(sample, train=train, desired_output_length=desired_output_length)
+
+    # def output_feature_dim(self):
+    #     return self.cfg.hidden_size
         # # return self.cfg.hidden_size * 2

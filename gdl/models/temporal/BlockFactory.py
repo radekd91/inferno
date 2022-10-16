@@ -8,7 +8,7 @@ from gdl.models.temporal.SequenceEncoders import *
 from gdl.models.temporal.SequenceDecoders import *
 from gdl.models.temporal.TemporalFLAME import FlameShapeModel
 from gdl.models.temporal.Renderers import FlameRenderer
-from gdl.models.temporal.AudioEncoders import AvHubertAudioEncoder, Wav2Vec2Encoder
+from gdl.models.temporal.AudioEncoders import AvHubertAudioEncoder, Wav2Vec2Encoder, Wav2Vec2SER
 from gdl.models.temporal.VideoEncoders import EmocaVideoEncoder
 from gdl.models.temporal.ResNetVideoEncoder import TemporalResNetEncoder
 import omegaconf
@@ -188,6 +188,13 @@ def audio_model_from_cfg(cfg):
             expected_fps=cfg.get('model_expected_fps', 50), # 50 fps is the default for wav2vec2 (but not sure if this holds universally)
             target_fps=cfg.get('target_fps', 25), # 25 fps is the default since we use 25 fps for the videos 
             freeze_feature_extractor=cfg.get('freeze_feature_extractor', True),
+            dropout_cfg=cfg.get('dropout_cfg', None),
+        )
+    elif cfg.type == "wav2vec2SER": 
+        encoder = Wav2Vec2SER(cfg.model_specifier, cfg.trainable, cfg.get('with_processor', True), 
+            expected_fps=cfg.get('model_expected_fps', 50), # 50 fps is the default for wav2vec2 (but not sure if this holds universally)
+            target_fps=cfg.get('target_fps', 25), # 25 fps is the default since we use 25 fps for the videos 
+            freeze_feature_extractor=cfg.get('freeze_feature_extractor', False),
             dropout_cfg=cfg.get('dropout_cfg', None),
         )
     else: 
