@@ -1,5 +1,6 @@
-from gdl.datasets.CelebVHQDataModule import CelebVHQDataModule, CelebVHQDataset
+from gdl.datasets.CelebVHQDataModule import CelebVHQDataModule, CelebVHQDataset, robust_collate
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp 
+from gdl.datasets.ConditionedVideoTestDatasetWrapper import ConditionedVideoTestDatasetWrapper
 
 import numpy as np
 import torch
@@ -38,13 +39,19 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
             training_sampler="uniform", 
             landmark_types=None, 
             landmark_sources=None, 
-            segmentation_source=None):
+            segmentation_source=None, 
+            test_condition_source=None, 
+            test_condition_settings=None,
+            ):
         super().__init__(root_dir, output_dir, processed_subfolder, face_detector, landmarks_from, face_detector_threshold, image_size, scale, processed_video_size, batch_size_train, batch_size_val, batch_size_test, 
             sequence_length_train, sequence_length_val, sequence_length_test, 
             bb_center_shift_x, bb_center_shift_y, 
             occlusion_settings_train, occlusion_settings_val, occlusion_settings_test, 
             split, 
             num_workers, device, augmentation, drop_last, include_processed_audio, include_raw_audio, preload_videos, inflate_by_video_size, training_sampler, landmark_types, landmark_sources, segmentation_source)
+
+        self.test_condition_source = test_condition_source or "original"
+        self.test_condition_settings = test_condition_settings
 
 
     def setup(self, stage=None):
@@ -86,8 +93,11 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
             )
 
-        self.test_set = CelebVHQPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
-                self.sequence_length_test, image_size=self.image_size, 
+        self.test_set_names = []
+        self.test_set_ = CelebVHQPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
+                # sequence_length=self.sequence_length_test, 
+                sequence_length="all", 
+                image_size=self.image_size, 
                 **self.occlusion_settings_test,
                 hack_length=False, 
                 use_original_video=self.use_original_video,
@@ -99,8 +109,103 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                 temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
-                inflate_by_video_size=self.inflate_by_video_size,
+                # inflate_by_video_size=self.inflate_by_video_size,
+                inflate_by_video_size=False,
+                include_filename=True,
                 )
+
+        self.test_set = ConditionedVideoTestDatasetWrapper(
+            self.test_set_,
+            self.test_condition_source, 
+            self.test_condition_settings
+        )
+
+        self.test_set_names += ["test"]
+
+        max_training_test_samples = 2
+        self.test_set_train_ = CelebVHQPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+                train[:max_training_test_samples], 
+                self.audio_metas, 
+                # sequence_length=self.sequence_length_test, 
+                sequence_length="all",
+                image_size=self.image_size, 
+                **self.occlusion_settings_test,
+                hack_length=False, 
+                use_original_video=self.use_original_video,
+                include_processed_audio = self.include_processed_audio,
+                include_raw_audio = self.include_raw_audio,
+                landmark_types=self.landmark_types,
+                landmark_source=self.landmark_sources,
+                segmentation_source=self.segmentation_source,
+                temporal_split_start= 0 if self.temporal_split is not None else None,
+                temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
+                preload_videos=self.preload_videos,
+                # inflate_by_video_size=self.inflate_by_video_size,
+                inflate_by_video_size=False,
+                include_filename=True,
+                )
+
+        self.test_set_train = ConditionedVideoTestDatasetWrapper(
+            self.test_set_train_,
+            self.test_condition_source, 
+            self.test_condition_settings
+        )        
+        self.test_set_names += ["train"]
+
+        max_validation_test_samples = 2
+        self.test_set_val_ = CelebVHQPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+                val[:max_validation_test_samples], 
+                self.audio_metas, 
+                # sequence_length=self.sequence_length_test, 
+                sequence_length="all", 
+                image_size=self.image_size, 
+                **self.occlusion_settings_test,
+                hack_length=False, 
+                use_original_video=self.use_original_video,
+                include_processed_audio = self.include_processed_audio,
+                include_raw_audio = self.include_raw_audio,
+                landmark_types=self.landmark_types,
+                landmark_source=self.landmark_sources,
+                segmentation_source=self.segmentation_source,
+                temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
+                temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                preload_videos=self.preload_videos,
+                # inflate_by_video_size=self.inflate_by_video_size,
+                inflate_by_video_size=False,
+                include_filename=True,
+                )
+
+        self.test_set_val = ConditionedVideoTestDatasetWrapper(
+            self.test_set_val_,
+            self.test_condition_source, 
+            self.test_condition_settings
+        )        
+        self.test_set_names += ["val"]
+
+    def test_dataloader(self):
+        test_dls = []
+        test_dl = super().test_dataloader()
+        if test_dl is not None:
+            if not isinstance(test_dl, list): 
+                test_dl = [test_dl]
+            test_dls += test_dl
+
+        test_dls += [torch.utils.data.DataLoader(self.test_set_train, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                          batch_size=self.batch_size_test, 
+                          drop_last=False,
+                        #   drop_last=self.drop_last,
+                          collate_fn=robust_collate
+                          )]
+
+        test_dls += [torch.utils.data.DataLoader(self.test_set_val, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                          batch_size=self.batch_size_test, 
+                          drop_last=False,
+                        #   drop_last=self.drop_last,
+                          collate_fn=robust_collate
+                          )]
+
+        return test_dls
+
 
 
 class CelebVHQPseudo3dDataset(CelebVHQDataset):
@@ -131,7 +236,8 @@ class CelebVHQPseudo3dDataset(CelebVHQDataset):
             temporal_split_start=None, 
             temporal_split_end=None, 
             preload_videos=False, 
-            inflate_by_video_size=False
+            inflate_by_video_size=False, 
+            include_filename=False, # if True includes the filename of the video in the sample
             ) -> None:
         super().__init__(root_path, output_dir, video_list, 
             video_metas, video_indices, audio_metas, sequence_length, audio_noise_prob, stack_order_audio, audio_normalization, 
@@ -153,7 +259,9 @@ class CelebVHQPseudo3dDataset(CelebVHQDataset):
             temporal_split_start, 
             temporal_split_end, 
             preload_videos, 
-            inflate_by_video_size)
+            inflate_by_video_size, 
+            include_filename=include_filename,
+            )
 
     # def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
     #     # don't load any landmarks+
@@ -173,7 +281,134 @@ class CelebVHQPseudo3dDataset(CelebVHQDataset):
     # def _augment_sequence_sample(self, sample):
     #     return sample
 
-     
+
+
+# from .AffectNetAutoDataModule import AffectNetExpressions
+
+# class CelebVHQPseudo3dTestDataset(CelebVHQDataset):
+
+#     def __init__(self,
+#             root_path, 
+#             output_dir, 
+#             video_list, 
+#             video_metas, 
+#             video_indices, 
+#             audio_metas, 
+#             sequence_length, 
+#             audio_noise_prob=0, 
+#             stack_order_audio=4, 
+#             audio_normalization="layer_norm", 
+#             landmark_types=None, 
+#             segmentation_type="bisenet", 
+#             landmark_source="original", 
+#             segmentation_source="aligned", 
+#             occlusion_length=0, 
+#             occlusion_probability_mouth=0, 
+#             occlusion_probability_left_eye=0, 
+#             occlusion_probability_right_eye=0, 
+#             occlusion_probability_face=0, 
+#             image_size=None, 
+#             transforms = None, 
+#             hack_length=False, use_original_video=False, include_processed_audio=True, include_raw_audio=True, 
+#             temporal_split_start=None, 
+#             temporal_split_end=None, 
+#             preload_videos=False, 
+#             inflate_by_video_size=False, 
+#             condition_source=None,
+#             condition_settings=None,
+#             ) -> None:
+#         super().__init__(root_path, output_dir, video_list, 
+#             video_metas, video_indices, audio_metas, sequence_length, audio_noise_prob, stack_order_audio, audio_normalization, 
+#             landmark_types, 
+#             segmentation_type, 
+#             landmark_source, 
+#             segmentation_source, 
+#             occlusion_length, 
+#             occlusion_probability_mouth, 
+#             occlusion_probability_left_eye, 
+#             occlusion_probability_right_eye, 
+#             occlusion_probability_face, 
+#             image_size, 
+#             transforms, 
+#             hack_length, 
+#             use_original_video, 
+#             include_processed_audio, 
+#             include_raw_audio, 
+#             temporal_split_start, 
+#             temporal_split_end, 
+#             preload_videos, 
+#             inflate_by_video_size)
+
+#         self.condition_source = condition_source or "original"
+#         self.condition_settings = condition_settings or None
+#         if self.condition_source == "original":
+#             self.condition_settings = None
+#         elif self.condition_source == "basic_expression":
+#             if self.condition_settings is None: 
+#                 self.condition_settings = list(range(8)) 
+            
+#             for i, cond in enumerate(self.condition_settings):
+#                 if isinstance(cond, str):
+#                     self.condition_settings[i] = AffectNetExpressions[cond]
+#                     if self.condition_settings[i] is None or self.condition_settings[i] > 7:
+#                         raise ValueError(f"Invalid basic expression {cond}")
+#             assert isinstance(self.condition_settings, list), "Condition_settings must be a list of integers"
+
+#         elif self.condition_source == "valence_arousal":
+#             if isinstance(self.condition_settings, list):
+#                 self.valence = np.array([self.condition_settings[0]])
+#                 self.arousal = np.array([self.condition_settings[1]])
+#             else:
+#                 if self.condition_settings is None: 
+#                     self.va_step_size = 0.2 
+#                 elif isinstance(self.condition_settings, float):
+#                     self.va_step_size = self.condition_settings
+#                 else:
+#                     raise ValueError("Condition settings must be a list or a float when using valence_arousal as source.")
+#                 # create grid of valence and arousal
+#                 self.valence = np.arange(-1, 1+self.va_step_size, self.va_step_size)
+#                 self.arousal = np.arange(-1, 1+self.va_step_size, self.va_step_size)
+        
+#             assert isinstance(self.condition_settings, list), "Condition_settings must be a list of integers"
+        
+#         else:
+#             raise ValueError("Condition source must be either original, basic_expression or valence_arousal or original")
+
+#     def __len__(self):
+#         if self.condition_source == "basic_expression":
+#             return super().__len__() * len(self.condition_settings)
+#         elif self.condition_source == "valence_arousal":
+#             return super().__len__() * len(self.valence) * len(self.arousal)
+#         elif self.condition_source == "original":
+#             return len(self.video_list)
+#         raise NotImplementedError(f"Condition source {self.condition_source} not implemented")
+
+#     def _getitem(self, index):
+#         if self.condition_source == "basic_expression":
+#             video_index = index // 7
+#             expression_index = index % 7
+#             sample["basic_expression"] = torch.tensor(expression_index)
+#             return sample
+#         elif self.condition_source == "valence_arousal":
+#             video_index = index // (len(self.valence) * len(self.arousal))
+#             va_index = index % (len(self.valence) * len(self.arousal))
+#             valence_index = va_index // len(self.arousal)
+#             arousal_index = va_index % len(self.arousal)
+#             sample = super()._getitem(video_index)
+#             sample["valence"] = torch.tensor(self.valence[valence_index])
+#             sample["arousal"] = torch.tensor(self.arousal[arousal_index])
+#             return sample 
+#         elif self.condition_source == "original":
+#             video_index = index
+#             sample = super()._getitem(video_index)
+#         else:
+#             raise NotImplementedError(f"Condition source {self.condition_source} not implemented")
+        
+#         # add video name to sample
+#         sample["video_name"] = self.video_list[video_index]
+#         return sample
+
+
 
 
 def main(): 

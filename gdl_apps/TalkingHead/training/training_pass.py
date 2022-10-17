@@ -31,20 +31,28 @@ import time as t
 # import hydra
 from omegaconf import DictConfig, OmegaConf
 import copy
+from gdl.callbacks.TalkingHeadRenderingCallback import TalkingHeadTestRenderingCallback
 
 project_name = 'TalkingHead'
 
 
+def get_rendering_callback(cfg, flame_template_path): 
+    path_chunks_to_cat = 0
+    if cfg.data.data_class == 'LRS3Pseudo3DDM':
+        path_chunks_to_cat = 1
+    return TalkingHeadTestRenderingCallback(flame_template_path, path_chunks_to_cat)
+
+
 def get_checkpoint_with_kwargs(cfg, prefix, checkpoint_mode=None):
     checkpoint = get_checkpoint(cfg, checkpoint_mode)
-    cfg.model.resume_training = False  # make sure the training is not magically resumed by the old code
-    checkpoint_kwargs = {
-        "model_params": cfg.model,
-        "learning_params": cfg.learning,
-        "inout_params": cfg.inout,
-        "stage_name": prefix
-    }
-    return checkpoint, checkpoint_kwargs
+    # cfg.model.resume_training = False  # make sure the training is not magically resumed by the old code
+    # checkpoint_kwargs = {
+    #     "model_params": cfg.model,
+    #     "learning_params": cfg.learning,
+    #     "inout_params": cfg.inout,
+    #     "stage_name": prefix
+    # }
+    return checkpoint, {}
 
 
 def get_checkpoint(cfg, checkpoint_mode=None):
@@ -262,6 +270,15 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
                                                 strict=True)
         callbacks += [early_stopping_callback]
 
+    if stage == 'test':
+        flame_template_path = Path(cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply"
+        if not flame_template_path.is_file():
+            flame_template_path = "/ps/scratch/rdanecek/data/FLAME/geometry/FLAME_sample.ply"
+        if not flame_template_path.is_file():
+            raise RuntimeError("FLAME template not found")
+
+        rendering_callback = get_rendering_callback(cfg, flame_template_path)
+        callbacks += [rendering_callback]
 
     val_check_interval = 1.0
     if 'val_check_interval' in cfg.model.keys():

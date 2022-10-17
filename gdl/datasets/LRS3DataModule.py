@@ -19,6 +19,7 @@ from python_speech_features import logfbank
 from gdl.datasets.IO import load_segmentation, process_segmentation, load_segmentation_list
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 from gdl.transforms.imgaug import create_image_augmenter
+from gdl.utils.collate import robust_collate
 import imgaug
 import traceback
 
@@ -623,27 +624,36 @@ class LRS3DataModule(FaceVideoDataModule):
     def train_dataloader(self):
         sampler = self.train_sampler()
         dl =  torch.utils.data.DataLoader(self.training_set, shuffle=sampler is None, num_workers=self.num_workers, pin_memory=True,
-                        batch_size=self.batch_size_train, drop_last=self.drop_last, sampler=sampler)
+                        batch_size=self.batch_size_train, drop_last=self.drop_last, sampler=sampler, 
+                        collate_fn=robust_collate)
         return dl
 
     def val_dataloader(self):
         dl = torch.utils.data.DataLoader(self.validation_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
                           batch_size=self.batch_size_val, 
                         #   drop_last=self.drop_last
-                          drop_last=False
+                          drop_last=False,
+                          collate_fn=robust_collate
                           )
         if hasattr(self, "validation_set_2"): 
             dl2 =  torch.utils.data.DataLoader(self.validation_set_2, shuffle=False, num_workers=self.num_workers, pin_memory=True,
                             batch_size=self.batch_size_val, 
                             # drop_last=self.drop_last, 
-                            drop_last=False
+                            drop_last=False, 
+                            collate_fn=robust_collate
                             )
             return [dl, dl2]
         return dl 
 
     def test_dataloader(self):
-        return torch.utils.data.DataLoader(self.test_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
-                          batch_size=self.batch_size_test, drop_last=self.drop_last)
+        if hasattr(self, "test_set") and self.test_set is not None:
+            return torch.utils.data.DataLoader(self.test_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                          batch_size=self.batch_size_test, 
+                          drop_last=False,
+                        #   drop_last=self.drop_last,
+                          collate_fn=robust_collate
+                          )
+        return None
 
 
 
@@ -685,6 +695,7 @@ class LRS3Dataset(VideoDatasetBase):
             temporal_split_end=None,
             preload_videos=False,
             inflate_by_video_size=False,
+            include_filename=False, # if True includes the filename of the video in the sample
     ) -> None:
         landmark_types = landmark_types or "mediapipe"
         super().__init__(
@@ -718,6 +729,7 @@ class LRS3Dataset(VideoDatasetBase):
             temporal_split_end=temporal_split_end,
             preload_videos=preload_videos,
             inflate_by_video_size=inflate_by_video_size,
+            include_filename=include_filename, 
         )
 
 

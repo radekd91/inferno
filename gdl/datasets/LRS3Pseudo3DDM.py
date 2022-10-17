@@ -1,8 +1,9 @@
-from gdl.datasets.LRS3DataModule import LRS3DataModule, LRS3Dataset
+from gdl.datasets.LRS3DataModule import LRS3DataModule, LRS3Dataset, robust_collate
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp 
 import imgaug
 import numpy as np
 import torch
+from gdl.datasets.ConditionedVideoTestDatasetWrapper import ConditionedVideoTestDatasetWrapper
 
 
 class LRS3Pseudo3DDM(LRS3DataModule): 
@@ -30,6 +31,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 device=None,
                 augmentation=None,
                 drop_last=True,
+                test_condition_source=None,
+                test_condition_settings=None,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, face_detector, 
             landmarks_from, 
@@ -40,7 +43,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
             split, 
             num_workers, device, augmentation, drop_last
             )
-
+        self.test_condition_source = test_condition_source or "original"
+        self.test_condition_settings = test_condition_settings
 
     def setup(self, stage=None):
         train, val, test = self._get_subsets(self.split)
@@ -58,8 +62,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 # landmark_types=self.landmark_types,
                 # landmark_source=self.landmark_sources,
                 # segmentation_source=self.segmentation_source,
-                # temporal_split_start= 0 if self.temporal_split is not None else None,
-                # temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
+                temporal_split_start= 0 if self.temporal_split is not None else None,
+                temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
                 # preload_videos=self.preload_videos,
                 # inflate_by_video_size=self.inflate_by_video_size,
               )
@@ -75,14 +79,46 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 # landmark_types=self.landmark_types,
                 # landmark_source=self.landmark_sources,
                 # segmentation_source=self.segmentation_source,
-                # temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
-                # temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
+                temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 # preload_videos=self.preload_videos,
                 # inflate_by_video_size=self.inflate_by_video_size,
             )
 
-        self.test_set = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
-                self.sequence_length_test, image_size=self.image_size, 
+        self.test_set_names = []
+        if len(test) > 0:
+            self.test_set_ = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
+                    # sequence_length=self.sequence_length_test, 
+                    sequence_length="all", 
+                    image_size=self.image_size, 
+                    **self.occlusion_settings_test,
+                    hack_length=False, 
+                    # use_original_video=self.use_original_video,
+                    # include_processed_audio = self.include_processed_audio,
+                    # include_raw_audio = self.include_raw_audio,
+                    # landmark_types=self.landmark_types,
+                    # landmark_source=self.landmark_sources,
+                    # segmentation_source=self.segmentation_source,
+                    temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                    temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
+                    # preload_videos=self.preload_videos,
+                    # inflate_by_video_size=self.inflate_by_video_size,
+                    inflate_by_video_size=False,
+                    include_filename=True,
+                    )
+            self.test_set_names += ["test"]
+
+            self.test_set = ConditionedVideoTestDatasetWrapper(
+                self.test_set_,
+                self.test_condition_source, 
+                self.test_condition_settings
+            )
+
+        max_training_test_samples = 2
+        self.test_set_train_ = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, sorted(train)[:max_training_test_samples], self.audio_metas, 
+                # sequence_length=self.sequence_length_test, 
+                sequence_length="all", 
+                image_size=self.image_size, 
                 **self.occlusion_settings_test,
                 hack_length=False, 
                 # use_original_video=self.use_original_video,
@@ -91,11 +127,76 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 # landmark_types=self.landmark_types,
                 # landmark_source=self.landmark_sources,
                 # segmentation_source=self.segmentation_source,
-                # temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
-                # temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
+
+                temporal_split_start= 0 if self.temporal_split is not None else None,
+                temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
                 # preload_videos=self.preload_videos,
                 # inflate_by_video_size=self.inflate_by_video_size,
+                inflate_by_video_size=False,
+                include_filename=True,
                 )
+
+        self.test_set_names += ["train"]
+
+        self.test_set_train = ConditionedVideoTestDatasetWrapper(
+            self.test_set_train_,
+            self.test_condition_source, 
+            self.test_condition_settings
+        )
+
+        max_validation_test_samples = 2
+        self.test_set_val_ = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, sorted(val)[:max_validation_test_samples], self.audio_metas, 
+                # sequence_length=self.sequence_length_test, 
+                sequence_length="all", 
+                image_size=self.image_size, 
+                **self.occlusion_settings_test,
+                hack_length=False, 
+                # use_original_video=self.use_original_video,
+                # include_processed_audio = self.include_processed_audio,
+                # include_raw_audio = self.include_raw_audio,
+                # landmark_types=self.landmark_types,
+                # landmark_source=self.landmark_sources,
+                # segmentation_source=self.segmentation_source,
+                temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
+                temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                # preload_videos=self.preload_videos,
+                inflate_by_video_size=False,
+                include_filename=True,
+                )
+
+        self.test_set_val = ConditionedVideoTestDatasetWrapper(
+            self.test_set_val_,
+            self.test_condition_source, 
+            self.test_condition_settings
+        )
+        self.test_set_names += ["val"]
+
+
+    def test_dataloader(self):
+        test_dls = []
+        test_dl = super().test_dataloader()
+        if test_dl is not None:
+            if not isinstance(test_dl, list): 
+                test_dl = [test_dl]
+            test_dls += test_dl
+
+        test_dls += [torch.utils.data.DataLoader(self.test_set_train, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                          batch_size=self.batch_size_test, 
+                          drop_last=False,
+                        #   drop_last=self.drop_last,
+                          collate_fn=robust_collate
+                          )]
+
+        test_dls += [torch.utils.data.DataLoader(self.test_set_val, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                          batch_size=self.batch_size_test, 
+                          drop_last=False,
+                        #   drop_last=self.drop_last,
+                          collate_fn=robust_collate
+                          )]
+
+        return test_dls
+
+
 
 
 class LRS3Pseudo3dDataset(LRS3Dataset):
@@ -116,6 +217,8 @@ class LRS3Pseudo3dDataset(LRS3Dataset):
             segmentation_type = "bisenet",
             landmark_source = "original",
             segmentation_source = "original",
+            temporal_split_start=None,
+            temporal_split_end=None,
             occlusion_length=0,
             occlusion_probability_mouth = 0.0,
             occlusion_probability_left_eye = 0.0,
@@ -124,6 +227,9 @@ class LRS3Pseudo3dDataset(LRS3Dataset):
             image_size=None, 
             transforms : imgaug.augmenters.Augmenter = None,
             hack_length=False,
+            preload_videos=False, # cache all videos in memory (recommended for smaller datasets)
+            inflate_by_video_size=False, 
+            include_filename=False, # if True includes the filename of the video in the sample
             ) -> None:
         super().__init__(root_path, output_dir, video_list, 
             video_metas, video_indices, audio_metas, sequence_length, audio_noise_prob, stack_order_audio, audio_normalization, 
@@ -138,7 +244,13 @@ class LRS3Pseudo3dDataset(LRS3Dataset):
             occlusion_probability_face, 
             image_size, 
             transforms, 
-            hack_length)
+            hack_length, 
+            preload_videos=preload_videos, 
+            inflate_by_video_size=inflate_by_video_size, 
+            include_filename=include_filename,
+            temporal_split_start=temporal_split_start,
+            temporal_split_end=temporal_split_end
+            )
 
     # def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
     #     # don't load any landmarks+

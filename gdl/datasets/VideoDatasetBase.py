@@ -23,7 +23,7 @@ class AbstractVideoDataset(torch.utils.data.Dataset):
     def __init__(self) -> None:
         super().__init__()
 
-    def _augment_sequence_sample(self, sample):
+    def _augment_sequence_sample(self, index, sample):
         raise NotImplementedError()
 
     def visualize_sample(self, sample):
@@ -59,10 +59,11 @@ class VideoDatasetBase(AbstractVideoDataset):
             use_original_video=True,
             include_processed_audio = True,
             include_raw_audio = True,
-            temporal_split_start=None,
-            temporal_split_end=None,
-            preload_videos=False,
-            inflate_by_video_size=False,
+            temporal_split_start=None, # if temporally splitting the video (train, val, test), this is the start of the split
+            temporal_split_end=None, # if temporally splitting the video (train, val, test), this is the end of the split
+            preload_videos=False, # cache all videos in memory (recommended for smaller datasets)
+            inflate_by_video_size=False, 
+            include_filename=False, # if True includes the filename of the video in the sample
         ) -> None:
         super().__init__()
         self.root_path = root_path
@@ -141,6 +142,8 @@ class VideoDatasetBase(AbstractVideoDataset):
         if self.inflate_by_video_size: 
             self._inflate_by_video_size()
 
+        self.include_filename = include_filename
+
     def _preload_videos(self): 
         # indices = np.unique(self.video_indices)
         for i in range(len(self.video_indices)):
@@ -153,6 +156,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         print("Video cache loaded")
 
     def _inflate_by_video_size(self):
+        assert isinstance( self.sequence_length, int), "'sequence_length' must be an integer when inflating by video size"
         inflated_video_indices = []
         video_sample_indices = []
         for i in range(len(self.video_indices)):
@@ -162,6 +166,8 @@ class VideoDatasetBase(AbstractVideoDataset):
             if self.temporal_split_start is not None and self.temporal_split_end is not None:
                 num_frames = int((self.temporal_split_end - self.temporal_split_start) * num_frames)
             num_samples_in_video = num_frames // self.sequence_length
+            if num_frames % self.sequence_length != 0:
+                num_samples_in_video += 1
             num_samples_in_video = max(1, num_samples_in_video)
             inflated_video_indices += [idx] * num_samples_in_video
             video_sample_indices += list(range(num_samples_in_video))
@@ -206,10 +212,10 @@ class VideoDatasetBase(AbstractVideoDataset):
         sample = self._get_segmentations(index, start_frame, num_read_frames, video_fps, num_frames, sample)
 
         # 5) FACE ALIGNMENT IF ANY
-        sample = self._align_faces(sample)
+        sample = self._align_faces(index, sample)
 
         # 6) AUGMENTATION
-        sample = self._augment_sequence_sample(sample)
+        sample = self._augment_sequence_sample(index, sample)
 
         # TO TORCH
         sample = to_torch(sample)
@@ -243,6 +249,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         #         raise ValueError(f"Unsupported landmark normalizer type: {type(self.landmark_normalizer)}")
         #     for key in sample["landmarks"].keys():
         #         sample["landmarks"][key] = self.landmark_normalizer(sample["landmarks"][key])
+
         return sample
 
     def _get_video_path(self, index):
@@ -267,6 +274,23 @@ class VideoDatasetBase(AbstractVideoDataset):
             del _vr
         return num_frames
 
+    def _get_sample_length(self, index):
+        if isinstance(self.sequence_length, int): # if sequence length set, use it
+            return self.sequence_length
+        elif isinstance(self.sequence_length, str): # otherwise use the one from the metadata
+            if self.sequence_length == "all":
+                if self.temporal_split_start is not None and self.temporal_split_end is not None:
+                    num_frames = self._get_num_frames(index)
+                    temporal_split_start_frame = int(self.temporal_split_start * num_frames)
+                    temporal_split_end_frame = int(self.temporal_split_end * num_frames) 
+                    return temporal_split_end_frame - temporal_split_start_frame
+                else:
+                    num_frames = self._get_num_frames(index)
+            else: 
+                raise ValueError(f"Unsupported sequence length value: '{self.sequence_length}'")
+            return num_frames
+        raise 
+
     def _get_video(self, index):
         video_path = self._get_video_path(index)
         video_meta = self.video_metas[self.video_indices[index]]
@@ -284,25 +308,27 @@ class VideoDatasetBase(AbstractVideoDataset):
         # assert num_frames >= self.sequence_length, f"Video {video_path} has only {num_frames} frames, but sequence length is {self.sequence_length}"
         # TODO: handle the case when sequence length is longer than the video length
 
+        sequence_length = self._get_sample_length(index)
+
         # pick the starting video frame 
         if self.temporal_split_start is not None and self.temporal_split_end is not None:
             temporal_split_start = int(self.temporal_split_start * num_frames)
             temporal_split_end = int(self.temporal_split_end * num_frames) 
             num_available_frames = temporal_split_end - temporal_split_start
-            # start_frame = np.random.randint(temporal_split_start, temporal_split_end - self.sequence_length)
+            # start_frame = np.random.randint(temporal_split_start, temporal_split_end - sequence_length)
         else: 
             temporal_split_start = 0
             temporal_split_end = num_frames
             num_available_frames = num_frames
 
-        if num_available_frames <= self.sequence_length:
+        if num_available_frames <= sequence_length:
             start_frame = temporal_split_start
         else:
             if self.video_sample_indices is None: # one video is one sample
-                start_frame = np.random.randint(temporal_split_start, temporal_split_end - self.sequence_length)
+                start_frame = np.random.randint(temporal_split_start, temporal_split_end - sequence_length)
             else: # one video is multiple samples (as many as the sequence length allows without repetition)
-                start_frame = temporal_split_start + (self.video_sample_indices[index] * self.sequence_length)
-            # start_frame = np.random.randint(0, num_frames - self.sequence_length)
+                start_frame = temporal_split_start + (self.video_sample_indices[index] * sequence_length)
+            # start_frame = np.random.randint(0, num_frames - sequence_length)
 
         # TODO: picking the starting frame should probably be done a bit more robustly 
         # (e.g. by ensuring the sequence has at least some valid landmarks) ... 
@@ -310,7 +336,7 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         # load the frames
         # frames = []
-        # for i in range(start_frame, start_frame + self.sequence_length):
+        # for i in range(start_frame, start_frame + sequence_length):
         #     frame_path = video_path / f"frame_{i:04d}.jpg"
         #     frame = imread(str(frame_path))
         #     frames.append(frame)
@@ -322,10 +348,11 @@ class VideoDatasetBase(AbstractVideoDataset):
             else: 
                 frames = self.video_cache[video_path.as_posix()]
             assert len(frames) == num_frames, f"Video {video_path} has {len(frames)} frames, but meta says it has {num_frames}"
-            frames = frames[start_frame:(start_frame + self.sequence_length)] 
-            if frames.shape[0] < self.sequence_length:
+            frames = frames[start_frame:(start_frame + sequence_length)] 
+            num_read_frames = frames.shape[0]
+            if frames.shape[0] < sequence_length:
                 # pad with zeros if video shorter than sequence length
-                frames = np.concatenate([frames, np.zeros((self.sequence_length - frames.shape[0], frames.shape[1], frames.shape[2]), dtype=frames.dtype)])
+                frames = np.concatenate([frames, np.zeros((sequence_length - frames.shape[0], frames.shape[1], frames.shape[2]), dtype=frames.dtype)])
         except ValueError: 
             # reader = vreader(video_path.as_posix())
             # create an opencv video reader 
@@ -337,7 +364,7 @@ class VideoDatasetBase(AbstractVideoDataset):
                 fi += 1
                 # _ = next(reader) 
                 _, frame = reader.read()
-            for i in range(self.sequence_length):
+            for i in range(sequence_length):
                 # frames.append(next(reader))
                 if reader.isOpened():
                     _, frame = reader.read()
@@ -359,40 +386,51 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         sample = { 
             "video": frames,
+            "frame_indices": np.arange(start_frame, start_frame + sequence_length, dtype=np.int32),
         }
+
+
+        if self.include_filename: 
+            sample["filename"] = str(video_path)
+            sample["fps"] = video_fps # include the fps in the sample
+
+
         return sample, start_frame, num_read_frames, video_fps, num_frames, num_available_frames
 
     def _get_audio(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
+        audio_path = (Path(self.output_dir) / "audio" / self.video_list[self.video_indices[index]]).with_suffix(".wav")
+        audio_meta = self.audio_metas[self.video_indices[index]]
+            
+        sequence_length = self._get_sample_length(index)
         # load the audio 
         # if self.include_raw_audio:
+        import librosa
+        sampling_rate = 16000
+        wavdata, sampling_rate = librosa.load(audio_path, sr=sampling_rate)
+        # wavdata, sampling_rate = librosa.load(audio_path, sr=sampling_rate)
+        if wavdata.ndim > 1:
+            wavdata = librosa.to_mono(wavdata)
+        wavdata = (wavdata.astype(np.float64) * 32768.0).astype(np.int16)
+
+        # audio augmentation
+        if np.random.rand() < self.audio_noise_prob:
+            wavdata = self.add_noise(wavdata)
+
         if self.include_processed_audio:
-            audio_path = (Path(self.output_dir) / "audio" / self.video_list[self.video_indices[index]]).with_suffix(".wav")
-            audio_meta = self.audio_metas[self.video_indices[index]]
             # sampling_rate, wavdata = wavfile.read(audio_path.as_posix())
-            import librosa
-            sampling_rate = 16000
-            wavdata, sampling_rate = librosa.load(audio_path, sr=sampling_rate)
-            # wavdata, sampling_rate = librosa.load(audio_path, sr=sampling_rate)
-            if wavdata.ndim > 1:
-                wavdata = librosa.to_mono(wavdata)
-            wavdata = (wavdata.astype(np.float64) * 32768.0).astype(np.int16)
+
             # assert samplerate == 16000 and len(wavdata.shape) == 1
-
-            # audio augmentation
-            if np.random.rand() < self.audio_noise_prob:
-                wavdata = self.add_noise(wavdata)
-
             audio_feats = logfbank(wavdata, samplerate=sampling_rate).astype(np.float32) # [T (num audio frames), F (num filters)]
             # the audio feats frequency (and therefore num frames) is too high, so we stack them together to match num visual frames 
             audio_feats = stacker(audio_feats, self.stack_order_audio)
 
-            # audio_feats = audio_feats[start_frame:(start_frame + self.sequence_length)] 
+            # audio_feats = audio_feats[start_frame:(start_frame + sequence_length)] 
             audio_feats = audio_feats[start_frame:(start_frame + num_read_frames)] 
             # temporal pad with zeros if necessary to match the desired video length 
-            if audio_feats.shape[0] < self.sequence_length:
+            if audio_feats.shape[0] < sequence_length:
                 # concatente with zeros
                 audio_feats = np.concatenate([audio_feats, 
-                    np.zeros((self.sequence_length - audio_feats.shape[0], audio_feats.shape[1]),
+                    np.zeros((sequence_length - audio_feats.shape[0], audio_feats.shape[1]),
                     dtype=audio_feats.dtype)], axis=0)
             
             # stack the frames and audio feats together
@@ -410,14 +448,14 @@ class VideoDatasetBase(AbstractVideoDataset):
                 wavdata_[:wavdata.size] = wavdata
             wavdata_ = wavdata_.reshape((num_frames, wav_per_frame))
             wavdata_ = wavdata_[start_frame:(start_frame + num_read_frames)] 
-            if wavdata_.shape[0] < self.sequence_length:
+            if wavdata_.shape[0] < sequence_length:
                 # concatente with zeros
                 wavdata_ = np.concatenate([wavdata_, 
-                    np.zeros((self.sequence_length - wavdata_.shape[0], wavdata_.shape[1]),
+                    np.zeros((sequence_length - wavdata_.shape[0], wavdata_.shape[1]),
                     dtype=wavdata_.dtype)], axis=0)
             wavdata_ = wavdata_.astype(np.float64) / np.int16(np.iinfo(np.int16).max)
 
-            # wavdata_ = np.zeros((self.sequence_length, samplerate // video_fps), dtype=wavdata.dtype)
+            # wavdata_ = np.zeros((sequence_length, samplerate // video_fps), dtype=wavdata.dtype)
             # wavdata_ = np.zeros((n * frames.shape[0]), dtype=wavdata.dtype)
             # wavdata_[:wavdata.shape[0]] = wavdata 
             # wavdata_ = wavdata_.reshape((frames.shape[0], -1))
@@ -428,6 +466,7 @@ class VideoDatasetBase(AbstractVideoDataset):
 
 
     def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
+        sequence_length = self._get_sample_length(index)
         landmark_dict = {}
         landmark_validity_dict = {}
         for lti, landmark_type in enumerate(self.landmark_types):
@@ -439,7 +478,7 @@ class VideoDatasetBase(AbstractVideoDataset):
             #    landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_original.pkl")  
                 landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{landmark_source}.pkl")  
                 landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
-                landmarks = landmark_list[start_frame: self.sequence_length + start_frame] 
+                landmarks = landmark_list[start_frame: sequence_length + start_frame] 
 
                 landmark_validity = np.ones((len(landmarks), 1), dtype=np.float32)
                 for li in range(len(landmarks)): 
@@ -458,17 +497,17 @@ class VideoDatasetBase(AbstractVideoDataset):
                         landmarks[li] = landmarks[li][0] 
 
                 # # pad landmarks with zeros if necessary to match the desired video length
-                # # if landmarks.shape[0] < self.sequence_length:
-                # if len(landmarks) < self.sequence_length:
+                # # if landmarks.shape[0] < sequence_length:
+                # if len(landmarks) < sequence_length:
                 #     # concatente with zeros
-                #     landmarks += [np.zeros((landmarks.shape[1]))] * (self.sequence_length - len(landmarks))
+                #     landmarks += [np.zeros((landmarks.shape[1]))] * (sequence_length - len(landmarks))
                     
 
-                #     landmarks = np.concatenate([landmarks, np.zeros((self.sequence_length - landmarks.shape[0], landmarks.shape[1]))], axis=0)
-                #     landmark_validity = np.concatenate([landmark_validity, np.zeros((self.sequence_length - landmark_validity.shape[0]), dtype=np.bool)], axis=0)
+                #     landmarks = np.concatenate([landmarks, np.zeros((sequence_length - landmarks.shape[0], landmarks.shape[1]))], axis=0)
+                #     landmark_validity = np.concatenate([landmark_validity, np.zeros((sequence_length - landmark_validity.shape[0]), dtype=np.bool)], axis=0)
             else: # landmarks are saved per frame
                 landmark_validity = np.ones((len(landmarks), 1), dtype=np.float32)
-                for i in range(start_frame, self.sequence_length + start_frame):
+                for i in range(start_frame, sequence_length + start_frame):
                     landmark_path = landmarks_dir / f"{i:05d}_000.pkl"
                     landmark_type, landmark = load_landmark(landmark_path)
                     landmarks += [landmark]
@@ -489,11 +528,11 @@ class VideoDatasetBase(AbstractVideoDataset):
             #     landmarks -= 1
 
             # pad landmarks with zeros if necessary to match the desired video length
-            if landmarks.shape[0] < self.sequence_length:
+            if landmarks.shape[0] < sequence_length:
                 landmarks = np.concatenate([landmarks, np.zeros(
-                    (self.sequence_length - landmarks.shape[0], *landmarks.shape[1:]), 
+                    (sequence_length - landmarks.shape[0], *landmarks.shape[1:]), 
                     dtype=landmarks.dtype)], axis=0)
-                landmark_validity = np.concatenate([landmark_validity, np.zeros((self.sequence_length - landmark_validity.shape[0], 1), 
+                landmark_validity = np.concatenate([landmark_validity, np.zeros((sequence_length - landmark_validity.shape[0], 1), 
                     dtype=landmark_validity.dtype)], axis=0)
 
             landmark_dict[landmark_type] = landmarks
@@ -528,35 +567,39 @@ class VideoDatasetBase(AbstractVideoDataset):
         segmentations_dir = self._path_to_segmentations(index)
         segmentations = []
 
+        sequence_length = self._get_sample_length(index)
+
         if (segmentations_dir / "segmentations.pkl").exists(): # segmentations are saved in a single file-per video 
             # seg_images, seg_types, seg_names = load_segmentation_list(segmentations_dir / "segmentations.pkl")
-            # segmentations = seg_images[start_frame: self.sequence_length + start_frame]
+            # segmentations = seg_images[start_frame: sequence_length + start_frame]
             # segmentations = np.stack(segmentations, axis=0)[:,0,...]
             segmentations, seg_types, seg_names  = self._retrieve_segmentations(index)
-            segmentations = segmentations[start_frame: self.sequence_length + start_frame]
+            segmentations = segmentations[start_frame: sequence_length + start_frame]
             segmentations = process_segmentation(segmentations, seg_types[0]).astype(np.uint8)
-            # assert segmentations.shape[0] == self.sequence_length
+            # assert segmentations.shape[0] == sequence_length
         else: # segmentations are saved per-frame
-            for i in range(start_frame, self.sequence_length + start_frame):
+            for i in range(start_frame, sequence_length + start_frame):
                 segmentation_path = segmentations_dir / f"{i:05d}.pkl"
                 seg_image, seg_type = load_segmentation(segmentation_path)
                 # seg_image = seg_image[:, :, np.newaxis]
                 seg_image = process_segmentation(seg_image[0], seg_type).astype(np.uint8)
                 segmentations += [seg_image]
             segmentations = np.stack(segmentations, axis=0)
-        if segmentations.shape[0] < self.sequence_length:
+        if segmentations.shape[0] < sequence_length:
                 # pad segmentations with zeros to match the sequence length
                 segmentations = np.concatenate([segmentations, 
-                    np.zeros((self.sequence_length - segmentations.shape[0], segmentations.shape[1], segmentations.shape[2]),
+                    np.zeros((sequence_length - segmentations.shape[0], segmentations.shape[1], segmentations.shape[2]),
                         dtype=segmentations.dtype)], axis=0)
 
         sample["segmentation"] = segmentations
         return sample
 
 
-    def _align_faces(self, sample):
+    def _align_faces(self, index, sample):
         if self.align_images:
             
+            sequence_length = self._get_sample_length(index)
+
             landmarks_for_alignment = "mediapipe"
             left = sample["landmarks"][landmarks_for_alignment][:,:,0].min(axis=1)
             top =  sample["landmarks"][landmarks_for_alignment][:,:,1].min(axis=1)
@@ -599,7 +642,7 @@ class VideoDatasetBase(AbstractVideoDataset):
                     bottom_[0] = bottom[first_valid_frame]
 
                 # just copy over the last valid frame 
-                if last_valid_frame < self.sequence_length - 1:
+                if last_valid_frame < sequence_length - 1:
                     left_[-1] = left[last_valid_frame]
                     top_[-1] = top[last_valid_frame]
                     right_[-1] = right[last_valid_frame]
@@ -631,7 +674,7 @@ class VideoDatasetBase(AbstractVideoDataset):
                 seg_frames = sample["segmentation"]
                 sample["segmentation"] = np.zeros((seg_frames.shape[0], self.image_size, self.image_size), dtype=seg_frames.dtype)
 
-            for i in range(self.sequence_length):
+            for i in range(sequence_length):
                 lmk_to_warp = {k: v[i] for k,v in sample["landmarks"].items()}
                 img_warped, lmk_warped = bbpoint_warp(video_frames[i], center[i], size[i], self.image_size, landmarks=lmk_to_warp)
                 
@@ -704,7 +747,7 @@ class VideoDatasetBase(AbstractVideoDataset):
             landmark = landmark[:, :, :2]
         return img, seg_image, landmark
 
-    def _augment_sequence_sample(self, sample):
+    def _augment_sequence_sample(self, index, sample):
         # get the mediapipe landmarks 
         mediapipe_landmarks = sample["landmarks"]["mediapipe"]
         mediapipe_landmarks_valid = sample["landmarks_validity"]["mediapipe"]
@@ -724,24 +767,24 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         # compute mouth region bounding box
         if np.random.rand() < self.occlusion_probability_mouth: 
-            images_masked, segmentation_masked, start_frame_, end_frame_ = self._occlude_sequence(images_masked, segmentation_masked, 
+            images_masked, segmentation_masked, start_frame_, end_frame_ = self._occlude_sequence(index, images_masked, segmentation_masked, 
                 mediapipe_landmarks, mediapipe_landmarks_valid, "mouth")
             masked_frames[start_frame_:end_frame_] = 1.0
 
         # compute eye region bounding box
         if np.random.rand() < self.occlusion_probability_left_eye:
-            images_masked, segmentation_masked, start_frame_, end_frame_ = self._occlude_sequence(images_masked, segmentation_masked, 
+            images_masked, segmentation_masked, start_frame_, end_frame_ = self._occlude_sequence(index, images_masked, segmentation_masked, 
                 mediapipe_landmarks, mediapipe_landmarks_valid, "left_eye")
             masked_frames[start_frame_:end_frame_] = 1.0
 
         if np.random.rand() < self.occlusion_probability_right_eye:
-            images_masked, segmentation_masked, start_frame_, end_frame_ = self._occlude_sequence(images_masked, segmentation_masked, 
+            images_masked, segmentation_masked, start_frame_, end_frame_ = self._occlude_sequence(index, images_masked, segmentation_masked, 
                 mediapipe_landmarks, mediapipe_landmarks_valid, "right_eye")
             masked_frames[start_frame_:end_frame_] = 1.0
 
         # compute face region bounding box
         if np.random.rand() < self.occlusion_probability_face:
-            images_masked, segmentation_masked, start_frame_, end_frame_ = self._occlude_sequence(images_masked, segmentation_masked, 
+            images_masked, segmentation_masked, start_frame_, end_frame_ = self._occlude_sequence(index, images_masked, segmentation_masked, 
                 mediapipe_landmarks, mediapipe_landmarks_valid, "all")
             masked_frames[start_frame_:end_frame_] = 1.0
 
@@ -805,9 +848,11 @@ class VideoDatasetBase(AbstractVideoDataset):
             sample["landmarks"][lmk_type] = landmarks_to_augment_aug[:, np.sum(lmk_counts[:i]):np.sum(lmk_counts[:i+1]), :]
         return sample
 
-    def _occlude_sequence(self, images, segmentation, mediapipe_landmarks, mediapipe_landmarks_valid, region):
+    def _occlude_sequence(self, index, images, segmentation, mediapipe_landmarks, mediapipe_landmarks_valid, region):
         bounding_boxes, sizes = self.occluder.bounding_box_batch(mediapipe_landmarks, region)
         
+        sequence_length = self._get_sample_length(index)
+
         bb_style = "max" # largest bb of the sequence 
         # bb_style = "min" # smallest bb of the sequence 
         # bb_style = "mean" # mean bb of the sequence 
@@ -848,9 +893,9 @@ class VideoDatasetBase(AbstractVideoDataset):
         bounding_boxes = bounding_boxes.clip(min=0, max=images.shape[1] - 1)
 
         occlusion_length = np.random.randint(self.occlusion_length[0], self.occlusion_length[1])
-        occlusion_length = min(self.sequence_length, occlusion_length)
+        occlusion_length = min(sequence_length, occlusion_length)
 
-        start_frame = np.random.randint(0, max(self.sequence_length - occlusion_length + 1, 1))
+        start_frame = np.random.randint(0, max(sequence_length - occlusion_length + 1, 1))
         end_frame = start_frame + occlusion_length
 
         images = self.occluder.occlude_batch(images, region, landmarks=None, 

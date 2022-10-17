@@ -7,6 +7,7 @@ import torch
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 from gdl.transforms.imgaug import create_image_augmenter
 from gdl.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
+from gdl.utils.collate import robust_collate
 from torch.utils.data import DataLoader
 
 
@@ -454,6 +455,7 @@ class CelebVHQDataset(VideoDatasetBase):
             temporal_split_end=None,
             preload_videos=False,
             inflate_by_video_size=False,
+            include_filename=False, # if True includes the filename of the video in the sample
     ) -> None:
         landmark_types = landmark_types or ["mediapipe", "fan"]
         super().__init__(
@@ -487,9 +489,11 @@ class CelebVHQDataset(VideoDatasetBase):
             temporal_split_end=temporal_split_end,
             preload_videos=preload_videos,
             inflate_by_video_size=inflate_by_video_size,
+            include_filename=include_filename,
         )
 
     def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
+        sequence_length = self._get_sample_length(index)
         landmark_dict = {}
         landmark_validity_dict = {}
         for lti, landmark_type in enumerate(self.landmark_types):
@@ -504,20 +508,20 @@ class CelebVHQDataset(VideoDatasetBase):
                 if landmark_list_file.exists():
                     landmark_list = FaceDataModuleBase.load_landmark_list(landmark_list_file)  
                     landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
-                    landmarks = landmark_list[start_frame: self.sequence_length + start_frame] 
+                    landmarks = landmark_list[start_frame: sequence_length + start_frame] 
                     landmarks = np.stack(landmarks, axis=0)
 
                     landmark_valid_indices = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_alignment_used_frame_indices.pkl")  
                     landmark_validity = np.zeros((len(landmark_list), 1), dtype=np.float32)
                     landmark_validity[landmark_valid_indices] = 1.0
-                    landmark_validity = landmark_validity[start_frame: self.sequence_length + start_frame]
+                    landmark_validity = landmark_validity[start_frame: sequence_length + start_frame]
                 else:
                     if landmark_type == "mediapipe":
                         num_landmarks = MEDIAPIPE_LANDMARK_NUMBER
                     elif landmark_type in ["fan", "kpt68"]:
                         num_landmarks = 68
-                    landmarks = np.zeros((self.sequence_length, num_landmarks, 2), dtype=np.float32)
-                    landmark_validity = np.zeros((self.sequence_length, 1), dtype=np.float32)
+                    landmarks = np.zeros((sequence_length, num_landmarks, 2), dtype=np.float32)
+                    landmark_validity = np.zeros((sequence_length, 1), dtype=np.float32)
                     # landmark_validity = landmark_validity.squeeze(-1)
 
 
@@ -527,8 +531,8 @@ class CelebVHQDataset(VideoDatasetBase):
                 # scale by image size 
                 landmarks = landmarks * sample["video"].shape[1]
 
-                landmarks = landmarks[start_frame: self.sequence_length + start_frame]
-                # landmark_confidences = landmark_confidences[start_frame: self.sequence_length + start_frame]
+                landmarks = landmarks[start_frame: sequence_length + start_frame]
+                # landmark_confidences = landmark_confidences[start_frame: sequence_length + start_frame]
                 # landmark_validity = landmark_confidences #TODO: something is wrong here, the validity is not correct and has different dimensions
                 landmark_validity = None 
             
@@ -554,15 +558,15 @@ class CelebVHQDataset(VideoDatasetBase):
             # landmarks = np.stack(landmarks, axis=0)
 
             # pad landmarks with zeros if necessary to match the desired video length
-            if landmarks.shape[0] < self.sequence_length:
+            if landmarks.shape[0] < sequence_length:
                 landmarks = np.concatenate([landmarks, np.zeros(
-                    (self.sequence_length - landmarks.shape[0], *landmarks.shape[1:]), 
+                    (sequence_length - landmarks.shape[0], *landmarks.shape[1:]), 
                     dtype=landmarks.dtype)], axis=0)
                 if landmark_validity is not None:
-                    landmark_validity = np.concatenate([landmark_validity, np.zeros((self.sequence_length - landmark_validity.shape[0], landmark_validity.shape[1]), 
+                    landmark_validity = np.concatenate([landmark_validity, np.zeros((sequence_length - landmark_validity.shape[0], landmark_validity.shape[1]), 
                         dtype=landmark_validity.dtype)], axis=0)
                 else: 
-                    landmark_validity = np.zeros((self.sequence_length, 1), dtype=np.float32)
+                    landmark_validity = np.zeros((sequence_length, 1), dtype=np.float32)
 
             landmark_dict[landmark_type] = landmarks
             if landmark_validity is not None:
@@ -576,72 +580,6 @@ class CelebVHQDataset(VideoDatasetBase):
     def _path_to_segmentations(self, index): 
         return (Path(self.output_dir) / f"segmentations_{self.segmentation_source}_{self.segmentation_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
 
-
-
-from torch.utils.data._utils.collate import default_collate, default_collate_err_msg_format, np_str_obj_array_pattern, string_classes
-import collections
-
-class NestedKeyError(Exception):
-    
-    def __init__(self, key) -> None:
-        self.keys = [key]
-
-
-def robust_collate(batch):
-    r"""Puts each data field into a tensor with outer dimension batch size. Copy of the default pytorch function, 
-        but with some try-except blocks to better report errors when some samples are missing some fields.
-    """
-    elem = batch[0]
-    elem_type = type(elem)
-    if isinstance(elem, torch.Tensor):
-        out = None
-        if torch.utils.data.get_worker_info() is not None:
-            # If we're in a background process, concatenate directly into a
-            # shared memory tensor to avoid an extra copy
-            numel = sum(x.numel() for x in batch)
-            storage = elem.storage()._new_shared(numel)
-            out = elem.new(storage)
-        return torch.stack(batch, 0, out=out)
-    elif elem_type.__module__ == 'numpy' and elem_type.__name__ != 'str_' \
-            and elem_type.__name__ != 'string_':
-        if elem_type.__name__ == 'ndarray' or elem_type.__name__ == 'memmap':
-            # array of string classes and object
-            if np_str_obj_array_pattern.search(elem.dtype.str) is not None:
-                raise TypeError(default_collate_err_msg_format.format(elem.dtype))
-
-            return robust_collate([torch.as_tensor(b) for b in batch])
-        elif elem.shape == ():  # scalars
-            return torch.as_tensor(batch)
-    elif isinstance(elem, float):
-        return torch.tensor(batch, dtype=torch.float64)
-    elif isinstance(elem, int):
-        return torch.tensor(batch)
-    elif isinstance(elem, string_classes):
-        return batch
-    elif isinstance(elem, collections.abc.Mapping):
-        result = {}
-        for key in elem: 
-            try: 
-                result[key] = robust_collate([d[key] for d in batch])
-            except KeyError as e: 
-                err = NestedKeyError(key)
-                raise err 
-            except NestedKeyError as e: 
-                e.keys += [key]
-                raise e
-        return result
-    elif isinstance(elem, tuple) and hasattr(elem, '_fields'):  # namedtuple
-        return elem_type(*(robust_collate(samples) for samples in zip(*batch)))
-    elif isinstance(elem, collections.abc.Sequence):
-        # check to make sure that the elements in batch have consistent size
-        it = iter(batch)
-        elem_size = len(next(it))
-        if not all(len(elem) == elem_size for elem in it):
-            raise RuntimeError('each element in list of batch should be of equal size')
-        transposed = zip(*batch)
-        return [robust_collate(samples) for samples in transposed]
-
-    raise TypeError(default_collate_err_msg_format.format(elem_type))
 
 
 

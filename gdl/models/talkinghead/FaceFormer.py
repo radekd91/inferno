@@ -86,11 +86,14 @@ class FaceFormer(TalkingHeadBase):
         """
         if checkpoint is None:
             model = FaceFormer(cfg)
-            # model = FaceFormer(cfg, prefix)
         else:
             checkpoint_kwargs = checkpoint_kwargs or {}
-            model = FaceFormer.load_from_checkpoint(checkpoint_path=checkpoint, 
-                strict=False, **checkpoint_kwargs)
+            model = FaceFormer.load_from_checkpoint(
+                checkpoint_path=checkpoint, 
+                cfg=cfg, 
+                strict=False, 
+                **checkpoint_kwargs
+            )
             # if stage == 'train':
             #     mode = True
             # else:
