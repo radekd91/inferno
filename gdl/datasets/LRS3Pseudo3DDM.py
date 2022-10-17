@@ -110,8 +110,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
 
             self.test_set = ConditionedVideoTestDatasetWrapper(
                 self.test_set_,
-                self.test_condition_source, 
-                self.test_condition_settings
+                None, 
+                None,
             )
 
         max_training_test_samples = 2
@@ -140,8 +140,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
 
         self.test_set_train = ConditionedVideoTestDatasetWrapper(
             self.test_set_train_,
-            self.test_condition_source, 
-            self.test_condition_settings
+            None, 
+            None,
         )
 
         max_validation_test_samples = 2
@@ -166,10 +166,98 @@ class LRS3Pseudo3DDM(LRS3DataModule):
 
         self.test_set_val = ConditionedVideoTestDatasetWrapper(
             self.test_set_val_,
-            self.test_condition_source, 
-            self.test_condition_settings
+            None, 
+            None,
         )
         self.test_set_names += ["val"]
+
+        # conditioned test set
+        if self.test_condition_source != "original":
+            if len(test) > 0:
+                self.test_set_cond_ = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
+                        # sequence_length=self.sequence_length_test, 
+                        sequence_length="all", 
+                        image_size=self.image_size, 
+                        **self.occlusion_settings_test,
+                        hack_length=False, 
+                        # use_original_video=self.use_original_video,
+                        # include_processed_audio = self.include_processed_audio,
+                        # include_raw_audio = self.include_raw_audio,
+                        # landmark_types=self.landmark_types,
+                        # landmark_source=self.landmark_sources,
+                        # segmentation_source=self.segmentation_source,
+                        temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                        temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
+                        # preload_videos=self.preload_videos,
+                        # inflate_by_video_size=self.inflate_by_video_size,
+                        inflate_by_video_size=False,
+                        include_filename=True,
+                        )
+                self.test_set_names += ["test_cond"]
+
+                self.test_set_cond = ConditionedVideoTestDatasetWrapper(
+                    self.test_set_cond_,
+                    self.test_condition_source, 
+                    self.test_condition_settings
+                )
+
+            max_training_test_samples = 2
+            self.test_set_train_cond_ = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, sorted(train)[:max_training_test_samples], self.audio_metas, 
+                    # sequence_length=self.sequence_length_test, 
+                    sequence_length="all", 
+                    image_size=self.image_size, 
+                    **self.occlusion_settings_test,
+                    hack_length=False, 
+                    # use_original_video=self.use_original_video,
+                    # include_processed_audio = self.include_processed_audio,
+                    # include_raw_audio = self.include_raw_audio,
+                    # landmark_types=self.landmark_types,
+                    # landmark_source=self.landmark_sources,
+                    # segmentation_source=self.segmentation_source,
+
+                    temporal_split_start= 0 if self.temporal_split is not None else None,
+                    temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
+                    # preload_videos=self.preload_videos,
+                    # inflate_by_video_size=self.inflate_by_video_size,
+                    inflate_by_video_size=False,
+                    include_filename=True,
+                    )
+
+            self.test_set_names += ["train_cond"]
+
+            self.test_set_train_cond = ConditionedVideoTestDatasetWrapper(
+                self.test_set_train_cond_,
+                self.test_condition_source, 
+                self.test_condition_settings
+            )
+
+            max_validation_test_samples = 2
+            self.test_set_val_cond_ = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, sorted(val)[:max_validation_test_samples], self.audio_metas, 
+                    # sequence_length=self.sequence_length_test, 
+                    sequence_length="all", 
+                    image_size=self.image_size, 
+                    **self.occlusion_settings_test,
+                    hack_length=False, 
+                    # use_original_video=self.use_original_video,
+                    # include_processed_audio = self.include_processed_audio,
+                    # include_raw_audio = self.include_raw_audio,
+                    # landmark_types=self.landmark_types,
+                    # landmark_source=self.landmark_sources,
+                    # segmentation_source=self.segmentation_source,
+                    temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
+                    temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                    # preload_videos=self.preload_videos,
+                    inflate_by_video_size=False,
+                    include_filename=True,
+                    )
+
+            self.test_set_val_cond = ConditionedVideoTestDatasetWrapper(
+                self.test_set_val_cond_,
+                self.test_condition_source, 
+                self.test_condition_settings
+            )
+            self.test_set_names += ["val_cond"]
+
 
 
     def test_dataloader(self):
@@ -188,6 +276,29 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                           )]
 
         test_dls += [torch.utils.data.DataLoader(self.test_set_val, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                          batch_size=self.batch_size_test, 
+                          drop_last=False,
+                        #   drop_last=self.drop_last,
+                          collate_fn=robust_collate
+                          )]
+
+        if hasattr(self, "test_set_cond") and self.test_set_cond is not None:
+            test_dls += [torch.utils.data.DataLoader(self.test_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                          batch_size=self.batch_size_test, 
+                          drop_last=False,
+                        #   drop_last=self.drop_last,
+                          collate_fn=robust_collate
+                          )]
+
+        if hasattr(self, "test_set_train_cond") and self.test_set_train_cond is not None:
+            test_dls += [torch.utils.data.DataLoader(self.test_set_train_cond, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+                          batch_size=self.batch_size_test, 
+                          drop_last=False,
+                        #   drop_last=self.drop_last,
+                          collate_fn=robust_collate
+                          )]
+        if hasattr(self, "test_set_val_cond") and self.test_set_val_cond is not None:
+            test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond, shuffle=False, num_workers=self.num_workers, pin_memory=True,
                           batch_size=self.batch_size_test, 
                           drop_last=False,
                         #   drop_last=self.drop_last,
