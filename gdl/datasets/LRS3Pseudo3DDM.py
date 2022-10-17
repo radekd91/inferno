@@ -31,8 +31,12 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 device=None,
                 augmentation=None,
                 drop_last=True,
+                include_processed_audio = True,
+                include_raw_audio = True,
                 test_condition_source=None,
                 test_condition_settings=None,
+                inflate_by_video_size=False,
+                preload_videos=False,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, face_detector, 
             landmarks_from, 
@@ -41,7 +45,11 @@ class LRS3Pseudo3DDM(LRS3DataModule):
             sequence_length_train, sequence_length_val, sequence_length_test, 
             occlusion_settings_train, occlusion_settings_val, occlusion_settings_test, 
             split, 
-            num_workers, device, augmentation, drop_last
+            num_workers, device, augmentation, drop_last, 
+            include_processed_audio=include_processed_audio,
+            include_raw_audio=include_raw_audio,
+            inflate_by_video_size=inflate_by_video_size,
+            preload_videos=preload_videos
             )
         self.test_condition_source = test_condition_source or "original"
         self.test_condition_settings = test_condition_settings
@@ -65,7 +73,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 temporal_split_start= 0 if self.temporal_split is not None else None,
                 temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
                 # preload_videos=self.preload_videos,
-                # inflate_by_video_size=self.inflate_by_video_size,
+                inflate_by_video_size=self.inflate_by_video_size,
               )
                     
         self.validation_set = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, 
@@ -82,7 +90,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
                 temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 # preload_videos=self.preload_videos,
-                # inflate_by_video_size=self.inflate_by_video_size,
+                inflate_by_video_size=self.inflate_by_video_size,
             )
 
         self.test_set_names = []
