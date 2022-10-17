@@ -42,8 +42,6 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
                 self.valence = np.arange(-1, 1+self.va_step_size, self.va_step_size)
                 self.arousal = np.arange(-1, 1+self.va_step_size, self.va_step_size)
         
-            assert isinstance(self.condition_settings, list), "Condition_settings must be a list of integers"
-        
         else:
             raise ValueError("Condition source must be either original, expression or valence_arousal or original")
 

@@ -222,11 +222,12 @@ class VideoDatasetBase(AbstractVideoDataset):
 
 
         # AUDIO NORMALIZATION (if any)
-        if self.audio_normalization is not None:
-            if self.audio_normalization == "layer_norm":
-                sample["audio"] = F.layer_norm(sample["audio"], sample["audio"].shape[1:])
-            else: 
-                raise ValueError(f"Unsupported audio normalization {self.audio_normalization}")
+        if self.include_processed_audio:
+            if self.audio_normalization is not None:
+                if self.audio_normalization == "layer_norm":
+                    sample["audio"] = F.layer_norm(sample["audio"], sample["audio"].shape[1:])
+                else: 
+                    raise ValueError(f"Unsupported audio normalization {self.audio_normalization}")
 
         # T,H,W,C to T,C,H,W
         sample["video"] = sample["video"].permute(0, 3, 1, 2)

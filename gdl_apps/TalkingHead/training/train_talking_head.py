@@ -36,6 +36,20 @@ from gdl.utils.other import class_from_str
 
 project_name = 'TalkingHead'
 
+
+def get_condition_string_from_config(cfg):
+    try: 
+        if cfg.model.sequence_decoder.style_embedding == "none": 
+            return "original", None
+        if cfg.model.sequence_decoder.style_embedding.use_expression:
+            return "expression", None 
+        if cfg.model.sequence_decoder.style_embedding.use_valence and cfg.model.sequence_decoder.style_embedding.use_arousal:
+            return "valence_arousal", None
+        raise NotImplementedError("Conditioning not implemented for this style embedding configuration: ", cfg.model.sequence_decoder.style_embedding)
+    except AttributeError as e:
+        return "original", None
+    
+
 def create_single_dm(cfg, data_class):
     if data_class == "FaceformerVocasetDM": 
         if 'augmentation' in cfg.data.keys() and len(cfg.data.augmentation) > 0:
@@ -61,6 +75,7 @@ def create_single_dm(cfg, data_class):
                 )
         dataset_name = "Vocaset"
     elif data_class == "CelebVHQPseudo3DDM":
+        condition_source, condition_settings = get_condition_string_from_config(cfg)
         dm = CelebVHQPseudo3DDM(
                 cfg.data.input_dir, 
                 cfg.data.output_dir, 
@@ -90,9 +105,14 @@ def create_single_dm(cfg, data_class):
                 landmark_types = cfg.data.landmark_types,
                 landmark_sources=cfg.data.landmark_sources,
                 segmentation_source=cfg.data.segmentation_source,
+                inflate_by_video_size = cfg.data.inflate_by_video_size,
+                preload_videos = cfg.data.preload_videos,
+                test_condition_source=condition_source,
+                test_condition_settings=condition_settings,
         )
         dataset_name = "CelebVHQ"
     elif data_class == "LRS3Pseudo3DDM":
+        condition_source, condition_settings = get_condition_string_from_config(cfg)
         dm = LRS3Pseudo3DDM(
                 cfg.data.input_dir, 
                 cfg.data.output_dir, 
@@ -122,6 +142,12 @@ def create_single_dm(cfg, data_class):
                 # landmark_types = cfg.data.landmark_types,
                 # landmark_sources=cfg.data.landmark_sources,
                 # segmentation_source=cfg.data.segmentation_source,
+                include_processed_audio = cfg.data.include_processed_audio,
+                include_raw_audio = cfg.data.include_raw_audio,
+                inflate_by_video_size = cfg.data.inflate_by_video_size,
+                preload_videos = cfg.data.preload_videos,
+                test_condition_source=condition_source,
+                test_condition_settings=condition_settings,
         )
         dataset_name = "LRS3"
     else:
@@ -177,19 +203,26 @@ def create_experiment_name(cfg, version=0):
             experiment_name += "_Sno"
         elif style == 'emotion_linear':
             experiment_name += "_Seml"
+            cond = get_condition_string_from_config(cfg)
+            if cond[0] == 'valence_arousal':
+                experiment_name += 'VA'
+            elif cond[0] == 'expression':
+                experiment_name += 'EX'
+            
+
 
         pos_enc = cfg.model.sequence_decoder.get('positional_encoding', False)
         if isinstance(pos_enc, DictConfig):
             pos_enc = pos_enc.type
         if pos_enc:
             if cfg.model.sequence_decoder.positional_encoding.type == 'PeriodicPositionalEncoding':
-                experiment_name += "PPE"
+                experiment_name += "_PPE"
             elif cfg.model.sequence_decoder.positional_encoding.type == 'PositionalEncoding':
-                experiment_name += "PE"
+                experiment_name += "_PE"
             elif str(cfg.model.sequence_decoder.positional_encoding.type).lower() == 'none':
-                experiment_name += "NPE"
+                experiment_name += "_NPE"
         else: 
-            experiment_name += "NPE"
+            experiment_name += "_NPE"
 
         temporal_bias_type = cfg.model.sequence_decoder.get('temporal_bias_type', False) 
         if temporal_bias_type == 'faceformer_future':
@@ -296,7 +329,7 @@ def train_model(cfg, start_i=-1,
             random_id = cfg.inout.random_id
         else:
             random_id = ""
-        full_run_dir = Path(cfg.inout.full_run_dir).parent
+        full_run_dir = Path(cfg.inout.full_run_dir)
         exist_ok = True # a path for an old experiment should exist
 
     full_run_dir.mkdir(parents=True, exist_ok=exist_ok)
