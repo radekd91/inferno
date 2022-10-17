@@ -4,6 +4,7 @@ return_vis: False
 # return_vis: True
 render: False
 # render: True
+with_global_pose: False
 
 # paths
 flame_model_path: /ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl

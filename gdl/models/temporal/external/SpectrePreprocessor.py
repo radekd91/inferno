@@ -53,6 +53,7 @@ class SpectrePreprocessor(Preprocessor):
         self.return_vis = cfg.get('return_vis', False)
         self.render = cfg.get('render', False)
         self.with_global_pose = cfg.get('with_global_pose', False)
+        self.average_shape_decode = cfg.get('average_shape_decode', True)
 
         self.spectre = SPECTRE(spectre_cfg)
         self.spectre.eval()
@@ -86,6 +87,23 @@ class SpectrePreprocessor(Preprocessor):
         codedict, initial_deca_exp, initial_deca_jaw = self.spectre.encode(images)
         codedict['exp'] = codedict['exp'] + initial_deca_exp
         codedict['pose'][..., 3:] = codedict['pose'][..., 3:] + initial_deca_jaw
+
+        # compute the the shapecode only from frames where landmarks are valid
+        weights = batch["landmarks_validity"]["mediapipe"] / batch["landmarks_validity"]["mediapipe"].sum(axis=1, keepdims=True)
+        assert weights.isnan().any() == False, "NaN in weights"
+        
+        avg_shapecode = (weights * codedict['shape'].view(B, T, -1)).sum(axis=1, keepdims=False)
+
+        verts, landmarks2d, landmarks3d = self.spectre.flame(
+            shape_params=avg_shapecode, 
+            expression_params=torch.zeros(device = avg_shapecode.device, dtype = avg_shapecode.dtype, 
+                size = (avg_shapecode.shape[0], codedict['exp'].shape[-1])),
+            pose_params=None
+        )
+
+        if self.average_shape_decode:
+            # set the shape to be equal to the average shape (so that the shape is not changing over time)
+            codedict['shape'] = avg_shapecode.view(B, 1, -1).repeat(1, T, 1)
 
         if not self.with_global_pose:
             codedict['pose'][..., :3] = 0
@@ -125,18 +143,6 @@ class SpectrePreprocessor(Preprocessor):
         else: 
             opdict = self.spectre.decode(codedict, rendering=self.render, vis_lmk=False, return_vis=False)
 
-        # compute the the shapecode only from frames where landmarks are valid
-        weights = batch["landmarks_validity"]["mediapipe"] / batch["landmarks_validity"]["mediapipe"].sum(axis=1, keepdims=True)
-        assert weights.isnan().any() == False, "NaN in weights"
-        avg_shapecode = (weights * codedict['shape'].view(B, T, -1)).sum(axis=1, keepdims=False)
-
-
-        verts, landmarks2d, landmarks3d = self.spectre.flame(
-            shape_params=avg_shapecode, 
-            expression_params=torch.zeros(device = avg_shapecode.device, dtype = avg_shapecode.dtype, 
-                size = (avg_shapecode.shape[0], codedict['exp'].shape[-1])),
-            pose_params=None
-        )
 
 
         batch["template"] = verts.contiguous().view(B, -1)
@@ -149,7 +155,7 @@ class SpectrePreprocessor(Preprocessor):
         batch[output_prefix + 'jaw'] = codedict['pose'][..., 3:].contiguous().view(B, T, -1)
 
         # TODO: this is a little hacky, we need to keep track of which entries are not per-frame (such as template and one_hot identity thingy)
-        non_temporal_keys = ['template', 'one_hot', 'samplerate', output_prefix + 'shape'] 
+        non_temporal_keys = ['template', 'one_hot', 'samplerate', output_prefix + 'shape', "filename", "fps", "condition_name"] 
 
         # invalidate the first and last frames for all the per-frame outputs
 
@@ -177,7 +183,7 @@ def slice_off_ends(tensor_or_dict, num, keys_to_skip=None):
             elif isinstance(entry, dict): 
                 tensor_or_dict[key] = slice_off_ends(entry, num, keys_to_skip)
             else: 
-                raise ValueError("Unrecognized entry type")
+                raise ValueError(f"Unrecognized entry type: '{key}': {type(key)}")
         return tensor_or_dict
     else: 
         return tensor_or_dict[:, num:tensor_or_dict.shape[1]-num, ...]

@@ -15,6 +15,12 @@ face_detector: mediapipe
 face_detector_threshold: 0.05
 # landmarks_from: sr_res
 
+
+include_processed_audio: False
+include_raw_audio: True
+preload_videos: False
+inflate_by_video_size: False
+
 ring_type: none
 ring_size: none
 

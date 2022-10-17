@@ -24,6 +24,7 @@ class EmocaPreprocessor(Preprocessor):
         self.model = self.model.eval()
 
         self.with_global_pose = cfg.get('with_global_pose', False)
+        self.average_shape_decode = cfg.get('average_shape_decode', True)
 
     @property
     def device(self):
@@ -47,12 +48,16 @@ class EmocaPreprocessor(Preprocessor):
         if not self.with_global_pose:
             values['posecode'][..., :3] = 0
 
-        values = self.model.decode(values, training=False)
-        
         # compute the the shapecode only from frames where landmarks are valid
         weights = batch["landmarks_validity"]["mediapipe"] / batch["landmarks_validity"]["mediapipe"].sum(axis=1, keepdims=True)
         assert weights.isnan().any() == False, "NaN in weights"
         avg_shapecode = (weights * values['shapecode'].view(B, T, -1)).sum(axis=1, keepdims=False)
+
+        if self.average_shape_decode:
+            # set the shape to be equal to the average shape (so that the shape is not changing over time)
+            values['shapecode'] = avg_shapecode.view(B, 1, -1).repeat(1, T, 1)
+
+        values = self.model.decode(values, training=False)
 
         verts, landmarks2d, landmarks3d = self.model.deca.flame(
             shape_params=avg_shapecode, 

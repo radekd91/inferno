@@ -13,6 +13,7 @@ preprocessors:
       render: False
       # render: True
       with_global_pose: False
+      average_shape_decode: True
 
       # paths
       flame_model_path: /ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl
