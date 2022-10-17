@@ -16,7 +16,7 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
         self.condition_settings = condition_settings or None
         if self.condition_source == "original":
             self.condition_settings = None
-        elif self.condition_source == "basic_expression":
+        elif self.condition_source == "expression":
             if self.condition_settings is None: 
                 self.condition_settings = list(range(8)) 
             
@@ -45,10 +45,10 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             assert isinstance(self.condition_settings, list), "Condition_settings must be a list of integers"
         
         else:
-            raise ValueError("Condition source must be either original, basic_expression or valence_arousal or original")
+            raise ValueError("Condition source must be either original, expression or valence_arousal or original")
 
     def __len__(self):
-        if self.condition_source == "basic_expression":
+        if self.condition_source == "expression":
             return len(self.dataset) * len(self.condition_settings)
         elif self.condition_source == "valence_arousal":
             return len(self.dataset) * len(self.valence) * len(self.arousal)
@@ -57,11 +57,11 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
         raise NotImplementedError(f"Condition source {self.condition_source} not implemented")
 
     def __getitem__(self, index):
-        if self.condition_source == "basic_expression":
+        if self.condition_source == "expression":
             video_index = index // 7
             expression_index = index % 7
             sample = self.dataset[video_index]
-            sample["basic_expression"] = torch.tensor(expression_index)
+            sample["expression"] = torch.tensor(expression_index)
             sample["condition_name"] = AffectNetExpressions(expression_index).name
             return sample
         elif self.condition_source == "valence_arousal":
