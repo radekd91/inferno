@@ -62,7 +62,7 @@ torchgeometry>=0.1.2
 torchmetrics==0.6.2
 lightning-bolts~=0.4.0
 pytorch-lightning==1.4.9
-trimesh~=3.6.18
+trimesh~=3.14.1
 wandb~=0.10.30
 watchdog~=0.10.3
 wrapt~=1.12.1
