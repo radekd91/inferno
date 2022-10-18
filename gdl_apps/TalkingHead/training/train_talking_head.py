@@ -355,8 +355,10 @@ def train_model(cfg, start_i=-1,
     
     # if cfg_detail is not None:
     #     conf.detail = cfg_detail
-    with open(full_run_dir / "cfg.yaml", 'w') as outfile:
-        OmegaConf.save(config=cfg, f=outfile)
+    cfg_file = full_run_dir / "cfg.yaml"
+    if not cfg_file.exists():
+        with open(cfg_file, 'w') as outfile:
+            OmegaConf.save(config=cfg, f=outfile)
 
     version = time
     if random_id is not None and len(random_id) > 0:
