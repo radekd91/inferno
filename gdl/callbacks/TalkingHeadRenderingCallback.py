@@ -159,7 +159,7 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
     def _log_video(self, video_path, logger, epoch):
         if logger is not None: 
             if isinstance(logger, pl.loggers.WandbLogger):
-                name = "test_video/" + self._path_chunk(video_path.parent)
+                name = "test_video/" + str(self._path_chunk(video_path.parent))
                 condition = self.video_conditions[video_path.parent]
                 if condition is not None:
                     name += "/" + condition
