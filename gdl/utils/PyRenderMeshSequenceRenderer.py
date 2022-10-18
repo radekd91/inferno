@@ -1,3 +1,6 @@
+import os 
+if 'DISPLAY' not in os.environ or os.environ['DISPLAY'] == '':
+    os.environ['PYOPENGL_PLATFORM'] = 'egl'
 import numpy as np 
 import trimesh 
 import pyrender
