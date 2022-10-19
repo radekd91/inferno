@@ -262,6 +262,9 @@ def create_experiment_name(cfg, version=0):
         losses = [key for key in cfg.learning.losses.keys()]
 
         for loss_type in losses:
+            mask_str = ''
+            if cfg.learning.losses[loss_type].get('mask_invalid', None): 
+                mask_str = 'm'
             if loss_type in ["jawpose_loss", "jaw_loss"]:
                 experiment_name += "J" + cfg.learning.losses[loss_type].get('rotation_rep', 'quat') 
             elif loss_type in ["expression_loss", "exp_loss"]:
@@ -275,7 +278,8 @@ def create_experiment_name(cfg, version=0):
                 experiment_name += "Ev"
             elif loss_type in ["jawpose_velocity_loss", "jaw_velocity_loss"]:
                 experiment_name += "Jv" +  cfg.learning.losses[loss_type].get('rotation_rep', 'quat')
-                
+            experiment_name += mask_str
+
         if 'augmentation' in cfg.data.keys() and len(cfg.data.augmentation) > 0:
             experiment_name += "_Aug"
 
