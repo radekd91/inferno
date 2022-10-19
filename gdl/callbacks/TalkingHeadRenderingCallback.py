@@ -21,6 +21,7 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
         self.audio_samplerates_to_process = {}
         self.video_framerates_to_process = {}
         self.video_conditions = {}
+        self.dl_names = {}
         self.framerate = 25
 
         self.path_chunks_to_cat = path_chunks_to_cat or 0
@@ -64,6 +65,7 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
             else: 
                 path = Path(pl_module.cfg.inout.full_run_dir) / "videos" / dl_name / self._path_chunk(video_name) / condition_name
             self.video_conditions[path] = condition_name
+            self.dl_names[path] = dl_name
 
             path.mkdir(parents=True, exist_ok=True)
 
@@ -113,7 +115,9 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
 
         self.video_names_to_process = {}
         self.audio_samplerates_to_process = {}
-    
+        self.video_conditions = {}
+        self.dl_names = {}
+
 
     def _create_video(self, subfolder, logger, epoch):
         # find audio
@@ -164,6 +168,9 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
         if logger is not None: 
             if isinstance(logger, pl.loggers.WandbLogger):
                 name = "test_video/" + str(self._path_chunk(video_path.parent))
+                dl_name = self.dl_names[video_path.parent]
+                if dl_name is not None:
+                    name += f"/{dl_name}"
                 condition = self.video_conditions[video_path.parent]
                 if condition is not None:
                     name += "/" + condition
