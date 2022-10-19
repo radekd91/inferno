@@ -57,7 +57,7 @@ class AvHubertAudioEncoder(TemporalAudioEncoder):
 
 
 
-from transformers import Wav2Vec2Model, Wav2Vec2Processor, Wav2Vec2Config, Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor 
+from transformers import Wav2Vec2Model, Wav2Vec2Processor, Wav2Vec2Config, Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor, Wav2Vec2PreTrainedModel
 from transformers.models.wav2vec2.modeling_wav2vec2 import _compute_mask_indices, BaseModelOutput, Wav2Vec2BaseModelOutput
 import torch.nn.functional as F
 
@@ -138,6 +138,43 @@ class Wav2Vec2ModelResampled(Wav2Vec2Model):
             attentions=encoder_outputs.attentions,
         )
 
+
+    def _get_feat_extract_output_lengths(
+        self, input_lengths, add_adapter = None
+    ):
+        input_lengths = super()._get_feat_extract_output_lengths(input_lengths, add_adapter)
+        input_lengths = (input_lengths.to(torch.float32) / (self.model_expected_fps / self.target_fps)).to(torch.int64)
+
+        return input_lengths
+
+
+class Wav2Vec2ForSequenceClassificationResampled(Wav2Vec2ForSequenceClassification):
+    def __init__(self, config):
+        # super().__init__(config)
+        # call super of the parent of the base instead of the base class
+        Wav2Vec2PreTrainedModel.__init__(self, config)
+
+        if hasattr(config, "add_adapter") and config.add_adapter:
+            raise ValueError(
+                "Sequence classification does not support the use of Wav2Vec2 adapters (config.add_adapter=True)"
+            )
+        self.wav2vec2 = Wav2Vec2ModelResampled(config)
+        num_layers = config.num_hidden_layers + 1  # transformer layers + input embeddings
+        if config.use_weighted_layer_sum:
+            self.layer_weights = torch.nn.Parameter(torch.ones(num_layers) / num_layers)
+        self.projector = torch.nn.Linear(config.hidden_size, config.classifier_proj_size)
+        self.classifier = torch.nn.Linear(config.classifier_proj_size, config.num_labels)
+
+        # Initialize weights and apply final processing
+        self.post_init()
+
+    def _get_feat_extract_output_lengths(
+        self, input_lengths, add_adapter
+    ):
+        input_lengths = super()._get_feat_extract_output_lengths(input_lengths, add_adapter)
+        input_lengths = (input_lengths.to(torch.float32) / (self.wav2vec2.model_expected_fps / self.wav2vec2.target_fps)).to(torch.int64)
+
+        return input_lengths
 
 class Wav2Vec2Encoder(TemporalAudioEncoder):
 
@@ -255,11 +292,12 @@ class Wav2Vec2SER(TemporalAudioEncoder):
     """
     Grokking notebook: https://colab.research.google.com/drive/1dNgohgrhtCqgZyqGJw91vOr4JEubZN_2
     """
-    def __init__(self, model_specifier, trainable, target_fps=25, expected_fps=50, 
+    def __init__(self, model_specifier, trainable, with_processor=True, target_fps=25, expected_fps=50, 
                 freeze_feature_extractor=False, 
                 dropout_cfg=None,):
         super().__init__() 
         self.model_specifier = model_specifier
+        self.cfg = Wav2Vec2Config.from_pretrained(model_specifier)
         if dropout_cfg is not None:
             raise NotImplementedError("dropout not implemented yet")
             # dropout_type = dropout_cfg.pop("type") 
@@ -272,13 +310,14 @@ class Wav2Vec2SER(TemporalAudioEncoder):
             self.model = Wav2Vec2ForSequenceClassification.from_pretrained(model_specifier)
             self.resampling = False
         else:
-            raise NotImplementedError("resampling not implemented yet")
-            # self.model = Wav2Vec2ModelResampled.from_pretrained(model_specifier)
-            # self.resampling = True
-            # self.model.model_expected_fps = expected_fps
-            # self.model.target_fps = target_fps
+            # raise NotImplementedError("resampling not implemented yet")
+            self.model = Wav2Vec2ForSequenceClassificationResampled.from_pretrained(model_specifier)
+            self.resampling = True
+            self.model.wav2vec2.model_expected_fps = expected_fps
+            self.model.wav2vec2.target_fps = target_fps
         if freeze_feature_extractor:
-            self.model.feature_extractor._freeze_parameters()
+            # self.model.feature_extractor._freeze_parameters()
+            self.model.freeze_feature_extractor()
         if not trainable: 
             self.model.requires_grad_(False)
 
@@ -302,13 +341,17 @@ class Wav2Vec2SER(TemporalAudioEncoder):
             # T = sample["processed_audio"].shape[1]
             T = None
             input = sample["processed_audio"]
-        if isinstance(self.model, Wav2Vec2ModelResampled):
-            raise NotImplementedError("resampling not implemented yet")
+        if isinstance(self.model, Wav2Vec2ForSequenceClassificationResampled):
+            # raise NotImplementedError("resampling not implemented yet")
+            
+            out = self.model(**input, output_dict=True)
+            logits = out.logits
             # desired_output_length = desired_output_length or T
             # feats_ = self.model(input, desired_output_length=desired_output_length)
             # feats_ = self.model(input)
         else:
-            logits = self.model(**input).logits
+            out = self.model(**input, output_dict=True)
+            logits = out.logits
             
         predicted_ids = torch.argmax(logits, dim=-1)
         labels = [self.model.config.id2label[_id] for _id in predicted_ids.tolist()]
@@ -317,9 +360,11 @@ class Wav2Vec2SER(TemporalAudioEncoder):
         sample["predicted_ids"] = predicted_ids # shape (B,)
         sample["labels"] = labels # {0: 'neu', 1: 'hap', 2: 'ang', 3: 'sad'}, shape (B,)
 
+        sample["audio_emotion_feature"] = out.last_hidden_state 
+
         if self.dropout is not None:
             raise NotImplementedError("dropout not implemented yet")
-            # sample["audio_feature"] = self.dropout(sample["audio_feature"])
+            # sample["audio_emotion_feature"] = self.dropout(sample["audio_emotion_feature"])
 
         return sample
 
@@ -333,11 +378,11 @@ class Wav2Vec2SER(TemporalAudioEncoder):
     def forward(self, sample, train=False, desired_output_length=None): 
         if self.trainable:
             raise NotImplementedError("SER is not trainable. Set trainable=False")
-            # return self._forward(sample, train=train, desired_output_length=desired_output_length)
+            return self._forward(sample, train=train, desired_output_length=desired_output_length)
         else: 
             with torch.no_grad(): 
                 return self._forward(sample, train=train, desired_output_length=desired_output_length)
 
-    # def output_feature_dim(self):
-    #     return self.cfg.hidden_size
+    def output_feature_dim(self):
+        return self.cfg.hidden_size
         # # return self.cfg.hidden_size * 2
