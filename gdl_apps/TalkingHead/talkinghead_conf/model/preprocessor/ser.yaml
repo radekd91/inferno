@@ -1,0 +1,8 @@
+# @package model 
+type: ser
+#   model_specifier: superb/wav2vec2-base-superb-er
+model_specifier: ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition
+#   model_specifier: harshit345/xlsr-wav2vec-speech-emotion-recognition
+target_fps: 25 
+expected_fps: 50
+      

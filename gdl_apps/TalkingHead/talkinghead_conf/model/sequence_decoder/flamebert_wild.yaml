@@ -39,7 +39,10 @@ style_embedding: none
 #   type: emotion_linear 
 #   use_expression: true
 #   # use_expression: false
-#   n_expression: 8
+#   n_expression: 8 # affectnet 
+##   n_expression: 8 # ravdess
+##   n_expression: 4 # iemocap
+
 
 # #   use_valence: true
 # #   use_arousal: true

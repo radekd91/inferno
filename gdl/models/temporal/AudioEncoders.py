@@ -297,6 +297,7 @@ class Wav2Vec2SER(TemporalAudioEncoder):
                 dropout_cfg=None,):
         super().__init__() 
         self.model_specifier = model_specifier
+        self.trainable = trainable
         self.cfg = Wav2Vec2Config.from_pretrained(model_specifier)
         if dropout_cfg is not None:
             raise NotImplementedError("dropout not implemented yet")
@@ -344,23 +345,24 @@ class Wav2Vec2SER(TemporalAudioEncoder):
         if isinstance(self.model, Wav2Vec2ForSequenceClassificationResampled):
             # raise NotImplementedError("resampling not implemented yet")
             
-            out = self.model(**input, output_dict=True)
+            out = self.model(input, return_dict=True, output_hidden_states=True)
             logits = out.logits
             # desired_output_length = desired_output_length or T
             # feats_ = self.model(input, desired_output_length=desired_output_length)
             # feats_ = self.model(input)
         else:
-            out = self.model(**input, output_dict=True)
+            out = self.model(input, output_dict=True, output_hidden_states=True)
             logits = out.logits
             
         predicted_ids = torch.argmax(logits, dim=-1)
         labels = [self.model.config.id2label[_id] for _id in predicted_ids.tolist()]
 
-        sample["logits"] = logits # shape (B, 4)
-        sample["predicted_ids"] = predicted_ids # shape (B,)
+        
+        sample["expression"] = F.softmax(logits) # shape (B, 4)
+        # sample["predicted_ids"] = predicted_ids # shape (B,)
         sample["labels"] = labels # {0: 'neu', 1: 'hap', 2: 'ang', 3: 'sad'}, shape (B,)
 
-        sample["audio_emotion_feature"] = out.last_hidden_state 
+        sample["audio_emotion_feature"] = out.hidden_states[-1]
 
         if self.dropout is not None:
             raise NotImplementedError("dropout not implemented yet")

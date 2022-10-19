@@ -125,7 +125,7 @@ def create_logger(logger_type, name, project_name, version, save_dir, config=Non
         logger_type = "WandbLogger"
         print(f"Logger type is not set. Defaulting to {logger_type}")
 
-    if not logger_type:
+    if not logger_type or logger_type.lower() == "none":
         print(f"No logger instantiated.")
         return None
     if logger_type == "WandbLogger":

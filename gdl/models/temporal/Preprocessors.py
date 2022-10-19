@@ -121,3 +121,65 @@ class EmotionRecognitionPreprocessor(Preprocessor):
         return batch
 
 
+class SpeechEmotionRecognitionPreprocessor(Preprocessor):
+    def __init__(self, cfg, **kwargs):
+        super().__init__(**kwargs)
+    
+        from gdl.models.temporal.AudioEncoders import Wav2Vec2SER
+        self.cfg = cfg
+        model_specifier = cfg.model_specifier
+        trainable = False 
+        # with_processor=True, 
+        target_fps=cfg.target_fps #25, 
+        expected_fps= cfg.expected_fps # 50, 
+        freeze_feature_extractor= True
+        dropout_cfg=None
+
+        self.model = Wav2Vec2SER( 
+                model_specifier, trainable, 
+                with_processor=True, 
+                target_fps=target_fps, 
+                expected_fps=expected_fps, 
+                freeze_feature_extractor=freeze_feature_extractor, 
+                dropout_cfg=dropout_cfg,
+                )
+        for p in self.model.parameters():
+            p.requires_grad = False
+
+        self.model.eval()
+
+    @property
+    def device(self):
+        return list(self.model.parameters())[0].device
+
+    def to(self, device):
+        self.model.to(device)
+
+    def forward(self, batch, input_key, *args, output_prefix="gt_", **kwargs):
+        batch_ = {} 
+        batch_['raw_audio'] = batch['raw_audio']
+        batch_['samplerate'] = batch['samplerate']
+        output = self.model(batch_)
+
+        # output_keys = ["valence", "arousal", "emo_feat_2"]
+        # self.model.model.config.label2id # labels here: 
+        self.model.model.config
+
+        B, T = batch['raw_audio'].shape[:2]
+
+        keys = ["valence", "arousal", "expression"]
+
+        # for i, key in enumerate(output_keys):
+        output_num = 0
+        for key in keys: 
+            if key in output.keys():
+                val = output[key]
+                if val.ndim == 2:
+                    val = val.unsqueeze(1)
+                    val = val.repeat(1, T, 1)
+                batch[output_prefix + key] = val.view(B, T, -1)
+                output_num += 1
+        
+        assert output_num > 0, "No output was used"
+
+        return batch

@@ -2,7 +2,7 @@ from pathlib import Path
 from turtle import forward
 
 from gdl.models.temporal.Bases import Preprocessor
-from gdl.models.temporal.Preprocessors import EmotionRecognitionPreprocessor, EmocaPreprocessor
+from gdl.models.temporal.Preprocessors import EmotionRecognitionPreprocessor, EmocaPreprocessor, SpeechEmotionRecognitionPreprocessor
 from gdl.models.temporal.external.SpectrePreprocessor import SpectrePreprocessor
 from gdl.models.temporal.SequenceEncoders import *
 from gdl.models.temporal.SequenceDecoders import *
@@ -336,5 +336,7 @@ def preprocessor_from_cfg(cfg):
         return EmotionRecognitionPreprocessor(cfg)
     elif cfg.type == "spectre":
         return SpectrePreprocessor(cfg)
+    elif cfg.type == "ser":
+        return SpeechEmotionRecognitionPreprocessor(cfg)
     else: 
         raise ValueError(f"Unknown preprocess model type '{cfg.model.preprocess.type}'")

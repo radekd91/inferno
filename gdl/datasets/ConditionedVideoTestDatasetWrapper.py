@@ -42,6 +42,17 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
                 self.valence = np.arange(-1, 1+self.va_step_size, self.va_step_size)
                 self.arousal = np.arange(-1, 1+self.va_step_size, self.va_step_size)
         
+        elif self.condition_source == "ravdess_expression":
+            if self.condition_settings is None: 
+                self.condition_settings = list(range(8)) 
+            assert isinstance(self.condition_settings, list), "Condition_settings must be a list of integers"
+
+        elif self.condition_source == "iemocap_expression":
+            if self.condition_settings is None: 
+                self.condition_settings = list(range(4)) 
+            
+            assert isinstance(self.condition_settings, list), "Condition_settings must be a list of integers"
+
         else:
             raise ValueError("Condition source must be either original, expression or valence_arousal or original")
 
@@ -52,6 +63,13 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             return len(self.dataset) * len(self.valence) * len(self.arousal)
         elif self.condition_source == "original":
             return len(self.dataset)
+        elif self.condition_source == "ravdess_expression": # ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition 
+            # {'angry': 0, 'calm': 1, 'disgust': 2, 'fearful': 3, 'happy': 4, 'neutral': 5, 'sad': 6, 'surprised': 7} 
+            return len(self.dataset) * 8
+        elif self.condition_source == 'iemocap_expression': # superb/wav2vec2-base-superb-er
+            # {0: 'neu', 1: 'hap', 2: 'ang', 3: 'sad'} 
+            return len(self.dataset) * 4
+
         raise NotImplementedError(f"Condition source {self.condition_source} not implemented")
 
     def __getitem__(self, index):
@@ -77,6 +95,22 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             video_index = index
             # sample = self.dataset._getitem(video_index)
             sample = self.dataset[video_index]
+        elif self.condition_source == "ravdess_expression":
+            exp_dict = {0: 'angry', 1: 'calm', 2: 'disgust', 3: 'fearful', 4: 'happy', 5:'neutral', 6:'sad', 7: 'surprised'} 
+            video_index = index // len(exp_dict)
+            expression_index = index % len(exp_dict)
+            sample = self.dataset[video_index]
+            sample["expression"] = torch.tensor(expression_index)
+            sample["condition_name"] = exp_dict[expression_index] 
+            return sample
+        elif self.condition_source == "iemocap_expression":
+            exp_dict = {0: 'neu', 1: 'hap', 2: 'ang', 'sad': 3} 
+            video_index = index // len(exp_dict)
+            expression_index = index % len(exp_dict)
+            sample = self.dataset[video_index]
+            sample["expression"] = torch.tensor(expression_index)
+            sample["condition_name"] = exp_dict[expression_index] 
+            return sample
         else:
             raise NotImplementedError(f"Condition source {self.condition_source} not implemented")
         
