@@ -31,18 +31,42 @@ class FaceFormer(TalkingHeadBase):
     def _compute_loss(self, sample, loss_name, loss_cfg): 
         loss_type = loss_name if 'loss_type' not in loss_cfg.keys() else loss_cfg['loss_type']
         
+        mask_invalid = loss_cfg.get('mask_invalid', False)
+        if mask_invalid:
+            if mask_invalid == "mediapipe_landmarks": 
+                # frames with invalid mediapipe landmarks will be masked for loss computation
+                mask = sample["landmarks_validity"]["mediapipe"].to(dtype=torch.bool)
+            else: 
+                raise ValueError(f"mask_invalid value of '{mask_invalid}' not supported")
+        else:
+            mask = torch.ones((*sample["predicted_vertices"].shape[:2], 1), device=sample["predicted_vertices"].device, dtype=torch.bool)
+        mask_sum = mask.sum().item()
+
         if loss_type in ["jawpose_loss", "jaw_loss"]:
-            loss_value = compute_rotation_loss(sample["predicted_jaw"], sample["gt_jaw"],  
+            mask_ = mask.repeat(1,1, sample["predicted_jaw"].shape[2])
+            pred_jaw = sample["predicted_jaw"][mask_].view(mask.shape[0], mask_sum, -1)
+            gt_jaw = sample["gt_jaw"][mask_].view(mask.shape[0], mask_sum, -1)
+            loss_value = compute_rotation_loss(
+                pred_jaw, 
+                gt_jaw,  
                 r1_input_rep=self._rotation_representation(), 
                 r2_input_rep="aa", # gt is in axis-angle
                 output_rep=loss_cfg.get('rotation_rep', 'quat'), 
-                metric=loss_cfg.get('metric', 'l2')
+                metric=loss_cfg.get('metric', 'l2'), 
                 )
         elif loss_type in ["expression_loss", "exp_loss"]:
             min_dim = min(sample["predicted_exp"].shape[-1], sample["gt_exp"].shape[-1])
-            loss_value = F.mse_loss(sample["predicted_exp"][..., :min_dim], sample["gt_exp"][..., :min_dim])
+            mask_ = mask.repeat(1,1, min_dim)
+            pred_exp = sample["predicted_exp"][...,:min_dim][mask_].view(mask.shape[0], mask_sum, -1)[:,:,:min_dim]
+            gt_exp = sample["gt_exp"][...,:min_dim][mask_].view(mask.shape[0], mask_sum, -1)
+            loss_value = F.mse_loss(pred_exp, gt_exp)
+            # loss_value = F.mse_loss(mask*sample["predicted_exp"][..., :min_dim], mask*sample["gt_exp"][..., :min_dim], 
+            #     reduction='sum') / mask_sum
         elif loss_type == "vertex_loss":
-            loss_value = F.mse_loss(sample["predicted_vertices"], sample["gt_vertices"])
+            mask_ = mask.repeat(1,1, sample["predicted_vertices"].shape[2])
+            pred_vertices = sample["predicted_vertices"][mask_].view(mask.shape[0], mask_sum, -1)
+            gt_vertices = sample["gt_vertices"][mask_].view(mask.shape[0], mask_sum, -1)
+            loss_value = F.mse_loss(pred_vertices, gt_vertices) 
 
             # v_pred = sample["predicted_vertices"][0][0].view(-1, 3).cpu().numpy()
             # v_gt = sample["gt_vertices"][0][0].view(-1, 3).cpu().numpy()
@@ -63,17 +87,38 @@ class FaceFormer(TalkingHeadBase):
             
         # velocity losses
         elif loss_type == "vertex_velocity_loss":
-            loss_value = velocity_loss(sample["predicted_vertices"], sample["gt_vertices"], F.mse_loss)
+            mask_ = mask.repeat(1,1, sample["predicted_vertices"].shape[2])
+            pred_vertices = sample["predicted_vertices"][mask_].view(mask.shape[0], mask_sum, -1)
+            gt_vertices = sample["gt_vertices"][mask_].view(mask.shape[0], mask_sum, -1)
+            loss_value = velocity_loss(pred_vertices, gt_vertices, F.mse_loss)
+            # loss_value = velocity_loss(mask*sample["predicted_vertices"], mask*sample["gt_vertices"], 
+            #     F.mse_loss, reduction='sum') / mask_sum
         elif loss_type in ["expression_velocity_loss", "exp_velocity_loss"]:
             min_dim = min(sample["predicted_exp"].shape[-1], sample["gt_exp"].shape[-1])
-            loss_value = velocity_loss(sample["predicted_exp"][..., :min_dim], sample["gt_exp"][..., :min_dim], F.mse_loss)
+            mask_ = mask.repeat(1,1, min_dim)
+            pred_exp = sample["predicted_exp"][...,:min_dim][mask_].view(mask.shape[0], mask_sum, -1)[:,:,:min_dim]
+            gt_exp = sample["gt_exp"][...,:min_dim][mask_].view(mask.shape[0], mask_sum, -1)
+            loss_value = velocity_loss(pred_exp, gt_exp, F.mse_loss)
+            # loss_value = velocity_loss(mask*sample["predicted_exp"][..., :min_dim], mask*sample["gt_exp"][..., :min_dim],
+            #     F.mse_loss, reduction='sum') / mask_sum
         elif loss_type in ["jawpose_velocity_loss", "jaw_velocity_loss"]:
-            loss_value = rotation_velocity_loss(sample["predicted_jaw"], sample["gt_jaw"],
+            mask_ = mask.repeat(1,1, sample["predicted_jaw"].shape[2])
+            pred_jaw = sample["predicted_jaw"][mask_].view(mask.shape[0], mask_sum, -1)
+            gt_jaw = sample["gt_jaw"][mask_].view(mask.shape[0], mask_sum, -1)
+            loss_value = rotation_velocity_loss(pred_jaw, gt_jaw,
                 r1_input_rep=self._rotation_representation(), 
                 r2_input_rep="aa", # gt is in axis-angle
                 output_rep=loss_cfg.get('rotation_rep', 'quat'), 
                 metric=loss_cfg.get('metric', 'l2')
             )
+            # loss_value = rotation_velocity_loss(mask*sample["predicted_jaw"], mask*sample["gt_jaw"],
+            #     r1_input_rep=self._rotation_representation(),
+            #     r2_input_rep="aa", # gt is in axis-angle
+            #     output_rep=loss_cfg.get('rotation_rep', 'quat'),
+            #     metric=loss_cfg.get('metric', 'l2'),
+            #     reduction='sum'
+            # ) / mask_sum
+
         else: 
             raise ValueError(f"Unknown loss type: {loss_type}")
         return loss_value
@@ -102,15 +147,17 @@ class FaceFormer(TalkingHeadBase):
         return model
 
 
-def velocity_loss(x1, x2, metric): 
+def velocity_loss(x1, x2, metric, reduction='mean'): 
     v1 = x1[:, 1:, ...] - x1[:, :-1, ...]
     v2 = x2[:, 1:, ...] - x2[:, :-1, ...]
-    return metric(v1, v2)
+    return metric(v1, v2, reduction=reduction)
 
 
 def rotation_velocity_loss(r1, r2,
         r1_input_rep='aa', r2_input_rep='aa', output_rep='aa',
-        metric='l2'): 
+        metric='l2', 
+        reduction='mean'
+        ): 
     B = r1.shape[0]
     T = r1.shape[1] 
     r1 = convert_rot(r1.contiguous().view((B*T,-1)), r1_input_rep, output_rep).view((B,T,-1))
@@ -125,9 +172,9 @@ def rotation_velocity_loss(r1, r2,
     if metric == 'l1': 
         # diff = (r1 - r2)*mask
         # return diff.abs().sum(dim=vec_reduction_dim).sum(dim=bt_reduction_dim) / mask_sum
-        return F.l1_loss(v1.view(B*T, -1), v2.view(B*T, -1)) 
+        return F.l1_loss(v1.view(B*T, -1), v2.view(B*T, -1), reduction=reduction) 
     elif metric == 'l2': 
-        return F.mse_loss(v1.view(B*T, -1), v2.view(B*T, -1)) 
+        return F.mse_loss(v1.view(B*T, -1), v2.view(B*T, -1), reduction=reduction)
         # return diff.square().sum(dim=vec_reduction_dim).sqrt().sum(dim=bt_reduction_dim) / mask_sum ## does not work, sqrt turns weights to NaNa after backward
     else: 
         raise ValueError(f"Unsupported metric for rotation loss: '{metric}'")
