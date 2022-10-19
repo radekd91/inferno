@@ -1,4 +1,5 @@
 results/
+external/
 */wandb/*
 .idea*
 .idea/
