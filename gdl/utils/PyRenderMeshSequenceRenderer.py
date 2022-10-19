@@ -30,9 +30,16 @@ class PyRenderMeshSequenceRenderer(object):
 
         self.frustum = {'near': 0.01, 'far': 3.0, 'height': height, 'width': width}
 
-        self.primitive_material = pyrender.material.MetallicRoughnessMaterial(
+        self.primitive_material_gray = pyrender.material.MetallicRoughnessMaterial(
                 alphaMode='BLEND',
                 baseColorFactor=[0.3, 0.3, 0.3, 1.0],
+                metallicFactor=0.8, 
+                roughnessFactor=0.8 
+            )
+
+        self.primitive_material_red = pyrender.material.MetallicRoughnessMaterial(
+                alphaMode='BLEND',
+                baseColorFactor=[0.3, 0.0, 0.0, 1.0],
                 metallicFactor=0.8, 
                 roughnessFactor=0.8 
             )
@@ -96,7 +103,7 @@ class PyRenderMeshSequenceRenderer(object):
         self.t_center = t_center
 
 
-    def render(self, verts, rot=None, t_center=None):
+    def render(self, verts, rot=None, t_center=None, valid=True):
         """
         verts: (N, 3)
 
@@ -118,7 +125,10 @@ class PyRenderMeshSequenceRenderer(object):
 
         mesh = trimesh.base.Trimesh(verts, self.template.faces)
 
-        self.render_mesh = pyrender.Mesh.from_trimesh(mesh, material=self.primitive_material,smooth=True)
+
+        self.render_mesh = pyrender.Mesh.from_trimesh(mesh, 
+            material=self.primitive_material_gray if valid else self.primitive_material_red,
+            smooth=True)
         self.mesh_node = self.scene.add(self.render_mesh, pose=np.eye(4))
 
         try:

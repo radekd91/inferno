@@ -81,11 +81,15 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
             for t in range(T):
                 frame_index = batch["frame_indices"][b, t].item()
 
+                valid = True
+                if "landmarks_validity" in batch.keys() and "mediapipe" in batch["landmarks_validity"]:
+                    valid = bool(batch["landmarks_validity"]["mediapipe"][b, t].item())
+
                 pred_vertices = predicted_vertices[b, t].detach().cpu().view(-1,3).numpy()
                 pred_image = self.renderer.render(pred_vertices)
 
                 ref_vertices = gt_vertices[b, t].detach().cpu().view(-1,3).numpy()
-                gt_image = self.renderer.render(ref_vertices)
+                gt_image = self.renderer.render(ref_vertices, valid=valid)
 
                 # concatenate the images
                 image = np.concatenate([gt_image, pred_image], axis=1)
