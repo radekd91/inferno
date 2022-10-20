@@ -93,8 +93,8 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             
         elif self.condition_source == "original":
             video_index = index
-            # sample = self.dataset._getitem(video_index)
             sample = self.dataset[video_index]
+            return sample
         elif self.condition_source == "ravdess_expression":
             exp_dict = {0: 'angry', 1: 'calm', 2: 'disgust', 3: 'fearful', 4: 'happy', 5:'neutral', 6:'sad', 7: 'surprised'} 
             video_index = index // len(exp_dict)
