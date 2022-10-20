@@ -14,6 +14,7 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
         self.dataset = dataset
         self.condition_source = condition_source or "original"
         self.condition_settings = condition_settings or None
+        self.expand_temporal = True
         if self.condition_source == "original":
             self.condition_settings = None
         elif self.condition_source == "expression":
@@ -79,7 +80,6 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             sample = self.dataset[video_index]
             sample["expression"] = torch.tensor(expression_index)
             sample["condition_name"] = AffectNetExpressions(expression_index).name
-            return sample
         elif self.condition_source == "valence_arousal":
             video_index = index // (len(self.valence) * len(self.arousal))
             va_index = index % (len(self.valence) * len(self.arousal))
@@ -90,7 +90,7 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             sample["valence"] = torch.tensor(self.valence[valence_index])
             sample["arousal"] = torch.tensor(self.arousal[arousal_index])
             sample["condition_name"] = f"valence_{self.valence[valence_index]:0.2f}_arousal_{self.arousal[arousal_index]:0.2f}"
-            return sample 
+            
         elif self.condition_source == "original":
             video_index = index
             # sample = self.dataset._getitem(video_index)
@@ -102,7 +102,7 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             sample = self.dataset[video_index]
             sample["expression"] = torch.tensor(expression_index)
             sample["condition_name"] = exp_dict[expression_index] 
-            return sample
+            
         elif self.condition_source == "iemocap_expression":
             exp_dict = {0: 'neu', 1: 'hap', 2: 'ang', 'sad': 3} 
             video_index = index // len(exp_dict)
@@ -110,10 +110,18 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             sample = self.dataset[video_index]
             sample["expression"] = torch.tensor(expression_index)
             sample["condition_name"] = exp_dict[expression_index] 
-            return sample
         else:
             raise NotImplementedError(f"Condition source {self.condition_source} not implemented")
         
+        T =  sample["video"].size(0)
+        if self.expand_temporal: 
+            if "expression" in sample:
+                sample["expression"] = sample["expression"][None, ...].repeat(T, 1)
+            if "valence" in sample:
+                sample["valence"] = sample["valence"][None, ...].repeat(T, 1)
+            if "arousal" in sample:
+                sample["arousal"] = sample["arousal"][None, ...].repeat(T, 1)
+            sample["condition_name"] =  [sample["condition_name"] ] * T
         # add video name to sample
         # sample["video_name"] = str(self.dataset.video_list[video_index])
         return sample

@@ -53,7 +53,7 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
             video_name = batch["filename"][b]
             condition_name = None
             if "condition_name" in batch.keys():
-                condition_name = batch["condition_name"][b]
+                condition_name = batch["condition_name"][b][0]
             
             if hasattr(trainer.datamodule, "test_set_names"):
                 dl_name = trainer.datamodule.test_set_names[dataloader_idx]
