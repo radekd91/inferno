@@ -1,11 +1,10 @@
-from omegaconf import OmegaConf
 import torch 
 from torch import nn
 import math
 from gdl.models.rotation_loss import convert_rot
 from gdl.models.MLP import MLP
 from pytorch3d.transforms import rotation_6d_to_matrix, matrix_to_rotation_6d
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf, open_dict
 
 
 class AutoRegressiveDecoder(nn.Module):
@@ -60,6 +59,9 @@ def style_from_cfg(cfg):
         style_cfg = style_type
         style_type = style_cfg.type 
         if style_type == 'emotion_linear':
+            if style_cfg.use_shape: 
+                with open_dict(style_cfg) as c:
+                    c.shape_dim = cfg.flame.n_shape
             return LinearEmotionCondition(style_cfg, output_dim=cfg.feature_dim)
         elif style_type in ['onehot_linear', 'onehot_identity_linear']:
             return OneHotIdentityCondition(style_cfg, output_dim=cfg.feature_dim)
@@ -115,6 +117,11 @@ class EmotionCondition(StyleConditioning):
         if self.cfg.use_emotion_feature:
             self.condition_dim += self.cfg.num_features
 
+        if self.cfg.use_shape:
+            self.condition_dim += self.cfg.shape_dim
+
+
+
     def _gather_condition(self, sample):
         condition = []
         if self.cfg.use_expression:
@@ -125,6 +132,9 @@ class EmotionCondition(StyleConditioning):
             condition += [sample["gt_arousal"]]
         if self.cfg.use_emotion_feature:
             condition += [sample["gt_emo_feat_2"]]
+        if self.cfg.use_shape:
+            T = sample["gt_vertices"].shape[1]
+            condition += [sample["gt_shape"].unsqueeze(1).repeat(1, T, 1)]
 
         condition = torch.cat(condition, dim=-1)
         return condition

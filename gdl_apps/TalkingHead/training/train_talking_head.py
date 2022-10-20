@@ -208,7 +208,11 @@ def create_experiment_name(cfg, version=0):
                 experiment_name += 'VA'
             elif cond[0] == 'expression':
                 experiment_name += 'EX'
-            
+            try:
+                if cfg.model.sequence_decoder.style_embedding.use_shape: 
+                    experiment_name += 'S'
+            except AttributeError:
+                pass
 
 
         pos_enc = cfg.model.sequence_decoder.get('positional_encoding', False)
