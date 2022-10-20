@@ -41,6 +41,8 @@ def get_condition_string_from_config(cfg):
     try: 
         if cfg.model.sequence_decoder.style_embedding == "none": 
             return "original", None
+        if cfg.model.sequence_decoder.style_embedding.use_shape: 
+            return "original", None # return original, we do not have conditioned testing for identity change
         if cfg.model.sequence_decoder.style_embedding.use_expression:
             return "expression", None 
         if cfg.model.sequence_decoder.style_embedding.use_valence and cfg.model.sequence_decoder.style_embedding.use_arousal:
