@@ -800,7 +800,7 @@ class DecaModule(LightningModule):
         return detail_conditioning_list
 
 
-    def decode(self, codedict, training=True, **kwargs) -> dict:
+    def decode(self, codedict, training=True, render=True, **kwargs) -> dict:
         """
         Forward decoding pass of the model. Takes the latent code predicted by the encoding stage and reconstructs and renders the shape.
         :param codedict: Batch dict of the predicted latent codes
@@ -838,73 +838,74 @@ class DecaModule(LightningModule):
             albedo = torch.ones([effective_batch_size, 3, self.deca.config.uv_size, self.deca.config.uv_size], device=images.device) * 0.5
 
         # 2) Render the coarse image
-        ops = self.deca.render(verts, trans_verts, albedo, lightcode)
-        # mask
-        mask_face_eye = F.grid_sample(self.deca.uv_face_eye_mask.expand(effective_batch_size, -1, -1, -1),
-                                      ops['grid'].detach(),
-                                      align_corners=False)
-        # images
-        predicted_images = ops['images']
-        # predicted_images = ops['images'] * mask_face_eye * ops['alpha_images']
-        # predicted_images_no_mask = ops['images'] #* mask_face_eye * ops['alpha_images']
-        segmentation_type = None
-        if isinstance(self.deca.config.useSeg, bool):
-            if self.deca.config.useSeg:
-                segmentation_type = 'gt'
+        if render:
+            ops = self.deca.render(verts, trans_verts, albedo, lightcode)
+            # mask
+            mask_face_eye = F.grid_sample(self.deca.uv_face_eye_mask.expand(effective_batch_size, -1, -1, -1),
+                                        ops['grid'].detach(),
+                                        align_corners=False)
+            # images
+            predicted_images = ops['images']
+            # predicted_images = ops['images'] * mask_face_eye * ops['alpha_images']
+            # predicted_images_no_mask = ops['images'] #* mask_face_eye * ops['alpha_images']
+            segmentation_type = None
+            if isinstance(self.deca.config.useSeg, bool):
+                if self.deca.config.useSeg:
+                    segmentation_type = 'gt'
+                else:
+                    segmentation_type = 'rend'
+            elif isinstance(self.deca.config.useSeg, str):
+                segmentation_type = self.deca.config.useSeg
             else:
+                raise RuntimeError(f"Invalid 'useSeg' type: '{type(self.deca.config.useSeg)}'")
+
+            if segmentation_type not in ["gt", "rend", "intersection", "union"]:
+                raise ValueError(f"Invalid segmentation type for masking '{segmentation_type}'")
+
+            if masks is None: # if mask not provided, the only mask available is the rendered one
                 segmentation_type = 'rend'
-        elif isinstance(self.deca.config.useSeg, str):
-            segmentation_type = self.deca.config.useSeg
-        else:
-            raise RuntimeError(f"Invalid 'useSeg' type: '{type(self.deca.config.useSeg)}'")
 
-        if segmentation_type not in ["gt", "rend", "intersection", "union"]:
-            raise ValueError(f"Invalid segmentation type for masking '{segmentation_type}'")
+            elif masks.shape[-1] != predicted_images.shape[-1] or masks.shape[-2] != predicted_images.shape[-2]:
+                # resize masks if need be (this is only done if configuration was changed at some point after training)
+                dims = masks.ndim == 3
+                if dims:
+                    masks = masks[:, None, :, :]
+                masks = F.interpolate(masks, size=predicted_images.shape[-2:], mode='bilinear')
+                if dims:
+                    masks = masks[:, 0, ...]
 
-        if masks is None: # if mask not provided, the only mask available is the rendered one
-            segmentation_type = 'rend'
-
-        elif masks.shape[-1] != predicted_images.shape[-1] or masks.shape[-2] != predicted_images.shape[-2]:
-            # resize masks if need be (this is only done if configuration was changed at some point after training)
-            dims = masks.ndim == 3
-            if dims:
-                masks = masks[:, None, :, :]
-            masks = F.interpolate(masks, size=predicted_images.shape[-2:], mode='bilinear')
-            if dims:
-                masks = masks[:, 0, ...]
-
-        # resize images if need be (this is only done if configuration was changed at some point after training)
-        if images.shape[-1] != predicted_images.shape[-1] or images.shape[-2] != predicted_images.shape[-2]:
-            ## special case only for inference time if the rendering image sizes have been changed
-            images_resized = F.interpolate(images, size=predicted_images.shape[-2:], mode='bilinear')
-        else:
-            images_resized = images
-
-        # what type of segmentation we use
-        if segmentation_type == "gt": # GT stands for external segmetnation predicted by face parsing or similar
-            masks = masks[:, None, :, :]
-        elif segmentation_type == "rend": # mask rendered as a silhouette of the face mesh
-            masks = mask_face_eye * ops['alpha_images']
-        elif segmentation_type == "intersection": # intersection of the two above
-            masks = masks[:, None, :, :] * mask_face_eye * ops['alpha_images']
-        elif segmentation_type == "union": # union of the first two options
-            masks = torch.max(masks[:, None, :, :],  mask_face_eye * ops['alpha_images'])
-        else:
-            raise RuntimeError(f"Invalid segmentation type for masking '{segmentation_type}'")
-
-
-        if self.deca.config.background_from_input in [True, "input"]:
+            # resize images if need be (this is only done if configuration was changed at some point after training)
             if images.shape[-1] != predicted_images.shape[-1] or images.shape[-2] != predicted_images.shape[-2]:
                 ## special case only for inference time if the rendering image sizes have been changed
-                predicted_images = (1. - masks) * images_resized + masks * predicted_images
+                images_resized = F.interpolate(images, size=predicted_images.shape[-2:], mode='bilinear')
             else:
-                predicted_images = (1. - masks) * images + masks * predicted_images
-        elif self.deca.config.background_from_input in [False, "black"]:
-            predicted_images = masks * predicted_images
-        elif self.deca.config.background_from_input in ["none"]:
-            predicted_images = predicted_images
-        else:
-            raise ValueError(f"Invalid type of background modification {self.deca.config.background_from_input}")
+                images_resized = images
+
+            # what type of segmentation we use
+            if segmentation_type == "gt": # GT stands for external segmetnation predicted by face parsing or similar
+                masks = masks[:, None, :, :]
+            elif segmentation_type == "rend": # mask rendered as a silhouette of the face mesh
+                masks = mask_face_eye * ops['alpha_images']
+            elif segmentation_type == "intersection": # intersection of the two above
+                masks = masks[:, None, :, :] * mask_face_eye * ops['alpha_images']
+            elif segmentation_type == "union": # union of the first two options
+                masks = torch.max(masks[:, None, :, :],  mask_face_eye * ops['alpha_images'])
+            else:
+                raise RuntimeError(f"Invalid segmentation type for masking '{segmentation_type}'")
+
+
+            if self.deca.config.background_from_input in [True, "input"]:
+                if images.shape[-1] != predicted_images.shape[-1] or images.shape[-2] != predicted_images.shape[-2]:
+                    ## special case only for inference time if the rendering image sizes have been changed
+                    predicted_images = (1. - masks) * images_resized + masks * predicted_images
+                else:
+                    predicted_images = (1. - masks) * images + masks * predicted_images
+            elif self.deca.config.background_from_input in [False, "black"]:
+                predicted_images = masks * predicted_images
+            elif self.deca.config.background_from_input in ["none"]:
+                predicted_images = predicted_images
+            else:
+                raise ValueError(f"Invalid type of background modification {self.deca.config.background_from_input}")
 
         # 3) Render the detail image
         if self.mode == DecaMode.DETAIL:
@@ -933,51 +934,52 @@ class DecaModule(LightningModule):
 
             # uv_z = self.deca.D_detail(torch.cat([posecode[:, 3:], expcode, detailcode], dim=1))
             # render detail
-            detach_from_coarse_geometry = not self.deca.config.train_coarse
-            uv_detail_normals, uv_coarse_vertices = self.deca.displacement2normal(uv_z, verts, ops['normals'],
-                                                                                  detach=detach_from_coarse_geometry)
-            uv_shading = self.deca.render.add_SHlight(uv_detail_normals, lightcode.detach())
-            uv_texture = albedo.detach() * uv_shading
+            if render:
+                detach_from_coarse_geometry = not self.deca.config.train_coarse
+                uv_detail_normals, uv_coarse_vertices = self.deca.displacement2normal(uv_z, verts, ops['normals'],
+                                                                                    detach=detach_from_coarse_geometry)
+                uv_shading = self.deca.render.add_SHlight(uv_detail_normals, lightcode.detach())
+                uv_texture = albedo.detach() * uv_shading
 
-            # batch size X image_rows X image_cols X 2
-            # you can query the grid for UV values of the face mesh at pixel locations
-            grid = ops['grid']
-            if detach_from_coarse_geometry:
-                # if the grid is detached, the gradient of the positions of UV-values in image space won't flow back to the geometry
-                grid = grid.detach()
-            predicted_detailed_image = F.grid_sample(uv_texture, grid, align_corners=False)
-            if self.deca.config.background_from_input in [True, "input"]:
-                if images.shape[-1] != predicted_images.shape[-1] or images.shape[-2] != predicted_images.shape[-2]:
-                    ## special case only for inference time if the rendering image sizes have been changed
-                    # images_resized = F.interpolate(images, size=predicted_images.shape[-2:], mode='bilinear')
-                    ## before bugfix
-                    # predicted_images = (1. - masks) * images_resized + masks * predicted_images
-                    ## after bugfix
-                    predicted_detailed_image = (1. - masks) * images_resized + masks * predicted_detailed_image
+                # batch size X image_rows X image_cols X 2
+                # you can query the grid for UV values of the face mesh at pixel locations
+                grid = ops['grid']
+                if detach_from_coarse_geometry:
+                    # if the grid is detached, the gradient of the positions of UV-values in image space won't flow back to the geometry
+                    grid = grid.detach()
+                predicted_detailed_image = F.grid_sample(uv_texture, grid, align_corners=False)
+                if self.deca.config.background_from_input in [True, "input"]:
+                    if images.shape[-1] != predicted_images.shape[-1] or images.shape[-2] != predicted_images.shape[-2]:
+                        ## special case only for inference time if the rendering image sizes have been changed
+                        # images_resized = F.interpolate(images, size=predicted_images.shape[-2:], mode='bilinear')
+                        ## before bugfix
+                        # predicted_images = (1. - masks) * images_resized + masks * predicted_images
+                        ## after bugfix
+                        predicted_detailed_image = (1. - masks) * images_resized + masks * predicted_detailed_image
+                    else:
+                        predicted_detailed_image = (1. - masks) * images + masks * predicted_detailed_image
+                elif self.deca.config.background_from_input in [False, "black"]:
+                    predicted_detailed_image = masks * predicted_detailed_image
+                elif self.deca.config.background_from_input in ["none"]:
+                    predicted_detailed_image = predicted_detailed_image
                 else:
-                    predicted_detailed_image = (1. - masks) * images + masks * predicted_detailed_image
-            elif self.deca.config.background_from_input in [False, "black"]:
-                predicted_detailed_image = masks * predicted_detailed_image
-            elif self.deca.config.background_from_input in ["none"]:
-                predicted_detailed_image = predicted_detailed_image
-            else:
-                raise ValueError(f"Invalid type of background modification {self.deca.config.background_from_input}")
+                    raise ValueError(f"Invalid type of background modification {self.deca.config.background_from_input}")
 
 
-            # --- extract texture
-            uv_pverts = self.deca.render.world2uv(trans_verts).detach()
-            uv_gt = F.grid_sample(torch.cat([images_resized, masks], dim=1), uv_pverts.permute(0, 2, 3, 1)[:, :, :, :2],
-                                  mode='bilinear')
-            uv_texture_gt = uv_gt[:, :3, :, :].detach()
-            uv_mask_gt = uv_gt[:, 3:, :, :].detach()
-            # self-occlusion
-            normals = util.vertex_normals(trans_verts, self.deca.render.faces.expand(effective_batch_size, -1, -1))
-            uv_pnorm = self.deca.render.world2uv(normals)
+                # --- extract texture
+                uv_pverts = self.deca.render.world2uv(trans_verts).detach()
+                uv_gt = F.grid_sample(torch.cat([images_resized, masks], dim=1), uv_pverts.permute(0, 2, 3, 1)[:, :, :, :2],
+                                    mode='bilinear')
+                uv_texture_gt = uv_gt[:, :3, :, :].detach()
+                uv_mask_gt = uv_gt[:, 3:, :, :].detach()
+                # self-occlusion
+                normals = util.vertex_normals(trans_verts, self.deca.render.faces.expand(effective_batch_size, -1, -1))
+                uv_pnorm = self.deca.render.world2uv(normals)
 
-            uv_mask = (uv_pnorm[:, -1, :, :] < -0.05).float().detach()
-            uv_mask = uv_mask[:, None, :, :]
-            ## combine masks
-            uv_vis_mask = uv_mask_gt * uv_mask * self.deca.uv_face_eye_mask
+                uv_mask = (uv_pnorm[:, -1, :, :] < -0.05).float().detach()
+                uv_mask = uv_mask[:, None, :, :]
+                ## combine masks
+                uv_vis_mask = uv_mask_gt * uv_mask * self.deca.uv_face_eye_mask
         else:
             uv_detail_normals = None
             predicted_detailed_image = None
@@ -985,70 +987,74 @@ class DecaModule(LightningModule):
 
         ## 4) (Optional) NEURAL RENDERING - not used in neither DECA nor EMOCA
         # If neural rendering is enabled, the differentiable rendered synthetic images are translated using an image translation net (such as StarGan)
-        if self.deca._has_neural_rendering():
-            predicted_translated_image = self.deca.image_translator(
-                {
-                    "input_image" : predicted_images,
-                    "ref_image" : images,
-                    "target_domain" : torch.tensor([0]*predicted_images.shape[0],
-                                                   dtype=torch.int64, device=predicted_images.device)
-                }
-            )
+        predicted_translated_image = None
+        predicted_detailed_translated_image = None
+        translated_uv_texture = None
 
-            if self.mode == DecaMode.DETAIL:
-                predicted_detailed_translated_image = self.deca.image_translator(
-                        {
-                            "input_image" : predicted_detailed_image,
-                            "ref_image" : images,
-                            "target_domain" : torch.tensor([0]*predicted_detailed_image.shape[0],
-                                                           dtype=torch.int64, device=predicted_detailed_image.device)
-                        }
-                    )
-                translated_uv = F.grid_sample(torch.cat([predicted_detailed_translated_image, masks], dim=1), uv_pverts.permute(0, 2, 3, 1)[:, :, :, :2],
-                                      mode='bilinear')
-                translated_uv_texture = translated_uv[:, :3, :, :].detach()
+        if render:
+            if self.deca._has_neural_rendering():
+                predicted_translated_image = self.deca.image_translator(
+                    {
+                        "input_image" : predicted_images,
+                        "ref_image" : images,
+                        "target_domain" : torch.tensor([0]*predicted_images.shape[0],
+                                                    dtype=torch.int64, device=predicted_images.device)
+                    }
+                )
 
-            else:
-                predicted_detailed_translated_image = None
+                if self.mode == DecaMode.DETAIL:
+                    predicted_detailed_translated_image = self.deca.image_translator(
+                            {
+                                "input_image" : predicted_detailed_image,
+                                "ref_image" : images,
+                                "target_domain" : torch.tensor([0]*predicted_detailed_image.shape[0],
+                                                            dtype=torch.int64, device=predicted_detailed_image.device)
+                            }
+                        )
+                    translated_uv = F.grid_sample(torch.cat([predicted_detailed_translated_image, masks], dim=1), uv_pverts.permute(0, 2, 3, 1)[:, :, :, :2],
+                                        mode='bilinear')
+                    translated_uv_texture = translated_uv[:, :3, :, :].detach()
 
-                translated_uv_texture = None
-                # no need in coarse mode
-                # translated_uv = F.grid_sample(torch.cat([predicted_translated_image, masks], dim=1), uv_pverts.permute(0, 2, 3, 1)[:, :, :, :2],
-                #                       mode='bilinear')
-                # translated_uv_texture = translated_uv_gt[:, :3, :, :].detach()
-        else:
-            predicted_translated_image = None
-            predicted_detailed_translated_image = None
-            translated_uv_texture = None
+                else:
+                    predicted_detailed_translated_image = None
+
+                    translated_uv_texture = None
+                    # no need in coarse mode
+                    # translated_uv = F.grid_sample(torch.cat([predicted_translated_image, masks], dim=1), uv_pverts.permute(0, 2, 3, 1)[:, :, :, :2],
+                    #                       mode='bilinear')
+                    # translated_uv_texture = translated_uv_gt[:, :3, :, :].detach()
 
         if self.emotion_mlp is not None:
             codedict = self.emotion_mlp(codedict, "emo_mlp_")
 
         # populate the value dict for metric computation/visualization
-        codedict['predicted_images'] = predicted_images
-        codedict['predicted_detailed_image'] = predicted_detailed_image
-        codedict['predicted_translated_image'] = predicted_translated_image
+        if render:
+            codedict['predicted_images'] = predicted_images
+            codedict['predicted_detailed_image'] = predicted_detailed_image
+            codedict['predicted_translated_image'] = predicted_translated_image
+            codedict['ops'] = ops
+            codedict['normals'] = ops['normals']
+            codedict['mask_face_eye'] = mask_face_eye
+        
         codedict['verts'] = verts
         codedict['albedo'] = albedo
-        codedict['mask_face_eye'] = mask_face_eye
         codedict['landmarks2d'] = landmarks2d
         codedict['landmarks3d'] = landmarks3d
         codedict['predicted_landmarks'] = predicted_landmarks
         codedict['trans_verts'] = trans_verts
-        codedict['ops'] = ops
         codedict['masks'] = masks
-        codedict['normals'] = ops['normals']
 
         if self.mode == DecaMode.DETAIL:
-            codedict['predicted_detailed_translated_image'] = predicted_detailed_translated_image
-            codedict['translated_uv_texture'] = translated_uv_texture
-            codedict['uv_texture_gt'] = uv_texture_gt
-            codedict['uv_texture'] = uv_texture
-            codedict['uv_detail_normals'] = uv_detail_normals
+            if render:
+                codedict['predicted_detailed_translated_image'] = predicted_detailed_translated_image
+                codedict['translated_uv_texture'] = translated_uv_texture
+                codedict['uv_texture_gt'] = uv_texture_gt
+                codedict['uv_texture'] = uv_texture
+                codedict['uv_detail_normals'] = uv_detail_normals
+                codedict['uv_shading'] = uv_shading
+                codedict['uv_vis_mask'] = uv_vis_mask
+                codedict['uv_mask'] = uv_mask
             codedict['uv_z'] = uv_z
-            codedict['uv_shading'] = uv_shading
-            codedict['uv_vis_mask'] = uv_vis_mask
-            codedict['uv_mask'] = uv_mask
             codedict['displacement_map'] = uv_z + self.deca.fixed_uv_dis[None, None, :, :]
 
         return codedict

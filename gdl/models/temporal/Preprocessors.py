@@ -55,9 +55,9 @@ class EmocaPreprocessor(Preprocessor):
 
         if self.average_shape_decode:
             # set the shape to be equal to the average shape (so that the shape is not changing over time)
-            values['shapecode'] = avg_shapecode.view(B, 1, -1).repeat(1, T, 1)
+            values['shapecode'] = avg_shapecode.view(B, 1, -1).repeat(1, T, 1).view(B*T, -1)
 
-        values = self.model.decode(values, training=False)
+        values = self.model.decode(values, training=False, render=False)
 
         verts, landmarks2d, landmarks3d = self.model.deca.flame(
             shape_params=avg_shapecode, 
