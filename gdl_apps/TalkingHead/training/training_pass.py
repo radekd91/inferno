@@ -258,7 +258,15 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
         mode='min',
         dirpath=cfg.inout.checkpoint_dir
     )
-    callbacks += [val_checkpoint_callback, train_checkpoint_callback]
+    periodic_filename_pattern = 'model-{step:09d}'
+    periodic_checkpoint_callback = ModelCheckpoint(
+        # monitor=train_loss_to_monitor,
+        filename=periodic_filename_pattern,
+        every_n_train_steps=10000,
+        save_last=True,
+        dirpath=cfg.inout.checkpoint_dir
+    )
+    callbacks += [val_checkpoint_callback, train_checkpoint_callback, periodic_checkpoint_callback]
     if hasattr(cfg.learning, 'early_stopping') and cfg.learning.early_stopping:
         patience = 3
         if hasattr(cfg.learning.early_stopping, 'patience') and cfg.learning.early_stopping.patience:
