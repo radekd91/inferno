@@ -187,10 +187,11 @@ class VideoDatasetBase(AbstractVideoDataset):
                 index = np.random.randint(0, self.__len__())
                 tb = traceback.format_exc()
                 self.num_total_failed_attempts += 1
-                print(f"[ERROR] AssertionError in {self.__class__.__name__} dataset while retrieving sample {old_index}, retrying with new index {index}")
-                print(f"In total, there has been {self.num_total_failed_attempts} failed attempts. This number should be very small. If it's not, check the data.")
-                print("See the exception message for more details.")
-                print(tb)
+                if self.num_total_failed_attempts % 50 == 0:
+                    print(f"[ERROR] AssertionError in {self.__class__.__name__} dataset while retrieving sample {old_index}, retrying with new index {index}")
+                    print(f"In total, there has been {self.num_total_failed_attempts} failed attempts. This number should be very small. If it's not, check the data.")
+                    print("See the exception message for more details.")
+                    print(tb)
         print("[ERROR] Failed to retrieve sample after {} attempts".format(max_attempts))
         raise RuntimeError("Failed to retrieve sample after {} attempts".format(max_attempts))
 
