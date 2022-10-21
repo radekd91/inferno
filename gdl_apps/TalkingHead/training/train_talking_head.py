@@ -16,7 +16,8 @@ All rights reserved.
 # For comments or questions, please email us at emoca@tue.mpg.de
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
-
+import warnings
+warnings.filterwarnings('ignore', message='.*Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. *', )
 
 from gdl.datasets.LRS3Pseudo3DDM import LRS3Pseudo3DDM
 from gdl_apps.TalkingHead.training.training_pass import( single_stage_training_pass, 
