@@ -196,7 +196,7 @@ class TalkingHeadBase(pl.LightningModule):
             - audio: (B, T, F)
             # - masked_audio: (B, T, F)
         """
-        T = sample["audio"].shape[1]
+        T = sample["raw_audio"].shape[1]
         if self.max_seq_length < T: # truncate
             print("[WARNING] Truncating audio sequence from {} to {}".format(T, self.max_seq_length))
             sample = truncate_sequence_batch(sample, self.max_seq_length)

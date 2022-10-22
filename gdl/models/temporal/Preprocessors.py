@@ -50,7 +50,7 @@ class EmocaPreprocessor(Preprocessor):
         B, T, C, H, W = images.shape
         batch_ = {} 
         BT = B*T
-        
+
         if BT < self.max_b:
             batch_['image'] = images.view(B*T, C, H, W)
             values = self.model.encode(batch_, training=False)
@@ -126,12 +126,19 @@ class EmotionRecognitionPreprocessor(Preprocessor):
 
     @property
     def test_time(self):
-        return bool(self.cfg.get('test_time', False))
+        return bool(self.cfg.get('test_time', True))
 
     def to(self, device):
         self.model.to(device)
 
     def forward(self, batch, input_key, *args, output_prefix="gt_", test_time = False, **kwargs):
+        output_keys = ['expression', 'valeance', 'arousal']
+        
+        for key in output_keys:
+            if output_prefix + key in batch.keys():
+                # a key is already present, this means the preprocessor is not necessary (because the key is part of the dataset)
+                return batch
+
         if test_time: # if we are at test time
             if not self.test_time: # and the preprocessor is not needed for test time 
                 # just return
@@ -207,6 +214,13 @@ class SpeechEmotionRecognitionPreprocessor(Preprocessor):
         self.model.to(device)
 
     def forward(self, batch, input_key, *args, output_prefix="gt_", test_time=False, **kwargs):
+
+        output_keys = ["valence", "arousal", "expression"]
+        for key in output_keys:
+            if output_prefix + key in batch.keys():
+                # a key is already present, this means the preprocessor is not necessary (because the key is part of the dataset)
+                return batch
+
         if test_time: # if we are at test time
             if not self.test_time: # and the preprocessor is not needed for test time 
                 # just return

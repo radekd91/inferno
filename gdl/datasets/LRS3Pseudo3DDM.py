@@ -120,6 +120,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 self.test_set_,
                 None, 
                 None,
+                key_prefix="gt_",
             )
 
         max_training_test_samples = 2
@@ -150,6 +151,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
             self.test_set_train_,
             None, 
             None,
+            key_prefix="gt_",
         )
 
         max_validation_test_samples = 2
@@ -176,6 +178,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
             self.test_set_val_,
             None, 
             None,
+            key_prefix="gt_",
         )
         self.test_set_names += ["val"]
 
@@ -208,7 +211,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 self.test_set_cond = ConditionedVideoTestDatasetWrapper(
                     self.test_set_cond_,
                     self.test_condition_source, 
-                    self.test_condition_settings
+                    self.test_condition_settings, 
+                    key_prefix="gt_",
                 )
 
             max_training_test_samples = 2
@@ -240,7 +244,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
             self.test_set_train_cond = ConditionedVideoTestDatasetWrapper(
                 self.test_set_train_cond_,
                 self.test_condition_source, 
-                self.test_condition_settings
+                self.test_condition_settings, 
+                key_prefix="gt_",
             )
 
             max_validation_test_samples = 2
@@ -268,7 +273,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
             self.test_set_val_cond = ConditionedVideoTestDatasetWrapper(
                 self.test_set_val_cond_,
                 self.test_condition_source, 
-                self.test_condition_settings
+                self.test_condition_settings, 
+                key_prefix="gt_",
             )
             self.test_set_names += ["val_cond"]
 

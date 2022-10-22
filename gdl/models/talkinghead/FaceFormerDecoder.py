@@ -120,8 +120,6 @@ class EmotionCondition(StyleConditioning):
         if self.cfg.use_shape:
             self.condition_dim += self.cfg.shape_dim
 
-
-
     def _gather_condition(self, sample):
         condition = []
         if self.cfg.use_expression:
@@ -138,7 +136,6 @@ class EmotionCondition(StyleConditioning):
 
         condition = torch.cat(condition, dim=-1)
         return condition
-
 
     def forward(self, sample, **kwargs):
         condition = self._gather_condition(sample)

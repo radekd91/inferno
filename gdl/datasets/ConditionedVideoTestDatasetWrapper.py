@@ -9,12 +9,14 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
     def __init__(self,
                  dataset : VideoDatasetBase,
                  condition_source, 
-                 condition_settings
+                 condition_settings, 
+                 key_prefix = "",
                  ):    
         self.dataset = dataset
         self.condition_source = condition_source or "original"
         self.condition_settings = condition_settings or None
         self.expand_temporal = True
+        self.condition_prefix = key_prefix
         if self.condition_source == "original":
             self.condition_settings = None
         elif self.condition_source == "expression":
@@ -78,7 +80,7 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             video_index = index // len(self.condition_settings)
             expression_index = index % len(self.condition_settings)
             sample = self.dataset[video_index]
-            sample["expression"] = torch.tensor(expression_index)
+            sample[self.condition_prefix + "expression"] = torch.nn.functional.one_hot(torch.tensor(expression_index), len(self.condition_settings)).to(torch.float32)
             sample["condition_name"] = AffectNetExpressions(expression_index).name
         elif self.condition_source == "valence_arousal":
             video_index = index // (len(self.valence) * len(self.arousal))
@@ -87,8 +89,8 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             arousal_index = va_index % len(self.arousal)
             # sample = self.dataset._getitem(video_index)
             sample = self.dataset[video_index]
-            sample["valence"] = torch.tensor(self.valence[valence_index])
-            sample["arousal"] = torch.tensor(self.arousal[arousal_index])
+            sample[self.condition_prefix + "valence"] = torch.tensor(self.valence[valence_index], dtype=torch.float32)
+            sample[self.condition_prefix + "arousal"] = torch.tensor(self.arousal[arousal_index], dtype=torch.float32)
             sample["condition_name"] = f"valence_{self.valence[valence_index]:0.2f}_arousal_{self.arousal[arousal_index]:0.2f}"
             
         elif self.condition_source == "original":
@@ -100,7 +102,7 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             video_index = index // len(exp_dict)
             expression_index = index % len(exp_dict)
             sample = self.dataset[video_index]
-            sample["expression"] = torch.tensor(expression_index)
+            sample[self.condition_prefix + "expression"] = torch.nn.functional.one_hot(torch.tensor(expression_index), len(self.exp_dict)).to(torch.float32)
             sample["condition_name"] = exp_dict[expression_index] 
             
         elif self.condition_source == "iemocap_expression":
@@ -108,19 +110,19 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             video_index = index // len(exp_dict)
             expression_index = index % len(exp_dict)
             sample = self.dataset[video_index]
-            sample["expression"] = torch.tensor(expression_index)
+            sample[self.condition_prefix + "expression"] = torch.nn.functional.one_hot(torch.tensor(expression_index), len(self.exp_dict)).to(torch.float32)
             sample["condition_name"] = exp_dict[expression_index] 
         else:
             raise NotImplementedError(f"Condition source {self.condition_source} not implemented")
         
         T =  sample["video"].size(0)
         if self.expand_temporal: 
-            if "expression" in sample:
-                sample["expression"] = sample["expression"][None, ...].repeat(T, 1)
-            if "valence" in sample:
-                sample["valence"] = sample["valence"][None, ...].repeat(T, 1)
-            if "arousal" in sample:
-                sample["arousal"] = sample["arousal"][None, ...].repeat(T, 1)
+            if self.condition_prefix + "expression" in sample:
+                sample[self.condition_prefix +  "expression"] = sample[self.condition_prefix + "expression"][None, ...].repeat(T, 1)
+            if self.condition_prefix +  "valence" in sample:
+                sample[self.condition_prefix + "valence"] = sample[self.condition_prefix + "valence"][None, ...].repeat(T, 1)
+            if self.condition_prefix +   "arousal" in sample:
+                sample[self.condition_prefix + "arousal"] = sample[self.condition_prefix + "arousal"][None, ...].repeat(T, 1)
             sample["condition_name"] =  [sample["condition_name"] ] * T
         # add video name to sample
         # sample["video_name"] = str(self.dataset.video_list[video_index])
