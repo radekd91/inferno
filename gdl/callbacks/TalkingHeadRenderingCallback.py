@@ -23,6 +23,7 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
         self.video_conditions = {}
         self.dl_names = {}
         self.framerate = 25
+        self.overwrite = False
 
         self.path_chunks_to_cat = path_chunks_to_cat or 0
 
@@ -82,6 +83,9 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
             # audio_path = Path(video_name)
             for t in range(T):
                 frame_index = batch["frame_indices"][b, t].item()
+                image_path = path / (self.image_format % frame_index + ".png")
+                if image_path.is_file() and not self.overwrite:
+                    continue
 
                 valid = True
                 if "landmarks_validity" in batch.keys() and "mediapipe" in batch["landmarks_validity"]:
@@ -96,7 +100,6 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
                 # concatenate the images
                 image = np.concatenate([gt_image, pred_image], axis=1)
 
-                image_path = path / (self.image_format % frame_index + ".png")
                 imsave(image_path, image)
 
                 raw_audio_chunk = batch["raw_audio"][b,t].detach().cpu().numpy()
