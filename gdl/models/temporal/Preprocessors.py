@@ -11,6 +11,7 @@ class EmocaPreprocessor(Preprocessor):
     def __init__(self, cfg, **kwargs):
         super().__init__(**kwargs)
         from gdl_apps.EMOCA.utils.io import load_model
+        self.cfg = cfg
         if not cfg.model_path:
             self.model_path = get_path_to_assets() / "EMOCA/models"
         else:
@@ -33,14 +34,39 @@ class EmocaPreprocessor(Preprocessor):
     def to(self, device):
         self.model.to(device)
 
-    def forward(self, batch, input_key, *args, output_prefix="gt_", **kwargs):
+
+    @property
+    def test_time(self):
+        return bool(self.cfg.get('test_time', True))
+
+    def forward(self, batch, input_key, *args, output_prefix="gt_", test_time=False, **kwargs):
+        if test_time: # if we are at test time
+            if not self.test_time: # and the preprocessor is not needed for test time 
+                # just return
+                return batch
         # from gdl_apps.EMOCA.utils.io import test
         images = batch[input_key]
 
         B, T, C, H, W = images.shape
-
         batch_ = {} 
-        batch_['image'] = images.view(B*T, C, H, W)
+        BT = B*T
+        
+        if BT < self.max_b:
+            batch_['image'] = images.view(B*T, C, H, W)
+            values = self.model.encode(batch_, training=False)
+        else:
+            batch_ = {} 
+            batch_['image'] = images.view(B*T, C, H, W)
+
+            outputs = []
+            for i in range(0, BT, self.max_b):
+                batch_['image'] = images.view(B*T, C, H, W)[i:i+self.max_b]
+                outputs.append(self.model(batch_))
+            
+            # combine into a single output
+            values = {}
+            for k in outputs[0].keys():
+                values[k] = torch.cat([o[k] for o in outputs], dim=0)
 
         # vals, visdict = decode(deca, batch, vals, training=False)
         values = self.model.encode(batch_, training=False)
@@ -80,7 +106,8 @@ class EmocaPreprocessor(Preprocessor):
 class EmotionRecognitionPreprocessor(Preprocessor):
     def __init__(self, cfg, **kwargs):
         super().__init__(**kwargs)
-    
+        self.cfg = cfg
+        self.max_b = cfg.get('max_b', 100)
         from gdl_apps.EmotionRecognition.utils.io import load_model
         self.cfg = cfg
         if not cfg.model_path:
@@ -97,16 +124,36 @@ class EmotionRecognitionPreprocessor(Preprocessor):
     def device(self):
         return self.model.device
 
+    @property
+    def test_time(self):
+        return bool(self.cfg.get('test_time', False))
+
     def to(self, device):
         self.model.to(device)
 
-    def forward(self, batch, input_key, *args, output_prefix="gt_", **kwargs):
+    def forward(self, batch, input_key, *args, output_prefix="gt_", test_time = False, **kwargs):
+        if test_time: # if we are at test time
+            if not self.test_time: # and the preprocessor is not needed for test time 
+                # just return
+                return batch
         images = batch[input_key]
         B, T, C, H, W = images.shape
 
         batch_ = {} 
-        batch_['image'] = images.view(B*T, C, H, W)
-        output = self.model(batch_)
+        BT = B*T
+        if BT < self.max_b:
+            batch_['image'] = images.view(B*T, C, H, W)
+            output = self.model(batch_)
+        else: 
+            outputs = []
+            for i in range(0, BT, self.max_b):
+                batch_['image'] = images.view(B*T, C, H, W)[i:i+self.max_b]
+                outputs.append(self.model(batch_))
+            
+            # combine into a single output
+            output = {}
+            for k in outputs[0].keys():
+                output[k] = torch.cat([o[k] for o in outputs], dim=0)
 
         # output_keys = ["valence", "arousal", "emo_feat_2"]
 
@@ -152,10 +199,18 @@ class SpeechEmotionRecognitionPreprocessor(Preprocessor):
     def device(self):
         return list(self.model.parameters())[0].device
 
+    @property
+    def test_time(self):
+        return bool(self.cfg.get('test_time', False))
+
     def to(self, device):
         self.model.to(device)
 
-    def forward(self, batch, input_key, *args, output_prefix="gt_", **kwargs):
+    def forward(self, batch, input_key, *args, output_prefix="gt_", test_time=False, **kwargs):
+        if test_time: # if we are at test time
+            if not self.test_time: # and the preprocessor is not needed for test time 
+                # just return
+                return batch
         batch_ = {} 
         batch_['raw_audio'] = batch['raw_audio']
         batch_['samplerate'] = batch['samplerate']

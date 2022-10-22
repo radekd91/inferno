@@ -33,6 +33,10 @@ class TalkingHeadBase(pl.LightningModule):
         else:
             self.code_vec_input_name = "seq_decoder_output"
 
+    @property
+    def max_seq_length(self):
+        return 5000
+
     def configure_optimizers(self):
         trainable_params = []
         trainable_params += list(self.get_trainable_parameters())
@@ -88,7 +92,7 @@ class TalkingHeadBase(pl.LightningModule):
         return trainable_params
 
     def training_step(self, batch, batch_idx, *args, **kwargs):
-        training = True 
+        training = False 
 
         # forward pass
         sample = self.forward(batch, train=training, teacher_forcing=False, **kwargs)
@@ -153,7 +157,7 @@ class TalkingHeadBase(pl.LightningModule):
         return total_loss
 
     def test_step(self, batch, batch_idx, *args, **kwargs):
-        training = True 
+        training = False 
 
         # forward pass
         sample = self.forward(batch, train=training, teacher_forcing=False, **kwargs)
@@ -183,7 +187,7 @@ class TalkingHeadBase(pl.LightningModule):
         if self.preprocessor is not None:
             if self.device != self.preprocessor.device:
                 self.preprocessor.to(self.device)
-            sample = self.preprocessor(sample, input_key="video", train=train, **kwargs)
+            sample = self.preprocessor(sample, input_key="video", train=train, test_time=not train, **kwargs)
         return sample 
 
     def forward(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
@@ -192,6 +196,11 @@ class TalkingHeadBase(pl.LightningModule):
             - audio: (B, T, F)
             # - masked_audio: (B, T, F)
         """
+        T = sample["audio"].shape[1]
+        if self.max_seq_length < T: # truncate
+            print("[WARNING] Truncating audio sequence from {} to {}".format(T, self.max_seq_length))
+            sample = truncate_sequence_batch(sample, self.max_seq_length)
+
         # preprocess input (for instance get 3D pseudo-GT )
         sample = self.preprocess_input(sample, train=train, **kwargs)
         check_nan(sample)
@@ -242,6 +251,25 @@ class TalkingHeadBase(pl.LightningModule):
 
         losses["loss_total"] = total_loss
         return total_loss, losses, metrics
+
+
+def truncate_sequence_batch(sample: Dict, max_seq_length: int) -> Dict:
+    """
+    Truncate the sequence to the given length. 
+    """
+    # T = sample["audio"].shape[1]
+    # if max_seq_length < T: # truncate
+    for key in sample.keys():
+        if isinstance(sample[key], torch.Tensor): # if temporal element, truncate
+            if sample[key].ndim >= 3:
+                sample[key] = sample[key][:, :max_seq_length, ...]
+        elif isinstance(sample[key], Dict): 
+            sample[key] = truncate_sequence_batch(sample[key], max_seq_length)
+        elif isinstance(sample[key], List):
+            pass
+        else: 
+            raise ValueError(f"Invalid type '{type(sample[key])}' for key '{key}'")
+    return sample
 
 
 def check_nan(sample: Dict): 

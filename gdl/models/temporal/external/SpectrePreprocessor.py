@@ -25,7 +25,8 @@ class SpectrePreprocessor(Preprocessor):
 
     def __init__(self, cfg, **kwargs):
         super().__init__(**kwargs)
-        
+        self.cfg = cfg
+        self.max_t = cfg.get('max_t', 100)
         spectre_files = Path(path_to_spectre / "spectre" / "data")
         # flame_path = Path(cfg.flame_path)
 
@@ -68,25 +69,63 @@ class SpectrePreprocessor(Preprocessor):
         
         # self.num_invalid_frames = self.spectre.E_expression.temporal[0].kernel_size[0] - self.spectre.E_expression.temporal[0].padding[0] - 1
         self.num_invalid_frames = (self.spectre.E_expression.temporal[0].kernel_size[0] - 1) // 2
+        assert self.max_t > self.num_invalid_frames, "Max t must be larger than the number of invalid frames"
 
     @property
     def device(self):
         return self.spectre.device
 
+    @property
+    def test_time(self):
+        return bool(self.cfg.get('test_time', True))
+
     def to(self, device):
         self.spectre = self.spectre.to(device)
         return self
 
-    def forward(self, batch, input_key, *args, output_prefix="gt_", **kwargs):
+    def forward(self, batch, input_key, *args, output_prefix="gt_", test_time=False, **kwargs):
+        if test_time: # if we are at test time
+            if not self.test_time: # and the preprocessor is not needed for test time 
+                # just return
+                return batch
         images = batch[input_key]
 
         B, T, C, H, W = images.shape
 
         # spectre has a temporal convolutional layer on the output
 
-        codedict, initial_deca_exp, initial_deca_jaw = self.spectre.encode(images)
-        codedict['exp'] = codedict['exp'] + initial_deca_exp
-        codedict['pose'][..., 3:] = codedict['pose'][..., 3:] + initial_deca_jaw
+        if T > self.max_t:
+            codedicts = []
+            for i in range(0, T, self.max_t):
+                start_i = i
+                # make sure the middle is not cut off by adjusting the indices
+                if i > 0:
+                    start_i -= self.num_invalid_frames #*2 
+                end_i = i + self.max_t + self.num_invalid_frames #*2
+                if end_i > T:
+                    end_i = T
+                # images_ = images[:, i * self.max_t : i * (self.maxt+1), ... ]
+                images_ = images[:, start_i : end_i, ... ]
+                codedict_, initial_deca_exp_, initial_deca_jaw_ = self.spectre.encode(images_)
+                codedict_['exp'] = codedict_['exp'] + initial_deca_exp_
+                codedict_['pose'][..., 3:] = codedict_['pose'][..., 3:] + initial_deca_jaw_
+                
+                # cut off the invalid frames
+                if i > 0: 
+                    for key in codedict_:
+                        codedict_[key] = codedict_[key][:, self.num_invalid_frames:, ...]
+                if end_i < T:
+                    for key in codedict_:
+                        codedict_[key] = codedict_[key][:, :-self.num_invalid_frames, ...]
+                codedicts.append(codedict_)
+            
+            codedict = {}
+            for key in codedicts[0]:
+                codedict[key] = torch.cat([codedict_[key] for codedict_ in codedicts], dim=1)
+        else:
+            codedict, initial_deca_exp, initial_deca_jaw = self.spectre.encode(images)
+            codedict['exp'] = codedict['exp'] + initial_deca_exp
+            codedict['pose'][..., 3:] = codedict['pose'][..., 3:] + initial_deca_jaw
 
         # compute the the shapecode only from frames where landmarks are valid
         weights = batch["landmarks_validity"]["mediapipe"] / batch["landmarks_validity"]["mediapipe"].sum(axis=1, keepdims=True)

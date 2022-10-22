@@ -313,16 +313,20 @@ class NestedPreprocessor(Preprocessor):
             preprocessor.to(device)
         return self
 
-    def forward(self, batch, input_key, *args, output_prefix="gt_", **kwargs):
+    def forward(self, batch, input_key, *args, output_prefix="gt_", test_time=False, **kwargs):
         for preprocessor_name, preprocessor in self.preprocessors.items():
             if self.prepend_name:
                 output_prefix = preprocessor_name + "_"
-            batch = preprocessor(batch, input_key, output_prefix=output_prefix)
+            batch = preprocessor(batch, input_key, output_prefix=output_prefix, test_time = test_time)
         return batch
     
     @property
     def device(self):
         return self.preprocessors[list(self.preprocessors.keys())[0]].device
+
+    @property
+    def test_time(self):
+        return bool(self.cfg.get('test_time', True))
 
 
 def preprocessor_from_cfg(cfg):

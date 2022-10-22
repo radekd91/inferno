@@ -25,6 +25,12 @@ class FaceFormer(TalkingHeadBase):
             preprocessor=preprocessor,
             )
 
+    @property
+    def max_seq_length(self):
+        if 'positional_encoding' in self.cfg.model.sequence_decoder:
+            return self.cfg.model.sequence_decoder.positional_encoding.get('max_len', 5000)
+        return 5000
+
     def _rotation_representation(self):
         return self.sequence_decoder._rotation_representation()
 
