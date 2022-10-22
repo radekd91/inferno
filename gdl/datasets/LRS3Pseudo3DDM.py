@@ -182,7 +182,9 @@ class LRS3Pseudo3DDM(LRS3DataModule):
         # conditioned test set
         if self.test_condition_source != "original":
             if len(test) > 0:
-                self.test_set_cond_ = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
+                self.test_set_cond_ = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+                        test, 
+                        self.audio_metas, 
                         # sequence_length=self.sequence_length_test, 
                         sequence_length="all", 
                         image_size=self.image_size, 
@@ -210,7 +212,9 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 )
 
             max_training_test_samples = 2
-            self.test_set_train_cond_ = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, sorted(train)[:max_training_test_samples], self.audio_metas, 
+            self.test_set_train_cond_ = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+                    sorted(train)[:max_training_test_samples], 
+                    self.audio_metas, 
                     # sequence_length=self.sequence_length_test, 
                     sequence_length="all", 
                     image_size=self.image_size, 
@@ -240,11 +244,13 @@ class LRS3Pseudo3DDM(LRS3DataModule):
             )
 
             max_validation_test_samples = 2
-            self.test_set_val_cond_ = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, sorted(val)[:max_validation_test_samples], self.audio_metas, 
+            self.test_set_val_cond_ = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+                    sorted(val)[:max_validation_test_samples], 
+                    self.audio_metas, 
                     # sequence_length=self.sequence_length_test, 
                     sequence_length="all", 
                     image_size=self.image_size, 
-                    **self.occlusion_settings_test,
+                    **self.occlusion_settings_val,
                     hack_length=False, 
                     # use_original_video=self.use_original_video,
                     # include_processed_audio = self.include_processed_audio,
@@ -291,7 +297,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                           )]
 
         if hasattr(self, "test_set_cond") and self.test_set_cond is not None:
-            test_dls += [torch.utils.data.DataLoader(self.test_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+            test_dls += [torch.utils.data.DataLoader(self.test_set_cond, shuffle=False, num_workers=self.num_workers, pin_memory=True,
                           batch_size=self.batch_size_test, 
                           drop_last=False,
                         #   drop_last=self.drop_last,

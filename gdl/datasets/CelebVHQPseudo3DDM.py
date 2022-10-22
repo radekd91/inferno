@@ -185,7 +185,9 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
         # conditioned test set
 
         if self.test_condition_source != "original":
-            self.test_set_cond_ = CelebVHQPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
+            self.test_set_cond_ = CelebVHQPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+                    test, 
+                    self.audio_metas, 
                     # sequence_length=self.sequence_length_test, 
                     sequence_length="all", 
                     image_size=self.image_size, 
