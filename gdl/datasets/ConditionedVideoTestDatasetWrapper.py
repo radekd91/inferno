@@ -75,8 +75,8 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         if self.condition_source == "expression":
-            video_index = index // 7
-            expression_index = index % 7
+            video_index = index // len(self.condition_settings)
+            expression_index = index % len(self.condition_settings)
             sample = self.dataset[video_index]
             sample["expression"] = torch.tensor(expression_index)
             sample["condition_name"] = AffectNetExpressions(expression_index).name
