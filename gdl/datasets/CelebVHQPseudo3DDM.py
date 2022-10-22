@@ -93,8 +93,11 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
             )
 
+        max_test_videos = 5
         self.test_set_names = []
-        self.test_set_ = CelebVHQPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
+        self.test_set_ = CelebVHQPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+                test[:max_test_videos], 
+                self.audio_metas, 
                 # sequence_length=self.sequence_length_test, 
                 sequence_length="all", 
                 image_size=self.image_size, 
@@ -186,7 +189,7 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
 
         if self.test_condition_source != "original":
             self.test_set_cond_ = CelebVHQPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
-                    test, 
+                    test[:max_test_videos], 
                     self.audio_metas, 
                     # sequence_length=self.sequence_length_test, 
                     sequence_length="all", 
