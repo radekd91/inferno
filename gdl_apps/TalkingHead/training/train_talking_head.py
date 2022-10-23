@@ -40,7 +40,10 @@ project_name = 'TalkingHead'
 
 def get_condition_string_from_config(cfg):
     try: 
-        if cfg.model.sequence_decoder.style_embedding == "none": 
+        if cfg.model.sequence_decoder.style_embedding == "none" or \
+            (not cfg.model.sequence_decoder.style_embedding.use_expression) and \
+            (not cfg.model.sequence_decoder.style_embedding.use_valence) and \
+            (not cfg.model.sequence_decoder.style_embedding.use_arousal):
             return "original", None
         # if cfg.model.sequence_decoder.style_embedding.use_shape: 
         #     return "original", None # return original, we do not have conditioned testing for identity change
