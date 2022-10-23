@@ -27,6 +27,8 @@ class EmocaPreprocessor(Preprocessor):
         self.with_global_pose = cfg.get('with_global_pose', False)
         self.average_shape_decode = cfg.get('average_shape_decode', True)
 
+        self.max_b = cfg.get('max_b', 32)
+
     @property
     def device(self):
         return self.model.device
