@@ -70,6 +70,7 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
 
             path.mkdir(parents=True, exist_ok=True)
 
+
             # self.video_names_to_process[path] = audio_path
             if "framerate" in batch:
                 self.video_framerates_to_process[path] = batch["framerate"][b]
@@ -77,8 +78,10 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
                 self.video_framerates_to_process[path] = self.framerate
 
             self.audio_samplerates_to_process[path] = batch["samplerate"][b]
-
-            # continue
+            
+            if (path / "output.mp4").is_file() and not self.overwrite:
+                print(f"Skipping {path}. Video already exists.")
+                continue
 
             # audio_path = Path(video_name)
             for t in range(T):
