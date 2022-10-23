@@ -283,7 +283,10 @@ class LRS3Pseudo3DDM(LRS3DataModule):
             test_dls += test_dl
             self.test_set_names += ["test_cond"]
 
-        test_dls += [torch.utils.data.DataLoader(self.test_set_train, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+        test_dls += [torch.utils.data.DataLoader(self.test_set_train, shuffle=False, 
+                          #   num_workers=self.num_workers, 
+                          num_workers=0, 
+                          pin_memory=True,
                           batch_size=self.batch_size_test, 
                           drop_last=False,
                         #   drop_last=self.drop_last,
@@ -291,7 +294,10 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                           )]
         self.test_set_names += ["train"]
 
-        test_dls += [torch.utils.data.DataLoader(self.test_set_val, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+        test_dls += [torch.utils.data.DataLoader(self.test_set_val, shuffle=False, 
+                          #   num_workers=self.num_workers, 
+                          num_workers=0, 
+                          pin_memory=True,
                           batch_size=self.batch_size_test, 
                           drop_last=False,
                         #   drop_last=self.drop_last,
@@ -300,7 +306,10 @@ class LRS3Pseudo3DDM(LRS3DataModule):
         self.test_set_names += ["val"]
 
         if hasattr(self, "test_set_cond") and self.test_set_cond is not None:
-            test_dls += [torch.utils.data.DataLoader(self.test_set_cond, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+            test_dls += [torch.utils.data.DataLoader(self.test_set_cond, shuffle=False, 
+                        #   num_workers=self.num_workers, 
+                          num_workers=0, 
+                        pin_memory=True,
                           batch_size=self.batch_size_test, 
                           drop_last=False,
                         #   drop_last=self.drop_last,
@@ -309,7 +318,10 @@ class LRS3Pseudo3DDM(LRS3DataModule):
             self.test_set_names += ["test"]
 
         if hasattr(self, "test_set_train_cond") and self.test_set_train_cond is not None:
-            test_dls += [torch.utils.data.DataLoader(self.test_set_train_cond, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+            test_dls += [torch.utils.data.DataLoader(self.test_set_train_cond, shuffle=False, 
+                            #   num_workers=self.num_workers, 
+                          num_workers=0, 
+                            pin_memory=True,
                           batch_size=self.batch_size_test, 
                           drop_last=False,
                         #   drop_last=self.drop_last,
@@ -319,7 +331,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
 
         if hasattr(self, "test_set_val_cond") and self.test_set_val_cond is not None:
             test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond, shuffle=False, 
-                          num_workers=self.num_workers, 
+                        #   num_workers=self.num_workers, 
+                          num_workers=0, 
                           pin_memory=True,
                           batch_size=self.batch_size_test, 
                           drop_last=False,
