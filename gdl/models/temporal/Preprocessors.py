@@ -27,7 +27,7 @@ class EmocaPreprocessor(Preprocessor):
         self.with_global_pose = cfg.get('with_global_pose', False)
         self.average_shape_decode = cfg.get('average_shape_decode', True)
 
-        self.max_b = cfg.get('max_b', 32)
+        self.max_b = cfg.get('max_b', 100)
 
     @property
     def device(self):
@@ -210,7 +210,7 @@ class SpeechEmotionRecognitionPreprocessor(Preprocessor):
 
     @property
     def test_time(self):
-        return bool(self.cfg.get('test_time', False))
+        return bool(self.cfg.get('test_time', True))
 
     def to(self, device):
         self.model.to(device)
