@@ -89,6 +89,8 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
                 image_path = path / (self.image_format % frame_index + ".png")
                 if image_path.is_file() and not self.overwrite:
                     continue
+                if t == 0:
+                    print("Writing:", image_path)
 
                 valid = True
                 if "landmarks_validity" in batch.keys() and "mediapipe" in batch["landmarks_validity"]:
