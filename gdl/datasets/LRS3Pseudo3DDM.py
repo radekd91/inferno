@@ -114,7 +114,6 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                     inflate_by_video_size=False,
                     include_filename=True,
                     )
-            self.test_set_names += ["test"]
 
             self.test_set = ConditionedVideoTestDatasetWrapper(
                 self.test_set_,
@@ -145,7 +144,6 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 include_filename=True,
                 )
 
-        self.test_set_names += ["train"]
 
         self.test_set_train = ConditionedVideoTestDatasetWrapper(
             self.test_set_train_,
@@ -180,7 +178,6 @@ class LRS3Pseudo3DDM(LRS3DataModule):
             None,
             key_prefix="gt_",
         )
-        self.test_set_names += ["val"]
 
         # conditioned test set
         if self.test_condition_source != "original":
@@ -206,7 +203,6 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                         inflate_by_video_size=False,
                         include_filename=True,
                         )
-                self.test_set_names += ["test_cond"]
 
                 self.test_set_cond = ConditionedVideoTestDatasetWrapper(
                     self.test_set_cond_,
@@ -239,7 +235,6 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                     include_filename=True,
                     )
 
-            self.test_set_names += ["train_cond"]
 
             self.test_set_train_cond = ConditionedVideoTestDatasetWrapper(
                 self.test_set_train_cond_,
@@ -276,7 +271,6 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 self.test_condition_settings, 
                 key_prefix="gt_",
             )
-            self.test_set_names += ["val_cond"]
 
 
 
@@ -287,6 +281,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
             if not isinstance(test_dl, list): 
                 test_dl = [test_dl]
             test_dls += test_dl
+            self.test_set_names += ["test_cond"]
 
         test_dls += [torch.utils.data.DataLoader(self.test_set_train, shuffle=False, num_workers=self.num_workers, pin_memory=True,
                           batch_size=self.batch_size_test, 
@@ -294,6 +289,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                         #   drop_last=self.drop_last,
                           collate_fn=robust_collate
                           )]
+        self.test_set_names += ["train"]
 
         test_dls += [torch.utils.data.DataLoader(self.test_set_val, shuffle=False, num_workers=self.num_workers, pin_memory=True,
                           batch_size=self.batch_size_test, 
@@ -301,6 +297,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                         #   drop_last=self.drop_last,
                           collate_fn=robust_collate
                           )]
+        self.test_set_names += ["val"]
 
         if hasattr(self, "test_set_cond") and self.test_set_cond is not None:
             test_dls += [torch.utils.data.DataLoader(self.test_set_cond, shuffle=False, num_workers=self.num_workers, pin_memory=True,
@@ -309,6 +306,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                         #   drop_last=self.drop_last,
                           collate_fn=robust_collate
                           )]
+            self.test_set_names += ["test"]
 
         if hasattr(self, "test_set_train_cond") and self.test_set_train_cond is not None:
             test_dls += [torch.utils.data.DataLoader(self.test_set_train_cond, shuffle=False, num_workers=self.num_workers, pin_memory=True,
@@ -317,14 +315,18 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                         #   drop_last=self.drop_last,
                           collate_fn=robust_collate
                           )]
+            self.test_set_names += ["train_cond"]
+
         if hasattr(self, "test_set_val_cond") and self.test_set_val_cond is not None:
-            test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+            test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond, shuffle=False, 
+                          num_workers=self.num_workers, 
+                          pin_memory=True,
                           batch_size=self.batch_size_test, 
                           drop_last=False,
                         #   drop_last=self.drop_last,
                           collate_fn=robust_collate
                           )]
-
+            self.test_set_names += ["val_cond"]
         return test_dls
 
 
