@@ -906,6 +906,22 @@ class FaceVideoDataModule(FaceDataModuleBase):
     #     deca = EMOCA(config=deca_cfg, device=device)
     #     return deca
 
+    def _get_emotion_recognition_net(self, device, rec_method='resnet50'):
+        if rec_method == 'resnet50':
+            if hasattr(self, '_emo_resnet') and self._emo_resnet is not None: 
+                return self._emo_resnet.to(device)
+            from gdl.models.temporal.Preprocessors import EmotionRecognitionPreprocessor
+            from munch import Munch
+            cfg = Munch()
+            cfg.model_name = "ResNet50"
+            cfg.model_path = False
+            cfg.return_features = True
+            self._emo_resnet = EmotionRecognitionPreprocessor(device=device)
+            return self._emo_resnet
+
+        raise ValueError(f"Unknown emotion recognition method: {rec_method}")
+
+
     def _get_reconstruction_net_v2(self, device, rec_method="emoca"): 
         device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         if rec_method == "emoca":
@@ -940,6 +956,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             cfg.return_global_pose = True
             cfg.slice_off_invalid = False
             cfg.return_appearance = True
+            cfg.average_shape_decode = False
 
             # paths
             cfg.flame_model_path = "/ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl"
@@ -1366,12 +1383,14 @@ class FaceVideoDataModule(FaceDataModuleBase):
             with torch.no_grad():
                 batch = dict_to_device(batch, device)
                 for rec_method in rec_methods:
+                    batch_ = batch.copy()
                     reconstruction_net = self._get_reconstruction_net_v2(device, rec_method=rec_method)
-                    result = reconstruction_net(batch, input_key='video', output_prefix="")
+                    result = reconstruction_net(batch_, input_key='video', output_prefix="")
                     assert batch['video'].shape[0] == 1
                     T = batch['video'].shape[1]
                     result_keys_to_keep = ['shape', 'exp', 'jaw', 'global_pose', 'cam']
                     shape_pose = {k: result[k].cpu().numpy() for k in result_keys_to_keep}
+                    assert shape_pose['shape'].shape[1] == T, f"{shape_pose['shape'].shape[1]} != {T}"
                     result_keys_to_keep = ['tex', 'light', 'detail']
                     appearance = {k: result[k].cpu().numpy() for k in result_keys_to_keep if k in result.keys()}
 
@@ -1383,6 +1402,61 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     hkl.dump(shape_pose, out_file_shape[rec_method])
                     hkl.dump(appearance, out_file_appearance[rec_method])
 
+
+        print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
+
+
+    
+    def _extract_emotion_in_sequence(self, sequence_id, emotion_net=None, device=None,
+                                       emo_methods='resnet50',):
+        if not isinstance(emo_methods, list):
+            emo_methods = [emo_methods]
+
+        print("Running face emotion recognition in sequence '%s'" % self.video_list[sequence_id])
+
+        out_folder = {}
+        out_file_emotion = {}
+        out_file_features = {}
+        for emo_method in emo_methods:
+            out_folder[emo_method] = self._get_path_to_sequence_emotions(sequence_id, rec_method=emo_method)
+            out_file_emotion[emo_method] = out_folder[emo_method] / f"emotions.pkl"
+            out_file_features[emo_method] = out_folder[emo_method] / f"features.pkl"
+            out_folder[emo_method].mkdir(exist_ok=True, parents=True)
+
+        exists = True
+        for emo_method in emo_methods:
+            if not out_file_emotion[emo_method].is_file(): 
+                exists = False
+                break
+            if not out_file_features[emo_method].is_file():
+                exists = False
+                break
+        if exists: 
+            return
+
+        device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        emotion_net = emotion_net or self._get_emotion_recognition_net(device, rec_method=emo_method)
+             
+        dataset = self.get_single_video_dataset(sequence_id)
+        batch_size = 32
+        # batch_size = 64
+        loader = DataLoader(dataset, batch_size=batch_size, num_workers=0, shuffle=False)
+
+        for i, batch in enumerate(tqdm(loader)):
+            with torch.no_grad():
+                batch = dict_to_device(batch, device)
+                for emo_method in emo_methods:
+                    emotion_net = self._get_reconstruction_net_v2(device, rec_method=emo_method)
+                    result = emotion_net(batch, input_key='video', output_prefix="")
+                    assert batch['video'].shape[0] == 1
+                    T = batch['video'].shape[1]
+                    result_keys_to_keep = ['expression', 'valence', 'arousal',]
+                    emotion_labels = {k: result[k].cpu().numpy() for k in result_keys_to_keep}
+                    result_keys_to_keep = ['feature',]
+                    emotion_features = {k: result[k].cpu().numpy() for k in result_keys_to_keep}
+                    
+                    hkl.dump(emotion_labels, out_file_emotion[emo_method])
+                    hkl.dump(emotion_features, out_file_features[emo_method])
 
         print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
 

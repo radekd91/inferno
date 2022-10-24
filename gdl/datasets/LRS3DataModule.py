@@ -340,7 +340,8 @@ class LRS3DataModule(FaceVideoDataModule):
         return num_shards
 
     def _process_video(self, idx, extract_audio=True, restore_videos=True, 
-            detect_landmarks=True, segment_videos=True, reconstruct_faces=False,):
+            detect_landmarks=True, segment_videos=True, reconstruct_faces=False, 
+            recognize_emotions=False,):
         if extract_audio: 
             self._extract_audio_for_video(idx)
         if restore_videos:
@@ -367,10 +368,14 @@ class LRS3DataModule(FaceVideoDataModule):
                                     idx, reconstruction_net=None, device=None,
                                     save_obj=False, save_mat=True, save_vis=False, save_images=False,
                                     save_video=False, rec_methods=rec_methods, retarget_from=None, retarget_suffix=None)
+        if recognize_emotions:
+            emo_methods = ['resnet50', ]
+            self._extract_emotion_in_sequence(idx, emo_methods=emo_methods)
   
 
     def _process_shard(self, videos_per_shard, shard_idx, extract_audio=True,
         restore_videos=True, detect_landmarks=True, segment_videos=True, reconstruct_faces=False,
+        recognize_emotions=False,
     ):
         num_shards = self._get_num_shards(videos_per_shard)
         start_idx = shard_idx * videos_per_shard
@@ -385,7 +390,8 @@ class LRS3DataModule(FaceVideoDataModule):
         for i in range(start_idx, end_idx):
             idx = idxs[i]
             self._process_video(idx, extract_audio=extract_audio, restore_videos=restore_videos,
-                detect_landmarks=detect_landmarks, segment_videos=segment_videos, reconstruct_faces=reconstruct_faces)
+                detect_landmarks=detect_landmarks, segment_videos=segment_videos, reconstruct_faces=reconstruct_faces, 
+                recognize_emotions=recognize_emotions)
             # if extract_audio: 
             #     self._extract_audio_for_video(idx)
             # if restore_videos:

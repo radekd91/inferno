@@ -117,7 +117,10 @@ class EmocaPreprocessor(Preprocessor):
         # batch[output_prefix + "vertices"] = values['verts'].view(B, T, -1, 3)
         batch[output_prefix + "vertices"] = values['verts'].contiguous().view(B, T, -1)
         # batch[output_prefix + 'shape'] = values['shapecode'].view(B, T, -1)
-        batch[output_prefix + 'shape'] = avg_shapecode
+        if self.average_shape_decode:
+            batch[output_prefix + 'shape'] = avg_shapecode
+        else:
+            batch[output_prefix + 'shape'] = values['shapecode'].view(B, T, -1)
         batch[output_prefix + 'exp'] =  values['expcode'].view(B, T, -1)
         batch[output_prefix + 'jaw'] = values['posecode'][..., 3:].contiguous().view(B, T, -1)
         if self.return_global_pose:
@@ -142,6 +145,7 @@ class EmotionRecognitionPreprocessor(Preprocessor):
             self.model_path = get_path_to_assets() / "EmotionRecognition" / "image_based_networks"
         else:
             self.model_path = Path(cfg.model_path)
+        self.return_features = cfg.get('return_features', False)
         self.model_name = cfg.model_name
         self.model = load_model(self.model_path / self.model_name)
         for p in self.model.parameters():
@@ -200,6 +204,9 @@ class EmotionRecognitionPreprocessor(Preprocessor):
                 batch[output_prefix + "expression"] = F.softmax(output[key].view(B, T, -1), dim=-1)
             else:
                 batch[output_prefix + key] = output[key].view(B, T, -1)
+
+        if self.return_features:
+            batch[output_prefix + 'features'] = output['emo_feat_2'].view(B, T, -1)
 
         return batch
 

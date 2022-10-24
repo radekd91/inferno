@@ -99,13 +99,17 @@ class SpectrePreprocessor(Preprocessor):
 
         if T > self.max_t:
             codedicts = []
+            break_ = False
             for i in range(0, T, self.max_t):
                 start_i = i
                 # make sure the middle is not cut off by adjusting the indices
                 if i > 0:
                     start_i -= self.num_invalid_frames #*2 
                 end_i = i + self.max_t + self.num_invalid_frames #*2
-                if end_i > T:
+                if end_i + self.num_invalid_frames > T: # make sure that the next  chunk is not too small and if it is, add it to the current chunk
+                    end_i = T
+                    break_ = True
+                elif end_i > T:
                     end_i = T
                 # images_ = images[:, i * self.max_t : i * (self.maxt+1), ... ]
                 images_ = images[:, start_i : end_i, ... ]
@@ -121,6 +125,8 @@ class SpectrePreprocessor(Preprocessor):
                     for key in codedict_:
                         codedict_[key] = codedict_[key][:, :-self.num_invalid_frames, ...]
                 codedicts.append(codedict_)
+                if break_:
+                    break  
             
             codedict = {}
             for key in codedicts[0]:
@@ -192,7 +198,10 @@ class SpectrePreprocessor(Preprocessor):
         # batch[output_prefix + "vertices"] = values['verts'].view(B, T, -1, 3)
         batch[output_prefix + "vertices"] = opdict['verts'].contiguous().view(B, T, -1)
         # batch[output_prefix + 'shape'] = values['shape'].view(B, T, -1)
-        batch[output_prefix + 'shape'] = avg_shapecode
+        if self.average_shape_decode:
+            batch[output_prefix + 'shape'] = avg_shapecode
+        else:
+            batch[output_prefix + 'shape'] = codedict['shape'].view(B, T, -1)
         batch[output_prefix + 'exp'] =  codedict['exp'].view(B, T, -1)
         batch[output_prefix + 'jaw'] = codedict['pose'][..., 3:].contiguous().view(B, T, -1)
         if self.return_global_pose:
