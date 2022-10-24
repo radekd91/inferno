@@ -44,7 +44,7 @@ from PIL import Image, ImageDraw, ImageFont
 import cv2
 from skimage.io import imread
 from skvideo.io import vreader, vread
-import skvideo
+import skvideo.io
 import torch.nn.functional as F
 
 from gdl.datasets.VideoFaceDetectionDataset import VideoFaceDetectionDataset

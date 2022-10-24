@@ -27,7 +27,7 @@ import pytorch_lightning as pl
 import torch
 from PIL import Image
 from skimage.io import imread, imsave
-import skvideo
+# import skvideo.io
 from torch.utils.data import DataLoader
 from torchvision.transforms import Resize, Compose, Normalize
 from tqdm import tqdm
@@ -297,7 +297,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
 
         if isinstance(detection_fnames_or_ims, types.GeneratorType): 
             im_read = "skvreader"
-        elif isinstance(detection_fnames_or_ims, (skvideo.io.FFmpegReader)):
+        elif isinstance(detection_fnames_or_ims, (FFmpegReader)):
             im_read = "skvffmpeg"
         else:
             im_read = 'pil' if not isinstance(detection_fnames_or_ims[0], np.ndarray) else None
