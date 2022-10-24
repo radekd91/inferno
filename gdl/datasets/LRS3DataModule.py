@@ -358,12 +358,15 @@ class LRS3DataModule(FaceVideoDataModule):
             # self._reconstruct_faces_in_sequence(idx, 
             #     reconstruction_net=self._get_reconstruction_network('deca'))
             # rec_methods = ['emoca', 'deep3dface', 'deca']
-            rec_methods = ['emoca', 'deep3dface',]
+            # rec_methods = ['emoca', 'deep3dface',]
+            rec_methods = ['emoca', 'spectre',]
             # rec_methods = ['emoca',]
-            for rec_method in rec_methods:
-                self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
+            # for rec_method in rec_methods:
+                # self._reconstruct_faces_in_sequence(
+            self._reconstruct_faces_in_sequence_v2(
+                                    idx, reconstruction_net=None, device=None,
                                     save_obj=False, save_mat=True, save_vis=False, save_images=False,
-                                    save_video=False, rec_method=rec_method, retarget_from=None, retarget_suffix=None)
+                                    save_video=False, rec_methods=rec_methods, retarget_from=None, retarget_suffix=None)
   
 
     def _process_shard(self, videos_per_shard, shard_idx, extract_audio=True,
@@ -544,6 +547,22 @@ class LRS3DataModule(FaceVideoDataModule):
             return pretrain, trainval, test
         else: 
             raise ValueError(f"Unknown set type: {set_type}")
+
+    def get_single_video_dataset(self, i):
+        dataset = LRS3Dataset(self.root_dir, self.output_dir, 
+                self.video_list, self.video_metas, [i], self.audio_metas, 
+                # self.sequence_length_val, 
+                "all",
+                image_size=self.image_size,  
+                hack_length=False, 
+                occlusion_length=0,
+                occlusion_probability_mouth = 0.0,
+                occlusion_probability_left_eye = 0.0,
+                occlusion_probability_right_eye = 0.0,
+                occlusion_probability_face = 0.0,
+            )
+
+        return dataset
 
 
     def setup(self, stage=None):

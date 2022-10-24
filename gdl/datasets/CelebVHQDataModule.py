@@ -385,6 +385,30 @@ class CelebVHQDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
                 )
 
+    def get_single_video_dataset(self, i):
+        dataset = CelebVHQDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+                [i], 
+                self.audio_metas, 
+                # self.sequence_length_test, 
+                "all", 
+                image_size=self.image_size, 
+                # **self.occlusion_settings_test,
+                hack_length=False, 
+                use_original_video=self.use_original_video,
+                include_processed_audio = self.include_processed_audio,
+                include_raw_audio = self.include_raw_audio,
+                landmark_types=self.landmark_types,
+                landmark_source=self.landmark_sources,
+                segmentation_source=self.segmentation_source,
+                # temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                # temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
+                preload_videos=self.preload_videos,
+                inflate_by_video_size=False,
+                )
+
+        return dataset
+
+
     def train_sampler(self):
         if self.training_sampler == "uniform":
             sampler = None

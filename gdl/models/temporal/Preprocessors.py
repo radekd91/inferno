@@ -18,6 +18,7 @@ class EmocaPreprocessor(Preprocessor):
             self.model_path = Path(cfg.model_path)
         self.model_name = cfg.model_name
         self.stage = cfg.stage 
+        self.return_global_pose = cfg.get('return_global_pose', False)
         self.model, self.model_conf = load_model(self.model_path, self.model_name, self.stage)
 
         for p in self.model.parameters():
@@ -26,7 +27,8 @@ class EmocaPreprocessor(Preprocessor):
 
         self.with_global_pose = cfg.get('with_global_pose', False)
         self.average_shape_decode = cfg.get('average_shape_decode', True)
-
+        self.return_appearance = cfg.get('return_appearance', False)
+        self.render = cfg.get('render', False)
         self.max_b = cfg.get('max_b', 100)
 
     @property
@@ -34,7 +36,8 @@ class EmocaPreprocessor(Preprocessor):
         return self.model.device
 
     def to(self, device):
-        self.model.to(device)
+        self.model = self.model.to(device)
+        return self
 
 
     @property
@@ -58,20 +61,20 @@ class EmocaPreprocessor(Preprocessor):
             values = self.model.encode(batch_, training=False)
         else:
             batch_ = {} 
-            batch_['image'] = images.view(B*T, C, H, W)
+            # batch_['image'] = images.view(B*T, C, H, W)
 
             outputs = []
             for i in range(0, BT, self.max_b):
                 batch_['image'] = images.view(B*T, C, H, W)[i:i+self.max_b]
-                outputs.append(self.model(batch_))
+                outputs.append(self.model.encode(batch_, training=False))
             
             # combine into a single output
             values = {}
             for k in outputs[0].keys():
                 values[k] = torch.cat([o[k] for o in outputs], dim=0)
 
-        # vals, visdict = decode(deca, batch, vals, training=False)
-        values = self.model.encode(batch_, training=False)
+        # # vals, visdict = decode(deca, batch, vals, training=False)
+        # values = self.model.encode(batch_, training=False)
 
         if not self.with_global_pose:
             values['posecode'][..., :3] = 0
@@ -85,7 +88,22 @@ class EmocaPreprocessor(Preprocessor):
             # set the shape to be equal to the average shape (so that the shape is not changing over time)
             values['shapecode'] = avg_shapecode.view(B, 1, -1).repeat(1, T, 1).view(B*T, -1)
 
-        values = self.model.decode(values, training=False, render=False)
+        if BT < self.max_b:
+            values = self.model.decode(values, training=False, render=self.render)
+        else:
+            outputs = []
+            
+            for i in range(0, BT, self.max_b):
+                values_ = {}
+                for k in values.keys():
+                    values_[k] = values[k][i:i+self.max_b]
+                outputs.append(self.model.decode(values_, training=False, render=self.render))
+            
+            # combine into a single output
+            values = {}
+            for k in outputs[0].keys():
+                if outputs[0][k] is not None:
+                    values[k] = torch.cat([o[k] for o in outputs], dim=0)
 
         verts, landmarks2d, landmarks3d = self.model.deca.flame(
             shape_params=avg_shapecode, 
@@ -102,6 +120,14 @@ class EmocaPreprocessor(Preprocessor):
         batch[output_prefix + 'shape'] = avg_shapecode
         batch[output_prefix + 'exp'] =  values['expcode'].view(B, T, -1)
         batch[output_prefix + 'jaw'] = values['posecode'][..., 3:].contiguous().view(B, T, -1)
+        if self.return_global_pose:
+            batch[output_prefix + 'global_pose'] = values['posecode'][..., :3].contiguous().view(B, T, -1)
+            batch[output_prefix + 'cam'] = values['cam'].view(B, T, -1)
+        if self.return_appearance: 
+            batch[output_prefix + 'tex'] = values['texcode'].view(B, T, -1)
+            batch[output_prefix + 'light'] = values['lightcode'].view(B, T, -1)
+            if 'detailcode' in values:
+                batch[output_prefix + 'detail'] = values['detailcode'].view(B, T, -1)
         return batch
 
 
@@ -131,7 +157,8 @@ class EmotionRecognitionPreprocessor(Preprocessor):
         return bool(self.cfg.get('test_time', True))
 
     def to(self, device):
-        self.model.to(device)
+        self.model = self.model.to(device)
+        return self
 
     def forward(self, batch, input_key, *args, output_prefix="gt_", test_time = False, **kwargs):
         output_keys = ['expression', 'valeance', 'arousal']
@@ -213,7 +240,8 @@ class SpeechEmotionRecognitionPreprocessor(Preprocessor):
         return bool(self.cfg.get('test_time', True))
 
     def to(self, device):
-        self.model.to(device)
+        self.model = self.model.to(device)
+        return self
 
     def forward(self, batch, input_key, *args, output_prefix="gt_", test_time=False, **kwargs):
 

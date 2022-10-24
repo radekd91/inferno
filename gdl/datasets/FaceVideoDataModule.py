@@ -27,6 +27,7 @@ import torch
 # import torchaudio
 from typing import Optional, Union, List
 import pickle as pkl
+import hickle as hkl
 # from collections import OrderedDict
 from tqdm import tqdm, auto
 # import subprocess
@@ -313,7 +314,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         if rec_method == 'deca':
             return self._get_path_to_sequence_files(sequence_id, "reconstructions", "", suffix)
         else:
-            assert rec_method in ['emoca', 'deep3dface']
+            assert rec_method in ['emoca', 'deep3dface', 'spectre']
             return self._get_path_to_sequence_files(sequence_id, "reconstructions", rec_method, suffix)
         # video_file = self.video_list[sequence_id]
         # if rec_method == 'deca':
@@ -905,6 +906,57 @@ class FaceVideoDataModule(FaceDataModuleBase):
     #     deca = EMOCA(config=deca_cfg, device=device)
     #     return deca
 
+    def _get_reconstruction_net_v2(self, device, rec_method="emoca"): 
+        device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        if rec_method == "emoca":
+            if hasattr(self, '_emoca') and self._emoca is not None: 
+                return self._emoca.to(device)
+            from gdl.models.temporal.Preprocessors import EmocaPreprocessor
+            from munch import Munch
+            cfg = Munch()
+            cfg.with_global_pose = True
+            cfg.return_global_pose = True
+            cfg.average_shape_decode = False
+            cfg.return_appearance = True
+            cfg.model_name = "EMOCA"
+            cfg.model_path = False
+            cfg.stage = "detail" 
+            cfg.max_b = 16
+            cfg.render = False
+            # cfg.render = True
+            emoca = EmocaPreprocessor(cfg).to(device)
+            self._emoca = emoca
+            return emoca
+        elif rec_method == "spectre": 
+            if hasattr(self, '_spectre') and self._spectre is not None: 
+                return self._spectre.to(device)
+            from gdl.models.temporal.external.SpectrePreprocessor import SpectrePreprocessor
+            from munch import Munch
+            cfg = Munch()
+            cfg.return_vis = False
+            # cfg.render = True
+            cfg.render = False
+            cfg.with_global_pose = True
+            cfg.return_global_pose = True
+            cfg.slice_off_invalid = False
+            cfg.return_appearance = True
+
+            # paths
+            cfg.flame_model_path = "/ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl"
+            cfg.flame_lmk_embedding_path = "/ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy"
+            cfg.face_mask_path = "/ps/scratch/rdanecek/data/FLAME/mask/uv_face_mask.png"
+            cfg.face_eye_mask_path = "/ps/scratch/rdanecek/data/FLAME/mask/uv_face_eye_mask.png"
+            cfg.tex_type = "BFM"
+            cfg.tex_path = "/ps/scratch/rdanecek/data/FLAME/texture/FLAME_albedo_from_BFM.npz"
+            cfg.fixed_displacement_path = "/ps/scratch/rdanecek/data/FLAME/geometry/fixed_uv_displacements/fixed_displacement_256.npy"
+            cfg.pretrained_modelpath = "pretrained/spectre_model.tar"
+      
+            spectre = SpectrePreprocessor(cfg).to(device)
+            self._spectre = spectre
+            return spectre
+        raise ValueError("Unknown reconstruction method '%s'" % rec_method)
+
+
     def _get_reconstruction_net(self, device, rec_method='deca'):
         if rec_method == 'deca':
             add_pretrained_deca_to_path()
@@ -1094,6 +1146,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
         for sid in range(self.num_sequences):
             self._reconstruct_faces_in_sequence(sid, reconstruction_net, device)
 
+    def get_single_video_dataset(self, i):
+        raise NotImplementedError("This method must be implemented by the deriving classes.")
 
     def _reconstruct_faces_in_sequence(self, sequence_id, reconstruction_net=None, device=None,
                                        save_obj=False, save_mat=True, save_vis=True, save_images=False,
@@ -1111,8 +1165,6 @@ class FaceVideoDataModule(FaceDataModuleBase):
         else:
             codedict_retarget = None
             suffix = None
-
-
 
         def fixed_image_standardization(image):
             return image / 255.
@@ -1239,6 +1291,99 @@ class FaceVideoDataModule(FaceDataModuleBase):
                             cv2.imwrite(str(ims_folder / vis_name / (name +'.png')), image)
         if video_writer is not None:
             video_writer.release()
+        print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
+
+    def _reconstruct_faces_in_sequence_v2(self, sequence_id, reconstruction_net=None, device=None,
+                                       save_obj=False, save_mat=True, save_vis=True, save_images=False,
+                                       save_video=True, rec_methods='emoca', retarget_from=None, retarget_suffix=None):
+        if retarget_from is not None:
+            raise NotImplementedError("Retargeting is not implemented yet for _reconstruct_faces_in_sequence_v2")
+            import datetime
+            t = datetime.datetime.now()
+            t_str = t.strftime("%Y_%m_%d_%H-%M-%S")
+            suffix = f"_retarget_{t_str}_{str(hash(t_str))}" if retarget_suffix is None else retarget_suffix
+        else:
+            codedict_retarget = None
+            suffix = None
+
+        if not isinstance(rec_methods, list):
+            rec_methods = [rec_methods]
+
+        print("Running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
+
+        out_folder = {}
+        out_file_shape = {}
+        out_file_appearance = {}
+        for rec_method in rec_methods:
+            out_folder[rec_method] = self._get_path_to_sequence_reconstructions(sequence_id, rec_method=rec_method, suffix=suffix)
+            out_file_shape[rec_method] = out_folder[rec_method] / f"shape_pose_cam.pkl"
+            out_file_appearance[rec_method] = out_folder[rec_method] / f"appearance.pkl"
+            out_folder[rec_method].mkdir(exist_ok=True, parents=True)
+
+        if retarget_from is not None:
+            raise NotImplementedError("Retargeting is not implemented yet for _reconstruct_faces_in_sequence_v2")
+            out_folder.mkdir(exist_ok=True, parents=True)
+
+
+        exists = True
+        for rec_method in rec_methods:
+            if not out_file_shape[rec_method].is_file(): 
+                exists = False
+                break
+            if not out_file_appearance[rec_method].is_file():
+                exists = False
+                break
+        if exists: 
+            return
+
+        device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        # reconstruction_net = reconstruction_net or self._get_reconstruction_net_v2(device, rec_method=rec_method)
+
+        # if retarget_from is not None:
+        #     image = imread(retarget_from)
+        #     batch_r = {}
+        #     batch_r["image"] = torch.from_numpy(image).float().unsqueeze(0).to(device)
+        #     # to torch channel format
+        #     batch_r["image"] = batch_r["image"].permute(0, 3, 1, 2)
+        #     batch_r["image"] = fixed_image_standardization(batch_r["image"])
+        #     with torch.no_grad():
+        #         codedict_retarget = reconstruction_net.encode(batch_r, training=False)
+
+
+        # video_writer = None
+        # if self.unpack_videos:
+        #     detections_fnames_or_images = sorted(list(in_folder.glob("*.png")))
+        # else:
+        #     from skvideo.io import vread
+        #     detections_fnames_or_images = vread(str(in_folder))
+             
+        dataset = self.get_single_video_dataset(sequence_id)
+        batch_size = 32
+        # batch_size = 64
+        loader = DataLoader(dataset, batch_size=batch_size, num_workers=0, shuffle=False)
+
+        for i, batch in enumerate(tqdm(loader)):
+            with torch.no_grad():
+                batch = dict_to_device(batch, device)
+                for rec_method in rec_methods:
+                    reconstruction_net = self._get_reconstruction_net_v2(device, rec_method=rec_method)
+                    result = reconstruction_net(batch, input_key='video', output_prefix="")
+                    assert batch['video'].shape[0] == 1
+                    T = batch['video'].shape[1]
+                    result_keys_to_keep = ['shape', 'exp', 'jaw', 'global_pose', 'cam']
+                    shape_pose = {k: result[k].cpu().numpy() for k in result_keys_to_keep}
+                    result_keys_to_keep = ['tex', 'light', 'detail']
+                    appearance = {k: result[k].cpu().numpy() for k in result_keys_to_keep if k in result.keys()}
+
+                    # with open(out_file_shape, "wb") as f:
+                    #     hkl.dump(shape_pose, f) 
+                    # with open(out_file_appearance, "wb") as f:
+                    #     hkl.dump(appearance, f)
+                    
+                    hkl.dump(shape_pose, out_file_shape[rec_method])
+                    hkl.dump(appearance, out_file_appearance[rec_method])
+
+
         print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
 
     # def _gather_data(self, exist_ok=False):
@@ -3000,3 +3145,15 @@ class TestFaceVideoDM(FaceVideoDataModule):
 
     def test_dataloader(self, *args, **kwargs) -> Union[DataLoader, List[DataLoader]]:
         return DataLoader(self.testdata, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False)
+
+
+
+def dict_to_device(d, device): 
+    for k, v in d.items():
+        if isinstance(v, torch.Tensor):
+            d[k] = v.to(device)
+        elif isinstance(v, dict):
+            d[k] = dict_to_device(v, device)
+        else: 
+            pass
+    return d

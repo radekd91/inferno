@@ -64,6 +64,8 @@ class VideoDatasetBase(AbstractVideoDataset):
             preload_videos=False, # cache all videos in memory (recommended for smaller datasets)
             inflate_by_video_size=False, 
             include_filename=False, # if True includes the filename of the video in the sample
+            align_images = True,
+            use_audio=True, #if True, includes audio in the sample
         ) -> None:
         super().__init__()
         self.root_path = root_path
@@ -108,8 +110,10 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         self.include_processed_audio = include_processed_audio
         self.include_raw_audio = include_raw_audio
-        self.align_images = True
+        # self.align_images = True
         # self.align_images = False
+        self.align_images = align_images
+        self.use_audio = use_audio
         self.use_original_video = use_original_video
         self.transforms = transforms or imgaug.augmenters.Resize((image_size, image_size))
 

@@ -54,7 +54,10 @@ class SpectrePreprocessor(Preprocessor):
         self.return_vis = cfg.get('return_vis', False)
         self.render = cfg.get('render', False)
         self.with_global_pose = cfg.get('with_global_pose', False)
+        self.return_global_pose = cfg.get('return_global_pose', False)
+        self.return_appearance = cfg.get('return_appearance', False)
         self.average_shape_decode = cfg.get('average_shape_decode', True)
+        self.slice_off_invalid = cfg.get('slice_off_invalid', True) # whether to slice off the invalid frames at the end of the sequence
 
         self.spectre = SPECTRE(spectre_cfg)
         self.spectre.eval()
@@ -192,13 +195,23 @@ class SpectrePreprocessor(Preprocessor):
         batch[output_prefix + 'shape'] = avg_shapecode
         batch[output_prefix + 'exp'] =  codedict['exp'].view(B, T, -1)
         batch[output_prefix + 'jaw'] = codedict['pose'][..., 3:].contiguous().view(B, T, -1)
+        if self.return_global_pose:
+            batch[output_prefix + 'global_pose'] = codedict['pose'][..., :3].contiguous().view(B, T, -1)
+            batch[output_prefix + 'cam'] = codedict['cam'].view(B, T, -1)
+
+
+        if self.return_appearance: 
+            batch[output_prefix + 'tex'] = codedict['tex'].view(B, T, -1)
+            batch[output_prefix + 'light'] = codedict['light'].view(B, T, -1)
+            if 'detail' in codedict:
+                batch[output_prefix + 'detail'] = codedict['detail'].view(B, T, -1)
 
         # TODO: this is a little hacky, we need to keep track of which entries are not per-frame (such as template and one_hot identity thingy)
         non_temporal_keys = ['template', 'one_hot', 'samplerate', output_prefix + 'shape', "filename", "fps", "condition_name"] 
 
         # invalidate the first and last frames for all the per-frame outputs
-
-        batch = slice_off_ends(batch, self.num_invalid_frames, non_temporal_keys)
+        if self.slice_off_invalid:
+            batch = slice_off_ends(batch, self.num_invalid_frames, non_temporal_keys)
         # for key in batch: 
         #     # if key.startswith(output_prefix):
         #     if key in non_temporal_keys:
