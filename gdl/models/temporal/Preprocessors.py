@@ -206,7 +206,7 @@ class EmotionRecognitionPreprocessor(Preprocessor):
                 batch[output_prefix + key] = output[key].view(B, T, -1)
 
         if self.return_features:
-            batch[output_prefix + 'features'] = output['emo_feat_2'].view(B, T, -1)
+            batch[output_prefix + 'feature'] = output['emo_feat_2'].view(B, T, -1)
 
         return batch
 

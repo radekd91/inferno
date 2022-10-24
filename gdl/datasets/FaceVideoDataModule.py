@@ -294,8 +294,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
     # def _get_path_to_sequence_segmentations(self, sequence_id):
     #     return self._get_path_to_sequence_files(sequence_id, "segmentations")
 
-    def _get_path_to_sequence_emotions(self, sequence_id):
-        return self._get_path_to_sequence_files(sequence_id, "emotions")
+    def _get_path_to_sequence_emotions(self, sequence_id, emo_method="resnet50"):
+        return self._get_path_to_sequence_files(sequence_id, "emotions", method=emo_method)
 
     def _video_category(self, sequence_id):
         video_file = self.video_list[sequence_id]
@@ -916,7 +916,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             cfg.model_name = "ResNet50"
             cfg.model_path = False
             cfg.return_features = True
-            self._emo_resnet = EmotionRecognitionPreprocessor(device=device)
+            self._emo_resnet = EmotionRecognitionPreprocessor(cfg).to(device)
             return self._emo_resnet
 
         raise ValueError(f"Unknown emotion recognition method: {rec_method}")
@@ -1383,6 +1383,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
             with torch.no_grad():
                 batch = dict_to_device(batch, device)
                 for rec_method in rec_methods:
+                    if out_file_shape[rec_method].is_file() and  out_file_appearance[rec_method].is_file(): 
+                        continue
                     batch_ = batch.copy()
                     reconstruction_net = self._get_reconstruction_net_v2(device, rec_method=rec_method)
                     result = reconstruction_net(batch_, input_key='video', output_prefix="")
@@ -1418,7 +1420,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         out_file_emotion = {}
         out_file_features = {}
         for emo_method in emo_methods:
-            out_folder[emo_method] = self._get_path_to_sequence_emotions(sequence_id, rec_method=emo_method)
+            out_folder[emo_method] = self._get_path_to_sequence_emotions(sequence_id, emo_method=emo_method)
             out_file_emotion[emo_method] = out_folder[emo_method] / f"emotions.pkl"
             out_file_features[emo_method] = out_folder[emo_method] / f"features.pkl"
             out_folder[emo_method].mkdir(exist_ok=True, parents=True)
@@ -1435,7 +1437,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             return
 
         device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        emotion_net = emotion_net or self._get_emotion_recognition_net(device, rec_method=emo_method)
+        # emotion_net = emotion_net or self._get_emotion_recognition_net(device, rec_method=emo_method)
              
         dataset = self.get_single_video_dataset(sequence_id)
         batch_size = 32
@@ -1446,11 +1448,14 @@ class FaceVideoDataModule(FaceDataModuleBase):
             with torch.no_grad():
                 batch = dict_to_device(batch, device)
                 for emo_method in emo_methods:
-                    emotion_net = self._get_reconstruction_net_v2(device, rec_method=emo_method)
+                    if out_file_emotion[emo_method].is_file() and  out_file_features[emo_method].is_file(): 
+                        continue
+                    emotion_net = self._get_emotion_recognition_net(device, rec_method=emo_method)
                     result = emotion_net(batch, input_key='video', output_prefix="")
                     assert batch['video'].shape[0] == 1
                     T = batch['video'].shape[1]
                     result_keys_to_keep = ['expression', 'valence', 'arousal',]
+                    assert result['expression'].shape[1] == T, f"{result['expression'].shape[1]} != {T}"
                     emotion_labels = {k: result[k].cpu().numpy() for k in result_keys_to_keep}
                     result_keys_to_keep = ['feature',]
                     emotion_features = {k: result[k].cpu().numpy() for k in result_keys_to_keep}
