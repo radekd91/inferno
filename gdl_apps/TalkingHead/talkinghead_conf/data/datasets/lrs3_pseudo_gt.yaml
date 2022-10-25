@@ -58,8 +58,8 @@ split: "original"
 
 read_video: False
 # read_video: True
-# reconstruction_type: spectre
-reconstruction_type: emoca
+reconstruction_type: spectre
+# reconstruction_type: emoca
 return_global_pose: False
 return_appearance: False
 average_shape_decode: True
