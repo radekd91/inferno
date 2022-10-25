@@ -76,8 +76,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
             
                 hack_length=False,
                 # use_original_video=self.use_original_video,
-                # include_processed_audio = self.include_processed_audio,
-                # include_raw_audio = self.include_raw_audio,
+                include_processed_audio = self.include_processed_audio,
+                include_raw_audio = self.include_raw_audio,
                 # landmark_types=self.landmark_types,
                 # landmark_source=self.landmark_sources,
                 # segmentation_source=self.segmentation_source,
@@ -98,8 +98,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 **self.occlusion_settings_val,
                 hack_length=False, 
                 # use_original_video=self.use_original_video,
-                # include_processed_audio = self.include_processed_audio,
-                # include_raw_audio = self.include_raw_audio,
+                include_processed_audio = self.include_processed_audio,
+                include_raw_audio = self.include_raw_audio,
                 # landmark_types=self.landmark_types,
                 # landmark_source=self.landmark_sources,
                 # segmentation_source=self.segmentation_source,
@@ -123,8 +123,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                     **self.occlusion_settings_test,
                     hack_length=False, 
                     # use_original_video=self.use_original_video,
-                    # include_processed_audio = self.include_processed_audio,
-                    # include_raw_audio = self.include_raw_audio,
+                    include_processed_audio = self.include_processed_audio,
+                    include_raw_audio = self.include_raw_audio,
                     # landmark_types=self.landmark_types,
                     # landmark_source=self.landmark_sources,
                     # segmentation_source=self.segmentation_source,
@@ -156,8 +156,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 **self.occlusion_settings_test,
                 hack_length=False, 
                 # use_original_video=self.use_original_video,
-                # include_processed_audio = self.include_processed_audio,
-                # include_raw_audio = self.include_raw_audio,
+                include_processed_audio = self.include_processed_audio,
+                include_raw_audio = self.include_raw_audio,
                 # landmark_types=self.landmark_types,
                 # landmark_source=self.landmark_sources,
                 # segmentation_source=self.segmentation_source,
@@ -191,8 +191,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 **self.occlusion_settings_test,
                 hack_length=False, 
                 # use_original_video=self.use_original_video,
-                # include_processed_audio = self.include_processed_audio,
-                # include_raw_audio = self.include_raw_audio,
+                include_processed_audio = self.include_processed_audio,
+                include_raw_audio = self.include_raw_audio,
                 # landmark_types=self.landmark_types,
                 # landmark_source=self.landmark_sources,
                 # segmentation_source=self.segmentation_source,
@@ -227,8 +227,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                         **self.occlusion_settings_test,
                         hack_length=False, 
                         # use_original_video=self.use_original_video,
-                        # include_processed_audio = self.include_processed_audio,
-                        # include_raw_audio = self.include_raw_audio,
+                        include_processed_audio = self.include_processed_audio,
+                        include_raw_audio = self.include_raw_audio,
                         # landmark_types=self.landmark_types,
                         # landmark_source=self.landmark_sources,
                         # segmentation_source=self.segmentation_source,
@@ -262,8 +262,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                     **self.occlusion_settings_test,
                     hack_length=False, 
                     # use_original_video=self.use_original_video,
-                    # include_processed_audio = self.include_processed_audio,
-                    # include_raw_audio = self.include_raw_audio,
+                    include_processed_audio = self.include_processed_audio,
+                    include_raw_audio = self.include_raw_audio,
                     # landmark_types=self.landmark_types,
                     # landmark_source=self.landmark_sources,
                     # segmentation_source=self.segmentation_source,
@@ -299,8 +299,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                     **self.occlusion_settings_val,
                     hack_length=False, 
                     # use_original_video=self.use_original_video,
-                    # include_processed_audio = self.include_processed_audio,
-                    # include_raw_audio = self.include_raw_audio,
+                    include_processed_audio = self.include_processed_audio,
+                    include_raw_audio = self.include_raw_audio,
                     # landmark_types=self.landmark_types,
                     # landmark_source=self.landmark_sources,
                     # segmentation_source=self.segmentation_source,
@@ -432,6 +432,8 @@ class LRS3Pseudo3dDataset(LRS3Dataset):
             return_global_pose = False,
             return_appearance = False,
             average_shape_decode = True,
+            include_processed_audio=False,
+            include_raw_audio=True
             ) -> None:
         super().__init__(root_path, output_dir, video_list, 
             video_metas, video_indices, audio_metas, sequence_length, audio_noise_prob, stack_order_audio, audio_normalization, 
@@ -451,7 +453,9 @@ class LRS3Pseudo3dDataset(LRS3Dataset):
             inflate_by_video_size=inflate_by_video_size, 
             include_filename=include_filename,
             temporal_split_start=temporal_split_start,
-            temporal_split_end=temporal_split_end
+            temporal_split_end=temporal_split_end, 
+            include_processed_audio=include_processed_audio,
+            include_raw_audio=include_raw_audio,
             )
         self.read_video = read_video
 
@@ -460,7 +464,9 @@ class LRS3Pseudo3dDataset(LRS3Dataset):
             self.return_global_pose = return_global_pose
             self.return_appearance = return_appearance
             self.average_shape_decode = average_shape_decode
+            # self._load_flame()
 
+            
     # def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
     #     # don't load any landmarks+
     #     return sample

@@ -157,6 +157,28 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         self.include_filename = include_filename
 
+
+    def _load_flame(self):
+        if self.reconstruction_type is not None: 
+            from munch import Munch
+            flame_cfg = Munch() 
+
+            flame_cfg.type = "flame"
+
+            flame_cfg.flame = Munch({ 
+            "flame_model_path": "/ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl" ,
+            "n_shape": 100 ,
+            # n_exp: 100
+            "n_exp": 50,
+            "flame_lmk_embedding_path": "/ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy" 
+            })
+            flame_cfg.use_texture = False
+            from gdl.models.temporal.Preprocessors import FlamePreprocessor
+            self.flame = FlamePreprocessor(flame_cfg)
+            # prep = prep.to("cuda")
+
+
+
     def _preload_videos(self): 
         # indices = np.unique(self.video_indices)
         for i in range(len(self.video_indices)):
@@ -370,6 +392,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         #     frames.append(frame)
         assert video_path.is_file(), f"Video {video_path} does not exist"
         num_read_frames = self.sequence_length
+        num_read_frames_ = self.sequence_length
         if self.read_video:
             num_read_frames = 0
             try:
@@ -418,6 +441,8 @@ class VideoDatasetBase(AbstractVideoDataset):
             sample["video"] = frames
             sample["frame_indices"] = np.arange(start_frame, start_frame + sequence_length, dtype=np.int32)
         
+        if num_read_frames_ != num_read_frames:
+            print(f"[Warning]: read {num_read_frames} frames instead of {num_read_frames_} for video {video_path}")
 
         return sample, start_frame, num_read_frames, video_fps, num_frames, num_available_frames
 
@@ -589,8 +614,12 @@ class VideoDatasetBase(AbstractVideoDataset):
     def _load_reconstructions(self, index, appearance=False): 
         reconstructions_dir = self._path_to_reconstructions(index)
         shape_pose_cam = load_reconstruction_list(reconstructions_dir / "shape_pose_cam.pkl")
+        for key in shape_pose_cam.keys():
+            shape_pose_cam[key] = np.copy(shape_pose_cam[key])
         if appearance:
             appearance = load_reconstruction_list(reconstructions_dir / "appearance.pkl")
+            for key in appearance.keys():
+                appearance[key] = np.copy(appearance[key])
         else: 
             appearance = None
         return shape_pose_cam, appearance
@@ -759,6 +788,18 @@ class VideoDatasetBase(AbstractVideoDataset):
             sample['gt_light'] = appearance['lightcode']
             if 'detailcode' in appearance:
                 sample['gt_detail'] = appearance['detailcode']
+
+        if hasattr(self, 'flame') and self.flame is not None:
+            flame_sample = {} 
+            flame_sample['gt_shape'] = torch.tensor(shape).unsqueeze(0)
+            flame_sample['gt_exp'] = torch.tensor(sample["gt_exp"]).unsqueeze(0)
+            flame_sample['gt_jaw'] = torch.tensor(sample["gt_jaw"]).unsqueeze(0)
+            flame_sample = self.flame(flame_sample, "")
+            # for key in flame_sample.keys():
+            #     sample[key] = torch.zeros_like(flame_sample[key]).numpy()[0]
+            for key in flame_sample.keys():
+                sample[key] = flame_sample[key].detach().clone().contiguous().numpy()[0]
+        
         return sample
 
 

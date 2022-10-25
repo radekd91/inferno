@@ -57,6 +57,7 @@ sampler: uniform
 split: "original"
 
 read_video: False
+# read_video: True
 # reconstruction_type: spectre
 reconstruction_type: emoca
 return_global_pose: False

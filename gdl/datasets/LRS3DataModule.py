@@ -648,7 +648,9 @@ class LRS3DataModule(FaceVideoDataModule):
 
     def train_dataloader(self):
         sampler = self.train_sampler()
-        dl =  torch.utils.data.DataLoader(self.training_set, shuffle=sampler is None, num_workers=self.num_workers, pin_memory=True,
+        dl =  torch.utils.data.DataLoader(self.training_set, shuffle=sampler is None, num_workers=self.num_workers, 
+                        pin_memory=True,
+                        # pin_memory=False,
                         batch_size=self.batch_size_train, drop_last=self.drop_last, sampler=sampler, 
                         collate_fn=robust_collate)
         return dl

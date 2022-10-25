@@ -188,6 +188,7 @@ class TalkingHeadBase(pl.LightningModule):
             if self.device != self.preprocessor.device:
                 self.preprocessor.to(self.device)
             sample = self.preprocessor(sample, input_key="video", train=train, test_time=not train, **kwargs)
+        # sample = detach_dict(sample)
         return sample 
 
     def forward(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
@@ -285,3 +286,14 @@ def check_nan(sample: Dict):
     if len(nans) > 0:
         raise ValueError(f"NaN found in {nans}")
     return ok
+
+
+def detach_dict(d): 
+    for k, v in d.items():
+        if isinstance(v, torch.Tensor):
+            d[k] = v.detach()
+        elif isinstance(v, dict):
+            d[k] = detach_dict(v)
+        else: 
+            pass
+    return d

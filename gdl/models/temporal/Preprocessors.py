@@ -32,6 +32,7 @@ class FlamePreprocessor(Preprocessor):
     def test_time(self):
         return bool(self.cfg.get('test_time', True))
 
+    @torch.no_grad()
     def forward(self, batch, input_key, *args, output_prefix="gt_", test_time=False, **kwargs):
         if test_time: # if we are at test time
             if not self.test_time: # and the preprocessor is not needed for test time 
@@ -40,22 +41,30 @@ class FlamePreprocessor(Preprocessor):
         # from gdl_apps.EMOCA.utils.io import test
         B, T = batch['gt_exp'].shape[:2]
         
-        exp = batch['gt_exp'].view(B * T, -1)
+        exp = batch['gt_exp'].view(B * T, -1)[..., :self.cfg.flame.n_exp]#.contiguous()
         jaw = batch['gt_jaw'].view(B * T, -1)
-        global_pose = torch.zeros_like(jaw)        
-        pose = torch.cat([global_pose, jaw], dim=-1).contiguous()
+        global_pose = torch.zeros_like(jaw, device=jaw.device)      
+        pose = torch.cat([global_pose, jaw], dim=-1)#.contiguous()
 
+
+        # exp = torch.zeros((B * T, self.cfg.flame.n_exp))
+        # pose = torch.zeros_like((B * T, 6))
 
         if batch['gt_shape'].ndim == 3:
-            template_shape = batch['gt_shape'][:, 0 :self.cfg.flame.n_shape]
-            shape =  batch['gt_shape'][..., :self.cfg.flame.n_shape]
+            template_shape = batch['gt_shape'][:, 0 :self.cfg.flame.n_shape]#.contiguous()
+            shape =  batch['gt_shape'][..., :self.cfg.flame.n_shape]#.contiguous()
         else: 
             template_shape = batch['gt_shape'] 
-            shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).contiguous().view(B * T, -1)
+            # shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).contiguous().view(B * T, -1)
+            shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).view(B * T, -1)
+
+
+        # shape = torch.zeros((B * T, self.cfg.flame.n_exp))
+        # template_shape = torch.zeros_like(template_shape)
 
         verts, _, _ = self.flame(
-            shape_params=shape[..., :self.cfg.flame.n_shape], 
-            expression_params=exp[..., :self.cfg.flame.n_exp],
+            shape_params=shape, 
+            expression_params=exp,
             pose_params=pose
         )
 
@@ -65,8 +74,9 @@ class FlamePreprocessor(Preprocessor):
             pose_params=None
         )
 
-        batch["template"] = template_verts.contiguous().view(B, -1).detach()
-        batch[output_prefix + 'vertices'] = verts.contiguous().view(B, T, -1).detach()
+        batch["template"] = template_verts.contiguous().view(B, -1)#.detach().clone()
+        batch[output_prefix + 'vertices'] = verts.contiguous().view(B, T, -1)#.detach().clone()
+
         return batch
 
 class EmocaPreprocessor(Preprocessor): 
