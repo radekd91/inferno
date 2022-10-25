@@ -34,7 +34,7 @@ rotation_representation: aa
 
 # style_embedding: none
 
-## shapecode
+# shapecode
 style_embedding: 
 
   # use_shape: false
@@ -56,18 +56,18 @@ style_embedding:
 
 
 
-## expression
+# ## expression
 # style_embedding: 
 
-  # use_shape: false
-  # use_shape: true
+#   # use_shape: false
+#   use_shape: true
 
 #   type: emotion_linear 
 #   use_expression: true
 #   # use_expression: false
 #   n_expression: 8 # affectnet 
-# #   n_expression: 8 # ravdess
-# #   n_expression: 4 # iemocap
+#   # n_expression: 8 # ravdess
+#   # n_expression: 4 # iemocap
 # #   use_valence: true
 # #   use_arousal: true
 #   use_valence: false
@@ -77,7 +77,7 @@ style_embedding:
 #   use_bias: true
 
 
-## valence-arousal
+# # ## valence-arousal
 # style_embedding: 
 #   type: emotion_linear 
 #   # use_expression: true
@@ -94,5 +94,5 @@ style_embedding:
 
 #   use_bias: true
 
-#   use_shape: false
-#   # use_shape: true
+#   # use_shape: false
+#   use_shape: true
