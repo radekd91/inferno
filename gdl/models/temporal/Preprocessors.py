@@ -97,14 +97,15 @@ class EmocaPreprocessor(Preprocessor):
         else:
             outputs = []
             used_keys = ['verts', 'shapecode', 'expcode', 'lightcode', 'texcode', 'posecode', 'cam', 'detailcode']
+            
             for i in range(0, BT, self.max_b):
                 values_ = {}
                 for k in values.keys():
                     values_[k] = values[k][i:i+self.max_b]
                 outputs_ = self.model.decode(values_, training=False, render=self.render)
-                for key in outputs_.keys():
-                    if key not in used_keys: 
-                        del outputs_[key]
+                unused_keys = [k for k in outputs_.keys() if k not in used_keys]
+                for key in unused_keys:
+                    del outputs_[key]
                 outputs.append(outputs_)
             
             # combine into a single output
