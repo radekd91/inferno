@@ -939,6 +939,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             cfg.stage = "detail" 
             cfg.max_b = 16
             cfg.render = False
+            cfg.crash_on_invalid = False
             # cfg.render = True
             emoca = EmocaPreprocessor(cfg).to(device)
             self._emoca = emoca
@@ -957,6 +958,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             cfg.slice_off_invalid = False
             cfg.return_appearance = True
             cfg.average_shape_decode = False
+            cfg.crash_on_invalid = False
 
             # paths
             cfg.flame_model_path = "/ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl"

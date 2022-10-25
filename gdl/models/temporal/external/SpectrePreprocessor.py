@@ -53,6 +53,7 @@ class SpectrePreprocessor(Preprocessor):
 
         self.return_vis = cfg.get('return_vis', False)
         self.render = cfg.get('render', False)
+        self.crash_on_invalid = cfg.get('crash_on_invalid', True)
         self.with_global_pose = cfg.get('with_global_pose', False)
         self.return_global_pose = cfg.get('return_global_pose', False)
         self.return_appearance = cfg.get('return_appearance', False)
@@ -138,7 +139,11 @@ class SpectrePreprocessor(Preprocessor):
 
         # compute the the shapecode only from frames where landmarks are valid
         weights = batch["landmarks_validity"]["mediapipe"] / batch["landmarks_validity"]["mediapipe"].sum(axis=1, keepdims=True)
-        assert weights.isnan().any() == False, "NaN in weights"
+
+        if self.crash_on_invalid:
+            assert weights.isnan().any() == False, "NaN in weights"
+        else: 
+            print("[WARNING] NaN in weights")
         
         avg_shapecode = (weights * codedict['shape'].view(B, T, -1)).sum(axis=1, keepdims=False)
 
