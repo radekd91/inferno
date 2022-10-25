@@ -35,11 +35,15 @@ def save_segmentation_list(filename, seg_images, seg_types, seg_names):
 
 
 def load_segmentation_list(filename):
-    with open(filename, "rb") as f:
-        seg = cpkl.load(f, compression='gzip')
-        seg_types = seg[0]
-        seg_images = seg[1]
-        seg_names = seg[2]
+    try:
+        with open(filename, "rb") as f:
+            seg = cpkl.load(f, compression='gzip')
+            seg_types = seg[0]
+            seg_images = seg[1]
+            seg_names = seg[2]
+    except EOFError as e: 
+        print(f"Error loading segmentation list: {filename}")
+        raise e
     return seg_images, seg_types, seg_names
 
 
