@@ -96,12 +96,16 @@ class EmocaPreprocessor(Preprocessor):
             values = self.model.decode(values, training=False, render=self.render)
         else:
             outputs = []
-            
+            used_keys = ['verts', 'shapecode', 'expcode', 'lightcode', 'texcode', 'posecode', 'cam', 'detailcode']
             for i in range(0, BT, self.max_b):
                 values_ = {}
                 for k in values.keys():
                     values_[k] = values[k][i:i+self.max_b]
-                outputs.append(self.model.decode(values_, training=False, render=self.render))
+                outputs_ = self.model.decode(values_, training=False, render=self.render)
+                for key in outputs_.keys():
+                    if key not in used_keys: 
+                        del outputs_[key]
+                outputs.append(outputs_)
             
             # combine into a single output
             values = {}
