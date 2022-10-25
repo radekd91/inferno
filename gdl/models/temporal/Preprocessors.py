@@ -65,8 +65,8 @@ class FlamePreprocessor(Preprocessor):
             pose_params=None
         )
 
-        batch["template"] = template_verts.contiguous().view(B, -1)
-        batch[output_prefix + 'vertices'] = verts.contiguous().view(B, T, -1)
+        batch["template"] = template_verts.contiguous().view(B, -1).detach()
+        batch[output_prefix + 'vertices'] = verts.contiguous().view(B, T, -1).detach()
         return batch
 
 class EmocaPreprocessor(Preprocessor): 
