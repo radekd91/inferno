@@ -6,6 +6,69 @@ import torch.nn.functional as F
 import torch 
 
 
+class FlamePreprocessor(Preprocessor): 
+
+    def __init__(self, cfg, **kwargs):
+        super().__init__(**kwargs)
+        from gdl.models.DecaFLAME import FLAME, FLAMETex
+        self.cfg = cfg
+        self.flame = FLAME(cfg.flame)
+
+        self.flame_tex = None
+        if cfg.use_texture:
+            self.flame_tex = FLAMETex(cfg.flametex)
+
+    @property
+    def device(self):
+        return self.flame.shapedirs.device
+
+    def to(self, device):
+        self.flame = self.flame.to(device)
+        if self.flame_tex is not None:
+            self.flame_tex = self.flame_tex.to(device)
+        return self
+
+    @property
+    def test_time(self):
+        return bool(self.cfg.get('test_time', True))
+
+    def forward(self, batch, input_key, *args, output_prefix="gt_", test_time=False, **kwargs):
+        if test_time: # if we are at test time
+            if not self.test_time: # and the preprocessor is not needed for test time 
+                # just return
+                return batch
+        # from gdl_apps.EMOCA.utils.io import test
+        B, T = batch['gt_exp'].shape[:2]
+        
+        exp = batch['gt_exp'].view(B * T, -1)
+        jaw = batch['gt_jaw'].view(B * T, -1)
+        global_pose = torch.zeros_like(jaw)        
+        pose = torch.cat([global_pose, jaw], dim=-1).contiguous()
+
+
+        if batch['gt_shape'].ndim == 3:
+            template_shape = batch['gt_shape'][:, 0 :self.cfg.flame.n_shape]
+            shape =  batch['gt_shape'][..., :self.cfg.flame.n_shape]
+        else: 
+            template_shape = batch['gt_shape'] 
+            shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).contiguous().view(B * T, -1)
+
+        verts, _, _ = self.flame(
+            shape_params=shape[..., :self.cfg.flame.n_shape], 
+            expression_params=exp[..., :self.cfg.flame.n_exp],
+            pose_params=pose
+        )
+
+        template_verts, _, _ = self.flame(
+            shape_params= template_shape,
+            expression_params= torch.zeros((B, self.cfg.flame.n_exp), device=self.device, dtype=shape.dtype),
+            pose_params=None
+        )
+
+        batch["template"] = template_verts.contiguous().view(B, -1)
+        batch[output_prefix + 'vertices'] = verts.contiguous().view(B, T, -1)
+        return batch
+
 class EmocaPreprocessor(Preprocessor): 
 
     def __init__(self, cfg, **kwargs):

@@ -37,6 +37,11 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 test_condition_settings=None,
                 inflate_by_video_size=False,
                 preload_videos=False,
+                read_video=True,
+                reconstruction_type=None, 
+                return_global_pose= False,
+                return_appearance= False,
+                average_shape_decode= True,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, face_detector, 
             landmarks_from, 
@@ -53,6 +58,12 @@ class LRS3Pseudo3DDM(LRS3DataModule):
             )
         self.test_condition_source = test_condition_source or "original"
         self.test_condition_settings = test_condition_settings
+        self.read_video = read_video
+
+        self.reconstruction_type = reconstruction_type
+        self.return_global_pose = return_global_pose
+        self.return_appearance = return_appearance
+        self.average_shape_decode = average_shape_decode
 
     def setup(self, stage=None):
         train, val, test = self._get_subsets(self.split)
@@ -74,6 +85,11 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
                 # preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+                read_video=self.read_video,
+                reconstruction_type=self.reconstruction_type,
+                return_global_pose=self.return_global_pose,
+                return_appearance=self.return_appearance,
+                average_shape_decode=self.average_shape_decode,
               )
                     
         self.validation_set = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, 
@@ -91,6 +107,11 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 # preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+                read_video=self.read_video,
+                reconstruction_type=self.reconstruction_type,
+                return_global_pose=self.return_global_pose,
+                return_appearance=self.return_appearance,
+                average_shape_decode=self.average_shape_decode,
             )
 
         self.test_set_names = []
@@ -113,6 +134,11 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                     # inflate_by_video_size=self.inflate_by_video_size,
                     inflate_by_video_size=False,
                     include_filename=True,
+                    read_video=self.read_video,
+                    reconstruction_type=self.reconstruction_type,
+                    return_global_pose=self.return_global_pose,
+                    return_appearance=self.return_appearance,
+                    average_shape_decode=self.average_shape_decode,
                     )
 
             self.test_set = ConditionedVideoTestDatasetWrapper(
@@ -142,6 +168,11 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 # inflate_by_video_size=self.inflate_by_video_size,
                 inflate_by_video_size=False,
                 include_filename=True,
+                read_video=self.read_video,
+                reconstruction_type=self.reconstruction_type,
+                return_global_pose=self.return_global_pose,
+                return_appearance=self.return_appearance,
+                average_shape_decode=self.average_shape_decode,
                 )
 
 
@@ -170,6 +201,11 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 # preload_videos=self.preload_videos,
                 inflate_by_video_size=False,
                 include_filename=True,
+                read_video=self.read_video,
+                reconstruction_type=self.reconstruction_type,
+                return_global_pose=self.return_global_pose,
+                return_appearance=self.return_appearance,
+                average_shape_decode=self.average_shape_decode,
                 )
 
         self.test_set_val = ConditionedVideoTestDatasetWrapper(
@@ -202,6 +238,11 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                         # inflate_by_video_size=self.inflate_by_video_size,
                         inflate_by_video_size=False,
                         include_filename=True,
+                        read_video=self.read_video,
+                        reconstruction_type=self.reconstruction_type,
+                        return_global_pose=self.return_global_pose,
+                        return_appearance=self.return_appearance,
+                        average_shape_decode=self.average_shape_decode,
                         )
 
                 self.test_set_cond = ConditionedVideoTestDatasetWrapper(
@@ -233,6 +274,11 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                     # inflate_by_video_size=self.inflate_by_video_size,
                     inflate_by_video_size=False,
                     include_filename=True,
+                    read_video=self.read_video,
+                    reconstruction_type=self.reconstruction_type,
+                    return_global_pose=self.return_global_pose,
+                    return_appearance=self.return_appearance,
+                    average_shape_decode=self.average_shape_decode,
                     )
 
 
@@ -263,6 +309,11 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                     # preload_videos=self.preload_videos,
                     inflate_by_video_size=False,
                     include_filename=True,
+                    read_video=self.read_video,
+                    reconstruction_type=self.reconstruction_type,
+                    return_global_pose=self.return_global_pose,
+                    return_appearance=self.return_appearance,
+                    average_shape_decode=self.average_shape_decode,
                     )
 
             self.test_set_val_cond = ConditionedVideoTestDatasetWrapper(
@@ -376,6 +427,11 @@ class LRS3Pseudo3dDataset(LRS3Dataset):
             preload_videos=False, # cache all videos in memory (recommended for smaller datasets)
             inflate_by_video_size=False, 
             include_filename=False, # if True includes the filename of the video in the sample
+            read_video=True,
+            reconstruction_type=None,
+            return_global_pose = False,
+            return_appearance = False,
+            average_shape_decode = True,
             ) -> None:
         super().__init__(root_path, output_dir, video_list, 
             video_metas, video_indices, audio_metas, sequence_length, audio_noise_prob, stack_order_audio, audio_normalization, 
@@ -397,6 +453,13 @@ class LRS3Pseudo3dDataset(LRS3Dataset):
             temporal_split_start=temporal_split_start,
             temporal_split_end=temporal_split_end
             )
+        self.read_video = read_video
+
+        self.reconstruction_type = reconstruction_type
+        if self.reconstruction_type is not None:
+            self.return_global_pose = return_global_pose
+            self.return_appearance = return_appearance
+            self.average_shape_decode = average_shape_decode
 
     # def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
     #     # don't load any landmarks+

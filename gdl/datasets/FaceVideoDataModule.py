@@ -39,7 +39,7 @@ from gdl.datasets.ImageDatasetHelpers import point2bbox, bbpoint_warp
 from gdl.datasets.UnsupervisedImageDataset import UnsupervisedImageDataset
 from facenet_pytorch import InceptionResnetV1
 from collections import OrderedDict
-from gdl.datasets.IO import save_emotion, save_segmentation_list
+from gdl.datasets.IO import save_emotion, save_segmentation_list, save_reconstruction_list
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 from skimage.io import imread
@@ -1402,10 +1402,11 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     #     hkl.dump(shape_pose, f) 
                     # with open(out_file_appearance, "wb") as f:
                     #     hkl.dump(appearance, f)
-                    
-                    hkl.dump(shape_pose, out_file_shape[rec_method])
-                    hkl.dump(appearance, out_file_appearance[rec_method])
+                    # hkl.dump(shape_pose, out_file_shape[rec_method])
+                    # hkl.dump(appearance, out_file_appearance[rec_method])
 
+                    save_reconstruction_list(shape_pose, out_file_shape[rec_method])
+                    save_reconstruction_list(appearance, out_file_appearance[rec_method])
 
         print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
 

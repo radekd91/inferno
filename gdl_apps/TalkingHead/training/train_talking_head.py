@@ -154,6 +154,10 @@ def create_single_dm(cfg, data_class):
                 preload_videos = cfg.data.preload_videos,
                 test_condition_source=condition_source,
                 test_condition_settings=condition_settings,
+                read_video=cfg.data.read_video,
+                reconstruction_type=cfg.data.reconstruction_type,
+                return_appearance=cfg.data.return_appearance,
+                average_shape_decode=cfg.data.average_shape_decode,
         )
         dataset_name = "LRS3"
     else:

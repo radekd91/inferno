@@ -20,9 +20,19 @@ All rights reserved.
 
 import pickle as pkl
 import compress_pickle as cpkl
+import hickle as hkl
 from pathlib import Path
 import numpy as np
 from timeit import default_timer as timer
+
+
+def load_reconstruction_list(filename):
+    reconstructions = hkl.load(filename)
+    return reconstructions
+
+
+def save_reconstruction_list(filename, reconstructions):
+    hkl.dump(reconstructions, filename)
 
 
 def save_segmentation_list(filename, seg_images, seg_types, seg_names):

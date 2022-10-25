@@ -7,7 +7,7 @@ from pathlib import Path
 from scipy.io import wavfile 
 from python_speech_features import logfbank
 from gdl.datasets.FaceDataModuleBase import FaceDataModuleBase
-from gdl.datasets.IO import load_and_process_segmentation, process_segmentation, load_segmentation, load_segmentation_list
+from gdl.datasets.IO import load_and_process_segmentation, process_segmentation, load_segmentation, load_segmentation_list, load_reconstruction_list
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 from gdl.utils.FaceDetector import load_landmark
 import pandas as pd
@@ -66,6 +66,7 @@ class VideoDatasetBase(AbstractVideoDataset):
             include_filename=False, # if True includes the filename of the video in the sample
             align_images = True,
             use_audio=True, #if True, includes audio in the sample
+            reconstruction_type = None
         ) -> None:
         super().__init__()
         self.root_path = root_path
@@ -95,6 +96,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         self.segmentation_type = segmentation_type 
         
         self.segmentation_source = segmentation_source
+
 
         self.landmark_normalizer = KeypointNormalization() # postprocesses final landmarks to be in [-1, 1]
         self.occluder = MediaPipeFaceOccluder()
@@ -136,6 +138,13 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         self.preload_videos = preload_videos
         self.inflate_by_video_size = inflate_by_video_size
+
+        self.read_video = True
+
+        self.reconstruction_type = reconstruction_type 
+        self.return_global_pose = False
+        self.return_appearance = False
+        self.average_shape_decode = False
 
         self.video_cache = {}
         self.seg_cache = {}
@@ -214,13 +223,20 @@ class VideoDatasetBase(AbstractVideoDataset):
         sample = self._get_landmarks(index, start_frame, num_read_frames, video_fps, num_frames, sample)
 
         # 4) SEGMENTATIONS
-        sample = self._get_segmentations(index, start_frame, num_read_frames, video_fps, num_frames, sample)
+        if self.read_video:
+            sample = self._get_segmentations(index, start_frame, num_read_frames, video_fps, num_frames, sample)
 
         # 5) FACE ALIGNMENT IF ANY
-        sample = self._align_faces(index, sample)
+        if self.read_video:
+            sample = self._align_faces(index, sample)
 
-        # 6) AUGMENTATION
-        sample = self._augment_sequence_sample(index, sample)
+        # 6) GEOMETRY 
+        if self.reconstruction_type is not None:
+            sample = self._get_reconstructions(index, start_frame, num_read_frames, video_fps, num_frames, sample)
+
+        # 7) AUGMENTATION
+        if self.read_video:
+            sample = self._augment_sequence_sample(index, sample)
 
         # TO TORCH
         sample = to_torch(sample)
@@ -234,12 +250,13 @@ class VideoDatasetBase(AbstractVideoDataset):
                 else: 
                     raise ValueError(f"Unsupported audio normalization {self.audio_normalization}")
 
-        # T,H,W,C to T,C,H,W
-        sample["video"] = sample["video"].permute(0, 3, 1, 2)
-        if "video_masked" in sample.keys():
-            sample["video_masked"] = sample["video_masked"].permute(0, 3, 1, 2)
-        # sample["segmenation"] = sample["segmenation"].permute(0, 2, 1)
-        # sample["segmentation_masked"] = sample["segmentation_masked"].permute(0, 2, 1)
+        if self.read_video:
+            # T,H,W,C to T,C,H,W
+            sample["video"] = sample["video"].permute(0, 3, 1, 2)
+            if "video_masked" in sample.keys():
+                sample["video_masked"] = sample["video_masked"].permute(0, 3, 1, 2)
+            # sample["segmenation"] = sample["segmenation"].permute(0, 2, 1)
+            # sample["segmentation_masked"] = sample["segmentation_masked"].permute(0, 2, 1)
 
 
         # # normalize landmarks 
@@ -336,6 +353,11 @@ class VideoDatasetBase(AbstractVideoDataset):
                 start_frame = temporal_split_start + (self.video_sample_indices[index] * sequence_length)
             # start_frame = np.random.randint(0, num_frames - sequence_length)
 
+        sample = {}
+        if self.include_filename: 
+            sample["filename"] = str(video_path)
+            sample["fps"] = video_fps # include the fps in the sample
+
         # TODO: picking the starting frame should probably be done a bit more robustly 
         # (e.g. by ensuring the sequence has at least some valid landmarks) ... 
         # maybe the video should be skipped altogether if it can't provide that 
@@ -347,59 +369,55 @@ class VideoDatasetBase(AbstractVideoDataset):
         #     frame = imread(str(frame_path))
         #     frames.append(frame)
         assert video_path.is_file(), f"Video {video_path} does not exist"
-        num_read_frames = 0
-        try:
-            if not self.preload_videos:
-                frames = vread(video_path.as_posix())
-            else: 
-                frames = self.video_cache[video_path.as_posix()]
-            assert len(frames) == num_frames, f"Video {video_path} has {len(frames)} frames, but meta says it has {num_frames}"
-            frames = frames[start_frame:(start_frame + sequence_length)] 
-            num_read_frames = frames.shape[0]
-            if frames.shape[0] < sequence_length:
-                # pad with zeros if video shorter than sequence length
-                frames = np.concatenate([frames, np.zeros((sequence_length - frames.shape[0], frames.shape[1], frames.shape[2]), dtype=frames.dtype)])
-        except ValueError: 
-            # reader = vreader(video_path.as_posix())
-            # create an opencv video reader 
-            import cv2
-            reader = cv2.VideoCapture(video_path.as_posix())
-            fi = 0 
-            frames = []
-            while fi < start_frame:
-                fi += 1
-                # _ = next(reader) 
-                _, frame = reader.read()
-            for i in range(sequence_length):
-                # frames.append(next(reader))
-                if reader.isOpened():
-                    _, frame = reader.read()
-                    if frame is None: 
-                        # frame = np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
-                        frame = np.zeros_like(frames[0])
-                        frames.append(frame)
-                        continue
-                    num_read_frames += 1
-                    # bgr to rgb 
-                    frame = frame[:, :, ::-1]
+        num_read_frames = self.sequence_length
+        if self.read_video:
+            num_read_frames = 0
+            try:
+                if not self.preload_videos:
+                    frames = vread(video_path.as_posix())
                 else: 
-                    # if we ran out of frames, pad with black
-                    frame = np.zeros_like(frames[0])
-                frames.append(frame)
-            reader.release()
-            frames = np.stack(frames, axis=0)
-        frames = frames.astype(np.float32) / 255.0
+                    frames = self.video_cache[video_path.as_posix()]
+                assert len(frames) == num_frames, f"Video {video_path} has {len(frames)} frames, but meta says it has {num_frames}"
+                frames = frames[start_frame:(start_frame + sequence_length)] 
+                num_read_frames = frames.shape[0]
+                if frames.shape[0] < sequence_length:
+                    # pad with zeros if video shorter than sequence length
+                    frames = np.concatenate([frames, np.zeros((sequence_length - frames.shape[0], frames.shape[1], frames.shape[2]), dtype=frames.dtype)])
+            except ValueError: 
+                # reader = vreader(video_path.as_posix())
+                # create an opencv video reader 
+                import cv2
+                reader = cv2.VideoCapture(video_path.as_posix())
+                fi = 0 
+                frames = []
+                while fi < start_frame:
+                    fi += 1
+                    # _ = next(reader) 
+                    _, frame = reader.read()
+                for i in range(sequence_length):
+                    # frames.append(next(reader))
+                    if reader.isOpened():
+                        _, frame = reader.read()
+                        if frame is None: 
+                            # frame = np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
+                            frame = np.zeros_like(frames[0])
+                            frames.append(frame)
+                            continue
+                        num_read_frames += 1
+                        # bgr to rgb 
+                        frame = frame[:, :, ::-1]
+                    else: 
+                        # if we ran out of frames, pad with black
+                        frame = np.zeros_like(frames[0])
+                    frames.append(frame)
+                reader.release()
+                frames = np.stack(frames, axis=0)
+            frames = frames.astype(np.float32) / 255.0
 
-        sample = { 
-            "video": frames,
-            "frame_indices": np.arange(start_frame, start_frame + sequence_length, dtype=np.int32),
-        }
-
-
-        if self.include_filename: 
-            sample["filename"] = str(video_path)
-            sample["fps"] = video_fps # include the fps in the sample
-
+            # sample = { 
+            sample["video"] = frames
+            sample["frame_indices"] = np.arange(start_frame, start_frame + sequence_length, dtype=np.int32)
+        
 
         return sample, start_frame, num_read_frames, video_fps, num_frames, num_available_frames
 
@@ -568,6 +586,17 @@ class VideoDatasetBase(AbstractVideoDataset):
             video_path = str(self._get_video_path(index))
             return self.seg_cache[video_path]
 
+    def _load_reconstructions(self, index, appearance=False): 
+        reconstructions_dir = self._path_to_reconstructions(index)
+        shape_pose_cam = load_reconstruction_list(reconstructions_dir / "shape_pose_cam.pkl")
+        if appearance:
+            appearance = load_reconstruction_list(reconstructions_dir / "appearance.pkl")
+        else: 
+            appearance = None
+        return shape_pose_cam, appearance
+        
+    def _path_to_reconstructions(self, index): 
+        return (Path(self.output_dir) / f"reconstructions" / self.reconstruction_type /  self.video_list[self.video_indices[index]]).with_suffix("")
 
     def _get_segmentations(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
         segmentations_dir = self._path_to_segmentations(index)
@@ -698,6 +727,40 @@ class VideoDatasetBase(AbstractVideoDataset):
                 for k,v in lmk_warped.items():
                     sample["landmarks"][k][i][:,:2] = v
         return sample
+
+    def _get_reconstructions(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
+        # sequence_length = self._get_sample_length(index)
+        if self.reconstruction_type is None:
+            return sample
+        shape_pose_cam, appearance = self._load_reconstructions(index, self.return_appearance)
+        for key in shape_pose_cam.keys():
+            shape_pose_cam[key] = shape_pose_cam[key][0][start_frame:start_frame+num_read_frames]
+        if appearance is not None:
+            for key in appearance.keys():
+                appearance[key] = appearance[key][0][start_frame:start_frame+num_read_frames]
+            
+        weights = sample["landmarks_validity"]["mediapipe"] / sample["landmarks_validity"]["mediapipe"].sum(axis=0, keepdims=True)
+        assert np.isnan(weights).any() == False, "NaN in weights"
+
+        if self.average_shape_decode:
+            shape = (weights * shape_pose_cam['shape']).sum(axis=0, keepdims=False)
+            # shape = np.tile(shape, (shape_pose_cam['shape'].shape[0], 1))
+        else:
+            shape = shape_pose_cam['shape']
+
+        sample["gt_exp"] = shape_pose_cam['exp']
+        sample["gt_shape"] = shape
+        sample["gt_jaw"] = shape_pose_cam['jaw']
+        if self.return_global_pose:
+            sample["gt_global_pose"] = shape_pose_cam['global_pose']
+            sample["gt_cam"] = shape_pose_cam['cam']
+        if self.return_appearance: 
+            sample['gt_tex'] = appearance['texcode']
+            sample['gt_light'] = appearance['lightcode']
+            if 'detailcode' in appearance:
+                sample['gt_detail'] = appearance['detailcode']
+        return sample
+
 
     def _augment(self, img, seg_image, landmark, input_img_shape=None):
         # workaround to make sure each sequence is augmented the same

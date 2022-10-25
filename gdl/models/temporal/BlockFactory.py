@@ -2,7 +2,7 @@ from pathlib import Path
 from turtle import forward
 
 from gdl.models.temporal.Bases import Preprocessor
-from gdl.models.temporal.Preprocessors import EmotionRecognitionPreprocessor, EmocaPreprocessor, SpeechEmotionRecognitionPreprocessor
+from gdl.models.temporal.Preprocessors import FlamePreprocessor, EmotionRecognitionPreprocessor, EmocaPreprocessor, SpeechEmotionRecognitionPreprocessor
 from gdl.models.temporal.external.SpectrePreprocessor import SpectrePreprocessor
 from gdl.models.temporal.SequenceEncoders import *
 from gdl.models.temporal.SequenceDecoders import *
@@ -333,7 +333,9 @@ def preprocessor_from_cfg(cfg):
     if cfg.type is None or cfg.type == "none":
         return None
     elif cfg.type == "nested":
-        return NestedPreprocessor(cfg)
+        return NestedPreprocessor(cfg)    
+    elif cfg.type == "flame":
+        return FlamePreprocessor(cfg)
     elif cfg.type == "emoca":
         return EmocaPreprocessor(cfg)
     elif cfg.type == "emorec":
