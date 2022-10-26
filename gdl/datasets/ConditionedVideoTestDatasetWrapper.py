@@ -113,16 +113,26 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             sample[self.condition_prefix + "expression"] = torch.nn.functional.one_hot(torch.tensor(expression_index), len(self.exp_dict)).to(torch.float32)
             sample["condition_name"] = exp_dict[expression_index] 
         else:
-            raise NotImplementedError(f"Condition source {self.condition_source} not implemented")
+            raise NotImplementedError(f"Condition source '{self.condition_source}' not implemented")
         
-        T =  sample["video"].size(0)
+        try:
+            T =  sample["video"].size(0)
+        except KeyError:
+            try:
+                T =  sample["raw_audio"].size(0)
+            except KeyError:
+                T =  sample["gt_vertices"].size(0)
         if self.expand_temporal: 
-            if self.condition_prefix + "expression" in sample:
-                sample[self.condition_prefix +  "expression"] = sample[self.condition_prefix + "expression"][None, ...].repeat(T, 1)
-            if self.condition_prefix +  "valence" in sample:
-                sample[self.condition_prefix + "valence"] = sample[self.condition_prefix + "valence"][None, ...].repeat(T, 1)
-            if self.condition_prefix +   "arousal" in sample:
-                sample[self.condition_prefix + "arousal"] = sample[self.condition_prefix + "arousal"][None, ...].repeat(T, 1)
+            if self.condition_source in ["expression", "iemocap_expression", "ravdess_expression"]:
+                if self.condition_prefix + "expression" in sample:
+                    sample[self.condition_prefix +  "expression"] = sample[self.condition_prefix + "expression"][None, ...].repeat(T, 1)
+            elif self.condition_source == "valence_arousal":
+                if self.condition_prefix +  "valence" in sample:
+                    sample[self.condition_prefix + "valence"] = sample[self.condition_prefix + "valence"][None, ...].repeat(T, 1)
+                if self.condition_prefix +   "arousal" in sample:
+                    sample[self.condition_prefix + "arousal"] = sample[self.condition_prefix + "arousal"][None, ...].repeat(T, 1)
+            else:
+                raise NotImplementedError(f"Condition source '{self.condition_source}' not implemented")
             sample["condition_name"] =  [sample["condition_name"] ] * T
         # add video name to sample
         # sample["video_name"] = str(self.dataset.video_list[video_index])
