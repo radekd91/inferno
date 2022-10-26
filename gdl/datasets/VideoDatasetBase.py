@@ -456,7 +456,7 @@ class VideoDatasetBase(AbstractVideoDataset):
 
             # sample = { 
             sample["video"] = frames
-            
+
         sample["frame_indices"] = np.arange(start_frame, start_frame + sequence_length, dtype=np.int32)
         
         if num_read_frames_ != num_read_frames:
@@ -814,28 +814,28 @@ class VideoDatasetBase(AbstractVideoDataset):
         # if the start_frame is in the beginnning, zero out the first few frames
         if start_frame < self.invalid_cutoff: 
             diff = self.invalid_cutoff - start_frame
-            if shape_pose_cam['shape'].ndim == 3:
-                shape_pose_cam['shape'][:diff] = 0
-            for key in shape_pose_cam.keys():
-                shape_pose_cam[key][:diff] = 0
+            # if shape_pose_cam['shape'].ndim == 3:
+            #     shape_pose_cam['shape'][:diff] = 0
+            # for key in shape_pose_cam.keys():
+            #     shape_pose_cam[key][:diff] = 0
 
-            if appearance is not None:
-                for key in appearance.keys():
-                    appearance[key][:diff] = 0
+            # if appearance is not None:
+            #     for key in appearance.keys():
+            #         appearance[key][:diff] = 0
 
             sample["landmarks_validity"]["mediapipe"][:diff] = 0
 
         # if the start_frame is in the end, zero out the last few frames
         if start_frame + num_read_frames > num_frames - self.invalid_cutoff:
             diff = start_frame + num_read_frames - (num_frames - self.invalid_cutoff)
-            if shape_pose_cam['shape'].ndim == 3:
-                shape_pose_cam['shape'][-diff:] = 0
-            for key in shape_pose_cam.keys():
-                shape_pose_cam[key][-diff:] = 0
+            # if shape_pose_cam['shape'].ndim == 3:
+            #     shape_pose_cam['shape'][-diff:] = 0
+            # for key in shape_pose_cam.keys():
+            #     shape_pose_cam[key][-diff:] = 0
 
-            if appearance is not None:
-                for key in appearance.keys():
-                    appearance[key][-diff:] = 0
+            # if appearance is not None:
+            #     for key in appearance.keys():
+            #         appearance[key][-diff:] = 0
 
             sample["landmarks_validity"]["mediapipe"][-diff:] = 0
 
