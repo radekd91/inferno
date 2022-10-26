@@ -408,8 +408,8 @@ class VideoDatasetBase(AbstractVideoDataset):
         #     frame = imread(str(frame_path))
         #     frames.append(frame)
         assert video_path.is_file(), f"Video {video_path} does not exist"
-        num_read_frames = self.sequence_length
-        num_read_frames_ = self.sequence_length
+        num_read_frames = self._get_sample_length(index)
+        num_read_frames_ = self._get_sample_length(index)
         if self.read_video:
             num_read_frames = 0
             try:
