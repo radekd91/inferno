@@ -9,7 +9,7 @@ from gdl.transforms.imgaug import create_image_augmenter
 from gdl.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
 from gdl.utils.collate import robust_collate
 from torch.utils.data import DataLoader
-
+import subprocess
 
 class MEADDataModule(FaceVideoDataModule): 
 
@@ -53,6 +53,7 @@ class MEADDataModule(FaceVideoDataModule):
             landmark_types = None,
             landmark_sources=None,
             segmentation_source=None,
+            viewing_angles=None,
 
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
@@ -101,32 +102,89 @@ class MEADDataModule(FaceVideoDataModule):
         self.segmentation_source = segmentation_source or "aligned"
         self.use_original_video = False
 
+        self.viewing_angles = viewing_angles or ["front"] 
+        if isinstance( self.viewing_angles, str): 
+            self.viewing_angles = [self.viewing_angles]
+
+        self._must_include_audio = True
+    
+
     def prepare_data(self):
         # super().prepare_data()
         
         outdir = Path(self.output_dir)
+        if Path(self.metadata_path).is_file():
+            print("The dataset is already processed. Loading")
+            self._loadMeta()
+            return
+        # else:
         self._gather_data()
         self._saveMeta()
         self._loadMeta()
         # self._unpack_videos()
         # self._saveMeta()
 
+   
     def _gather_data(self, exist_ok=True):
-        print("Processing MEAD dataset (video and audio) for front angle and all emotion intensities")
+        print(f"Processing MEAD dataset (video and audio) for angles: {self.viewing_angles} and all emotion intensities")
         Path(self.output_dir).mkdir(parents=True, exist_ok=exist_ok)
 
-        print("videos...")
-        # prepare video list
-        video_list = sorted(Path(self.root_dir).rglob('**/video/front/**/**/*.mp4'))
-        self.video_list = [path.relative_to(self.root_dir) for path in video_list]
-
-        print("audios...")
-        # prepare audio list
-        audio_list = sorted(Path(self.root_dir).rglob('**/audio/**/**/*.m4a'))
-        self.audio_list = [path.relative_to(self.root_dir) for path in audio_list]
-        
-        # self._gather_video_metadata()
+        self.video_list = [] 
+        self.video_list = [] 
+        for viewing_angle in self.viewing_angles:
+            # video_list = sorted(list(Path(self.root_dir).rglob(f'**/video/{viewing_angle}/**/**/*.mp4')))
+            # find video files using bash find command (faster than python glob)
+            video_list = sorted(subprocess.check_output(f"find {self.root_dir} -wholename */{viewing_angle}/*/*/*.mp4", shell=True).decode("utf-8").splitlines())
+            video_list = [Path(path).relative_to(self.root_dir) for path in video_list]
+            
+            self.video_list += video_list
         print("Found %d video files." % len(self.video_list))
+        self._gather_video_metadata()
+
+    # ## DOESN'T work as some videos seem to not have corresponding audios :-(
+    # def _gather_data(self, exist_ok=True):
+    #     print(f"Processing MEAD dataset (video and audio) for angles: {self.viewing_angles} and all emotion intensities")
+    #     Path(self.output_dir).mkdir(parents=True, exist_ok=exist_ok)
+
+    #     # find audio files using bash find command
+    #     audio_list = sorted(subprocess.check_output(f"find {self.root_dir} -name '*.m4a'", shell=True).decode("utf-8").splitlines())
+    #     # audio_list = sorted(Path(self.root_dir).rglob('**/audio/**/**/*.m4a'))
+    #     audio_list = [Path(path).relative_to(self.root_dir) for path in audio_list]
+
+    #     # print("videos...")
+    #     # prepare video list
+    #     self.video_list = [] 
+    #     # self.audio_list = []
+    #     for viewing_angle in self.viewing_angles:
+    #         # video_list = sorted(list(Path(self.root_dir).rglob(f'**/video/{viewing_angle}/**/**/*.mp4')))
+
+    #         # find video files using bash find command
+    #         video_list = sorted(subprocess.check_output(f"find {self.root_dir} -wholename */{viewing_angle}/*/*/*.mp4", shell=True).decode("utf-8").splitlines())
+    #         video_list = [Path(path).relative_to(self.root_dir) for path in video_list]
+            
+    #         # assert len(video_list) == len(audio_list), f"Number of videos ({len(video_list)}) and audio files ({len(audio_list)}) do not match"
+            
+    #         # check the audio and video names are corresponding
+    #         audio_names = set([ Path("/".join((audio_list[ai].parts[-5],) + audio_list[ai].parts[-3:])).with_suffix('') for ai in range(len(audio_list)) ])
+    #         for vi in range(len(video_list)):
+    #             # get the name with the last two relative subfolders
+    #             video_name = Path("/".join((video_list[vi].parts[-6],) + video_list[vi].parts[-3:])).with_suffix('')
+    #             # audio_name = Path("/".join((audio_list[vi].parts[-5],) + audio_list[vi].parts[-3:])).with_suffix('')
+    #             if video_name not in audio_names:
+    #                 raise RuntimeError(f"Video {video_name} does not have corresponding audio file")
+    #             # if video_name != audio_name:
+    #             #     raise ValueError(f"Video name '{video_name} 'is not corresponding to audio name '{audio_name}'")
+
+
+    #         self.video_list += [video_list]
+    #         self.audio_list += [audio_list]
+
+    #     # print("audios...")
+    #     # prepare audio list
+        
+        
+    #     # self._gather_video_metadata()
+    #     print("Found %d video files." % len(self.video_list))
 
 
     def _filename2index(self, filename):
