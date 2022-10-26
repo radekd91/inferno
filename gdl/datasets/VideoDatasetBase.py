@@ -881,22 +881,22 @@ class VideoDatasetBase(AbstractVideoDataset):
         
         for key in emotions.keys():
             assert key not in sample.keys(), f"Key {key} already exists in sample."
-            sample['gt_' + key] = emotions[key][0][start_frame:start_frame+num_read_frames]
+            sample['gt_' + key] = emotions[key][0][start_frame:start_frame+num_read_frames].astype(np.float32)
             
             # if shorter than the sequence, pad with zeros
             if sample['gt_' + key].shape[0] < sequence_length:
-                sample['gt_' + key] = np.concatenate([sample['gt_' + key], np.zeros((sequence_length - sample['gt_' + key].shape[0], sample['gt_' + key].shape[1]))], axis=0)
+                sample['gt_' + key] = np.concatenate([sample['gt_' + key], np.zeros((sequence_length - sample['gt_' + key].shape[0], sample['gt_' + key].shape[1]))], axis=0).astype(np.float32)
 
             # emotions[key] = emotions[key][0][start_frame:start_frame+num_read_frames]
         
         if features is not None:
             for key in features.keys():
                 assert key not in sample.keys(), f"Key {key} already exists in sample."
-                sample['gt_' + key] = features[key][0][start_frame:start_frame+num_read_frames]
+                sample['gt_' + key] = features[key][0][start_frame:start_frame+num_read_frames].astype(np.float32)
 
                 # if shorter than the sequence, pad with zeros
                 if sample['gt_' + key].shape[0] < sequence_length:
-                    sample['gt_' + key] = np.concatenate([sample['gt_' + key], np.zeros((sequence_length - sample['gt_' + key].shape[0], sample['gt_' + key].shape[1]))], axis=0)
+                    sample['gt_' + key] = np.concatenate([sample['gt_' + key], np.zeros((sequence_length - sample['gt_' + key].shape[0], sample['gt_' + key].shape[1]))], axis=0).astype(np.float32)
 
             # features[key] = features[key][0][start_frame:start_frame+num_read_frames]
         return sample
