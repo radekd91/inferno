@@ -106,7 +106,7 @@ class MEADDataModule(FaceVideoDataModule):
         if isinstance( self.viewing_angles, str): 
             self.viewing_angles = [self.viewing_angles]
 
-        self._must_include_audio = True
+        self._must_include_audio = 'warn'
     
 
     def prepare_data(self):
@@ -203,6 +203,22 @@ class MEADDataModule(FaceVideoDataModule):
         num_shards = int(np.ceil( self.num_sequences / videos_per_shard))
         return num_shards
 
+    def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix=""): 
+        assert file_type in ['videos', 'videos_aligned', 'detections', 
+            "landmarks", "landmarks_original", "landmarks_aligned",
+            "segmentations", "segmentations_aligned",
+            "emotions", "reconstructions", "audio"]
+        video_file = self.video_list[sequence_id]
+        if len(method) > 0:
+            file_type += "_" + method 
+        if len(suffix) > 0:
+            file_type += suffix
+
+        suffix = Path(file_type) / video_file.stem
+        out_folder = Path(self.output_dir) / suffix
+        return out_folder
+
+
     def _process_video(self, idx, extract_audio=True, 
             restore_videos=True, 
             detect_landmarks=True, 
@@ -210,7 +226,9 @@ class MEADDataModule(FaceVideoDataModule):
             # cut_out_faces=True,
             segment_videos=True, 
             detect_aligned_landmarks=False,
-            reconstruct_faces=False,):
+            reconstruct_faces=False,
+            recognize_emotions=False,
+            ):
         if extract_audio: 
             self._extract_audio_for_video(idx)
         # if restore_videos:
@@ -237,18 +255,29 @@ class MEADDataModule(FaceVideoDataModule):
             # self._reconstruct_faces_in_sequence(idx, 
             #     reconstruction_net=self._get_reconstruction_network('deca'))
             # rec_methods = ['emoca', 'deep3dface', 'deca']
-            rec_methods = ['emoca', 'deep3dface',]
+            # rec_methods = ['emoca', 'deep3dface',]
             # rec_methods = ['emoca',]
-            for rec_method in rec_methods:
-                self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
-                                    save_obj=False, save_mat=True, save_vis=False, save_images=False,
-                                    save_video=False, rec_method=rec_method, retarget_from=None, retarget_suffix=None)
-  
+            rec_methods = ['emoca', 'spectre',]
+            # for rec_method in rec_methods:
+            #     self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
+            #                         save_obj=False, save_mat=True, save_vis=False, save_images=False,
+            #                         save_video=False, rec_method=rec_method, retarget_from=None, retarget_suffix=None)
+            self._reconstruct_faces_in_sequence_v2(
+                        idx, reconstruction_net=None, device=None,
+                        save_obj=False, save_mat=True, save_vis=False, save_images=False,
+                        save_video=False, rec_methods=rec_methods, retarget_from=None, retarget_suffix=None)
+        if recognize_emotions:
+            emo_methods = ['resnet50', ]
+            self._extract_emotion_in_sequence(idx, emo_methods=emo_methods)
 
-    def _process_shard(self, videos_per_shard, shard_idx, extract_audio=True,
-        restore_videos=True, detect_landmarks=True, segment_videos=True, 
+    def _process_shard(self, videos_per_shard, shard_idx, 
+        extract_audio=True,
+        restore_videos=True, 
+        detect_landmarks=True, 
+        segment_videos=True, 
         detect_aligned_landmarks=False,
         reconstruct_faces=False,
+        recognize_emotions=False,
     ):
         num_shards = self._get_num_shards(videos_per_shard)
         start_idx = shard_idx * videos_per_shard
@@ -272,7 +301,9 @@ class MEADDataModule(FaceVideoDataModule):
                 detect_landmarks=detect_landmarks, 
                 segment_videos=segment_videos, 
                 detect_aligned_landmarks=detect_aligned_landmarks,
-                reconstruct_faces=reconstruct_faces)
+                reconstruct_faces=reconstruct_faces, 
+                recognize_emotions=recognize_emotions,
+                )
             
         print("Done processing shard")
 
@@ -283,13 +314,19 @@ class MEADDataModule(FaceVideoDataModule):
             "emotions", "reconstructions", "audio"]
         video_file = self.video_list[sequence_id]
         if len(method) > 0:
-            file_type += "_" + method 
+            file_type += "/" + method 
         if len(suffix) > 0:
             file_type += suffix
 
-        suffix = Path(file_type) / video_file.stem
+        assert video_file.parts[1] == "video", "Unexpected path structure"
+        # suffix = Path(file_type) / video_file.stem
+        person_id = video_file.parts[0]
+        
+        suffix = Path(file_type) / person_id / "/".join(video_file.parts[2:-1]) / video_file.stem
         out_folder = Path(self.output_dir) / suffix
         return out_folder
+
+
 
 
     def _get_subsets(self, set_type=None):

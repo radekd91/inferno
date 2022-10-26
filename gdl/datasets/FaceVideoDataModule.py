@@ -127,6 +127,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
         self.preload_videos = preload_videos
         self.inflate_by_video_size = inflate_by_video_size
 
+        self._must_include_audio = False
+
     @property
     def metadata_path(self):
         return os.path.join(self.output_dir, "metadata.pkl")
@@ -1490,9 +1492,18 @@ class FaceVideoDataModule(FaceDataModuleBase):
         self.video_metas = []
         self.audio_metas = []
 
+        invalid_videos = []
+
         for vi, vid_file in enumerate(tqdm(self.video_list)):
             video_path = str( Path(self.root_dir) / vid_file)
-            vid = ffmpeg.probe(video_path)
+            try:
+                vid = ffmpeg.probe(video_path)
+            except ffmpeg._run.Error as e: 
+                print(f"The video file '{video_path}' is corrupted. Skipping it." ) 
+                self.video_metas += [None]
+                self.audio_metas += [None]
+                invalid_videos += [vi]
+                continue
             # codec_idx = [idx for idx in range(len(vid)) if vid['streams'][idx]['codec_type'] == 'video']
             codec_idx = [idx for idx in range(len(vid['streams'])) if vid['streams'][idx]['codec_type'] == 'video']
             if len(codec_idx) == 0:
@@ -1531,6 +1542,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
             if len(codec_idx) > 1:
                 raise RuntimeError("Video file has two audio streams! '%s'" % str(vid_file))
             if len(codec_idx) == 0:
+                if self._must_include_audio is True or self._must_include_audio == 'strict':
+                    raise RuntimeError("Video file has no audio streams! '%s'" % str(vid_file))
+                elif self._must_include_audio == 'warn':
+                    print("[WARNING] Video file has no audio streams! '%s'" % str(vid_file))
                 self.audio_metas += [None]
             else:
                 codec_idx = codec_idx[0]
@@ -1543,7 +1558,20 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 aud_meta["num_frames"] = int(aud_info['nb_frames'])
                 assert float(aud_info['start_time']) == 0
                 self.audio_metas += [aud_meta]
-
+        
+        for vi in sorted(invalid_videos, reverse=True):
+            del self.video_list[vi]
+            del self.video_metas[vi]
+            if self.annotation_list is not None:
+                del self.annotation_list[vi]
+    
+            if hasattr(self, "audio_metas") and self.audio_metas is not None:
+                del self.audio_metas[vi]
+        
+            if self.frame_lists is not None:
+                del self.frame_lists[vi]
+                        
+    
     def _loadMeta(self):
         if self.loaded:
             print("FaceVideoDataset already loaded.")
