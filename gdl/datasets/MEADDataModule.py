@@ -318,7 +318,10 @@ class MEADDataModule(FaceVideoDataModule):
         if len(suffix) > 0:
             file_type += suffix
 
-        assert video_file.parts[1] == "video", "Unexpected path structure"
+        if len(video_file.parts) == 6:
+            expected_values = ["video", "1", "2"] # for some reason the authors are not consistent with folder names
+            assert video_file.parts[1] inexpected_values, f"Unexpected path structure. Expected one of {expected_values}, got {video_file.parts[1]}"
+      
         # suffix = Path(file_type) / video_file.stem
         person_id = video_file.parts[0]
         
