@@ -43,7 +43,7 @@ class FlamePreprocessor(Preprocessor):
         
         exp = batch['gt_exp'].view(B * T, -1)[..., :self.cfg.flame.n_exp]#.contiguous()
         jaw = batch['gt_jaw'].view(B * T, -1)
-        global_pose = torch.zeros_like(jaw, device=jaw.device)      
+        global_pose = torch.zeros_like(jaw, device=jaw.device, dtype=jaw.dtype)      
         pose = torch.cat([global_pose, jaw], dim=-1)#.contiguous()
 
 

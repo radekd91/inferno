@@ -162,6 +162,15 @@ class VideoDatasetBase(AbstractVideoDataset):
         self.include_filename = include_filename
 
 
+    @property
+    def invalid_cutoff(self):
+        if self.reconstruction_type == "spectre": 
+            return 2 
+        if self.reconstruction_type in ["emoca", "deca"]: 
+            return 0
+        raise ValueError("Invalid reconstruction type")
+
+
     def _load_flame(self):
         if self.reconstruction_type is not None: 
             from munch import Munch
@@ -778,7 +787,8 @@ class VideoDatasetBase(AbstractVideoDataset):
         return sample
 
     def _get_reconstructions(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
-        # sequence_length = self._get_sample_length(index)
+        sequence_length = self._get_sample_length(index)
+
         if self.reconstruction_type is None:
             return sample
         shape_pose_cam, appearance = self._load_reconstructions(index, self.return_appearance)
@@ -791,23 +801,64 @@ class VideoDatasetBase(AbstractVideoDataset):
         weights = sample["landmarks_validity"]["mediapipe"] / sample["landmarks_validity"]["mediapipe"].sum(axis=0, keepdims=True)
         assert np.isnan(weights).any() == False, "NaN in weights"
 
+
+        if shape_pose_cam['exp'].shape[0] < sequence_length: # pad with zero to be the same length as the sequence
+            for key in shape_pose_cam.keys():
+                # if key != 'shape':
+                shape_pose_cam[key] = np.concatenate([shape_pose_cam[key], np.zeros((sequence_length - shape_pose_cam[key].shape[0], shape_pose_cam[key].shape[1]))], axis=0)
+            if appearance is not None:
+                for key in appearance.keys():
+                    appearance[key] = np.concatenate([appearance[key], np.zeros((sequence_length - appearance[key].shape[0], appearance[key].shape[1]))], axis=0)
+        
+        # if the start_frame is in the beginnning, zero out the first few frames
+        if start_frame < self.invalid_cutoff: 
+            diff = self.invalid_cutoff - start_frame
+            if shape_pose_cam['shape'].ndim == 3:
+                shape_pose_cam['shape'][:diff] = 0
+            for key in shape_pose_cam.keys():
+                shape_pose_cam[key][:diff] = 0
+
+            if appearance is not None:
+                for key in appearance.keys():
+                    appearance[key][:diff] = 0
+
+            sample["landmarks_validity"]["mediapipe"][:diff] = 0
+
+        # if the start_frame is in the end, zero out the last few frames
+        if start_frame + num_read_frames > num_frames - self.invalid_cutoff:
+            diff = start_frame + num_read_frames - (num_frames - self.invalid_cutoff)
+            if shape_pose_cam['shape'].ndim == 3:
+                shape_pose_cam['shape'][-diff:] = 0
+            for key in shape_pose_cam.keys():
+                shape_pose_cam[key][-diff:] = 0
+
+            if appearance is not None:
+                for key in appearance.keys():
+                    appearance[key][-diff:] = 0
+
+            sample["landmarks_validity"]["mediapipe"][-diff:] = 0
+
         if self.average_shape_decode:
-            shape = (weights * shape_pose_cam['shape']).sum(axis=0, keepdims=False)
+            shape = (weights[:shape_pose_cam['shape'].shape[0]] * shape_pose_cam['shape']).sum(axis=0, keepdims=False)
             # shape = np.tile(shape, (shape_pose_cam['shape'].shape[0], 1))
         else:
             shape = shape_pose_cam['shape']
+            if shape_pose_cam['exp'].shape[0] < sequence_length:    # pad with zero to be the same length as the sequence
+                shape_pose_cam['shape'] = np.concatenate([shape_pose_cam['shape'], np.zeros((sequence_length - shape_pose_cam['shape'].shape[0], shape_pose_cam['exp'].shape[1]))], axis=0)
+                # shape = np.concatenate([shape, np.tile(shape[-1], (sequence_length - shape.shape[0], 1))], axis=0)
 
-        sample["gt_exp"] = shape_pose_cam['exp']
-        sample["gt_shape"] = shape
-        sample["gt_jaw"] = shape_pose_cam['jaw']
+
+        sample["gt_exp"] = shape_pose_cam['exp'].astype(np.float32)
+        sample["gt_shape"] = shape.astype(np.float32)
+        sample["gt_jaw"] = shape_pose_cam['jaw'].astype(np.float32)
         if self.return_global_pose:
-            sample["gt_global_pose"] = shape_pose_cam['global_pose']
-            sample["gt_cam"] = shape_pose_cam['cam']
+            sample["gt_global_pose"] = shape_pose_cam['global_pose'].astype(np.float32)
+            sample["gt_cam"] = shape_pose_cam['cam'].astype(np.float32)
         if self.return_appearance: 
-            sample['gt_tex'] = appearance['texcode']
-            sample['gt_light'] = appearance['lightcode']
+            sample['gt_tex'] = appearance['texcode'].astype(np.float32)
+            sample['gt_light'] = appearance['lightcode'].astype(np.float32)
             if 'detailcode' in appearance:
-                sample['gt_detail'] = appearance['detailcode']
+                sample['gt_detail'] = appearance['detailcode'].astype(np.float32)
 
         if hasattr(self, 'flame') and self.flame is not None:
             flame_sample = {} 
@@ -823,20 +874,30 @@ class VideoDatasetBase(AbstractVideoDataset):
         return sample
 
     def _get_emotions(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
-        # sequence_length = self._get_sample_length(index)
+        sequence_length = self._get_sample_length(index)
         if self.emotion_type is None:
             return sample
         emotions, features = self._load_emotions(index, self.return_emotion_feature)
         
         for key in emotions.keys():
             assert key not in sample.keys(), f"Key {key} already exists in sample."
-            sample[key] = emotions[key][0][start_frame:start_frame+num_read_frames]
+            sample['gt_' + key] = emotions[key][0][start_frame:start_frame+num_read_frames]
+            
+            # if shorter than the sequence, pad with zeros
+            if sample['gt_' + key].shape[0] < sequence_length:
+                sample['gt_' + key] = np.concatenate([sample['gt_' + key], np.zeros((sequence_length - sample['gt_' + key].shape[0], sample['gt_' + key].shape[1]))], axis=0)
+
             # emotions[key] = emotions[key][0][start_frame:start_frame+num_read_frames]
         
         if features is not None:
             for key in features.keys():
                 assert key not in sample.keys(), f"Key {key} already exists in sample."
-                sample[key] = features[key][0][start_frame:start_frame+num_read_frames]
+                sample['gt_' + key] = features[key][0][start_frame:start_frame+num_read_frames]
+
+                # if shorter than the sequence, pad with zeros
+                if sample['gt_' + key].shape[0] < sequence_length:
+                    sample['gt_' + key] = np.concatenate([sample['gt_' + key], np.zeros((sequence_length - sample['gt_' + key].shape[0], sample['gt_' + key].shape[1]))], axis=0)
+
             # features[key] = features[key][0][start_frame:start_frame+num_read_frames]
         return sample
 

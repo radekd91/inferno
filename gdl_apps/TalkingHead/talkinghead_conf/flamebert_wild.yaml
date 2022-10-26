@@ -17,8 +17,8 @@ defaults:
   - model/sequence_decoder@model/sequence_decoder: flamebert_wild
   - model/output@model/output: exp_jaw
   # - model/output@model/output: vertices
-  - learning/losses: vertices
-  # - learning/losses: vertices_masked
+  # - learning/losses: vertices
+  - learning/losses: vertices_masked
   - learning/optimizer: adam
   # - learning/batching@learning/batching: default
   - learning/batching@learning/batching: fixed_length
