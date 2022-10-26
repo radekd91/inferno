@@ -35,6 +35,15 @@ def save_reconstruction_list(filename, reconstructions):
     hkl.dump(reconstructions, filename)
 
 
+def load_emotion_list(filename):
+    emotions = hkl.load(filename)
+    return emotions
+
+
+def save_emotion_list(filename, emotions):
+    hkl.dump(emotions, filename)
+
+
 def save_segmentation_list(filename, seg_images, seg_types, seg_names):
     with open(filename, "wb") as f:
         # for some reason compressed pickle can only load one object (EOF bug)

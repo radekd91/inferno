@@ -42,6 +42,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 return_global_pose= False,
                 return_appearance= False,
                 average_shape_decode= True,
+                emotion_type=None,
+                return_emotion_feature=False,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, face_detector, 
             landmarks_from, 
@@ -64,6 +66,9 @@ class LRS3Pseudo3DDM(LRS3DataModule):
         self.return_global_pose = return_global_pose
         self.return_appearance = return_appearance
         self.average_shape_decode = average_shape_decode
+
+        self.emotion_type = emotion_type
+        self.return_emotion_feature = return_emotion_feature
 
     def setup(self, stage=None):
         train, val, test = self._get_subsets(self.split)
@@ -90,6 +95,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
                 average_shape_decode=self.average_shape_decode,
+                emotion_type=self.emotion_type,
+                return_emotion_feature=self.return_emotion_feature,
               )
                     
         self.validation_set = LRS3Pseudo3dDataset(self.root_dir, self.output_dir, 
@@ -112,6 +119,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
                 average_shape_decode=self.average_shape_decode,
+                emotion_type=self.emotion_type,
+                return_emotion_feature=self.return_emotion_feature,
             )
 
         self.test_set_names = []
@@ -139,6 +148,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                     return_global_pose=self.return_global_pose,
                     return_appearance=self.return_appearance,
                     average_shape_decode=self.average_shape_decode,
+                    emotion_type=self.emotion_type,
+                    return_emotion_feature=self.return_emotion_feature,
                     )
 
             self.test_set = ConditionedVideoTestDatasetWrapper(
@@ -173,6 +184,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
                 average_shape_decode=self.average_shape_decode,
+                emotion_type=self.emotion_type,
+                return_emotion_feature=self.return_emotion_feature,
                 )
 
 
@@ -206,6 +219,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
                 average_shape_decode=self.average_shape_decode,
+                emotion_type=self.emotion_type,
+                return_emotion_feature=self.return_emotion_feature,
                 )
 
         self.test_set_val = ConditionedVideoTestDatasetWrapper(
@@ -243,6 +258,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                         return_global_pose=self.return_global_pose,
                         return_appearance=self.return_appearance,
                         average_shape_decode=self.average_shape_decode,
+                        emotion_type=self.emotion_type,
+                        return_emotion_feature=self.return_emotion_feature,
                         )
 
                 self.test_set_cond = ConditionedVideoTestDatasetWrapper(
@@ -279,6 +296,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                     return_global_pose=self.return_global_pose,
                     return_appearance=self.return_appearance,
                     average_shape_decode=self.average_shape_decode,
+                    emotion_type=self.emotion_type,
+                    return_emotion_feature=self.return_emotion_feature,
                     )
 
 
@@ -314,6 +333,8 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                     return_global_pose=self.return_global_pose,
                     return_appearance=self.return_appearance,
                     average_shape_decode=self.average_shape_decode,
+                    emotion_type=self.emotion_type,
+                    return_emotion_feature=self.return_emotion_feature,
                     )
 
             self.test_set_val_cond = ConditionedVideoTestDatasetWrapper(
@@ -433,7 +454,9 @@ class LRS3Pseudo3dDataset(LRS3Dataset):
             return_appearance = False,
             average_shape_decode = True,
             include_processed_audio=False,
-            include_raw_audio=True
+            include_raw_audio=True,
+            emotion_type=None,
+            return_emotion_feature=False,
             ) -> None:
         super().__init__(root_path, output_dir, video_list, 
             video_metas, video_indices, audio_metas, sequence_length, audio_noise_prob, stack_order_audio, audio_normalization, 
@@ -466,7 +489,11 @@ class LRS3Pseudo3dDataset(LRS3Dataset):
             self.average_shape_decode = average_shape_decode
             # self._load_flame()
 
+        self.emotion_type = emotion_type
+        self.return_emotion_feature = return_emotion_feature
             
+
+
     # def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
     #     # don't load any landmarks+
     #     return sample

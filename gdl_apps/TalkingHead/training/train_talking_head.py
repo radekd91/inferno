@@ -158,6 +158,9 @@ def create_single_dm(cfg, data_class):
                 reconstruction_type=cfg.data.get('reconstruction_type', None),
                 return_appearance=cfg.data.get('return_appearance', None),
                 average_shape_decode=cfg.data.get('average_shape_decode', None),
+
+                emotion_type=cfg.data.get('emotion_type', None),
+                return_emotion_feature=cfg.data.get('return_emotion_feature', None),
         )
         dataset_name = "LRS3"
     else:

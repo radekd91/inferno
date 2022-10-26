@@ -7,7 +7,7 @@ from pathlib import Path
 from scipy.io import wavfile 
 from python_speech_features import logfbank
 from gdl.datasets.FaceDataModuleBase import FaceDataModuleBase
-from gdl.datasets.IO import load_and_process_segmentation, process_segmentation, load_segmentation, load_segmentation_list, load_reconstruction_list
+from gdl.datasets.IO import load_and_process_segmentation, process_segmentation, load_segmentation, load_segmentation_list, load_reconstruction_list, load_emotion_list
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 from gdl.utils.FaceDetector import load_landmark
 import pandas as pd
@@ -66,7 +66,8 @@ class VideoDatasetBase(AbstractVideoDataset):
             include_filename=False, # if True includes the filename of the video in the sample
             align_images = True,
             use_audio=True, #if True, includes audio in the sample
-            reconstruction_type = None
+            reconstruction_type = None,
+            emotion_type = None,
         ) -> None:
         super().__init__()
         self.root_path = root_path
@@ -145,6 +146,9 @@ class VideoDatasetBase(AbstractVideoDataset):
         self.return_global_pose = False
         self.return_appearance = False
         self.average_shape_decode = False
+
+        self.emotion_type = emotion_type
+        self.return_emotion_feature = False
 
         self.video_cache = {}
         self.seg_cache = {}
@@ -256,7 +260,11 @@ class VideoDatasetBase(AbstractVideoDataset):
         if self.reconstruction_type is not None:
             sample = self._get_reconstructions(index, start_frame, num_read_frames, video_fps, num_frames, sample)
 
-        # 7) AUGMENTATION
+        # 7) EMOTION 
+        if self.emotion_type is not None:
+            sample = self._get_emotions(index, start_frame, num_read_frames, video_fps, num_frames, sample)
+
+        # 8) AUGMENTATION
         if self.read_video:
             sample = self._augment_sequence_sample(index, sample)
 
@@ -614,18 +622,30 @@ class VideoDatasetBase(AbstractVideoDataset):
     def _load_reconstructions(self, index, appearance=False): 
         reconstructions_dir = self._path_to_reconstructions(index)
         shape_pose_cam = load_reconstruction_list(reconstructions_dir / "shape_pose_cam.pkl")
-        for key in shape_pose_cam.keys():
-            shape_pose_cam[key] = np.copy(shape_pose_cam[key])
+        # for key in shape_pose_cam.keys():
+        #     shape_pose_cam[key] = np.copy(shape_pose_cam[key])
         if appearance:
             appearance = load_reconstruction_list(reconstructions_dir / "appearance.pkl")
-            for key in appearance.keys():
-                appearance[key] = np.copy(appearance[key])
+            # for key in appearance.keys():
+            #     appearance[key] = np.copy(appearance[key])
         else: 
             appearance = None
         return shape_pose_cam, appearance
+
+    def _load_emotions(self, index, features=False): 
+        emotions_dir = self._path_to_emotions(index)
+        emotions = load_emotion_list(emotions_dir / "emotions.pkl")
+        if features:
+            features = load_reconstruction_list(reconstructions_dir / "features.pkl")
+        else: 
+            features = None
+        return emotions, features
         
     def _path_to_reconstructions(self, index): 
         return (Path(self.output_dir) / f"reconstructions" / self.reconstruction_type /  self.video_list[self.video_indices[index]]).with_suffix("")
+
+    def _path_to_emotions(self, index): 
+        return (Path(self.output_dir) / f"emotions" / self.emotion_type /  self.video_list[self.video_indices[index]]).with_suffix("")
 
     def _get_segmentations(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
         segmentations_dir = self._path_to_segmentations(index)
@@ -800,6 +820,24 @@ class VideoDatasetBase(AbstractVideoDataset):
             for key in flame_sample.keys():
                 sample[key] = flame_sample[key].detach().clone().contiguous().numpy()[0]
         
+        return sample
+
+    def _get_emotions(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
+        # sequence_length = self._get_sample_length(index)
+        if self.emotion_type is None:
+            return sample
+        emotions, features = self._load_emotions(index, self.return_emotion_feature)
+        
+        for key in emotions.keys():
+            assert key not in sample.keys(), f"Key {key} already exists in sample."
+            sample[key] = emotions[key][0][start_frame:start_frame+num_read_frames]
+            # emotions[key] = emotions[key][0][start_frame:start_frame+num_read_frames]
+        
+        if features is not None:
+            for key in features.keys():
+                assert key not in sample.keys(), f"Key {key} already exists in sample."
+                sample[key] = features[key][0][start_frame:start_frame+num_read_frames]
+            # features[key] = features[key][0][start_frame:start_frame+num_read_frames]
         return sample
 
 

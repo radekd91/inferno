@@ -63,3 +63,7 @@ reconstruction_type: spectre
 return_global_pose: False
 return_appearance: False
 average_shape_decode: True
+
+
+emotion_type: resnet50
+return_emotion_feature: False
