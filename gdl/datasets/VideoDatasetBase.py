@@ -456,7 +456,8 @@ class VideoDatasetBase(AbstractVideoDataset):
 
             # sample = { 
             sample["video"] = frames
-            sample["frame_indices"] = np.arange(start_frame, start_frame + sequence_length, dtype=np.int32)
+            
+        sample["frame_indices"] = np.arange(start_frame, start_frame + sequence_length, dtype=np.int32)
         
         if num_read_frames_ != num_read_frames:
             print(f"[Warning]: read {num_read_frames} frames instead of {num_read_frames_} for video {video_path}")
