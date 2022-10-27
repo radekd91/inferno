@@ -357,7 +357,8 @@ class MEADDataModule(FaceVideoDataModule):
         out_folder = Path(self.output_dir) / suffix
         return out_folder
 
-
+    def _video_identity(self, index): 
+        return self.video_list[index].parts[0]
 
 
     def _get_subsets(self, set_type=None):
@@ -388,6 +389,54 @@ class MEADDataModule(FaceVideoDataModule):
             training = indices[:num_train] 
             validation = indices[num_train:(num_train + num_val)]
             test = indices[(num_train + num_val):]
+            return training, validation, test
+        elif "random_by_identity" in set_type:
+            # pretrain_02d_02d, such as pretrain_80_20 
+            res = set_type.split("_")
+            train = float(res[-2])
+            val = float(res[-1])
+            train = train / (train + val)
+            val = 1 - train
+            test_ = 1 - train_ - val_
+            indices = np.arange(len(self.video_list), dtype=np.int32)
+            # get video_clips_by_identity
+            video_clips_by_identity = {}
+            video_clips_by_identity_indices = {}
+            index_counter = 0
+            for i in range(len(self.video_list)):
+                key = self._video_identity(i)
+                if key in video_clips_by_identity.keys(): 
+                    video_clips_by_identity[key] += [i]
+                else: 
+                    video_clips_by_identity[key] = [i]
+                    video_clips_by_identity_indices[key] = index_counter
+                    index_counter += 1
+            
+            import random
+            seed = 4
+            # get the list of identities
+            identities = list(video_clips_by_identity.keys())
+            random.Random(seed).shuffle(identities)
+            # identitities randomly shuffled 
+            # this determines which identities are for training and which for validation and testing
+            training = [] 
+            validation = [] 
+            test = []
+            for i, identity in enumerate(identities): 
+                # identity = identities[i] 
+                identity_videos = video_clips_by_identity[identity]
+                if i < int(train * len(identities)): 
+                    training += identity_videos
+                elif i < int((train + val) * len(identities)):
+                    validation += identity_videos
+                else: 
+                    test += identity_videos
+            training.sort() 
+            validation.sort()
+            test.sort()
+            # at this point, the identities are shuffled but per-identity videos have 
+            # consecutive indices, for training, shuffle afterwards (set shuffle to True or use a 
+            # sampler )
             return training, validation, test
         elif "temporal" in set_type:
             raise NotImplementedError("Not implemented yet")
