@@ -607,9 +607,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
             out_detection_folder = self._get_path_to_sequence_detections(sequence_id)
             detections = sorted(list(out_detection_folder.glob("*.png")))
         elif use_aligned_videos:
-            video_path = str( Path(self.output_dir) / "videos_aligned" / self.video_list[sequence_id])
+            # video_path = str( Path(self.output_dir) / "videos_aligned" / self.video_list[sequence_id])
+            video_path = self._get_path_to_aligned_videos(sequence_id)
             # detections = vreader( video_path)
-            detections = skvideo.io.FFmpegReader(video_path)
+            detections = skvideo.io.FFmpegReader(str(video_path))
             # detections = detections.astype(np.float32) / 255.
         else: 
             detections = vread( str(self.root_dir / self.video_list[sequence_id]))
@@ -1407,8 +1408,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     # hkl.dump(shape_pose, out_file_shape[rec_method])
                     # hkl.dump(appearance, out_file_appearance[rec_method])
 
-                    save_reconstruction_list(shape_pose, out_file_shape[rec_method])
-                    save_reconstruction_list(appearance, out_file_appearance[rec_method])
+                    save_reconstruction_list(out_file_shape[rec_method], shape_pose)
+                    save_reconstruction_list(out_file_appearance[rec_method], appearance)
 
         print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
 

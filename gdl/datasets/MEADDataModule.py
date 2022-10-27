@@ -124,6 +124,31 @@ class MEADDataModule(FaceVideoDataModule):
         # self._unpack_videos()
         # self._saveMeta()
 
+
+    def get_single_video_dataset(self, i):
+        dataset = MEADDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+                [i], 
+                self.audio_metas, 
+                # self.sequence_length_test, 
+                "all", 
+                image_size=self.image_size, 
+                # **self.occlusion_settings_test,
+                hack_length=False, 
+                use_original_video=self.use_original_video,
+                include_processed_audio = self.include_processed_audio,
+                include_raw_audio = self.include_raw_audio,
+                # landmark_types=self.landmark_types,
+                landmark_types="mediapipe",
+                # landmark_source=self.landmark_sources,
+                landmark_source="original",
+                segmentation_source=self.segmentation_source,
+                # temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                # temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
+                preload_videos=self.preload_videos,
+                inflate_by_video_size=False,
+                )
+        return dataset
+
    
     def _gather_data(self, exist_ok=True):
         print(f"Processing MEAD dataset (video and audio) for angles: {self.viewing_angles} and all emotion intensities")
@@ -290,6 +315,9 @@ class MEADDataModule(FaceVideoDataModule):
         np.random.shuffle(idxs)
 
         if detect_aligned_landmarks: 
+            assert not detect_landmarks, \
+                "Cannot detect landmarks for aligned videos and original videos at the same time"  +\
+                " since this requries instantiation of a new face detector."
             self.face_detector_type = 'fan'
             self._instantiate_detector(overwrite=True)
 
@@ -534,7 +562,7 @@ class MEADDataset(VideoDatasetBase):
         for lti, landmark_type in enumerate(self.landmark_types):
             landmark_source = self.landmark_source[lti]
             # landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}" / landmark_type /  self.video_list[self.video_indices[index]]).with_suffix("")
-            landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}_{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
+            landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}/{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
             landmarks = []
             if landmark_source == "original":
                 # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{landmark_source}.pkl")  
@@ -611,10 +639,37 @@ class MEADDataset(VideoDatasetBase):
         sample["landmarks_validity"] = landmark_validity_dict
         return sample
 
+    def _get_video_path(self, index):
+        if self.use_original_video:
+            video_path = self.root_path / self.video_list[self.video_indices[index]]
+        else: 
+            path_prefix = Path(self.output_dir) / "videos_aligned"  
+            parts = self.video_list[self.video_indices[index]].parts
+            video_part = parts[1] 
+            expected_values = ["video", "1", "2"]
+            assert video_part in expected_values, f"Expected video part to be one of {expected_values}, but got '{video_part}'"
+            video_path = path_prefix / parts[0] / "/".join(parts[2:])
+        return video_path
+
+    def _get_audio_path(self, index):
+        path_prefix = Path(self.output_dir) / "audio"  
+        parts = self.video_list[self.video_indices[index]].parts
+        video_part = parts[1] 
+        expected_values = ["video", "1", "2"]
+        assert video_part in expected_values, f"Expected video part to be one of {expected_values}, but got '{video_part}'"
+        audio_path = path_prefix / parts[0] / "/".join(parts[2:])
+        audio_path = audio_path.with_suffix(".wav")
+        return audio_path
+
 
     def _path_to_segmentations(self, index): 
-        return (Path(self.output_dir) / f"segmentations_{self.segmentation_source}/{self.segmentation_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
-
+        parts = self.video_list[self.video_indices[index]].parts
+        video_part = parts[1] 
+        expected_values = ["video", "1", "2"]
+        assert video_part in expected_values, f"Expected video part to be one of {expected_values}, but got '{video_part}'"
+        path_prefix = Path(self.output_dir) / f"segmentations_{self.segmentation_source}" / self.segmentation_type
+        seg_path = path_prefix / parts[0] / "/".join(parts[2:])
+        return (path_prefix / seg_path).with_suffix("")
 
 
 

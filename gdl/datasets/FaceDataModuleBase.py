@@ -27,7 +27,7 @@ import pytorch_lightning as pl
 import torch
 from PIL import Image
 from skimage.io import imread, imsave
-# import skvideo.io
+from skvideo.io import FFmpegReader
 from torch.utils.data import DataLoader
 from torchvision.transforms import Resize, Compose, Normalize
 from tqdm import tqdm

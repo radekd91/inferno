@@ -226,20 +226,20 @@ class VideoDatasetBase(AbstractVideoDataset):
         # max_attempts = 10
         max_attempts = 50
         for i in range(max_attempts):
-            try: 
+            # try: 
                 return self._getitem(index)
-            except AssertionError as e:
-                if not hasattr(self, "num_total_failed_attempts"):
-                    self.num_total_failed_attempts = 0
-                old_index = index
-                index = np.random.randint(0, self.__len__())
-                tb = traceback.format_exc()
-                self.num_total_failed_attempts += 1
-                if self.num_total_failed_attempts % 50 == 0:
-                    print(f"[ERROR] AssertionError in {self.__class__.__name__} dataset while retrieving sample {old_index}, retrying with new index {index}")
-                    print(f"In total, there has been {self.num_total_failed_attempts} failed attempts. This number should be very small. If it's not, check the data.")
-                    print("See the exception message for more details.")
-                    print(tb)
+            # except AssertionError as e:
+            #     if not hasattr(self, "num_total_failed_attempts"):
+            #         self.num_total_failed_attempts = 0
+            #     old_index = index
+            #     index = np.random.randint(0, self.__len__())
+            #     tb = traceback.format_exc()
+            #     self.num_total_failed_attempts += 1
+            #     if self.num_total_failed_attempts % 50 == 0:
+            #         print(f"[ERROR] AssertionError in {self.__class__.__name__} dataset while retrieving sample {old_index}, retrying with new index {index}")
+            #         print(f"In total, there has been {self.num_total_failed_attempts} failed attempts. This number should be very small. If it's not, check the data.")
+            #         print("See the exception message for more details.")
+            #         print(tb)
         print("[ERROR] Failed to retrieve sample after {} attempts".format(max_attempts))
         raise RuntimeError("Failed to retrieve sample after {} attempts".format(max_attempts))
 
@@ -320,6 +320,10 @@ class VideoDatasetBase(AbstractVideoDataset):
         else: 
             video_path = Path(self.output_dir) / "videos_aligned" / self.video_list[self.video_indices[index]]
         return video_path
+
+    def _get_audio_path(self, index):
+        audio_path = (Path(self.output_dir) / "audio" / self.video_list[self.video_indices[index]]).with_suffix(".wav")
+        return audio_path
 
     def _get_num_frames(self, index):
         video_meta = self.video_metas[self.video_indices[index]]
@@ -465,8 +469,9 @@ class VideoDatasetBase(AbstractVideoDataset):
         return sample, start_frame, num_read_frames, video_fps, num_frames, num_available_frames
 
     def _get_audio(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
-        audio_path = (Path(self.output_dir) / "audio" / self.video_list[self.video_indices[index]]).with_suffix(".wav")
-        audio_meta = self.audio_metas[self.video_indices[index]]
+        # audio_path = (Path(self.output_dir) / "audio" / self.video_list[self.video_indices[index]]).with_suffix(".wav")
+        audio_path = self._get_audio_path(index)
+        # audio_meta = self.audio_metas[self.video_indices[index]]
             
         sequence_length = self._get_sample_length(index)
         # load the audio 
@@ -646,7 +651,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         emotions_dir = self._path_to_emotions(index)
         emotions = load_emotion_list(emotions_dir / "emotions.pkl")
         if features:
-            features = load_reconstruction_list(reconstructions_dir / "features.pkl")
+            features = load_emotion_list(emotions_dir / "features.pkl")
         else: 
             features = None
         return emotions, features
