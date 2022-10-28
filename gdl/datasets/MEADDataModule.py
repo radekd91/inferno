@@ -842,8 +842,10 @@ class MEADDataset(VideoDatasetBase):
 def main(): 
     import time
 
-    root_dir = Path("/ps/project/EmotionalFacialAnimation/data/mead/MEAD")
-    output_dir = Path("/is/cluster/work/rdanecek/data/mead/")
+    # root_dir = Path("/ps/project/EmotionalFacialAnimation/data/mead/MEAD")
+    root_dir = Path("/is/cluster/work/rdanecek/data/mead_25fps/resampled_videos")
+    # output_dir = Path("/is/cluster/work/rdanecek/data/mead/")
+    output_dir = Path("/is/cluster/work/rdanecek/data/mead_25fps/")
 
     # root_dir = Path("/ps/project/EmotionalFacialAnimation/data/lrs2/mvlrs_v1")
     # output_dir = Path("/ps/scratch/rdanecek/data/lrs2")
@@ -889,36 +891,8 @@ def main():
     # Create the dataset
     dm = MEADDataModule(
         root_dir, output_dir, processed_subfolder,
-        split="random",
+        split="specific_identity_sorted_80_20_M003",
         # split="temporal_80_10_10",
-        # split="specific_video_temporal_z0ecgTX08pI_0_1_80_10_10",  # missing audio
-        # split="specific_video_temporal_8oKLUz8phdg_1_0_80_10_10",
-        # split="specific_video_temporal_eknCAJ0ik8c_0_0_80_10_10",
-        # split="specific_video_temporal_YgJ5ZEn67tk_2_80_10_10",
-        # split="specific_video_temporal_zZrDihnANpM_4_80_10_10", 
-        # split = "specific_video_temporal_6jRVZQMKlxw_1_0_80_10_10",
-        # split = "specific_video_temporal_6jRVZQMKlxw_1_0_80_10_10",
-        # split="specific_video_temporal_T0BMVyJ1OXk_0_0_80_10_10", # missing audio
-        # split="specific_video_temporal_2T3YWtHj_Ag_0_0_80_10_10", # missing audio
-        # split="specific_video_temporal_7Eha1lreIyg_0_0_80_10_10", # missing audio
-        # split="specific_video_temporal_UHY7k99ugXc_0_2_80_10_10", # missing audio
-        # split="specific_video_temporal_e4Ylz6WgBrg_0_0_80_10_10", # missing audio
-        # split="specific_video_temporal_Px5769-CPaQ_0_0_80_10_10", # missing audio
-        # split="specific_video_temporal_HhlT8RJaQEY_0_0_80_10_10", # missing audio
-        # split="specific_video_temporal_eQZ-f9Vll3c_0_0_80_10_10", # missing audio
-        # split="specific_video_temporal_IubhiJFulKk_2_0_80_10_10", # missing audio
-        # split="specific_video_temporal_uYC1dIPHoRQ_0_0_80_10_10", # missing audio
-        # split="specific_video_temporal_20n3XeaEd1c_0_0_80_10_10", # missing audio
-        # split="specific_video_temporal_CWdm32em3xQ_0_80_10_10",
-        # split="specific_video_temporal_Px5769-CPaQ_0_0_80_10_10",  # missing audio
-        # split="specific_video_temporal_HhlT8RJaQEY_0_0_80_10_10",  # missing audio
-        # split="specific_video_temporal_uYC1dIPHoRQ_0_0_80_10_10", # missing audio
-        # split="specific_video_temporal_OfVYgE_hT88_0_0_80_10_10", # missing audio
-        # split="specific_video_temporal_lBwtMLK_qEE_1_0_80_10_10", # missing audio
-        # split="specific_video_temporal_Gq17Orwh4c4_9_1_80_10_10", # missing audio
-        # split="specific_video_temporal_-rjR4El7qzg_4_80_10_10",
-        # split="specific_video_temporal_lBwtMLK_qEE_1_0_80_10_10",
-        # split="specific_video_temporal_lBwtMLK_qEE_1_0_80_10_10",
         image_size=224, 
         scale=1.25, 
         processed_video_size=256,
@@ -933,6 +907,8 @@ def main():
         include_raw_audio = True,
         augmentation=augmenter,
         occlusion_settings_train=occlusion_settings_train,
+        landmark_types = ["mediapipe"],
+        landmark_sources=["original"],
     )
 
     # Create the dataloader

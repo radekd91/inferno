@@ -361,18 +361,20 @@ class MEADPseudo3DDM(MEADDataModule):
 
     def test_dataloader(self):
         test_dls = []
-        test_dl = super().test_dataloader()
-        if test_dl is not None:
-            if not isinstance(test_dl, list): 
-                test_dl = [test_dl]
-            test_dls += test_dl
-            self.test_set_names += ["test_cond"]
+        if hasattr(self, "test_set"):
+            test_dl = super().test_dataloader()
+            if test_dl is not None:
+                if not isinstance(test_dl, list): 
+                    test_dl = [test_dl]
+                test_dls += test_dl
+                self.test_set_names += ["test"]
 
         test_dls += [torch.utils.data.DataLoader(self.test_set_train, shuffle=False, 
                           #   num_workers=self.num_workers, 
                           num_workers=0, 
                           pin_memory=True,
-                          batch_size=self.batch_size_test, 
+                        #   batch_size=self.batch_size_test, 
+                          batch_size=1, 
                           drop_last=False,
                         #   drop_last=self.drop_last,
                           collate_fn=robust_collate
@@ -383,7 +385,8 @@ class MEADPseudo3DDM(MEADDataModule):
                           #   num_workers=self.num_workers, 
                           num_workers=0, 
                           pin_memory=True,
-                          batch_size=self.batch_size_test, 
+                        #   batch_size=self.batch_size_test, 
+                          batch_size=1,
                           drop_last=False,
                         #   drop_last=self.drop_last,
                           collate_fn=robust_collate
@@ -395,7 +398,8 @@ class MEADPseudo3DDM(MEADDataModule):
                         #   num_workers=self.num_workers, 
                           num_workers=0, 
                         pin_memory=True,
-                          batch_size=self.batch_size_test, 
+                        #   batch_size=self.batch_size_test, 
+                          batch_size=1,
                           drop_last=False,
                         #   drop_last=self.drop_last,
                           collate_fn=robust_collate
@@ -407,7 +411,8 @@ class MEADPseudo3DDM(MEADDataModule):
                             #   num_workers=self.num_workers, 
                           num_workers=0, 
                             pin_memory=True,
-                          batch_size=self.batch_size_test, 
+                        #   batch_size=self.batch_size_test, 
+                          batch_size=1,
                           drop_last=False,
                         #   drop_last=self.drop_last,
                           collate_fn=robust_collate
@@ -419,7 +424,8 @@ class MEADPseudo3DDM(MEADDataModule):
                         #   num_workers=self.num_workers, 
                           num_workers=0, 
                           pin_memory=True,
-                          batch_size=self.batch_size_test, 
+                        #   batch_size=self.batch_size_test, 
+                          batch_size=1,
                           drop_last=False,
                         #   drop_last=self.drop_last,
                           collate_fn=robust_collate

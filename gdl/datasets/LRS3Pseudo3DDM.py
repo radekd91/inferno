@@ -353,7 +353,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
             if not isinstance(test_dl, list): 
                 test_dl = [test_dl]
             test_dls += test_dl
-            self.test_set_names += ["test_cond"]
+            self.test_set_names += ["test"]
 
         test_dls += [torch.utils.data.DataLoader(self.test_set_train, shuffle=False, 
                           #   num_workers=self.num_workers, 
