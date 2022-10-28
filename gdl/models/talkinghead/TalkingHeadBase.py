@@ -220,7 +220,8 @@ class TalkingHeadBase(pl.LightningModule):
         check_nan(sample)
         return sample
 
-
+    def _compute_loss(self, sample, loss_name, loss_cfg): 
+        raise NotImplementedError("Please implement this method in your child class")
 
     def compute_loss(self, sample): 
         """
