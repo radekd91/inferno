@@ -10,6 +10,7 @@ from gdl.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
 from gdl.utils.collate import robust_collate
 from torch.utils.data import DataLoader
 import subprocess
+import random as rand
 
 class MEADDataModule(FaceVideoDataModule): 
 
@@ -360,12 +361,149 @@ class MEADDataModule(FaceVideoDataModule):
     def _video_identity(self, index): 
         return self.video_list[index].parts[0]
 
+    def _video_expression(self, index): 
+        return self.video_list[index].parts[3]
+
+    def _expression_intensity(self, index): 
+        return self.video_list[index].parts[4]
+
+    def _get_expression_intensity_map(self, indices):
+        expression_intensity2idx = {}
+        for i in indices:
+            expression = self._video_expression(i)
+            intensity = self._expression_intensity(i)
+            key = (expression, intensity)
+            if key not in expression_intensity2idx:
+                expression_intensity2idx[key] = []
+            expression_intensity2idx[key] += [i]
+        return expression_intensity2idx
+
+    def _get_identity_expression_intensity_map(self, indices):
+        identity_expression_intensity2idx = {}
+        for i in indices:
+            identity = self._video_identity(i)
+            expression = self._video_expression(i)
+            intensity = self._expression_intensity(i)
+            key = (identity, expression, intensity)
+            if key not in identity_expression_intensity2idx:
+                identity_expression_intensity2idx[key] = []
+            identity_expression_intensity2idx[key] += [i]
+        return identity_expression_intensity2idx
 
     def _get_subsets(self, set_type=None):
         set_type = set_type or "unknown"
         self.temporal_split = None
         if "specific_video_temporal" in set_type:
             raise NotImplementedError("Not implemented yet")
+        elif "specific_identity" in set_type: 
+            res = set_type.split("_")
+            random_or_sorted = res[2] 
+            assert random_or_sorted in ["random", "sorted"], f"Unknown random_or_sorted value: '{random_or_sorted}'"
+            identity = res[-1]
+            train = float(res[-3])
+            val = float(res[-2])
+            train = train / (train + val)
+            val = 1 - train
+            indices = [i for i in range(len(self.video_list)) if self._video_identity(i) == identity]
+
+            # expression_list = ['angry', 'contempt,' 'disgusted', 'fear', 'happy', 'neutral', 'sad', 'surprised']
+            # intensity_list = ['level_1', 'level_2', 'level_3']
+
+            expression_intensity2idx = self._get_expression_intensity_map(indices)
+
+            # expression_intensity2filename = {}
+            # for key, idxs in expression_intensity2idx.items():
+            #     expression_intensity2filename[key] = [self.video_list[i] for i in idxs]
+
+            training = []
+            validation = []
+            for k, idxs in expression_intensity2idx.items():
+                if random_or_sorted == "sorted":
+                    idxs = sorted(idxs)
+                elif random_or_sorted == "random":
+                    rand.shuffle(idxs)
+                else:
+                    raise ValueError(f"Unknown random_or_sorted value: '{random_or_sorted}'")
+                num_train = int(len(idxs) * train)
+                training += idxs[:num_train]
+                validation += idxs[num_train:]
+
+            return training, validation, []
+        elif "random_by_identity" in set_type:
+            # pretrain_02d_02d, such as pretrain_80_20 
+            res = set_type.split("_")
+            random_or_sorted = res[3] 
+            assert random_or_sorted in ["random", "sorted"], f"Unknown random_or_sorted value: '{random_or_sorted}'"
+            train = float(res[-3])
+            val = float(res[-2])
+            test = float(res[-1])
+            train_ = train / (train + val + test)
+            val_ = val / (train + val + test)
+            test_ = 1 - train_ - val_
+            indices = np.arange(len(self.video_list), dtype=np.int32)
+            # get video_clips_by_identity
+            video_clips_by_identity = {}
+            video_clips_by_identity_indices = {}
+            index_counter = 0
+
+            id_expression_intensity2idx = self._get_identity_expression_intensity_map(indices)
+
+            id_expression_intensity2filename = {}
+            for key, idxs in id_expression_intensity2idx.items():
+                id_expression_intensity2filename[key] = [self.video_list[i] for i in idxs]
+
+            for i in range(len(self.video_list)):
+                key = self._video_identity(i)
+                if key in video_clips_by_identity.keys(): 
+                    video_clips_by_identity[key] += [i]
+                else: 
+                    video_clips_by_identity[key] = [i]
+                    video_clips_by_identity_indices[key] = index_counter
+                    index_counter += 1
+            
+            training = []
+            validation = []
+            testing = []
+            for k, idxs in id_expression_intensity2idx.items():
+                if random_or_sorted == "sorted":
+                    idxs = sorted(idxs)
+                elif random_or_sorted == "random":
+                    rand.shuffle(idxs)
+                else:
+                    raise ValueError(f"Unknown random_or_sorted value: '{random_or_sorted}'")
+                num_train = int(len(idxs) * train_)
+                num_val = int(len(idxs) * val_)
+                training += idxs[:num_train]
+                validation += idxs[num_train:num_train+num_val]
+                testing += idxs[num_train+num_val:]
+            return training, validation, testing
+
+            # import random
+            # seed = 4
+            # # get the list of identities
+            # identities = list(video_clips_by_identity.keys())
+            # random.Random(seed).shuffle(identities)
+            # # identitities randomly shuffled 
+            # # this determines which identities are for training and which for validation and testing
+            # training = [] 
+            # validation = [] 
+            # test = []
+            # for i, identity in enumerate(identities): 
+            #     # identity = identities[i] 
+            #     identity_videos = video_clips_by_identity[identity]
+            #     if i < int(train_ * len(identities)): 
+            #         training += identity_videos
+            #     elif i < int((train_ + val_) * len(identities)):
+            #         validation += identity_videos
+            #     else: 
+            #         test += identity_videos
+            # training.sort() 
+            # validation.sort()
+            # test.sort()
+            # # at this point, the identities are shuffled but per-identity videos have 
+            # # consecutive indices, for training, shuffle afterwards (set shuffle to True or use a 
+            # # sampler )
+            # return training, validation, test
         elif "random" in set_type:
             res = set_type.split("_")
             assert len(res) >= 3, "Specify the train/val/test split by 'random_train_val_test' to the set_type"
@@ -389,54 +527,6 @@ class MEADDataModule(FaceVideoDataModule):
             training = indices[:num_train] 
             validation = indices[num_train:(num_train + num_val)]
             test = indices[(num_train + num_val):]
-            return training, validation, test
-        elif "random_by_identity" in set_type:
-            # pretrain_02d_02d, such as pretrain_80_20 
-            res = set_type.split("_")
-            train = float(res[-2])
-            val = float(res[-1])
-            train = train / (train + val)
-            val = 1 - train
-            test_ = 1 - train_ - val_
-            indices = np.arange(len(self.video_list), dtype=np.int32)
-            # get video_clips_by_identity
-            video_clips_by_identity = {}
-            video_clips_by_identity_indices = {}
-            index_counter = 0
-            for i in range(len(self.video_list)):
-                key = self._video_identity(i)
-                if key in video_clips_by_identity.keys(): 
-                    video_clips_by_identity[key] += [i]
-                else: 
-                    video_clips_by_identity[key] = [i]
-                    video_clips_by_identity_indices[key] = index_counter
-                    index_counter += 1
-            
-            import random
-            seed = 4
-            # get the list of identities
-            identities = list(video_clips_by_identity.keys())
-            random.Random(seed).shuffle(identities)
-            # identitities randomly shuffled 
-            # this determines which identities are for training and which for validation and testing
-            training = [] 
-            validation = [] 
-            test = []
-            for i, identity in enumerate(identities): 
-                # identity = identities[i] 
-                identity_videos = video_clips_by_identity[identity]
-                if i < int(train * len(identities)): 
-                    training += identity_videos
-                elif i < int((train + val) * len(identities)):
-                    validation += identity_videos
-                else: 
-                    test += identity_videos
-            training.sort() 
-            validation.sort()
-            test.sort()
-            # at this point, the identities are shuffled but per-identity videos have 
-            # consecutive indices, for training, shuffle afterwards (set shuffle to True or use a 
-            # sampler )
             return training, validation, test
         elif "temporal" in set_type:
             raise NotImplementedError("Not implemented yet")
@@ -611,7 +701,8 @@ class MEADDataset(VideoDatasetBase):
         for lti, landmark_type in enumerate(self.landmark_types):
             landmark_source = self.landmark_source[lti]
             # landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}" / landmark_type /  self.video_list[self.video_indices[index]]).with_suffix("")
-            landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}/{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
+            # landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}/{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
+            landmarks_dir = self._path_to_landmarks(index, landmark_type, landmark_source)
             landmarks = []
             if landmark_source == "original":
                 # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{landmark_source}.pkl")  
@@ -718,8 +809,34 @@ class MEADDataset(VideoDatasetBase):
         assert video_part in expected_values, f"Expected video part to be one of {expected_values}, but got '{video_part}'"
         path_prefix = Path(self.output_dir) / f"segmentations_{self.segmentation_source}" / self.segmentation_type
         seg_path = path_prefix / parts[0] / "/".join(parts[2:])
-        return (path_prefix / seg_path).with_suffix("")
+        return seg_path.with_suffix("")
 
+    def _path_to_landmarks(self, index, landmark_type, landmark_source): 
+        parts = self.video_list[self.video_indices[index]].parts
+        video_part = parts[1] 
+        expected_values = ["video", "1", "2"]
+        assert video_part in expected_values, f"Expected video part to be one of {expected_values}, but got '{video_part}'"
+        path_prefix = Path(self.output_dir) / f"landmarks_{landmark_source}/{landmark_type}" 
+        lmk_path = path_prefix / parts[0] / "/".join(parts[2:])
+        return lmk_path.with_suffix("")
+
+    def _path_to_reconstructions(self, index): 
+        parts = self.video_list[self.video_indices[index]].parts
+        video_part = parts[1] 
+        expected_values = ["video", "1", "2"]
+        assert video_part in expected_values, f"Expected video part to be one of {expected_values}, but got '{video_part}'"
+        path_prefix = Path(self.output_dir) / f"reconstructions" / self.reconstruction_type 
+        rec_path = path_prefix / parts[0] / "/".join(parts[2:])
+        return rec_path.with_suffix("")
+
+    def _path_to_emotions(self, index): 
+        parts = self.video_list[self.video_indices[index]].parts
+        video_part = parts[1] 
+        expected_values = ["video", "1", "2"]
+        assert video_part in expected_values, f"Expected video part to be one of {expected_values}, but got '{video_part}'"
+        path_prefix = Path(self.output_dir) / f"emotions" / self.emotion_type 
+        emo_path = path_prefix / parts[0] / "/".join(parts[2:])
+        return emo_path.with_suffix("")
 
 
 def main(): 

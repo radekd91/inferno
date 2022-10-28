@@ -164,6 +164,7 @@ def create_single_dm(cfg, data_class):
                 emotion_type=cfg.data.get('emotion_type', None),
                 return_emotion_feature=cfg.data.get('return_emotion_feature', None),
         )
+
         dataset_name = "LRS3"
     elif data_class == "MEADPseudo3DDM":
         condition_source, condition_settings = get_condition_string_from_config(cfg)
@@ -200,6 +201,13 @@ def create_single_dm(cfg, data_class):
                 preload_videos = cfg.data.preload_videos,
                 test_condition_source=condition_source,
                 test_condition_settings=condition_settings,
+                read_video=cfg.data.get('read_video', True),
+                reconstruction_type=cfg.data.get('reconstruction_type', None),
+                return_appearance=cfg.data.get('return_appearance', None),
+                average_shape_decode=cfg.data.get('average_shape_decode', None),
+
+                emotion_type=cfg.data.get('emotion_type', None),
+                return_emotion_feature=cfg.data.get('return_emotion_feature', None),
         )
         dataset_name = "MEAD"
     else:

@@ -226,20 +226,20 @@ class VideoDatasetBase(AbstractVideoDataset):
         # max_attempts = 10
         max_attempts = 50
         for i in range(max_attempts):
-            # try: 
+            try: 
                 return self._getitem(index)
-            # except AssertionError as e:
-            #     if not hasattr(self, "num_total_failed_attempts"):
-            #         self.num_total_failed_attempts = 0
-            #     old_index = index
-            #     index = np.random.randint(0, self.__len__())
-            #     tb = traceback.format_exc()
-            #     self.num_total_failed_attempts += 1
-            #     if self.num_total_failed_attempts % 50 == 0:
-            #         print(f"[ERROR] AssertionError in {self.__class__.__name__} dataset while retrieving sample {old_index}, retrying with new index {index}")
-            #         print(f"In total, there has been {self.num_total_failed_attempts} failed attempts. This number should be very small. If it's not, check the data.")
-            #         print("See the exception message for more details.")
-            #         print(tb)
+            except AssertionError as e:
+                if not hasattr(self, "num_total_failed_attempts"):
+                    self.num_total_failed_attempts = 0
+                old_index = index
+                index = np.random.randint(0, self.__len__())
+                tb = traceback.format_exc()
+                self.num_total_failed_attempts += 1
+                if self.num_total_failed_attempts % 50 == 0:
+                    print(f"[ERROR] AssertionError in {self.__class__.__name__} dataset while retrieving sample {old_index}, retrying with new index {index}")
+                    print(f"In total, there has been {self.num_total_failed_attempts} failed attempts. This number should be very small. If it's not, check the data.")
+                    print("See the exception message for more details.")
+                    print(tb)
         print("[ERROR] Failed to retrieve sample after {} attempts".format(max_attempts))
         raise RuntimeError("Failed to retrieve sample after {} attempts".format(max_attempts))
 

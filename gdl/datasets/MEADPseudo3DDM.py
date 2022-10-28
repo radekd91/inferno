@@ -9,7 +9,8 @@ from gdl.datasets.ConditionedVideoTestDatasetWrapper import ConditionedVideoTest
 class MEADPseudo3DDM(MEADDataModule): 
 
     def __init__(self, root_dir, output_dir, 
-                processed_subfolder=None, face_detector='mediapipe', 
+                processed_subfolder=None, 
+                face_detector='mediapipe', 
                 # landmarks_from='sr_res',
                 landmarks_from=None,
                 face_detector_threshold=0.9, 
@@ -26,7 +27,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 occlusion_settings_train=None,
                 occlusion_settings_val=None,
                 occlusion_settings_test=None,
-                split = "original",
+                split = "random_70_15_15",
                 num_workers=4,
                 device=None,
                 augmentation=None,
@@ -36,6 +37,11 @@ class MEADPseudo3DDM(MEADDataModule):
                 test_condition_source=None,
                 test_condition_settings=None,
                 inflate_by_video_size=False,
+
+                landmark_types = None,
+                landmark_sources = None,
+                segmentation_source = None,
+
                 preload_videos=False,
                 read_video=True,
                 reconstruction_type=None, 
@@ -48,15 +54,22 @@ class MEADPseudo3DDM(MEADDataModule):
         super().__init__(root_dir, output_dir, processed_subfolder, face_detector, 
             landmarks_from, 
             face_detector_threshold, 
-            image_size, scale, batch_size_train, batch_size_val, batch_size_test, 
+            image_size, scale, 
+            batch_size_train, batch_size_val, batch_size_test, 
             sequence_length_train, sequence_length_val, sequence_length_test, 
             occlusion_settings_train, occlusion_settings_val, occlusion_settings_test, 
-            split, 
-            num_workers, device, augmentation, drop_last, 
+            split=split, 
+            num_workers=num_workers, 
+            device=device, 
+            augmentation=augmentation, 
+            drop_last=drop_last, 
             include_processed_audio=include_processed_audio,
             include_raw_audio=include_raw_audio,
             inflate_by_video_size=inflate_by_video_size,
-            preload_videos=preload_videos
+            preload_videos=preload_videos, 
+            landmark_types=landmark_types,
+            landmark_sources=landmark_sources,
+            segmentation_source=segmentation_source,
             )
         self.test_condition_source = test_condition_source or "original"
         self.test_condition_settings = test_condition_settings
@@ -83,8 +96,8 @@ class MEADPseudo3DDM(MEADDataModule):
                 # use_original_video=self.use_original_video,
                 include_processed_audio = self.include_processed_audio,
                 include_raw_audio = self.include_raw_audio,
-                # landmark_types=self.landmark_types,
-                # landmark_source=self.landmark_sources,
+                landmark_types=self.landmark_types,
+                landmark_source=self.landmark_sources,
                 # segmentation_source=self.segmentation_source,
                 temporal_split_start= 0 if self.temporal_split is not None else None,
                 temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
@@ -107,8 +120,8 @@ class MEADPseudo3DDM(MEADDataModule):
                 # use_original_video=self.use_original_video,
                 include_processed_audio = self.include_processed_audio,
                 include_raw_audio = self.include_raw_audio,
-                # landmark_types=self.landmark_types,
-                # landmark_source=self.landmark_sources,
+                landmark_types=self.landmark_types,
+                landmark_source=self.landmark_sources,
                 # segmentation_source=self.segmentation_source,
                 temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
                 temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
@@ -134,8 +147,8 @@ class MEADPseudo3DDM(MEADDataModule):
                     # use_original_video=self.use_original_video,
                     include_processed_audio = self.include_processed_audio,
                     include_raw_audio = self.include_raw_audio,
-                    # landmark_types=self.landmark_types,
-                    # landmark_source=self.landmark_sources,
+                    landmark_types=self.landmark_types,
+                    landmark_source=self.landmark_sources,
                     # segmentation_source=self.segmentation_source,
                     temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                     temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
@@ -169,8 +182,8 @@ class MEADPseudo3DDM(MEADDataModule):
                 # use_original_video=self.use_original_video,
                 include_processed_audio = self.include_processed_audio,
                 include_raw_audio = self.include_raw_audio,
-                # landmark_types=self.landmark_types,
-                # landmark_source=self.landmark_sources,
+                landmark_types=self.landmark_types,
+                landmark_source=self.landmark_sources,
                 # segmentation_source=self.segmentation_source,
 
                 temporal_split_start= 0 if self.temporal_split is not None else None,
@@ -206,8 +219,8 @@ class MEADPseudo3DDM(MEADDataModule):
                 # use_original_video=self.use_original_video,
                 include_processed_audio = self.include_processed_audio,
                 include_raw_audio = self.include_raw_audio,
-                # landmark_types=self.landmark_types,
-                # landmark_source=self.landmark_sources,
+                landmark_types=self.landmark_types,
+                landmark_source=self.landmark_sources,
                 # segmentation_source=self.segmentation_source,
                 temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
                 temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
@@ -244,8 +257,8 @@ class MEADPseudo3DDM(MEADDataModule):
                         # use_original_video=self.use_original_video,
                         include_processed_audio = self.include_processed_audio,
                         include_raw_audio = self.include_raw_audio,
-                        # landmark_types=self.landmark_types,
-                        # landmark_source=self.landmark_sources,
+                        landmark_types=self.landmark_types,
+                        landmark_source=self.landmark_sources,
                         # segmentation_source=self.segmentation_source,
                         temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                         temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
@@ -281,8 +294,8 @@ class MEADPseudo3DDM(MEADDataModule):
                     # use_original_video=self.use_original_video,
                     include_processed_audio = self.include_processed_audio,
                     include_raw_audio = self.include_raw_audio,
-                    # landmark_types=self.landmark_types,
-                    # landmark_source=self.landmark_sources,
+                    landmark_types=self.landmark_types,
+                    landmark_source=self.landmark_sources,
                     # segmentation_source=self.segmentation_source,
 
                     temporal_split_start= 0 if self.temporal_split is not None else None,
@@ -320,8 +333,8 @@ class MEADPseudo3DDM(MEADDataModule):
                     # use_original_video=self.use_original_video,
                     include_processed_audio = self.include_processed_audio,
                     include_raw_audio = self.include_raw_audio,
-                    # landmark_types=self.landmark_types,
-                    # landmark_source=self.landmark_sources,
+                    landmark_types=self.landmark_types,
+                    landmark_source=self.landmark_sources,
                     # segmentation_source=self.segmentation_source,
                     temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
                     temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
@@ -522,67 +535,3 @@ class MEADPseudo3dDataset(MEADDataset):
 
      
 
-
-def main(): 
-    import time
-    from pathlib import Path
-
-    root_dir = Path("/ps/project/EmotionalFacialAnimation/data/lrs3/extracted")
-    output_dir = Path("/is/cluster/work/rdanecek/data/lrs3/")
-
-    # root_dir = Path("/ps/project/EmotionalFacialAnimation/data/lrs2/mvlrs_v1")
-    # output_dir = Path("/ps/scratch/rdanecek/data/lrs2")
-
-    # processed_subfolder = "processed"
-    processed_subfolder = "processed2"
-
-    seq_len = 50
-    # seq_len = 16
-    # bs = 100
-    bs = 1
-
-    augmenter = None
-
-        # Create the dataset
-    dm = LRS3Pseudo3DDM(
-        root_dir, output_dir, processed_subfolder,
-        split="original",
-        image_size=224, 
-        scale=1.25, 
-        # processed_video_size=256,
-        batch_size_train=bs,
-        batch_size_val=bs,
-        batch_size_test=bs,
-        sequence_length_train=seq_len,
-        sequence_length_val=seq_len,
-        sequence_length_test=seq_len,
-        num_workers=8,            
-        # include_processed_audio = True,
-        # include_raw_audio = True,
-        augmentation=augmenter,
-        occlusion_settings_train=None,
-    )
-
-    # Create the dataloader
-    dm.prepare_data() 
-    dm.setup() 
-
-    # dl = dm.train_dataloader()
-    # # dl = dm.val_dataloader()
-    dataset = dm.training_set
-    print( f"Dataset length: {len(dataset)}")
-    # dataset = dm.validation_set
-    indices = np.arange(len(dataset), dtype=np.int32)
-    np.random.shuffle(indices)
-
-    for i in range(len(indices)): 
-        start = time.time()
-        sample = dataset[indices[i]]
-        end = time.time()
-        print(f"Loading sample {i} took {end-start:.3f} s")
-        # dataset.visualize_sample(sample)
-
-
-
-if __name__ == "__main__": 
-    main()
