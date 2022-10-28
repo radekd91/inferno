@@ -26,6 +26,8 @@ from gdl_apps.TalkingHead.training.training_pass import( single_stage_training_p
 from gdl.models.talkinghead.FaceFormer import FaceFormer
 from gdl.datasets.FaceformerVocasetDM import FaceformerVocasetDM
 from gdl.datasets.CelebVHQPseudo3DDM import CelebVHQPseudo3DDM
+from gdl.datasets.MEADPseudo3DDM import MEADPseudo3DDM
+
 
 from omegaconf import DictConfig, OmegaConf
 import sys
@@ -163,6 +165,43 @@ def create_single_dm(cfg, data_class):
                 return_emotion_feature=cfg.data.get('return_emotion_feature', None),
         )
         dataset_name = "LRS3"
+    elif data_class == "MEADPseudo3DDM":
+        condition_source, condition_settings = get_condition_string_from_config(cfg)
+        dm = MEADPseudo3DDM(
+                cfg.data.input_dir, 
+                cfg.data.output_dir, 
+                processed_subfolder=cfg.data.processed_subfolder, 
+                face_detector=cfg.data.face_detector,
+                landmarks_from=cfg.data.get('landmarks_from', None),
+                face_detector_threshold=cfg.data.face_detector_threshold, 
+                image_size=cfg.data.image_size, 
+                scale=cfg.data.scale, 
+                batch_size_train=cfg.learning.batching.batch_size_train,
+                batch_size_val=cfg.learning.batching.batch_size_val, 
+                batch_size_test=cfg.learning.batching.batch_size_test, 
+                sequence_length_train=cfg.learning.batching.sequence_length_train, 
+                sequence_length_val=cfg.learning.batching.sequence_length_val, 
+                sequence_length_test=cfg.learning.batching.sequence_length_test, 
+                # occlusion_settings_train = OmegaConf.to_container(cfg.data.occlusion_settings_train), 
+                # occlusion_settings_val = OmegaConf.to_container(cfg.data.occlusion_settings_val), 
+                # occlusion_settings_test = OmegaConf.to_container(cfg.data.occlusion_settings_test), 
+                split = cfg.data.split,
+                num_workers=cfg.data.num_workers,
+                include_processed_audio = cfg.data.include_processed_audio,
+                include_raw_audio = cfg.data.include_raw_audio,
+                drop_last=cfg.data.drop_last,
+                ## end args of FaceVideoDataModule
+                ## begin MEADPseudo3DDM specific params
+                # training_sampler=cfg.data.training_sampler,
+                landmark_types = cfg.data.landmark_types,
+                landmark_sources=cfg.data.landmark_sources,
+                segmentation_source=cfg.data.segmentation_source,
+                inflate_by_video_size = cfg.data.inflate_by_video_size,
+                preload_videos = cfg.data.preload_videos,
+                test_condition_source=condition_source,
+                test_condition_settings=condition_settings,
+        )
+        dataset_name = "MEAD"
     else:
         raise ValueError(f"Unknown data class: {data_class}")
 

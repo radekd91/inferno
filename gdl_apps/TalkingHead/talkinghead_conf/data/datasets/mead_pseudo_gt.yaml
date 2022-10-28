@@ -1,7 +1,7 @@
 # @package data
-data_class: MEADDataModule
-input_dir: /ps/project/EmotionalFacialAnimation/data/mead/MEAD
-output_dir: /is/cluster/work/rdanecek/data/mead/
+data_class: MEADPseudo3DDM
+input_dir: /is/cluster/work/rdanecek/data/mead_25fps/resampled_videos
+output_dir: /is/cluster/work/rdanecek/data/mead_25fps/
 processed_subfolder: processed
 # num_workers: 0 # debug
 num_workers: 8 # 
@@ -49,7 +49,8 @@ landmark_types: [mediapipe, fan]
 landmark_sources: [original, aligned]
 segmentation_source: aligned
 
-split: random_70_15_15
+# split: random_70_15_15
+split: random_by_identity_70_15
 
 train_subjects: []
 #   - FaceTalk_170728_03272_TA 
