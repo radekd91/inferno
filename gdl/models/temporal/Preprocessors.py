@@ -158,7 +158,8 @@ class EmocaPreprocessor(Preprocessor):
         if self.crash_on_invalid:
             assert weights.isnan().any() == False, "NaN in weights"
         else: 
-            print("[WARNING] NaN in weights")
+            if weights.isnan().any():
+                print("[WARNING] NaN in weights")
         avg_shapecode = (weights * values['shapecode'].view(B, T, -1)).sum(axis=1, keepdims=False)
 
         if self.average_shape_decode:

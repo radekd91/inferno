@@ -541,3 +541,123 @@ class MEADPseudo3dDataset(MEADDataset):
 
      
 
+def main(): 
+    import time
+    from pathlib import Path
+    # root_dir = Path("/ps/project/EmotionalFacialAnimation/data/mead/MEAD")
+    root_dir = Path("/is/cluster/work/rdanecek/data/mead_25fps/resampled_videos")
+    # output_dir = Path("/is/cluster/work/rdanecek/data/mead/")
+    output_dir = Path("/is/cluster/work/rdanecek/data/mead_25fps/")
+
+    # root_dir = Path("/ps/project/EmotionalFacialAnimation/data/lrs2/mvlrs_v1")
+    # output_dir = Path("/ps/scratch/rdanecek/data/lrs2")
+
+    processed_subfolder = "processed"
+    # processed_subfolder = "processed_orig"
+
+    # seq_len = 50
+    seq_len = 16
+    # bs = 100
+    bs = 1
+
+
+    import yaml
+    from munch import Munch, munchify
+    # augmenter = yaml.load(open(Path(__file__).parents[2] / "gdl_apps" / "Speech4D" / "tempface_conf" / "data" / "augmentations" / "default_no_jpeg.yaml"), 
+    #     Loader=yaml.FullLoader)["augmentation"]
+    # augmenter = munchify(augmenter)
+    augmenter = None
+    
+    occlusion_settings_train = None
+    # occlusion_settings_train = {
+    #     "occlusion_length": [5, 15],
+    #     "occlusion_probability_mouth": 0.5,
+    #     "occlusion_probability_left_eye": 0.33,
+    #     "occlusion_probability_right_eye": 0.33,
+    #     "occlusion_probability_face": 0.2,
+    # }
+    # occlusion_settings_val:
+    #     occlusion_length: [5, 10]
+    #     occlusion_probability_mouth: 1.0
+    #     occlusion_probability_left_eye: 0.33
+    #     occlusion_probability_right_eye: 0.33
+    #     occlusion_probability_face: 0.2
+
+    # occlusion_settings_test:
+    #     occlusion_length: [5, 10]
+    #     occlusion_probability_mouth: 1.0
+    #     occlusion_probability_left_eye: 0.33
+    #     occlusion_probability_right_eye: 0.33
+    #     occlusion_probability_face: 0.2
+
+    # Create the dataset
+    dm = MEADPseudo3DDM(
+        root_dir, output_dir, processed_subfolder,
+        split="specific_identity_sorted_80_20_M003",
+        # split="temporal_80_10_10",
+        image_size=224, 
+        scale=1.25, 
+        # processed_video_size=256,
+        batch_size_train=bs,
+        batch_size_val=bs,
+        batch_size_test=bs,
+        sequence_length_train=seq_len,
+        sequence_length_val=seq_len,
+        sequence_length_test=seq_len,
+        num_workers=8,            
+        include_processed_audio = True,
+        include_raw_audio = True,
+        augmentation=augmenter,
+        occlusion_settings_train=occlusion_settings_train,
+        landmark_types = ["mediapipe"],
+        landmark_sources=["original"],
+    )
+
+    # Create the dataloader
+    dm.prepare_data() 
+    dm.setup() 
+
+    dl = dm.train_dataloader()
+    # dl = dm.val_dataloader()
+    dataset = dm.training_set
+    print( f"Dataset length: {len(dataset)}")
+    # dataset = dm.validation_set
+    indices = np.arange(len(dataset), dtype=np.int32)
+    np.random.shuffle(indices)
+
+    for i in range(len(indices)): 
+        start = time.time()
+        sample = dataset[indices[i]]
+        end = time.time()
+        print(f"Loading sample {i} took {end-start:.3f} s")
+        dataset.visualize_sample(sample)
+
+    # from tqdm import auto
+    # for bi, batch in enumerate(auto.tqdm(dl)): 
+    #     pass
+
+
+    # iter_ = iter(dl)
+    # for i in range(len(dl)): 
+    #     start = time.time()
+    #     batch = next(iter_)
+    #     end = time.time()
+    #     print(f"Loading batch {i} took {end-start:.3f} s")
+        # dataset.visualize_batch(batch)
+
+    #     break
+
+    # dm._segment_faces_in_sequence(0)
+    # idxs = np.arange(dm.num_sequences)
+    # np.random.seed(0)
+    # np.random.shuffle(idxs)
+
+    # for i in range(dm.num_sequences):
+    #     dm._deep_restore_sequence_sr_res(idxs[i])
+
+    # dm.setup()
+
+
+
+if __name__ == "__main__": 
+    main()
