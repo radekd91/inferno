@@ -40,6 +40,8 @@ def get_rendering_callback(cfg, flame_template_path):
     path_chunks_to_cat = 0
     if cfg.data.data_class == 'LRS3Pseudo3DDM':
         path_chunks_to_cat = 1
+    if cfg.data.data_class == 'MEADPseudo3DDM':
+        path_chunks_to_cat = 4
     return TalkingHeadTestRenderingCallback(flame_template_path, path_chunks_to_cat)
 
 

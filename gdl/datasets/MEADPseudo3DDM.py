@@ -210,7 +210,12 @@ class MEADPseudo3DDM(MEADDataModule):
         )
 
         max_validation_test_samples = 2
-        self.test_set_val_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, sorted(val)[:max_validation_test_samples], self.audio_metas, 
+        if "specific_identity" in self.split: 
+            max_validation_test_samples = len(val)
+
+        self.test_set_val_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+                sorted(val)[:max_validation_test_samples], 
+                self.audio_metas, 
                 # sequence_length=self.sequence_length_test, 
                 sequence_length="all", 
                 image_size=self.image_size, 
