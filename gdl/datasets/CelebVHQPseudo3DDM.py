@@ -42,6 +42,13 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
             segmentation_source=None, 
             test_condition_source=None, 
             test_condition_settings=None,
+            read_video=True,
+            reconstruction_type=None, 
+            return_global_pose= False,
+            return_appearance= False,
+            average_shape_decode= True,
+            emotion_type=None,
+            return_emotion_feature=False,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, face_detector, landmarks_from, face_detector_threshold, image_size, scale, processed_video_size, batch_size_train, batch_size_val, batch_size_test, 
             sequence_length_train, sequence_length_val, sequence_length_test, 
@@ -52,6 +59,15 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
 
         self.test_condition_source = test_condition_source or "original"
         self.test_condition_settings = test_condition_settings
+        self.read_video = read_video
+
+        self.reconstruction_type = reconstruction_type
+        self.return_global_pose = return_global_pose
+        self.return_appearance = return_appearance
+        self.average_shape_decode = average_shape_decode
+
+        self.emotion_type = emotion_type
+        self.return_emotion_feature = return_emotion_feature
 
 
     def setup(self, stage=None):
@@ -74,6 +90,14 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                 temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+
+                read_video=self.read_video,
+                reconstruction_type=self.reconstruction_type,
+                return_global_pose=self.return_global_pose,
+                return_appearance=self.return_appearance,
+                average_shape_decode=self.average_shape_decode,
+                emotion_type=self.emotion_type,
+                return_emotion_feature=self.return_emotion_feature,
               )
                     
         self.validation_set = CelebVHQPseudo3dDataset(self.root_dir, self.output_dir, 
@@ -91,6 +115,14 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                 temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+
+                read_video=self.read_video,
+                reconstruction_type=self.reconstruction_type,
+                return_global_pose=self.return_global_pose,
+                return_appearance=self.return_appearance,
+                average_shape_decode=self.average_shape_decode,
+                emotion_type=self.emotion_type,
+                return_emotion_feature=self.return_emotion_feature,
             )
 
         max_test_videos = 5
@@ -115,6 +147,14 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                 # inflate_by_video_size=self.inflate_by_video_size,
                 inflate_by_video_size=False,
                 include_filename=True,
+
+                read_video=self.read_video,
+                reconstruction_type=self.reconstruction_type,
+                return_global_pose=self.return_global_pose,
+                return_appearance=self.return_appearance,
+                average_shape_decode=self.average_shape_decode,
+                emotion_type=self.emotion_type,
+                return_emotion_feature=self.return_emotion_feature,
                 )
 
         self.test_set = ConditionedVideoTestDatasetWrapper(
@@ -147,6 +187,14 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                 # inflate_by_video_size=self.inflate_by_video_size,
                 inflate_by_video_size=False,
                 include_filename=True,
+
+                read_video=self.read_video,
+                reconstruction_type=self.reconstruction_type,
+                return_global_pose=self.return_global_pose,
+                return_appearance=self.return_appearance,
+                average_shape_decode=self.average_shape_decode,
+                emotion_type=self.emotion_type,
+                return_emotion_feature=self.return_emotion_feature,
                 )
 
         self.test_set_train = ConditionedVideoTestDatasetWrapper(
@@ -178,6 +226,14 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                 # inflate_by_video_size=self.inflate_by_video_size,
                 inflate_by_video_size=False,
                 include_filename=True,
+
+                read_video=self.read_video,
+                reconstruction_type=self.reconstruction_type,
+                return_global_pose=self.return_global_pose,
+                return_appearance=self.return_appearance,
+                average_shape_decode=self.average_shape_decode,
+                emotion_type=self.emotion_type,
+                return_emotion_feature=self.return_emotion_feature,
                 )
 
         self.test_set_val = ConditionedVideoTestDatasetWrapper(
@@ -211,6 +267,14 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                     # inflate_by_video_size=self.inflate_by_video_size,
                     inflate_by_video_size=False,
                     include_filename=True,
+
+                    read_video=self.read_video,
+                    reconstruction_type=self.reconstruction_type,
+                    return_global_pose=self.return_global_pose,
+                    return_appearance=self.return_appearance,
+                    average_shape_decode=self.average_shape_decode,
+                    emotion_type=self.emotion_type,
+                    return_emotion_feature=self.return_emotion_feature,
                     )
 
             self.test_set_cond = ConditionedVideoTestDatasetWrapper(
@@ -243,6 +307,14 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                     # inflate_by_video_size=self.inflate_by_video_size,
                     inflate_by_video_size=False,
                     include_filename=True,
+
+                    read_video=self.read_video,
+                    reconstruction_type=self.reconstruction_type,
+                    return_global_pose=self.return_global_pose,
+                    return_appearance=self.return_appearance,
+                    average_shape_decode=self.average_shape_decode,
+                    emotion_type=self.emotion_type,
+                    return_emotion_feature=self.return_emotion_feature,
                     )
 
             self.test_set_train_cond = ConditionedVideoTestDatasetWrapper(
@@ -274,6 +346,14 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                     # inflate_by_video_size=self.inflate_by_video_size,
                     inflate_by_video_size=False,
                     include_filename=True,
+
+                    read_video=self.read_video,
+                    reconstruction_type=self.reconstruction_type,
+                    return_global_pose=self.return_global_pose,
+                    return_appearance=self.return_appearance,
+                    average_shape_decode=self.average_shape_decode,
+                    emotion_type=self.emotion_type,
+                    return_emotion_feature=self.return_emotion_feature,
                     )
 
             self.test_set_val_cond = ConditionedVideoTestDatasetWrapper(
@@ -367,6 +447,14 @@ class CelebVHQPseudo3dDataset(CelebVHQDataset):
             preload_videos=False, 
             inflate_by_video_size=False, 
             include_filename=False, # if True includes the filename of the video in the sample
+
+            read_video=True,
+            reconstruction_type=None,
+            return_global_pose=False,
+            return_appearance=False,
+            average_shape_decode=True,
+            emotion_type=None,
+            return_emotion_feature=False,
             ) -> None:
         super().__init__(root_path, output_dir, video_list, 
             video_metas, video_indices, audio_metas, sequence_length, audio_noise_prob, stack_order_audio, audio_normalization, 
@@ -391,6 +479,19 @@ class CelebVHQPseudo3dDataset(CelebVHQDataset):
             inflate_by_video_size, 
             include_filename=include_filename,
             )
+            
+        self.read_video = read_video
+
+        self.reconstruction_type = reconstruction_type
+        if self.reconstruction_type is not None:
+            self.return_global_pose = return_global_pose
+            self.return_appearance = return_appearance
+            self.average_shape_decode = average_shape_decode
+            # self._load_flame()
+
+        self.emotion_type = emotion_type
+        self.return_emotion_feature = return_emotion_feature
+            
 
     # def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
     #     # don't load any landmarks+
