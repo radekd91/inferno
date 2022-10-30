@@ -174,7 +174,9 @@ class CelebVHQDataModule(FaceVideoDataModule):
             # cut_out_faces=True,
             segment_videos=True, 
             detect_aligned_landmarks=False,
-            reconstruct_faces=False,):
+            reconstruct_faces=False,
+            recognize_emotions=False,
+            ):
         if extract_audio: 
             self._extract_audio_for_video(idx)
         # if restore_videos:
@@ -201,18 +203,25 @@ class CelebVHQDataModule(FaceVideoDataModule):
             # self._reconstruct_faces_in_sequence(idx, 
             #     reconstruction_net=self._get_reconstruction_network('deca'))
             # rec_methods = ['emoca', 'deep3dface', 'deca']
-            rec_methods = ['emoca', 'deep3dface',]
-            # rec_methods = ['emoca',]
-            for rec_method in rec_methods:
-                self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
-                                    save_obj=False, save_mat=True, save_vis=False, save_images=False,
-                                    save_video=False, rec_method=rec_method, retarget_from=None, retarget_suffix=None)
+            rec_methods = ['emoca', 'spectre',]
+            # for rec_method in rec_methods:
+            #     self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
+            #                         save_obj=False, save_mat=True, save_vis=False, save_images=False,
+            #                         save_video=False, rec_method=rec_method, retarget_from=None, retarget_suffix=None)
+            self._reconstruct_faces_in_sequence_v2(
+                        idx, reconstruction_net=None, device=None,
+                        save_obj=False, save_mat=True, save_vis=False, save_images=False,
+                        save_video=False, rec_methods=rec_methods, retarget_from=None, retarget_suffix=None)
+        if recognize_emotions:
+            emo_methods = ['resnet50', ]
+            self._extract_emotion_in_sequence(idx, emo_methods=emo_methods)
   
 
     def _process_shard(self, videos_per_shard, shard_idx, extract_audio=True,
         restore_videos=True, detect_landmarks=True, segment_videos=True, 
         detect_aligned_landmarks=False,
         reconstruct_faces=False,
+        recognize_emotions=False,
     ):
         num_shards = self._get_num_shards(videos_per_shard)
         start_idx = shard_idx * videos_per_shard
@@ -236,7 +245,9 @@ class CelebVHQDataModule(FaceVideoDataModule):
                 detect_landmarks=detect_landmarks, 
                 segment_videos=segment_videos, 
                 detect_aligned_landmarks=detect_aligned_landmarks,
-                reconstruct_faces=reconstruct_faces)
+                reconstruct_faces=reconstruct_faces, 
+                recognize_emotions=recognize_emotions,
+                )
             
         print("Done processing shard")
 
@@ -605,6 +616,12 @@ class CelebVHQDataset(VideoDatasetBase):
         return (Path(self.output_dir) / f"segmentations_{self.segmentation_source}_{self.segmentation_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
 
 
+    def _path_to_reconstructions(self, index): 
+        return (Path(self.output_dir) / f"reconstructions_{self.reconstruction_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
+
+
+    def _path_to_emotions(self, index): 
+        return (Path(self.output_dir) / f"emotions_{self.emotion_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
 
 
 def main(): 
