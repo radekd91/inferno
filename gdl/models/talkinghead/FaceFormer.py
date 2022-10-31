@@ -37,7 +37,7 @@ class FaceFormer(TalkingHeadBase):
     def _compute_loss(self, sample, loss_name, loss_cfg): 
         loss_type = loss_name if 'loss_type' not in loss_cfg.keys() else loss_cfg['loss_type']
         
-        mask_invalid = loss_cfg.get('mask_invalid', False)
+        mask_invalid = loss_cfg.get('mask_invalid', False) # mask invalid frames 
         if mask_invalid:
             if mask_invalid == "mediapipe_landmarks": 
                 # frames with invalid mediapipe landmarks will be masked for loss computation
@@ -46,7 +46,12 @@ class FaceFormer(TalkingHeadBase):
                 raise ValueError(f"mask_invalid value of '{mask_invalid}' not supported")
         else:
             mask = torch.ones((*sample["predicted_vertices"].shape[:2], 1), device=sample["predicted_vertices"].device, dtype=torch.bool)
+
+        # mask = torch.zeros_like(mask)
         mask_sum = mask.sum().item()
+
+        if mask_invalid and mask_sum == 0:
+            return 0.
 
         if loss_type in ["jawpose_loss", "jaw_loss"]:
             mask_ = mask.repeat(1,1, sample["predicted_jaw"].shape[2])
@@ -165,7 +170,7 @@ def rotation_velocity_loss(r1, r2,
         reduction='mean'
         ): 
     B = r1.shape[0]
-    T = r1.shape[1] 
+    T = r1.shape[1]  
     r1 = convert_rot(r1.contiguous().view((B*T,-1)), r1_input_rep, output_rep).view((B,T,-1))
     r2 = convert_rot(r2.contiguous().view((B*T,-1)), r2_input_rep, output_rep).view((B,T,-1))
      

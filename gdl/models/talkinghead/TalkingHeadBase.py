@@ -101,7 +101,7 @@ class TalkingHeadBase(pl.LightningModule):
 
         losses_and_metrics_to_log = {**losses, **metrics}
         # losses_and_metrics_to_log = {"train_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
-        losses_and_metrics_to_log = {"train/" + k: v.item() if isinstance(v, (torch.Tensor, float)) else 0. for k, v in losses_and_metrics_to_log.items()}
+        losses_and_metrics_to_log = {"train/" + k: v.item() if isinstance(v, (torch.Tensor)) else v if isinstance(v, float) else 0. for k, v in losses_and_metrics_to_log.items()}
         
         if self.logger is not None:
             # self.log_dict(losses_and_metrics_to_log, on_step=False, on_epoch=True, sync_dist=True) # log per epoch, # recommended
@@ -120,7 +120,7 @@ class TalkingHeadBase(pl.LightningModule):
 
         losses_and_metrics_to_log = {**losses, **metrics}
         # losses_and_metrics_to_log = {"val_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
-        losses_and_metrics_to_log = {"val/" + k: v.item() if isinstance(v, (torch.Tensor, float)) else 0. for k, v in losses_and_metrics_to_log.items()}
+        losses_and_metrics_to_log = {"val/" + k: v.item() if isinstance(v, (torch.Tensor)) else v if isinstance(v, float) else 0. for k, v in losses_and_metrics_to_log.items()}
 
        
         return total_loss, losses_and_metrics_to_log
@@ -166,7 +166,7 @@ class TalkingHeadBase(pl.LightningModule):
 
         losses_and_metrics_to_log = {**losses, **metrics}
         # losses_and_metrics_to_log = {"train_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
-        losses_and_metrics_to_log = {"test/" + k: v.item() if isinstance(v, (torch.Tensor, float)) else 0. for k, v in losses_and_metrics_to_log.items()}
+        losses_and_metrics_to_log = {"test/" + k: v.item() if isinstance(v, (torch.Tensor,)) else v if isinstance(v, float) else 0. for k, v in losses_and_metrics_to_log.items()}
         
         if self.logger is not None:
             self.log_dict(losses_and_metrics_to_log, on_step=False, on_epoch=True, sync_dist=True) # log per epoch, # recommended
