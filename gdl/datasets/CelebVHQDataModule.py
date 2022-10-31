@@ -416,7 +416,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=False,
                 )
-
+        dataset._allow_alignment_fail = True
         return dataset
 
 
