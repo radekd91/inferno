@@ -180,9 +180,10 @@ def rotation_velocity_loss(r1, r2,
 
     B = v1.shape[0]
     T = v1.shape[1] 
-        # metric = 'l1'
+        
+    # computing the product of all other dims explicitly (instead of using -1) to avoid shape-related crashes in corner cases
     _other_dims = np.array(v1.shape[2:], dtype=np.int32)
-    _collapsed_shape = int(np.prod(_other_dims))
+    _collapsed_shape = int(np.prod(_other_dims)) 
     if metric == 'l1': 
         # diff = (r1 - r2)*mask
         # return diff.abs().sum(dim=vec_reduction_dim).sum(dim=bt_reduction_dim) / mask_sum
