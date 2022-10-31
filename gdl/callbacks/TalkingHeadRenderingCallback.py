@@ -45,7 +45,7 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
         # for each mesh in batch, render the talking head 
         # and save the image to the output directory
         # print("Rendering talking head")
-
+        logger = pl_module.logger
         predicted_vertices = batch["predicted_vertices"]
         gt_vertices = batch["gt_vertices"]
         B, T = predicted_vertices.shape[:2]
@@ -112,9 +112,18 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
                 with open(audio_chunk_path, "wb") as f:
                     pkl.dump(raw_audio_chunk, f)
 
+            # self._create_video(path, logger, trainer.global_step)
+
+    # def on_test_epoch_begin(self, trainer, pl_module):
+    #     super().on_test_epoch_begin(trainer, pl_module)
+    #     self._create_videos(trainer, pl_module))
+
 
     def on_test_epoch_end(self, trainer, pl_module):
         super().on_test_epoch_end(trainer, pl_module)
+        self._create_videos(trainer, pl_module)
+
+    def _create_videos(self, trainer, pl_module):
         logger = pl_module.logger
         
         # for subfolder in self.video_names_to_process.keys():
@@ -125,6 +134,7 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
         self.audio_samplerates_to_process = {}
         self.video_conditions = {}
         self.dl_names = {}
+
 
 
     def _create_video(self, subfolder, logger, epoch):
