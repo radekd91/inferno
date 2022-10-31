@@ -83,8 +83,41 @@ class MEADPseudo3DDM(MEADDataModule):
         self.emotion_type = emotion_type
         self.return_emotion_feature = return_emotion_feature
 
+    def _get_smaller_renderable_subset_single_identity(self, indices, max_videos_per_category=1, accepted_expression=None):
+        identity_expression_intensity2idx = {}
+        identity = None
+        for i in indices:
+            identity_ = self._video_identity(i)
+            if identity is None:
+                identity = identity_
+            if identity_ != identity:
+                continue
+            expression = self._video_expression(i)
+            if accepted_expression is not None and expression not in accepted_expression:
+                continue
+            intensity = self._expression_intensity(i)
+            key = (identity, expression, intensity)
+            if key not in identity_expression_intensity2idx:
+                identity_expression_intensity2idx[key] = []
+            if len(identity_expression_intensity2idx[key]) < max_videos_per_category:
+                identity_expression_intensity2idx[key] += [i]
+
+
+        id_expression_intensity2filename = {}
+        for key, idxs in identity_expression_intensity2idx.items():
+            id_expression_intensity2filename[key] = [self.video_list[i] for i in idxs]
+
+        final_indices = []
+        for key, idxs in identity_expression_intensity2idx.items():
+            final_indices += [i for i in idxs]
+
+        return final_indices
+
+        
+
     def setup(self, stage=None):
         train, val, test = self._get_subsets(self.split)
+
         # training_augmenter = create_image_augmenter(self.image_size, self.augmentation)
         training_augmenter = None
         self.training_set = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, train, 
@@ -136,44 +169,52 @@ class MEADPseudo3DDM(MEADDataModule):
                 return_emotion_feature=self.return_emotion_feature,
             )
 
-        self.test_set_names = []
-        if len(test) > 0:
-            self.test_set_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
-                    # sequence_length=self.sequence_length_test, 
-                    sequence_length="all", 
-                    image_size=self.image_size, 
-                    **self.occlusion_settings_test,
-                    hack_length=False, 
-                    # use_original_video=self.use_original_video,
-                    include_processed_audio = self.include_processed_audio,
-                    include_raw_audio = self.include_raw_audio,
-                    landmark_types=self.landmark_types,
-                    landmark_source=self.landmark_sources,
-                    # segmentation_source=self.segmentation_source,
-                    temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
-                    temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
-                    # preload_videos=self.preload_videos,
-                    # inflate_by_video_size=self.inflate_by_video_size,
-                    inflate_by_video_size=False,
-                    include_filename=True,
-                    read_video=self.read_video,
-                    reconstruction_type=self.reconstruction_type,
-                    return_global_pose=self.return_global_pose,
-                    return_appearance=self.return_appearance,
-                    average_shape_decode=self.average_shape_decode,
-                    emotion_type=self.emotion_type,
-                    return_emotion_feature=self.return_emotion_feature,
-                    )
+        val_test_set = self._get_smaller_renderable_subset_single_identity(val, max_videos_per_category=1)
+        train_test_set = self._get_smaller_renderable_subset_single_identity(train, max_videos_per_category=1)
+        train_test_cond_set = self._get_smaller_renderable_subset_single_identity(train, max_videos_per_category=1, accepted_expression='neutral')
+        val_test_cond_set = self._get_smaller_renderable_subset_single_identity(val, max_videos_per_category=1, accepted_expression='neutral')
 
-            self.test_set = ConditionedVideoTestDatasetWrapper(
-                self.test_set_,
-                None, 
-                None,
-                key_prefix="gt_",
-            )
+        self.test_set_names = []
+        # if len(test) > 0:
+        #     self.test_set_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
+        #             # sequence_length=self.sequence_length_test, 
+        #             sequence_length="all", 
+        #             image_size=self.image_size, 
+        #             **self.occlusion_settings_test,
+        #             hack_length=False, 
+        #             # use_original_video=self.use_original_video,
+        #             include_processed_audio = self.include_processed_audio,
+        #             include_raw_audio = self.include_raw_audio,
+        #             landmark_types=self.landmark_types,
+        #             landmark_source=self.landmark_sources,
+        #             # segmentation_source=self.segmentation_source,
+        #             temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+        #             temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
+        #             # preload_videos=self.preload_videos,
+        #             # inflate_by_video_size=self.inflate_by_video_size,
+        #             inflate_by_video_size=False,
+        #             include_filename=True,
+        #             read_video=self.read_video,
+        #             reconstruction_type=self.reconstruction_type,
+        #             return_global_pose=self.return_global_pose,
+        #             return_appearance=self.return_appearance,
+        #             average_shape_decode=self.average_shape_decode,
+        #             emotion_type=self.emotion_type,
+        #             return_emotion_feature=self.return_emotion_feature,
+        #             )
+
+        #     self.test_set = ConditionedVideoTestDatasetWrapper(
+        #         self.test_set_,
+        #         None, 
+        #         None,
+        #         key_prefix="gt_",
+        #     )
 
         max_training_test_samples = 2
-        self.test_set_train_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, sorted(train)[:max_training_test_samples], self.audio_metas, 
+        self.test_set_train_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+                # sorted(train)[:max_training_test_samples], 
+                sorted(train_test_set),
+                self.audio_metas, 
                 # sequence_length=self.sequence_length_test, 
                 sequence_length="all", 
                 image_size=self.image_size, 
@@ -214,7 +255,8 @@ class MEADPseudo3DDM(MEADDataModule):
             max_validation_test_samples = len(val)
 
         self.test_set_val_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
-                sorted(val)[:max_validation_test_samples], 
+                # sorted(val)[:max_validation_test_samples], 
+                val_test_set, 
                 self.audio_metas, 
                 # sequence_length=self.sequence_length_test, 
                 sequence_length="all", 
@@ -250,46 +292,47 @@ class MEADPseudo3DDM(MEADDataModule):
 
         # conditioned test set
         if self.test_condition_source != "original":
-            if len(test) > 0:
-                self.test_set_cond_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
-                        test, 
-                        self.audio_metas, 
-                        # sequence_length=self.sequence_length_test, 
-                        sequence_length="all", 
-                        image_size=self.image_size, 
-                        **self.occlusion_settings_test,
-                        hack_length=False, 
-                        # use_original_video=self.use_original_video,
-                        include_processed_audio = self.include_processed_audio,
-                        include_raw_audio = self.include_raw_audio,
-                        landmark_types=self.landmark_types,
-                        landmark_source=self.landmark_sources,
-                        # segmentation_source=self.segmentation_source,
-                        temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
-                        temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
-                        # preload_videos=self.preload_videos,
-                        # inflate_by_video_size=self.inflate_by_video_size,
-                        inflate_by_video_size=False,
-                        include_filename=True,
-                        read_video=self.read_video,
-                        reconstruction_type=self.reconstruction_type,
-                        return_global_pose=self.return_global_pose,
-                        return_appearance=self.return_appearance,
-                        average_shape_decode=self.average_shape_decode,
-                        emotion_type=self.emotion_type,
-                        return_emotion_feature=self.return_emotion_feature,
-                        )
+            # if len(test) > 0:
+            #     self.test_set_cond_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+            #             test, 
+            #             self.audio_metas, 
+            #             # sequence_length=self.sequence_length_test, 
+            #             sequence_length="all", 
+            #             image_size=self.image_size, 
+            #             **self.occlusion_settings_test,
+            #             hack_length=False, 
+            #             # use_original_video=self.use_original_video,
+            #             include_processed_audio = self.include_processed_audio,
+            #             include_raw_audio = self.include_raw_audio,
+            #             landmark_types=self.landmark_types,
+            #             landmark_source=self.landmark_sources,
+            #             # segmentation_source=self.segmentation_source,
+            #             temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+            #             temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
+            #             # preload_videos=self.preload_videos,
+            #             # inflate_by_video_size=self.inflate_by_video_size,
+            #             inflate_by_video_size=False,
+            #             include_filename=True,
+            #             read_video=self.read_video,
+            #             reconstruction_type=self.reconstruction_type,
+            #             return_global_pose=self.return_global_pose,
+            #             return_appearance=self.return_appearance,
+            #             average_shape_decode=self.average_shape_decode,
+            #             emotion_type=self.emotion_type,
+            #             return_emotion_feature=self.return_emotion_feature,
+            #             )
 
-                self.test_set_cond = ConditionedVideoTestDatasetWrapper(
-                    self.test_set_cond_,
-                    self.test_condition_source, 
-                    self.test_condition_settings, 
-                    key_prefix="gt_",
-                )
+            #     self.test_set_cond = ConditionedVideoTestDatasetWrapper(
+            #         self.test_set_cond_,
+            #         self.test_condition_source, 
+            #         self.test_condition_settings, 
+            #         key_prefix="gt_",
+            #     )
 
             max_training_test_samples = 2
             self.test_set_train_cond_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
-                    sorted(train)[:max_training_test_samples], 
+                    # sorted(train)[:max_training_test_samples], 
+                    sorted(train_test_cond_set),
                     self.audio_metas, 
                     # sequence_length=self.sequence_length_test, 
                     sequence_length="all", 
@@ -328,7 +371,8 @@ class MEADPseudo3DDM(MEADDataModule):
 
             max_validation_test_samples = 2
             self.test_set_val_cond_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
-                    sorted(val)[:max_validation_test_samples], 
+                    # sorted(val)[:max_validation_test_samples], 
+                    sorted(val_test_cond_set), 
                     self.audio_metas, 
                     # sequence_length=self.sequence_length_test, 
                     sequence_length="all", 
