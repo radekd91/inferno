@@ -1,4 +1,5 @@
 from gdl.models.talkinghead.TalkingHeadBase import TalkingHeadBase
+import numpy as np
 from torch import nn
 import torch.nn.functional as F
 from gdl.models.temporal.BlockFactory import *
@@ -180,12 +181,14 @@ def rotation_velocity_loss(r1, r2,
     B = v1.shape[0]
     T = v1.shape[1] 
         # metric = 'l1'
+    _other_dims = np.array(v1.shape[2:], dtype=np.int32)
+    _collapsed_shape = int(np.prod(_other_dims))
     if metric == 'l1': 
         # diff = (r1 - r2)*mask
         # return diff.abs().sum(dim=vec_reduction_dim).sum(dim=bt_reduction_dim) / mask_sum
-        return F.l1_loss(v1.view(B*T, -1), v2.view(B*T, -1), reduction=reduction) 
+        return F.l1_loss(v1.view(B*T, _collapsed_shape), v2.view(B*T, _collapsed_shape), reduction=reduction) 
     elif metric == 'l2': 
-        return F.mse_loss(v1.view(B*T, -1), v2.view(B*T, -1), reduction=reduction)
+        return F.mse_loss(v1.view(B*T, _collapsed_shape), v2.view(B*T, _collapsed_shape), reduction=reduction)
         # return diff.square().sum(dim=vec_reduction_dim).sqrt().sum(dim=bt_reduction_dim) / mask_sum ## does not work, sqrt turns weights to NaNa after backward
     else: 
         raise ValueError(f"Unsupported metric for rotation loss: '{metric}'")
