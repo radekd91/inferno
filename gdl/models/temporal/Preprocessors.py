@@ -56,13 +56,13 @@ class FlamePreprocessor(Preprocessor):
         else: 
             template_shape = batch['gt_shape'] 
             # shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).contiguous().view(B * T, -1)
-            shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).view(B * T, -1)
-
+            # shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).view(B * T, -1)
+            shape = batch['gt_shape'].view(B, -1)[:, None, ...].expand(B, T, template_shape.shape[1]).view(B * T, -1)
 
         # shape = torch.zeros((B * T, self.cfg.flame.n_exp))
         # template_shape = torch.zeros_like(template_shape)
 
-        verts, _, _ = self.flame(
+        verts, landmarks_2D, landmarks_3D = self.flame(
             shape_params=shape, 
             expression_params=exp,
             pose_params=pose
@@ -178,7 +178,9 @@ class EmocaPreprocessor(Preprocessor):
 
         if self.average_shape_decode:
             # set the shape to be equal to the average shape (so that the shape is not changing over time)
-            values['shapecode'] = avg_shapecode.view(B, 1, -1).repeat(1, T, 1).view(B*T, -1)
+            # values['shapecode'] = avg_shapecode.view(B, 1, -1).repeat(1, T, 1).view(B*T, -1)
+            values['shapecode'] = avg_shapecode.view(B, 1, -1)
+            values['shapecode'] = values['shapecode'].expand(B, T, values['shapecode'].shape[2]).view(B*T, -1)
 
         if BT < self.max_b:
             values = self.model.decode(values, training=False, render=self.render)
@@ -379,7 +381,8 @@ class SpeechEmotionRecognitionPreprocessor(Preprocessor):
                 val = output[key]
                 if val.ndim == 2:
                     val = val.unsqueeze(1)
-                    val = val.repeat(1, T, 1)
+                    # val = val.repeat(1, T, 1)
+                    val = val.expand(val.shaoe[0], T, val.shape[2])
                 batch[output_prefix + key] = val.view(B, T, -1)
                 output_num += 1
         
