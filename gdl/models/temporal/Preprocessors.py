@@ -16,7 +16,7 @@ class FlamePreprocessor(Preprocessor):
 
         self.flame_tex = None
         if cfg.use_texture:
-            self.flame_tex = FLAMETex(cfg.flametex)
+            self.flame_tex = FLAMETex(cfg.flame_tex)
 
     @property
     def device(self):
@@ -74,8 +74,22 @@ class FlamePreprocessor(Preprocessor):
             pose_params=None
         )
 
-        batch["template"] = template_verts.contiguous().view(B, -1)#.detach().clone()
+        batch["template"] = template_verts.contiguous().view(B, -1)#.detach().clone()        
         batch[output_prefix + 'vertices'] = verts.contiguous().view(B, T, -1)#.detach().clone()
+
+        if self.flame_tex is not None:
+            texcode = batch['gt_tex'] 
+            ndim = texcode.ndim
+            if ndim == 3:
+                texcode = texcode.view(B *T, -1)
+            albedo = self.flame_tex(
+                texcode = batch['gt_tex']
+            )
+            if ndim == 3:
+                albedo_dims = albedo.shape[2:]
+                albedo = albedo.view(B, T, *albedo_dims)
+            batch[output_prefix + 'albedo'] = albedo
+            batch["albedo"] = albedo
 
         return batch
 

@@ -16,7 +16,7 @@ class TalkingHeadBase(pl.LightningModule):
                 sequence_decoder : Optional[SequenceDecoder] = None,
                 shape_model: Optional[ShapeModel] = None,
                 preprocessor: Optional[Preprocessor] = None,
-                # renderer: Optional[Renderer] = None,
+                renderer: Optional[Renderer] = None,
                 # post_fusion_norm: Optional = None,
                 *args: Any, **kwargs: Any) -> None:
         self.cfg = cfg
@@ -26,7 +26,7 @@ class TalkingHeadBase(pl.LightningModule):
         self.sequence_decoder = sequence_decoder
         self.shape_model = shape_model
         self.preprocessor = preprocessor
-        # self.renderer = renderer
+        self.renderer = renderer
 
         if self.sequence_decoder is None: 
             self.code_vec_input_name = "seq_encoder_output"
@@ -182,6 +182,15 @@ class TalkingHeadBase(pl.LightningModule):
     def decode_sequence(self, sample: Dict, train=False, teacher_forcing=False, **kwargs: Any) -> Dict:
         return self.sequence_decoder(sample, train=train, teacher_forcing=teacher_forcing, **kwargs)
 
+    def render_sequence(self, sample: Dict, train=False, **kwargs): 
+        if self.renderer is None:
+            return sample 
+        with torch.no_grad():
+            sample = self.renderer(sample, train=train, input_key='gt_vertices', output_prefix='gt_', **kwargs)
+        sample = self.renderer(sample, train=train, input_key='predicted_vertices', output_prefix='predicted_', **kwargs)
+        return sample
+
+
     @torch.no_grad()
     def preprocess_input(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
         if self.preprocessor is not None:
@@ -217,6 +226,10 @@ class TalkingHeadBase(pl.LightningModule):
         check_nan(sample)
         # decode the sequence
         sample = self.decode_sequence(sample, train=train, teacher_forcing=teacher_forcing, **kwargs)
+        check_nan(sample)
+
+        # render the sequence
+        sample = self.render_sequence(sample, train=train, **kwargs)
         check_nan(sample)
         return sample
 

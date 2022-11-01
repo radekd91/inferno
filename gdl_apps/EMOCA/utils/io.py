@@ -69,12 +69,16 @@ def save_codes(output_folder, name, vals, i = None):
         np.save(output_folder / name / f"tex.npy", vals["texcode"].detach().cpu().numpy())
         np.save(output_folder / name / f"pose.npy", vals["posecode"].detach().cpu().numpy())
         np.save(output_folder / name / f"detail.npy", vals["detailcode"].detach().cpu().numpy())
+        np.save(output_folder / name / f"cam.npy", vals["cam"].detach().cpu().numpy())
+        np.save(output_folder / name / f"lightcode.npy", vals["lightcode"].detach().cpu().numpy())
     else: 
         np.save(output_folder / name / f"shape.npy", vals["shapecode"][i].detach().cpu().numpy())
         np.save(output_folder / name / f"exp.npy", vals["expcode"][i].detach().cpu().numpy())
         np.save(output_folder / name / f"tex.npy", vals["texcode"][i].detach().cpu().numpy())
         np.save(output_folder / name / f"pose.npy", vals["posecode"][i].detach().cpu().numpy())
         np.save(output_folder / name / f"detail.npy", vals["detailcode"][i].detach().cpu().numpy())
+        np.save(output_folder / name / f"cam.npy", vals["cam"][i].detach().cpu().numpy())
+        np.save(output_folder / name / f"lightcode.npy", vals["lightcode"][i].detach().cpu().numpy())
 
 
 def test(deca, batch):

@@ -79,7 +79,8 @@ read_video: False
 reconstruction_type: spectre
 # reconstruction_type: emoca
 return_global_pose: False
-return_appearance: False
+# return_appearance: False
+return_appearance: True
 average_shape_decode: True
 
 

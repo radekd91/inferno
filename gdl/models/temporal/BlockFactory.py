@@ -7,7 +7,7 @@ from gdl.models.temporal.external.SpectrePreprocessor import SpectrePreprocessor
 from gdl.models.temporal.SequenceEncoders import *
 from gdl.models.temporal.SequenceDecoders import *
 from gdl.models.temporal.TemporalFLAME import FlameShapeModel
-from gdl.models.temporal.Renderers import FlameRenderer
+from gdl.models.temporal.Renderers import FlameRenderer, FixedViewFlameRenderer
 from gdl.models.temporal.AudioEncoders import AvHubertAudioEncoder, Wav2Vec2Encoder, Wav2Vec2SER
 from gdl.models.temporal.VideoEncoders import EmocaVideoEncoder
 from gdl.models.temporal.ResNetVideoEncoder import TemporalResNetEncoder
@@ -111,6 +111,8 @@ def face_model_from_cfg(cfg):
 def renderer_from_cfg(cfg):
     if cfg.type in ["deca", "emoca"]: 
         renderer = FlameRenderer(cfg)
+    elif cfg.type == "fixed_view":
+        renderer = FixedViewFlameRenderer(cfg)
     else: 
         raise ValueError(f"Unknown renderer model type '{cfg.type}'")
     return renderer

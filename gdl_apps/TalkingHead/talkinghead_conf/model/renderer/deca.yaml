@@ -1,0 +1,9 @@
+# @package model
+type: deca 
+path: /ps/project/EmotionalFacialAnimation/emoca/face_reconstruction_models/new_affectnet_split/final_models/packaged/EMOCA
+face_mask_path: /ps/scratch/rdanecek/data/FLAME/mask/uv_face_mask.png
+face_eye_mask_path: /ps/scratch/rdanecek/data/FLAME/mask/uv_face_eye_mask.png
+uv_size: 256
+image_size: 224
+topology_path: /ps/scratch/rdanecek/data/FLAME/geometry/head_template.obj
+n_light: 27

@@ -4,8 +4,9 @@ from torch import nn
 import torch.nn.functional as F
 from gdl.models.temporal.BlockFactory import *
 from gdl.models.rotation_loss import compute_rotation_loss, convert_rot
+from gdl.layers.losses.EmoNetLoss import create_emo_loss
 from omegaconf import open_dict
-
+from munch import Munch
 
 class FaceFormer(TalkingHeadBase):
 
@@ -17,14 +18,46 @@ class FaceFormer(TalkingHeadBase):
         sequence_decoder = sequence_decoder_from_cfg(cfg)
         preprocessor_cfg = cfg.model.get('preprocessor', None)
         preprocessor = preprocessor_from_cfg(preprocessor_cfg) if preprocessor_cfg is not None else None 
-
+        renderer_cfg = cfg.model.get('renderer', None)
+        renderer = renderer_from_cfg(renderer_cfg) if renderer_cfg is not None else None 
+        
         super().__init__(cfg, 
             audio_model=audio_encoder, 
             sequence_encoder= sequence_encoder, 
             sequence_decoder= sequence_decoder, 
             # shape_model=face_model,
             preprocessor=preprocessor,
+            renderer=renderer,
             )
+
+        self._setup_losses()
+
+    def _setup_losses(self):
+        self.neural_losses = Munch()
+        # set up losses that need instantiation (such as loading a network, ...)
+        losses_and_metrics = {**self.cfg.learning.losses, **self.cfg.learning.metrics}
+        # for loss_name, loss_cfg in self.cfg.learning.losses.items():
+        for loss_name, loss_cfg in losses_and_metrics.items():
+            loss_type = loss_name if 'loss_type' not in loss_cfg.keys() else loss_cfg['loss_type']
+            if loss_type == "emotion_loss":
+                assert 'emotion_loss' not in self.neural_losses.keys() # only allow one emotion loss
+                assert not loss_cfg.trainable # only fixed loss is supported
+                self.neural_losses.emotion_loss = create_emo_loss(self.device, 
+                                            emoloss=loss_cfg.network_path,
+                                            trainable=loss_cfg.trainable, 
+                                            emo_feat_loss=loss_cfg.emo_feat_loss,
+                                            normalize_features=loss_cfg.normalize_features, 
+                                            dual=False)
+                self.neural_losses.emotion_loss.eval()
+                self.neural_losses.emotion_loss.requires_grad_(False)
+            # elif loss_type == "face_recognition":
+            #     self.face_recognition_loss = FaceRecognitionLoss(loss_cfg)
+
+    def to(self, *args, **kwargs):
+        if hasattr(self, 'neural_losses'):
+            for key, module in self.neural_losses.items():
+                self.neural_losses[key] = module.to(*args, **kwargs)
+        return super().to(*args, **kwargs)
 
     @property
     def max_seq_length(self):
@@ -130,6 +163,16 @@ class FaceFormer(TalkingHeadBase):
             #     metric=loss_cfg.get('metric', 'l2'),
             #     reduction='sum'
             # ) / mask_sum
+
+        elif loss_type == "emotion_loss":
+            cam_name = list(sample["gt_video"].keys())[0]
+            B,T = sample["gt_video"][cam_name].shape[:2] 
+            rest = sample["gt_video"][cam_name].shape[2:]
+            for cam_name in sample["gt_video"].keys():
+                _, emo_feat_loss_2, valence_loss, arousal_loss, expression_loss, _ = \
+                    self.neural_losses.emotion_loss.compute_loss(sample["gt_video"][cam_name].view(B*T, *rest), sample["predicted_video"][cam_name].view(B*T, *rest))
+                
+            loss_value = emo_feat_loss_2
 
         else: 
             raise ValueError(f"Unknown loss type: {loss_type}")

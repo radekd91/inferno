@@ -861,6 +861,16 @@ class VideoDatasetBase(AbstractVideoDataset):
                 # shape = np.concatenate([shape, np.tile(shape[-1], (sequence_length - shape.shape[0], 1))], axis=0)
 
 
+        if self.return_appearance: 
+            if self.average_shape_decode: 
+                appearance['tex'] = (weights[:appearance['tex'].shape[0]] * appearance['tex']).sum(axis=0, keepdims=False)
+                # appearance = np.tile(appearance, (appearance['tex'].shape[0], 1))
+            else:
+                appearance = appearance['tex']
+                if  shape_pose_cam['exp'].shape[0] < sequence_length:
+                    appearance['tex'] = np.concatenate([appearance['tex'], np.zeros((sequence_length - appearance['tex'].shape[0], appearance['tex'].shape[1]))], axis=0)
+                    # appearance = np.concatenate([appearance, np.tile(appearance[-1], (sequence_length - appearance.shape[0], 1))], axis=0)
+
         sample["gt_exp"] = shape_pose_cam['exp'].astype(np.float32)
         sample["gt_shape"] = shape.astype(np.float32)
         sample["gt_jaw"] = shape_pose_cam['jaw'].astype(np.float32)
@@ -868,8 +878,8 @@ class VideoDatasetBase(AbstractVideoDataset):
             sample["gt_global_pose"] = shape_pose_cam['global_pose'].astype(np.float32)
             sample["gt_cam"] = shape_pose_cam['cam'].astype(np.float32)
         if self.return_appearance: 
-            sample['gt_tex'] = appearance['texcode'].astype(np.float32)
-            sample['gt_light'] = appearance['lightcode'].astype(np.float32)
+            sample['gt_tex'] = appearance['tex'].astype(np.float32)
+            sample['gt_light'] = appearance['light'].astype(np.float32)
             if 'detailcode' in appearance:
                 sample['gt_detail'] = appearance['detailcode'].astype(np.float32)
 
