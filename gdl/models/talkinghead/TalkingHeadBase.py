@@ -99,7 +99,7 @@ class TalkingHeadBase(pl.LightningModule):
             method = method[0]
         if "reconstruction" in batch:
             for k in batch["reconstruction"][method].keys():
-                assert k not in batch.keys(), f"Key '{key}' already exists in batch. We don't want to overwrite it."
+                assert k not in batch.keys(), f"Key '{k}' already exists in batch. We don't want to overwrite it."
                 batch[k] = batch["reconstruction"][method][k]
         return batch
 

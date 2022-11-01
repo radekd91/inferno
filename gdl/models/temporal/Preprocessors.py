@@ -114,6 +114,10 @@ class FlamePreprocessor(Preprocessor):
 
                 # nested_dict_set(batch, output_prefix + 'albedo', rec_type, albedo) 
                 ## nested_dict_set(batch, 'albedo', rec_type, albedo) 
+
+            if rec_type is not None:
+                batch["reconstruction"][rec_type] = rec_dict
+                
         return batch
 
 
