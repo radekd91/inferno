@@ -143,6 +143,10 @@ class VideoDatasetBase(AbstractVideoDataset):
         self.read_video = True
 
         self.reconstruction_type = reconstruction_type 
+        if self.reconstruction_type is not None: 
+            if isinstance(self.reconstruction_type, str): 
+                self.reconstruction_type = [self.reconstruction_type]
+            assert isinstance(self.reconstruction_type, list), "reconstruction_type must be a list or None"
         self.return_global_pose = False
         self.return_appearance = False
         self.average_shape_decode = False
@@ -167,11 +171,15 @@ class VideoDatasetBase(AbstractVideoDataset):
 
     @property
     def invalid_cutoff(self):
-        if self.reconstruction_type == "spectre": 
-            return 2 
-        if self.reconstruction_type in ["emoca", "deca"]: 
-            return 0
-        raise ValueError("Invalid reconstruction type")
+        max_cutoff = 0 
+        for rec_type in self.reconstruction_type:
+            if rec_type == "spectre": 
+                max_cutoff = max(max_cutoff, 2 )
+            elif rec_type in ["emoca", "deca"]: 
+                max_cutoff = max(max_cutoff, 0 )
+            else:
+                raise ValueError(f"Invalid reconstruction type: '{rec_type}'")
+        return max_cutoff
 
 
     def _load_flame(self):
@@ -637,8 +645,8 @@ class VideoDatasetBase(AbstractVideoDataset):
             video_path = str(self._get_video_path(index))
             return self.seg_cache[video_path]
 
-    def _load_reconstructions(self, index, appearance=False): 
-        reconstructions_dir = self._path_to_reconstructions(index)
+    def _load_reconstructions(self, index, rec_type, appearance=False): 
+        reconstructions_dir = self._path_to_reconstructions(index, rec_type)
         shape_pose_cam = load_reconstruction_list(reconstructions_dir / "shape_pose_cam.pkl")
         # for key in shape_pose_cam.keys():
         #     shape_pose_cam[key] = np.copy(shape_pose_cam[key])
@@ -659,8 +667,9 @@ class VideoDatasetBase(AbstractVideoDataset):
             features = None
         return emotions, features
         
-    def _path_to_reconstructions(self, index): 
-        return (Path(self.output_dir) / f"reconstructions" / self.reconstruction_type /  self.video_list[self.video_indices[index]]).with_suffix("")
+    def _path_to_reconstructions(self, index, rec_type): 
+        return (Path(self.output_dir) / f"reconstructions" / rec_type /  self.video_list[self.video_indices[index]]).with_suffix("")
+        # return (Path(self.output_dir) / f"reconstructions" / self.reconstruction_type /  self.video_list[self.video_indices[index]]).with_suffix("")
 
     def _path_to_emotions(self, index): 
         return (Path(self.output_dir) / f"emotions" / self.emotion_type /  self.video_list[self.video_indices[index]]).with_suffix("")
@@ -800,11 +809,15 @@ class VideoDatasetBase(AbstractVideoDataset):
         return sample
 
     def _get_reconstructions(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
-        sequence_length = self._get_sample_length(index)
+        for reconstruction_type in self.reconstruction_type: 
+            sample = self._get_reconstructions_of_type(index, start_frame, num_read_frames, video_fps, num_frames, sample, reconstruction_type)
+        return sample
 
+    def _get_reconstructions_of_type(self, index, start_frame, num_read_frames, video_fps, num_frames, sample, rec_type):
+        sequence_length = self._get_sample_length(index)
         if self.reconstruction_type is None:
             return sample
-        shape_pose_cam, appearance = self._load_reconstructions(index, self.return_appearance)
+        shape_pose_cam, appearance = self._load_reconstructions(index, rec_type, self.return_appearance)
         for key in shape_pose_cam.keys():
             shape_pose_cam[key] = shape_pose_cam[key][0][start_frame:start_frame+num_read_frames]
         if appearance is not None:
@@ -870,29 +883,57 @@ class VideoDatasetBase(AbstractVideoDataset):
                 if  shape_pose_cam['exp'].shape[0] < sequence_length:
                     appearance['tex'] = np.concatenate([appearance['tex'], np.zeros((sequence_length - appearance['tex'].shape[0], appearance['tex'].shape[1]))], axis=0)
                     # appearance = np.concatenate([appearance, np.tile(appearance[-1], (sequence_length - appearance.shape[0], 1))], axis=0)
-
-        sample["gt_exp"] = shape_pose_cam['exp'].astype(np.float32)
-        sample["gt_shape"] = shape.astype(np.float32)
-        sample["gt_jaw"] = shape_pose_cam['jaw'].astype(np.float32)
+        
+        # # intialize emtpy dicts if they don't exist
+        # if "gt_exp" not in sample.keys():
+        #     sample["gt_exp"] = {} 
+        # if "gt_shape" not in sample.keys():
+        #     sample["gt_shape"] = {} 
+        # if "gt_jaw" not in sample.keys():
+        #     sample["gt_jaw"] = {} 
+        # if self.return_global_pose:
+        #     if "gt_global_pose" not in sample.keys():
+        #         sample["gt_global_pose"] = {}
+        #     if "gt_cam" not in sample.keys():
+        #         sample["gt_cam"] = {}
+        # if self.return_appearance:
+        #     if "gt_tex" not in sample.keys():
+        #         sample["gt_tex"] = {}
+        #     if "gt_light" not in sample.keys():
+        #         sample["gt_light"] = {}
+        #     if "detailcode" in appearance: 
+        #         if "gt_detail" not in sample.keys():
+        #             sample["gt_detail"] = {}
+        if "reconstruction" not in sample.keys():
+            sample["reconstruction"] = {}
+        assert rec_type not in sample["reconstruction"].keys(), "reconstruction type already exists in sample"
+        sample["reconstruction"][rec_type] = {}
+        
+            
+        sample["reconstruction"][rec_type]["gt_exp"] = shape_pose_cam['exp'].astype(np.float32)
+        sample["reconstruction"][rec_type]["gt_shape"] = shape.astype(np.float32)
+        sample["reconstruction"][rec_type]["gt_jaw"] = shape_pose_cam['jaw'].astype(np.float32)
         if self.return_global_pose:
-            sample["gt_global_pose"] = shape_pose_cam['global_pose'].astype(np.float32)
-            sample["gt_cam"] = shape_pose_cam['cam'].astype(np.float32)
+            sample["reconstruction"][rec_type]["gt_global_pose"]= shape_pose_cam['global_pose'].astype(np.float32)
+            sample["reconstruction"][rec_type] ["gt_cam"] = shape_pose_cam['cam'].astype(np.float32)
         if self.return_appearance: 
-            sample['gt_tex'] = appearance['tex'].astype(np.float32)
-            sample['gt_light'] = appearance['light'].astype(np.float32)
+            sample["reconstruction"][rec_type]['gt_tex'] = appearance['tex'].astype(np.float32)
+            sample["reconstruction"][rec_type]['gt_light'] = appearance['light'].astype(np.float32)
             if 'detailcode' in appearance:
-                sample['gt_detail'] = appearance['detailcode'].astype(np.float32)
+                sample[rec_type]['gt_detail'] = appearance['detailcode'].astype(np.float32)
 
         if hasattr(self, 'flame') and self.flame is not None:
             flame_sample = {} 
             flame_sample['gt_shape'] = torch.tensor(shape).unsqueeze(0)
-            flame_sample['gt_exp'] = torch.tensor(sample["gt_exp"]).unsqueeze(0)
-            flame_sample['gt_jaw'] = torch.tensor(sample["gt_jaw"]).unsqueeze(0)
+            flame_sample['gt_exp'] = torch.tensor(sample[rec_type]["gt_exp"]).unsqueeze(0)
+            flame_sample['gt_jaw'] = torch.tensor(sample[rec_type]["gt_jaw"]).unsqueeze(0)
             flame_sample = self.flame(flame_sample, "")
             # for key in flame_sample.keys():
             #     sample[key] = torch.zeros_like(flame_sample[key]).numpy()[0]
             for key in flame_sample.keys():
-                sample[key] = flame_sample[key].detach().clone().contiguous().numpy()[0]
+                # if key not in sample.keys():
+                #     sample[key] = {}
+                sample["reconstruction"][rec_type][key] = flame_sample[key].detach().clone().contiguous().numpy()[0]
         
         return sample
 

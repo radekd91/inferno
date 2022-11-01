@@ -76,8 +76,11 @@ test_subjects: []
 
 read_video: False
 # read_video: True
-reconstruction_type: spectre
+# reconstruction_type: spectre
 # reconstruction_type: emoca
+reconstruction_type: [spectre, emoca] # if more, the first one is primary
+# reconstruction_type: [emoca, spectre]
+
 return_global_pose: False
 # return_appearance: False
 return_appearance: True

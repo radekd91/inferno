@@ -616,8 +616,9 @@ class CelebVHQDataset(VideoDatasetBase):
         return (Path(self.output_dir) / f"segmentations_{self.segmentation_source}_{self.segmentation_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
 
 
-    def _path_to_reconstructions(self, index): 
-        return (Path(self.output_dir) / f"reconstructions_{self.reconstruction_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
+    def _path_to_reconstructions(self, index, rec_type): 
+        return (Path(self.output_dir) / f"reconstructions_{rec_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
+        # return (Path(self.output_dir) / f"reconstructions_{self.reconstruction_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
 
 
     def _path_to_emotions(self, index): 

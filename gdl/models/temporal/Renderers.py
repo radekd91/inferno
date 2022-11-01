@@ -128,7 +128,14 @@ class FixedViewFlameRenderer(FlameRenderer):
         _other_dims_v = verts.shape[2:]
         _other_dims_v_repeat = len(_other_dims_v) * [1]
 
-        albedo = sample["albedo"]
+
+        # rec_types = []
+        # if 'gt_exp' in sample:
+        #     rec_types += [None]
+        # else: 
+        #     rec_types += sample["reconstruction"].keys()
+
+        albedo = sample["gt_albedo"]
         if albedo.ndim == 4: 
             # add temporal dimension
             # albedo = albedo.unsqueeze(1).repeat(1, T, 1, 1, 1)
@@ -188,6 +195,7 @@ class FixedViewFlameRenderer(FlameRenderer):
         sample[out_name] = {}
         for ci, cam_name in enumerate(self.cam_names):
             sample[out_name][cam_name] = rendering_sample["predicted_video"][:, ci::C, ...]
+            # sample[out_name][cam_name] = sample[out_name][cam_name].view(B, T, *sample[out_name][cam_name].shape[1:])
         
         # import matplotlib.pyplot as plt 
         # plt.figure()

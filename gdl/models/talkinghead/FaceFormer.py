@@ -165,13 +165,24 @@ class FaceFormer(TalkingHeadBase):
             # ) / mask_sum
 
         elif loss_type == "emotion_loss":
-            cam_name = list(sample["gt_video"].keys())[0]
-            B,T = sample["gt_video"][cam_name].shape[:2] 
-            rest = sample["gt_video"][cam_name].shape[2:]
-            for cam_name in sample["gt_video"].keys():
+            cam_name = list(sample["predicted_video"].keys())[0]
+            assert len(list(sample["predicted_video"].keys())) == 1, "More cameras are not supported yet"
+            B,T = sample["predicted_video"][cam_name].shape[:2] 
+            rest = sample["predicted_video"][cam_name].shape[2:]
+            for cam_name in sample["predicted_video"].keys():
+                target_method = loss_cfg.get('target_method_image', None)
+                if target_method is None:
+                    target_dict = sample
+                else: 
+                    target_dict = sample["reconstruction"][target_method]
+                gt_vid = target_dict["gt_video"][cam_name].view(B*T, *rest)
+                pred_vid = sample["predicted_video"][cam_name].view(B*T, *rest)
+                mask_ = mask.view(B*T, -1).unsqueeze(-1).unsqueeze(-1)
+                mask_ = mask_.expand(*pred_vid.shape)
+                gt_vid = gt_vid[mask_].view(B*mask_sum, *gt_vid.shape[1:])
+                pred_vid = pred_vid[mask_].view(B*mask_sum, *pred_vid.shape[1:])
                 _, emo_feat_loss_2, valence_loss, arousal_loss, expression_loss, _ = \
-                    self.neural_losses.emotion_loss.compute_loss(sample["gt_video"][cam_name].view(B*T, *rest), sample["predicted_video"][cam_name].view(B*T, *rest))
-                
+                    self.neural_losses.emotion_loss.compute_loss(gt_vid, pred_vid)        
             loss_value = emo_feat_loss_2
 
         else: 

@@ -62,7 +62,13 @@ class LRS3Pseudo3DDM(LRS3DataModule):
         self.test_condition_settings = test_condition_settings
         self.read_video = read_video
 
-        self.reconstruction_type = reconstruction_type
+        if self.reconstruction_type is not None: 
+            if isinstance(self.reconstruction_type, str): 
+                self.reconstruction_type = [self.reconstruction_type]
+            elif isinstance(self.reconstruction_type, omegaconf.listconfig.ListConfig): 
+                self.reconstruction_type = list(self.reconstruction_type)
+            assert isinstance(self.reconstruction_type, list), "reconstruction_type must be a list or None"
+
         self.return_global_pose = return_global_pose
         self.return_appearance = return_appearance
         self.average_shape_decode = average_shape_decode

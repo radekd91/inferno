@@ -19,12 +19,21 @@ class AutoRegressiveDecoder(nn.Module):
         if teacher_forcing:
             sample = self._teacher_forced_step(sample)
         else:
+            # rec_dict = batch if self.rec_type is None else batch["reconstruction"][self.rec_type]
+            # num_frames = rec_dict["gt_vertices"].shape[1] if "gt_vertices" in rec_dict.keys() else hidden_states.shape[1]
             num_frames = sample["gt_vertices"].shape[1] if "gt_vertices" in sample.keys() else hidden_states.shape[1]
             num_frames = min(num_frames, self._max_auto_regressive_steps())
             for i in range(num_frames):
                 sample = self._autoregressive_step(sample, i)
         sample = self._post_prediction(sample)
         return sample
+
+    # def rec_dict(batch): 
+    #     return get_rec_dict(batch, self.rec_type)
+
+    # @property
+    # def rec_type(self):
+    #     None
 
     def _max_auto_regressive_steps(self):
         raise NotImplementedError("")
@@ -131,8 +140,14 @@ class EmotionCondition(StyleConditioning):
         if self.cfg.use_emotion_feature:
             condition += [sample["gt_emo_feat_2"]]
         if self.cfg.use_shape:
+            # rec_dict = get_rec_dict(sample, self.cfg.get('rec_type', None))
+            # T = rec_dict["gt_vertices"].shape[1]
+            # shape_cond = rec_dict["gt_shape"].unsqueeze(1)
             T = sample["gt_vertices"].shape[1]
-            condition += [sample["gt_shape"].unsqueeze(1).repeat(1, T, 1)]
+            shape_cond = sample["gt_shape"].unsqueeze(1)
+            # shape_cond = shape_cond.repeat(1, T, 1)
+            shape_cond = shape_cond.expand(shape_cond.shape[0], T, shape_cond.shape[2])
+            condition += [shape_cond]
 
         condition = torch.cat(condition, dim=-1)
         return condition
@@ -933,3 +948,7 @@ class LinearAutoRegDecoder(AutoRegressiveDecoder):
 
     def _decode_vertices(self, sample, vertices_input):
         return self.decoder(vertices_input)
+
+
+def get_rec_dict(batch, rec_type): 
+    rec_dict = batch if rec_type is None else batch["reconstruction"][rec_type]

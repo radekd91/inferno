@@ -39,59 +39,97 @@ class FlamePreprocessor(Preprocessor):
                 # just return
                 return batch
         # from gdl_apps.EMOCA.utils.io import test
-        B, T = batch['gt_exp'].shape[:2]
-        
-        exp = batch['gt_exp'].view(B * T, -1)[..., :self.cfg.flame.n_exp]#.contiguous()
-        jaw = batch['gt_jaw'].view(B * T, -1)
-        global_pose = torch.zeros_like(jaw, device=jaw.device, dtype=jaw.dtype)      
-        pose = torch.cat([global_pose, jaw], dim=-1)#.contiguous()
 
-
-        # exp = torch.zeros((B * T, self.cfg.flame.n_exp))
-        # pose = torch.zeros_like((B * T, 6))
-
-        if batch['gt_shape'].ndim == 3:
-            template_shape = batch['gt_shape'][:, 0 :self.cfg.flame.n_shape]#.contiguous()
-            shape =  batch['gt_shape'][..., :self.cfg.flame.n_shape]#.contiguous()
+        rec_types = []
+        if 'gt_exp' in batch:
+            rec_types += [None]
         else: 
-            template_shape = batch['gt_shape'] 
-            # shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).contiguous().view(B * T, -1)
-            # shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).view(B * T, -1)
-            shape = batch['gt_shape'].view(B, -1)[:, None, ...].expand(B, T, template_shape.shape[1]).view(B * T, -1)
+            rec_types += batch["reconstruction"].keys()
 
-        # shape = torch.zeros((B * T, self.cfg.flame.n_exp))
-        # template_shape = torch.zeros_like(template_shape)
+        for rec_type in rec_types:
+            rec_dict = batch if rec_type is None else batch["reconstruction"][rec_type]
 
-        verts, landmarks_2D, landmarks_3D = self.flame(
-            shape_params=shape, 
-            expression_params=exp,
-            pose_params=pose
-        )
+            B, T = rec_dict['gt_exp'].shape[:2]
+            # B, T = nested_dict_access(batch, 'gt_exp', rec_type).shape[:2]
+            
+            exp = rec_dict['gt_exp'].view(B * T, -1)[..., :self.cfg.flame.n_exp]#.contiguous()
+            jaw = rec_dict['gt_jaw'].view(B * T, -1)
+            # exp = nested_dict_access(batch, 'gt_exp', rec_type).view(B * T, -1)[..., :self.cfg.flame.n_exp]#.contiguous()
+            # jaw = nested_dict_access(batch, 'gt_jaw', rec_type).view(B * T, -1)
+            
+            global_pose = torch.zeros_like(jaw, device=jaw.device, dtype=jaw.dtype)      
+            pose = torch.cat([global_pose, jaw], dim=-1)#.contiguous()
 
-        template_verts, _, _ = self.flame(
-            shape_params= template_shape,
-            expression_params= torch.zeros((B, self.cfg.flame.n_exp), device=self.device, dtype=shape.dtype),
-            pose_params=None
-        )
 
-        batch["template"] = template_verts.contiguous().view(B, -1)#.detach().clone()        
-        batch[output_prefix + 'vertices'] = verts.contiguous().view(B, T, -1)#.detach().clone()
+            # exp = torch.zeros((B * T, self.cfg.flame.n_exp))
+            # pose = torch.zeros_like((B * T, 6))
+            gt_shape = rec_dict['gt_shape'] 
+            # gt_shape = nested_dict_access(batch, 'gt_shape', rec_type)
 
-        if self.flame_tex is not None:
-            texcode = batch['gt_tex'] 
-            ndim = texcode.ndim
-            if ndim == 3:
-                texcode = texcode.view(B *T, -1)
-            albedo = self.flame_tex(
-                texcode = batch['gt_tex']
+            if gt_shape.ndim == 3:
+                template_shape = gt_shape[:, 0 :self.cfg.flame.n_shape]#.contiguous()
+                shape =  gt_shape[..., :self.cfg.flame.n_shape]#.contiguous()
+            else: 
+                template_shape = gt_shape
+                ## shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).contiguous().view(B * T, -1)
+                # shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).view(B * T, -1)
+                shape = gt_shape.view(B, -1)[:, None, ...].expand(B, T, template_shape.shape[1]).view(B * T, -1)
+
+            # shape = torch.zeros((B * T, self.cfg.flame.n_exp))
+            # template_shape = torch.zeros_like(template_shape)
+
+            verts, landmarks_2D, landmarks_3D = self.flame(
+                shape_params=shape, 
+                expression_params=exp,
+                pose_params=pose
             )
-            if ndim == 3:
-                albedo_dims = albedo.shape[2:]
-                albedo = albedo.view(B, T, *albedo_dims)
-            batch[output_prefix + 'albedo'] = albedo
-            batch["albedo"] = albedo
 
+            template_verts, _, _ = self.flame(
+                shape_params= template_shape,
+                expression_params= torch.zeros((B, self.cfg.flame.n_exp), device=self.device, dtype=shape.dtype),
+                pose_params=None
+            )
+
+            rec_dict["template"] = template_verts.contiguous().view(B, -1)#.detach().clone()        
+            rec_dict[output_prefix + 'vertices'] = verts.contiguous().view(B, T, -1)#.detach().clone()
+
+            # nested_dict_set(batch, "template", rec_type, template_verts.contiguous().view(B, -1)) 
+            # nested_dict_set(batch, output_prefix+"vertices", rec_type, verts.contiguous().view(B, T, -1)) 
+
+            if self.flame_tex is not None:
+                texcode = rec_dict['gt_tex'] 
+                # texcode = nested_dict_access(batch, 'gt_tex', rec_type)
+                ndim = texcode.ndim
+                if ndim == 3:
+                    texcode = texcode.view(B *T, -1)
+                albedo = self.flame_tex(
+                    # texcode = batch['gt_tex']
+                    texcode = texcode
+                )
+                if ndim == 3:
+                    albedo_dims = albedo.shape[2:]
+                    albedo = albedo.view(B, T, *albedo_dims)
+                rec_dict[output_prefix + 'albedo'] = albedo
+                ## batch["albedo"] = albedo
+
+                # nested_dict_set(batch, output_prefix + 'albedo', rec_type, albedo) 
+                ## nested_dict_set(batch, 'albedo', rec_type, albedo) 
         return batch
+
+
+def nested_dict_access(dictionary, first_key, key):
+    if first_key is not None: 
+        return dictionary[first_key][key]
+    return dictionary[key]
+
+def nested_dict_set(dictionary, first_key, key, value):
+    if first_key is not None: 
+        if first_key not in dictionary:
+            dictionary[first_key] = {}
+        dictionary[first_key][key] = value
+    else:
+        dictionary[key] = value
+
 
 class EmocaPreprocessor(Preprocessor): 
 

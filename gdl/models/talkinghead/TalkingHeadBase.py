@@ -5,6 +5,7 @@ from gdl.models.temporal.MultiModalTemporalNet import *
 from gdl.models.temporal.Bases import *
 from gdl.models.temporal.BlockFactory import norm_from_cfg
 import random
+import omegaconf
 
 
 class TalkingHeadBase(pl.LightningModule): 
@@ -91,9 +92,20 @@ class TalkingHeadBase(pl.LightningModule):
             trainable_params += self.shape_model.get_trainable_parameters()
         return trainable_params
 
+    def _choose_primary_3D_rec_method(self, batch): 
+        method = self.cfg.data.reconstruction_type
+        if isinstance(method, (list, omegaconf.listconfig.ListConfig)):
+            # method = random.choice(method)
+            method = method[0]
+        if "reconstruction" in batch:
+            for k in batch["reconstruction"][method].keys():
+                assert k not in batch.keys(), f"Key '{key}' already exists in batch. We don't want to overwrite it."
+                batch[k] = batch["reconstruction"][method][k]
+        return batch
+
+
     def training_step(self, batch, batch_idx, *args, **kwargs):
         training = False 
-
         # forward pass
         sample = self.forward(batch, train=training, teacher_forcing=False, **kwargs)
         # loss 
@@ -186,7 +198,11 @@ class TalkingHeadBase(pl.LightningModule):
         if self.renderer is None:
             return sample 
         with torch.no_grad():
-            sample = self.renderer(sample, train=train, input_key='gt_vertices', output_prefix='gt_', **kwargs)
+            if "reconstruction" in sample.keys():
+                for method in self.cfg.data.reconstruction_type:
+                    sample["reconstruction"][method] = self.renderer(sample["reconstruction"][method], train=train, input_key='gt_vertices', output_prefix='gt_', **kwargs)
+            else:
+                sample = self.renderer(sample, train=train, input_key='gt_vertices', output_prefix='gt_', **kwargs)
         sample = self.renderer(sample, train=train, input_key='predicted_vertices', output_prefix='predicted_', **kwargs)
         return sample
 
@@ -214,6 +230,8 @@ class TalkingHeadBase(pl.LightningModule):
         # preprocess input (for instance get 3D pseudo-GT )
         sample = self.preprocess_input(sample, train=train, **kwargs)
         check_nan(sample)
+
+        sample = self._choose_primary_3D_rec_method(sample)
         
         teacher_forcing = kwargs.pop("teacher_forcing", False)
         desired_output_length = sample["gt_vertices"].shape[1] if "gt_vertices" in sample.keys() else None

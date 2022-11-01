@@ -820,12 +820,13 @@ class MEADDataset(VideoDatasetBase):
         lmk_path = path_prefix / parts[0] / "/".join(parts[2:])
         return lmk_path.with_suffix("")
 
-    def _path_to_reconstructions(self, index): 
+    def _path_to_reconstructions(self, index, rec_type): 
         parts = self.video_list[self.video_indices[index]].parts
         video_part = parts[1] 
         expected_values = ["video", "1", "2"]
         assert video_part in expected_values, f"Expected video part to be one of {expected_values}, but got '{video_part}'"
-        path_prefix = Path(self.output_dir) / f"reconstructions" / self.reconstruction_type 
+        # path_prefix = Path(self.output_dir) / f"reconstructions" / self.reconstruction_type 
+        path_prefix = Path(self.output_dir) / f"reconstructions" / rec_type
         rec_path = path_prefix / parts[0] / "/".join(parts[2:])
         return rec_path.with_suffix("")
 
