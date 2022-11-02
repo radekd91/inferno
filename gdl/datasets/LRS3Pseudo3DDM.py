@@ -62,6 +62,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
         self.test_condition_settings = test_condition_settings
         self.read_video = read_video
 
+        self.reconstruction_type = reconstruction_type
         if self.reconstruction_type is not None: 
             if isinstance(self.reconstruction_type, str): 
                 self.reconstruction_type = [self.reconstruction_type]
