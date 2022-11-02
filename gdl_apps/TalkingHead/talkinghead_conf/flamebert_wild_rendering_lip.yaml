@@ -1,0 +1,31 @@
+defaults:
+  - data/datasets: celebvhq_no_occlusion
+  - data/augmentations: none
+  # - model/paths : cluster
+  # - model/settings : coarse_facehubert
+  - model/sizes@model/sizes : default
+  # - model/neural_rendering : none
+  # - model/flame_tex: bfm_desktop
+  - model/preprocessor@model.preprocessor : flame_tex
+  # - model/audio@model/audio: avhubert
+  # - model/audio@model/audio: wav2vec2
+  - model/audio@model/audio: wav2vec2_resampled_trainable_wild
+  # - model/audio@model/audio: hubert
+  # - model/face@model/face: flame
+  # - model/face@model/face: full_space
+  - model/settings: faceformer
+  - model/sequence_encoder@model/sequence_encoder: linear
+  - model/sequence_decoder@model/sequence_decoder: flamebert_wild
+  # - model/renderer@model/renderer: fixed_view
+  - model/renderer@model/renderer: fixed_view_mouth
+  - model/output@model/output: exp_jaw
+  # - model/output@model/output: vertices
+  - learning/losses: vertices_lip_masked
+  - learning/optimizer: adam
+  # - learning/batching@learning/batching: default
+  - learning/batching@learning/batching: fixed_length
+  # - learning/callbacks: early_stopping
+  - learning/callbacks: none
+  - learning/logging: wandb
+  # - learning/logging: none
+  - inout: cluster
