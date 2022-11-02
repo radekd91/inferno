@@ -349,6 +349,10 @@ def create_experiment_name(cfg, version=0):
                 experiment_name += "Ev"
             elif loss_type in ["jawpose_velocity_loss", "jaw_velocity_loss"]:
                 experiment_name += "Jv" +  cfg.learning.losses[loss_type].get('rotation_rep', 'quat')
+            elif loss_type == "emotion_loss":
+                experiment_name += "E"
+            elif loss_type == "lip_reading_loss":
+                experiment_name += "L"
             experiment_name += mask_str
 
         if 'augmentation' in cfg.data.keys() and len(cfg.data.augmentation) > 0:
