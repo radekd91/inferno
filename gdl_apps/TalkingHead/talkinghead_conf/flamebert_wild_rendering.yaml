@@ -16,12 +16,14 @@ defaults:
   - model/settings: faceformer
   - model/sequence_encoder@model/sequence_encoder: linear
   - model/sequence_decoder@model/sequence_decoder: flamebert_wild
-  - model/renderer@model/renderer: fixed_view
+  # - model/renderer@model/renderer: fixed_view
+  - model/renderer@model/renderer: fixed_view_mouth
   - model/output@model/output: exp_jaw
   # - model/output@model/output: vertices
   # - learning/losses: vertices
   # - learning/losses: vertices_masked
-  - learning/losses: vertices_emo_masked
+  # - learning/losses: vertices_emo_masked 
+  - learning/losses: vertices_emo_lip_masked
   - learning/optimizer: adam
   # - learning/batching@learning/batching: default
   - learning/batching@learning/batching: fixed_length

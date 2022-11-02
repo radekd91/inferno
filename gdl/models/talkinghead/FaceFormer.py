@@ -50,6 +50,11 @@ class FaceFormer(TalkingHeadBase):
                                             dual=False)
                 self.neural_losses.emotion_loss.eval()
                 self.neural_losses.emotion_loss.requires_grad_(False)
+            elif loss_type == "lip_reading_loss": 
+                from gdl.models.temporal.external.LipReadingLoss import LipReadingLoss
+                self.neural_losses.lip_reading_loss = LipReadingLoss(self.device)
+                self.neural_losses.lip_reading_loss.eval()
+                self.neural_losses.lip_reading_loss.requires_grad_(False)
             # elif loss_type == "face_recognition":
             #     self.face_recognition_loss = FaceRecognitionLoss(loss_cfg)
 
@@ -185,6 +190,39 @@ class FaceFormer(TalkingHeadBase):
                     self.neural_losses.emotion_loss.compute_loss(gt_vid, pred_vid)        
             loss_value = emo_feat_loss_2
 
+        elif loss_type == "lip_reading_loss":
+            cam_name = list(sample["predicted_mouth_video"].keys())[0]
+            assert len(list(sample["predicted_mouth_video"].keys())) == 1, "More cameras are not supported yet"
+            B,T = sample["predicted_mouth_video"][cam_name].shape[:2] 
+            rest = sample["predicted_mouth_video"][cam_name].shape[2:]
+
+            for cam_name in sample["predicted_mouth_video"].keys():
+                target_method = loss_cfg.get('target_method_image', None)
+                if target_method is None:
+                    target_dict = sample
+                else: 
+                    target_dict = sample["reconstruction"][target_method]
+                
+                # TODO: look into whether the lip reading loss can be used for a batch of videos (currently only one video)
+                # gt_vid = target_dict["gt_mouth_video"][cam_name].view(B*T, *rest)
+                # pred_vid = sample["predicted_mouth_video"][cam_name].view(B*T, *rest)
+                # mask_ = mask.view(B*T, -1).unsqueeze(-1).unsqueeze(-1)
+                # mask_ = mask_.expand(*pred_vid.shape)
+                # gt_vid = gt_vid[mask_].view(B*mask_sum, *gt_vid.shape[1:])
+                # pred_vid = pred_vid[mask_].view(B*mask_sum, *pred_vid.shape[1:])
+
+                loss_values = []
+                for bi in range(B):
+                    gt_vid = target_dict["gt_mouth_video"][cam_name][bi].view(T, *rest)
+                    pred_vid = sample["predicted_mouth_video"][cam_name][bi].view(T, *rest)
+                    mask_sum_ = mask[bi].sum()
+                    mask_ = mask.view(T, -1).unsqueeze(-1).unsqueeze(-1)
+                    mask_ = mask_.expand(*pred_vid.shape)
+                    gt_vid = gt_vid[mask_].view(mask_sum_, *gt_vid.shape[1:])
+                    pred_vid = pred_vid[mask_].view(mask_sum_, *pred_vid.shape[1:])
+                    loss = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid)
+                    loss_values.append(loss)
+                loss_value = torch.tensor(loss_values).mean()
         else: 
             raise ValueError(f"Unknown loss type: {loss_type}")
         return loss_value

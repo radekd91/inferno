@@ -1,6 +1,7 @@
 from gdl.models.temporal.Bases import Renderer
 from gdl.models.Renderer import *
 from gdl.utils.lbs import batch_rodrigues, batch_rigid_transform
+import torchvision.transforms.functional as F_v
 
 
 class FlameRenderer(Renderer):
@@ -133,6 +134,14 @@ class FixedViewFlameRenderer(FlameRenderer):
         
         self.cam_names = cfg.cam_names
 
+        self.cut_out_mouth = cfg.get("cut_out_mouth", False)
+        if self.cut_out_mouth: 
+            self.mouth_crop_width = cfg.get("mouth_crop_width", 96) # the default of SPECTRE
+            self.mouth_crop_height = cfg.get("mouth_crop_height", 96)
+            self.mouth_window_margin = cfg.get("mouth_crop_height", 12)
+            self.mouth_landmark_start_idx = 48
+            self.mouth_landmark_stop_idx = 68
+
     def set_shape_model(self, shape_model):
         self.shape_model = shape_model
 
@@ -229,23 +238,33 @@ class FixedViewFlameRenderer(FlameRenderer):
         
         out_vid_name = output_prefix + "video"
         out_landmark_name = output_prefix + "landmarks_2d"
-        out_verts_name = output_prefix + "trans_verts"
+        # out_verts_name = output_prefix + "trans_verts"
         assert out_vid_name not in sample, f"Key '{out_vid_name}' already exists in sample. Please choose a different output_prefix to not overwrite and existing value"
         assert out_landmark_name not in sample, f"Key '{out_landmark_name}' already exists in sample. Please choose a different output_prefix to not overwrite and existing value"
         sample[out_vid_name] = {}
         sample[out_landmark_name] = {}
-        sample[out_verts_name] = {}
+        if self.cut_out_mouth: 
+            out_mouth_vid_name = output_prefix + "mouth_video"
+            sample[out_mouth_vid_name] = {}
+        # sample[out_verts_name] = {}
         for ci, cam_name in enumerate(self.cam_names):
             sample[out_vid_name][cam_name] = rendering_sample["predicted_video"][:, ci::C, ...]
             # sample[out_name][cam_name] = sample[out_name][cam_name].view(B, T, *sample[out_name][cam_name].shape[1:])
-            sample[out_verts_name][cam_name] = rendering_sample["trans_verts"][:, ci::C, ...]
+            # sample[out_verts_name][cam_name] = rendering_sample["trans_verts"][:, ci::C, ...]
             if self.project_landmarks:
                 sample[out_landmark_name][cam_name] = rendering_sample["predicted_landmarks"][:, ci::C, ...]
+
+            if self.cut_out_mouth: 
+                sample[out_mouth_vid_name][cam_name] = []
+                for bi in range(B):
+                    sample[out_mouth_vid_name][cam_name] += [self.cut_mouth(sample[out_vid_name][cam_name][bi], sample[out_landmark_name][cam_name][bi])]
+                sample[out_mouth_vid_name][cam_name] = torch.stack(sample[out_mouth_vid_name][cam_name], dim=0)
 
         # ## plot the landmakrs over the video for debugging and sanity checking
         # import matplotlib.pyplot as plt 
         # plt.figure()
         # image = sample[out_vid_name][self.cam_names[0]][0].permute( 2, 0, 3, 1).cpu().numpy()
+        # mouth_image = sample[out_vid_name + "_mouth"][self.cam_names[0] + ][0].unsqueeze(1).permute( 2, 0, 3, 1).cpu().numpy()
         # if self.project_landmarks:
         #     # trans_verts = sample[out_verts_name][self.cam_names[0]][0].cpu().numpy()[..., :2]  * image.shape[-2] / 2 + image.shape[-2] / 2
         #     landmarks = sample[out_landmark_name][self.cam_names[0]][0].cpu().numpy() * image.shape[-2] / 2 + image.shape[-2] / 2
@@ -256,6 +275,62 @@ class FixedViewFlameRenderer(FlameRenderer):
         #     # plt.scatter(trans_verts[frame_num,0], trans_verts[frame_num,1], s=3)
         #     plt.scatter(landmarks[frame_num, :,0], landmarks[frame_num, :,1], s=3)
         # plt.show()
-
+        # plt.figure()
+        # plt.imshow(mouth_image[:,frame_num,...])
+        # plt.show()
         return sample
 
+
+    def cut_mouth(self, images, landmarks, convert_grayscale=True):
+        """ function adapted from https://github.com/mpc001/Visual_Speech_Recognition_for_Multiple_Languages"""
+
+        mouth_sequence = []
+
+        image_size = images.shape[-1] / 2
+
+        landmarks = landmarks * image_size + image_size
+        for frame_idx, frame in enumerate(images):
+            window_margin = min(self.mouth_window_margin // 2, frame_idx, len(landmarks) - 1 - frame_idx)
+            smoothed_landmarks = landmarks[frame_idx-window_margin:frame_idx + window_margin + 1].mean(dim=0)
+            smoothed_landmarks += landmarks[frame_idx].mean(dim=0) - smoothed_landmarks.mean(dim=0)
+
+            center_x, center_y = torch.mean(smoothed_landmarks[self.mouth_landmark_start_idx:self.mouth_landmark_stop_idx], dim=0)
+
+            center_x = center_x.round()
+            center_y = center_y.round()
+
+            height = self.mouth_crop_height//2
+            width = self.mouth_crop_width//2
+
+            threshold = 5
+
+            if convert_grayscale:
+                img = F_v.rgb_to_grayscale(frame).squeeze()
+            else:
+                img = frame
+
+            if center_y - height < 0:
+                center_y = height
+            if center_y - height < 0 - threshold:
+                raise Exception('too much bias in height')
+            if center_x - width < 0:
+                center_x = width
+            if center_x - width < 0 - threshold:
+                raise Exception('too much bias in width')
+
+            if center_y + height > img.shape[-2]:
+                center_y = img.shape[-2] - height
+            if center_y + height > img.shape[-2] + threshold:
+                raise Exception('too much bias in height')
+            if center_x + width > img.shape[-1]:
+                center_x = img.shape[-1] - width
+            if center_x + width > img.shape[-1] + threshold:
+                raise Exception('too much bias in width')
+
+            mouth = img[...,int(center_y - height): int(center_y + height),
+                                 int(center_x - width): int(center_x + round(width))]
+
+            mouth_sequence.append(mouth.unsqueeze(0))
+
+        mouth_sequence = torch.stack(mouth_sequence,dim=0)
+        return mouth_sequence
