@@ -178,7 +178,7 @@ class TalkingHeadBase(pl.LightningModule):
         # forward pass
         sample = self.forward(batch, train=training, teacher_forcing=False, **kwargs)
         # loss 
-        total_loss, losses, metrics = self.compute_loss(sample, **kwargs)
+        total_loss, losses, metrics = self.compute_loss(sample, training, **kwargs)
 
         losses_and_metrics_to_log = {**losses, **metrics}
         # losses_and_metrics_to_log = {"train_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
