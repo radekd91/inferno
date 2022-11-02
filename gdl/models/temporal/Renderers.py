@@ -27,8 +27,12 @@ class FlameRenderer(Renderer):
         verts = sample["verts"]
         albedo = sample["albedo"]
         if self.project_landmarks:
-            landmarks2d = sample["predicted_landmarks2d_flame_space"]
-            landmarks2d_mediapipe = sample["predicted_landmarks2d_mediapipe_flame_space"]
+            landmarks2d = None 
+            landmarks2d_mediapipe = None
+            if "predicted_landmarks2d_flame_space" in sample.keys():
+                landmarks2d = sample["predicted_landmarks2d_flame_space"]
+            if "predicted_landmarks2d_mediapipe_flame_space" in sample.keys():
+                landmarks2d_mediapipe = sample["predicted_landmarks2d_mediapipe_flame_space"]
         cam = sample["cam"]
         lightcode = sample["lightcode"]
 
@@ -39,8 +43,10 @@ class FlameRenderer(Renderer):
         verts = verts.view(B*T, *verts.shape[2:])
         albedo = albedo.view(B*T, *albedo.shape[2:])
         if self.project_landmarks:
-            landmarks2d = landmarks2d.view(B*T, *landmarks2d.shape[2:])
-            landmarks2d_mediapipe = landmarks2d_mediapipe.view(B*T, *landmarks2d_mediapipe.shape[2:])
+            if landmarks2d is not None:
+                landmarks2d = landmarks2d.view(B*T, *landmarks2d.shape[2:])
+            if landmarks2d_mediapipe is not None:
+                landmarks2d_mediapipe = landmarks2d_mediapipe.view(B*T, *landmarks2d_mediapipe.shape[2:])
         cam = cam.view(B*T, *cam.shape[2:])
 
         # 9 and 3 are the spherical harmonics things
@@ -49,14 +55,18 @@ class FlameRenderer(Renderer):
         # world to camera
         trans_verts = util.batch_orth_proj(verts, cam)
         if self.project_landmarks:
-            predicted_landmarks = util.batch_orth_proj(landmarks2d, cam)[:, :, :2]
-            predicted_landmarks_mediapipe = util.batch_orth_proj(landmarks2d_mediapipe, cam)[:, :, :2]
+            if landmarks2d is not None:
+                predicted_landmarks = util.batch_orth_proj(landmarks2d, cam)[:, :, :2]
+            if landmarks2d_mediapipe is not None:
+                predicted_landmarks_mediapipe = util.batch_orth_proj(landmarks2d_mediapipe, cam)[:, :, :2]
 
         # camera to image space
         trans_verts[:, :, 1:] = -trans_verts[:, :, 1:]
         if self.project_landmarks:
-            predicted_landmarks[:, :, 1:] = -predicted_landmarks[:, :, 1:]
-            predicted_landmarks_mediapipe[:, :, 1:] = -predicted_landmarks_mediapipe[:, :, 1:]
+            if landmarks2d is not None:
+                predicted_landmarks[:, :, 1:] = -predicted_landmarks[:, :, 1:]
+            if landmarks2d_mediapipe is not None:
+                predicted_landmarks_mediapipe[:, :, 1:] = -predicted_landmarks_mediapipe[:, :, 1:]
 
         outputs = self.render(verts, trans_verts, albedo, lightcode)
         effective_batch_size = verts.shape[0]
@@ -71,15 +81,19 @@ class FlameRenderer(Renderer):
         predicted_images = predicted_images.view(B, T, *predicted_images.shape[1:])
         predicted_mask = predicted_mask.view(B, T, *predicted_mask.shape[1:])
         if self.project_landmarks:
-            predicted_landmarks = predicted_landmarks.view(B, T, *predicted_landmarks.shape[1:])
-            predicted_landmarks_mediapipe = predicted_landmarks_mediapipe.view(B, T, *predicted_landmarks_mediapipe.shape[1:])
+            if landmarks2d is not None:
+                predicted_landmarks = predicted_landmarks.view(B, T, *predicted_landmarks.shape[1:])
+            if landmarks2d_mediapipe is not None:
+                predicted_landmarks_mediapipe = predicted_landmarks_mediapipe.view(B, T, *predicted_landmarks_mediapipe.shape[1:])
         predicted_trans_verts = trans_verts.view(B,T, *trans_verts.shape[1:])
 
         sample["predicted_video"] = predicted_images 
         sample["predicted_mask"] = predicted_mask
         if self.project_landmarks:
-            sample["predicted_landmarks"] = predicted_landmarks
-            sample["predicted_landmarks_mediapipe"] = predicted_landmarks_mediapipe
+            if landmarks2d is not None:
+                sample["predicted_landmarks"] = predicted_landmarks
+            if landmarks2d_mediapipe is not None:
+                sample["predicted_landmarks_mediapipe"] = predicted_landmarks_mediapipe
         sample["trans_verts"] = predicted_trans_verts
         return sample
 
@@ -104,12 +118,13 @@ class FixedViewFlameRenderer(FlameRenderer):
         # self.register_buffer('fixed_cams', -fixed_cams)
 
         # shape [#num cams, 3]
-        fixed_poses = torch.tensor(cfg.fixed_poses)
+        fixed_poses_aa = torch.tensor(cfg.fixed_poses)
+        self.register_buffer('fixed_poses_aa', fixed_poses_aa)
         # convert aa to rotation matrix
         # fixed_poses = batch_rodrigues(
         #     fixed_poses.view(-1, 3), dtype=fixed_poses.dtype).view([-1, 3, 3]).transpose(1, 2)
         fixed_poses = batch_rodrigues(
-            fixed_poses.view(-1, 3), dtype=fixed_poses.dtype).view([-1, 3, 3])
+            fixed_poses_aa.view(-1, 3), dtype=fixed_poses_aa.dtype).view([-1, 3, 3])
 
         self.register_buffer('fixed_poses', fixed_poses)
 
@@ -118,9 +133,12 @@ class FixedViewFlameRenderer(FlameRenderer):
         
         self.cam_names = cfg.cam_names
 
-    
-    def forward(self, sample, train=False, input_key="verts", output_prefix="predicted_", **kwargs):
-        verts = sample[input_key]
+    def set_shape_model(self, shape_model):
+        self.shape_model = shape_model
+
+    def forward(self, sample, train=False, input_key_prefix="gt_", output_prefix="predicted_", **kwargs):
+        verts = sample[input_key_prefix + "vertices"]
+        jaw = sample[input_key_prefix +  "jaw"]
         
         # create an extra dimension for the fixed views
         B, T, = verts.shape[:2]
@@ -146,6 +164,7 @@ class FixedViewFlameRenderer(FlameRenderer):
 
         # shape [B, T, #num cams, ...]
         verts = verts.unsqueeze(2)
+        jaw = jaw.unsqueeze(2)
         albedo = albedo.unsqueeze(2)
 
         # repeat the fixed views
@@ -154,6 +173,7 @@ class FixedViewFlameRenderer(FlameRenderer):
         verts = verts.view(B, T, C, -1, 3)
         # albedo = albedo.repeat(1, 1, C, *_other_dims_a_repeat)
         albedo = albedo.expand(B, T, C, *_other_dims_a)
+        jaw = jaw.expand(B, T, C, jaw.shape[-1])
 
         # collapse the cam dimension 
         # shape [B, T, #num cams, ...] -> [B, T * #num cams, ...]
@@ -175,6 +195,20 @@ class FixedViewFlameRenderer(FlameRenderer):
         verts_posed  = verts @ self.fixed_poses
         # verts = verts @ self.fixed_poses.transpose(1, 2)
 
+        if self.project_landmarks:
+            # self.fixed_poses_aa is [C, 3]. expand to [B, T, C, 3]
+            poses_aa = self.fixed_poses_aa.unsqueeze(0).unsqueeze(0)
+            neck_aa = torch.zeros_like(poses_aa)
+            eyes_aa = torch.zeros_like(poses_aa)
+            poses_aa = poses_aa.expand(B, T, C, self.fixed_poses_aa.shape[-1])
+            neck_aa = neck_aa.expand(B, T, C, self.fixed_poses_aa.shape[-1])
+            eyes_aa = eyes_aa.expand(B, T, C, self.fixed_poses_aa.shape[-1])
+
+            full_pose = torch.cat([poses_aa, neck_aa, jaw, eyes_aa], dim=-1)
+
+            landmarks_2d_posed = self.shape_model._vertices2landmarks2d(verts_posed.view(B * T * C, *verts_posed.shape[3:]), full_pose.view(B * T * C, *full_pose.shape[3:]) )
+            landmarks_2d_posed = landmarks_2d_posed.view(B, T * C, *landmarks_2d_posed.shape[1:])
+
         rendering_sample = {}
         rendering_sample["verts"] = verts_posed
         rendering_sample["albedo"] = albedo
@@ -188,21 +222,39 @@ class FixedViewFlameRenderer(FlameRenderer):
             # rendering_sample[key] = rendering_sample[key].view(B, T * C, *dims_after_cam)
             rendering_sample[key] = rendering_sample[key].reshape(B, T * C, *dims_after_cam)
 
+        if self.project_landmarks:
+            rendering_sample["predicted_landmarks2d_flame_space"] = landmarks_2d_posed
+
         rendering_sample = super().forward(rendering_sample)
         
-        out_name = output_prefix + "video"
-        assert out_name not in sample, f"Key '{out_name}' already exists in sample. Please choose a different output_prefix to not overwrite and existing value"
-        sample[out_name] = {}
+        out_vid_name = output_prefix + "video"
+        out_landmark_name = output_prefix + "landmarks_2d"
+        out_verts_name = output_prefix + "trans_verts"
+        assert out_vid_name not in sample, f"Key '{out_vid_name}' already exists in sample. Please choose a different output_prefix to not overwrite and existing value"
+        assert out_landmark_name not in sample, f"Key '{out_landmark_name}' already exists in sample. Please choose a different output_prefix to not overwrite and existing value"
+        sample[out_vid_name] = {}
+        sample[out_landmark_name] = {}
+        sample[out_verts_name] = {}
         for ci, cam_name in enumerate(self.cam_names):
-            sample[out_name][cam_name] = rendering_sample["predicted_video"][:, ci::C, ...]
+            sample[out_vid_name][cam_name] = rendering_sample["predicted_video"][:, ci::C, ...]
             # sample[out_name][cam_name] = sample[out_name][cam_name].view(B, T, *sample[out_name][cam_name].shape[1:])
-        
+            sample[out_verts_name][cam_name] = rendering_sample["trans_verts"][:, ci::C, ...]
+            if self.project_landmarks:
+                sample[out_landmark_name][cam_name] = rendering_sample["predicted_landmarks"][:, ci::C, ...]
+
+        # ## plot the landmakrs over the video for debugging and sanity checking
         # import matplotlib.pyplot as plt 
         # plt.figure()
-        # image = sample[out_name][self.cam_names[0]][0].permute( 2, 0, 3, 1).cpu().numpy()
+        # image = sample[out_vid_name][self.cam_names[0]][0].permute( 2, 0, 3, 1).cpu().numpy()
+        # if self.project_landmarks:
+        #     # trans_verts = sample[out_verts_name][self.cam_names[0]][0].cpu().numpy()[..., :2]  * image.shape[-2] / 2 + image.shape[-2] / 2
+        #     landmarks = sample[out_landmark_name][self.cam_names[0]][0].cpu().numpy() * image.shape[-2] / 2 + image.shape[-2] / 2
         # # image = image.view()
-        
-        # plt.imshow(image[:,0,...])
+        # frame_num = 2
+        # plt.imshow(image[:,frame_num,...])
+        # if self.project_landmarks:
+        #     # plt.scatter(trans_verts[frame_num,0], trans_verts[frame_num,1], s=3)
+        #     plt.scatter(landmarks[frame_num, :,0], landmarks[frame_num, :,1], s=3)
         # plt.show()
 
         return sample

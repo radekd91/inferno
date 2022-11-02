@@ -69,6 +69,9 @@ class SequenceDecoder(torch.nn.Module):
     def get_trainable_parameters(self): 
         raise NotImplementedError()
 
+    def get_shape_model(self):
+        raise NotImplementedError()
+
 
 class ShapeModel(torch.nn.Module):
 
@@ -123,6 +126,9 @@ class Renderer(torch.nn.Module):
         return []
 
     def render_coarse_shape(self, sample, **kwargs):
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def set_shape_model(self, shape_model):
         raise NotImplementedError("Subclasses must implement this method")
 
 

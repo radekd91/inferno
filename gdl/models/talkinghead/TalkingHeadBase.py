@@ -29,6 +29,10 @@ class TalkingHeadBase(pl.LightningModule):
         self.preprocessor = preprocessor
         self.renderer = renderer
 
+        if shape_model is not None and renderer is not None:
+            self.renderer.set_shape_model(shape_model)
+        elif renderer is not None and self.sequence_decoder is not None:
+            self.renderer.set_shape_model(self.sequence_decoder.get_shape_model())
         if self.sequence_decoder is None: 
             self.code_vec_input_name = "seq_encoder_output"
         else:
@@ -200,10 +204,10 @@ class TalkingHeadBase(pl.LightningModule):
         with torch.no_grad():
             if "reconstruction" in sample.keys():
                 for method in self.cfg.data.reconstruction_type:
-                    sample["reconstruction"][method] = self.renderer(sample["reconstruction"][method], train=train, input_key='gt_vertices', output_prefix='gt_', **kwargs)
+                    sample["reconstruction"][method] = self.renderer(sample["reconstruction"][method], train=train, input_key_prefix='gt_', output_prefix='gt_', **kwargs)
             else:
-                sample = self.renderer(sample, train=train, input_key='gt_vertices', output_prefix='gt_', **kwargs)
-        sample = self.renderer(sample, train=train, input_key='predicted_vertices', output_prefix='predicted_', **kwargs)
+                sample = self.renderer(sample, train=train, input_key_prefix='gt_', output_prefix='gt_', **kwargs)
+        sample = self.renderer(sample, train=train, input_key_prefix='predicted_', output_prefix='predicted_', **kwargs)
         return sample
 
 

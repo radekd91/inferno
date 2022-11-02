@@ -82,6 +82,14 @@ class FlameShapeModel(ShapeModel):
         sample["albedo"] = albedo
         return sample
 
+    def get_landmarks_2d(self, vertices, full_pose):
+        B, T = vertices.shape[:2]
+        vertices = vertices.view(B*T, *vertices.shape[2:])
+        full_pose = full_pose.view(B*T, *full_pose.shape[2:])
+        landmarks = self.flame._vertices2landmarks2d(vertices, full_pose)
+        landmarks = landmarks.view(B, T, *landmarks.shape[1:])
+        return landmarks
+
     def input_dim(): 
         raise NotImplementedError("Subclasses must implement this method")
 

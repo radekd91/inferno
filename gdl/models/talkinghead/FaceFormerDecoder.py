@@ -203,6 +203,9 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
 
         self.use_alignment_bias = cfg.get('use_alignment_bias', True)
 
+    def get_shape_model(self):
+        return None
+
     def get_trainable_parameters(self):
         return list(self.parameters())
 
@@ -460,6 +463,8 @@ class FlameFormerDecoder(FaceFormerDecoderBase):
         self.flame_space_loss = cfg.flame_space_loss
         # self.rotation_loss_space = cfg.rotation_loss_space
 
+    def get_shape_model(self):
+        return self.flame
 
     def _rotation_representation(self):
         return self.rotation_representation
@@ -749,6 +754,9 @@ class BertDecoder(FeedForwardDecoder):
         nn.init.constant_(self.decoder.weight, 0)
         nn.init.constant_(self.decoder.bias, 0)
 
+    def get_shape_model(self):
+        return None
+
     def decoder_output_dim(self):
         return self.cfg.vertices_dim
 
@@ -790,6 +798,9 @@ class FlameBertDecoder(BertDecoder):
 
         # nn.init.normal_(self.decoder.weight, mean=0.0, std=0.00001)
         # nn.init.normal_(self.decoder.bias, mean=0.0, std=0.00001)
+
+    def get_shape_model(self):
+        return self.flame
 
     def decoder_output_dim(self):
         return self.pred_dim

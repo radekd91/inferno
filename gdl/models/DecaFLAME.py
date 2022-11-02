@@ -169,7 +169,7 @@ class FLAME(nn.Module):
         """
         # Extract the indices of the vertices for each face
         # NxLx3
-        batch_size, num_verts = vertices.shape[:dd2]
+        batch_size, num_verts = vertices.shape[:2]
         lmk_faces = torch.index_select(faces, 0, lmk_faces_idx.view(-1)).view(
             1, -1, 3).view(batch_size, lmk_faces_idx.shape[1], -1)
 
@@ -179,6 +179,38 @@ class FLAME(nn.Module):
         lmk_vertices = vertices.view(-1, 3)[lmk_faces]
         landmarks = torch.einsum('blfi,blf->bli', [lmk_vertices, lmk_bary_coords])
         return landmarks
+
+    def _vertices2landmarks2d(self, vertices, full_pose):
+        """
+            Calculates landmarks by barycentric interpolation
+            Input:
+                vertices: torch.tensor NxVx3, dtype = torch.float32
+                    The tensor of input vertices
+                full_pose: torch.tensor N X 12, dtype = torch.float32
+                    The tensor with global pose, neck pose, jaw pose and eye pose (respectively) in axis angle format
+
+            Returns:
+                landmarks: torch.tensor NxLx3, dtype = torch.float32
+                    The coordinates of the landmarks for each mesh in the batch
+        """
+        # Extract the indices of the vertices for each face
+        # NxLx3
+        batch_size = vertices.shape[0]
+        lmk_faces_idx = self.lmk_faces_idx.unsqueeze(dim=0).expand(batch_size, -1)
+        lmk_bary_coords = self.lmk_bary_coords.unsqueeze(dim=0).expand(batch_size, -1, -1)
+
+        dyn_lmk_faces_idx, dyn_lmk_bary_coords = self._find_dynamic_lmk_idx_and_bcoords(
+            full_pose, self.dynamic_lmk_faces_idx,
+            self.dynamic_lmk_bary_coords,
+            self.neck_kin_chain, dtype=self.dtype)
+        lmk_faces_idx = torch.cat([dyn_lmk_faces_idx, lmk_faces_idx], 1)
+        lmk_bary_coords = torch.cat([dyn_lmk_bary_coords, lmk_bary_coords], 1)
+
+        landmarks2d = vertices2landmarks(vertices, self.faces_tensor,
+                                         lmk_faces_idx,
+                                         lmk_bary_coords)
+        return landmarks2d
+
 
     def seletec_3d68(self, vertices):
         landmarks3d = vertices2landmarks(vertices, self.faces_tensor,
