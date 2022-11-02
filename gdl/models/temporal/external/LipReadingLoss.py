@@ -82,13 +82,17 @@ class LipReadingLoss(torch.nn.Module):
     def _forward_output(self, images):
         return self.model(images)
 
-    def compute_loss(self, mouth_images_gt, mouth_images_pred):
+    def compute_loss(self, mouth_images_gt, mouth_images_pred, mask=None):
         lip_features_gt = self._forward_input(mouth_images_gt)
         lip_features_pred = self._forward_output(mouth_images_pred)
 
         lip_features_gt = lip_features_gt.view(-1, lip_features_gt.shape[-1])
         lip_features_pred = lip_features_pred.view(-1, lip_features_pred.shape[-1])
         
+        if mask is not None:
+            lip_features_gt = lip_features_gt[mask.squeeze(1)]
+            lip_features_pred = lip_features_pred[mask.squeeze(1)]
+
         lr = (lip_features_gt*lip_features_pred).sum(1)/torch.linalg.norm(lip_features_pred,dim=1)/torch.linalg.norm(lip_features_gt,dim=1)
 
         loss = 1-torch.mean(lr)

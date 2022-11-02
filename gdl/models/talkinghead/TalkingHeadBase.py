@@ -109,11 +109,11 @@ class TalkingHeadBase(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx, *args, **kwargs):
-        training = False 
+        training = True 
         # forward pass
         sample = self.forward(batch, train=training, teacher_forcing=False, **kwargs)
         # loss 
-        total_loss, losses, metrics = self.compute_loss(sample, **kwargs)
+        total_loss, losses, metrics = self.compute_loss(sample, training=training, **kwargs)
 
         losses_and_metrics_to_log = {**losses, **metrics}
         # losses_and_metrics_to_log = {"train_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
@@ -132,7 +132,7 @@ class TalkingHeadBase(pl.LightningModule):
         # forward pass
         sample = self.forward(batch, train=training, teacher_forcing=True, **kwargs)
         # loss 
-        total_loss, losses, metrics = self.compute_loss(sample, **kwargs)
+        total_loss, losses, metrics = self.compute_loss(sample, training=training, **kwargs)
 
         losses_and_metrics_to_log = {**losses, **metrics}
         # losses_and_metrics_to_log = {"val_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
@@ -195,6 +195,89 @@ class TalkingHeadBase(pl.LightningModule):
     def encode_sequence(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
         return self.sequence_encoder(sample, input_key="audio_feature", **kwargs)
 
+    @property
+    def disentangle_type(self): 
+        return self.cfg.model.get('disentangle_type', None)
+
+    def disentangle_expansion_factor(self, training):
+        if self.disentangle_type is None or not training:
+            return 1
+        if self.disentangle_type == "sample_condition":
+            return 2
+        raise ValueError(f"Unknown disentangle type '{self.disentangle_type}'")
+
+    def disentangle(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
+        if not train: 
+            return sample
+
+        disentangle_type = self.disentangle_type
+        if disentangle_type is None:
+            return sample
+        
+        B, T = sample["audio_feature"].shape[:2]
+
+        if disentangle_type == "sample_condition":
+            sample_shape = self.cfg.model.sequence_decoder.style_embedding.use_shape
+            num_shape = self.cfg.model.sequence_decoder.flame.n_shape
+            sample_expression = self.cfg.model.sequence_decoder.style_embedding.use_expression
+            num_expressions = self.cfg.model.sequence_decoder.style_embedding.n_expression
+            sample_valence = self.cfg.model.sequence_decoder.style_embedding.use_valence
+            sample_arousal = self.cfg.model.sequence_decoder.style_embedding.use_arousal
+            
+            # torch.distributions.categorical.Categorical(probs=torch.ones(num_expressions) / num_expressions)
+
+            conditions = {}
+
+            if sample_shape: 
+                if not hasattr(self, "_shape_distribution"):
+                    self._shape_distribution =torch.distributions.Normal(loc=torch.zeros(num_shape, device=self.device), scale=torch.ones(num_shape, device=self.device))
+                shape_cond = self._shape_distribution.sample((B,))
+                conditions["gt_shape"] = shape_cond
+
+            if sample_expression: 
+                if not hasattr(self, "_expression_distribution"):
+                    self._expression_distribution = torch.distributions.Uniform(
+                        low=torch.zeros(num_expressions, device=self.device), 
+                        high=torch.ones(num_expressions, device=self.device))
+                    # self._expression_distribution = torch.distributions.categorical.Categorical(probs=torch.ones(num_expressions) / num_expressions)
+                expression_cond = self._expression_distribution.sample((B,))
+                # normalize 
+                expression_cond = expression_cond / expression_cond.sum(dim=1, keepdim=True)
+                conditions["gt_expression"] = expression_cond.unsqueeze(1).expand(B, T, num_expressions)
+
+            if sample_valence:
+                if not hasattr(self, "_valence_distribution"):
+                    self._valence_distribution = torch.distributions.Uniform(low=torch.ones(1,1) * -1, high=torch.ones(1,1))
+                valence_cond = self._valence_distribution.sample((B,))
+                conditions["gt_valence"] = valence_cond.expand(B, T, 1)
+
+            if sample_arousal:
+                if not hasattr(self, "_arousal_distribution"):
+                    self._arousal_distribution = torch.distributions.Uniform(low=torch.ones(1,1) * -1, high=torch.ones(1,1))
+                arousal_cond = self._arousal_distribution.sample((B,))
+                conditions["gt_arousal"] = arousal_cond.expand(B, T, 1)
+
+            for key in sample.keys():
+                sample_value = sample[key] 
+                if key not in conditions.keys():
+                    # expand the batch dimension by a factor of 2   
+                    # sample_value_expanded = sample_value.unsqueeze(1).expand(-1, 2, -1, -1, -1).view(B * 2, -1, -1, -1)
+                    # sample[key] = sample_value_expanded
+                    sample[key] = expand_sequence_batch(sample_value, 2)
+                    # continue  
+                # elif key in conditions:
+                else:
+                    condition_value = conditions[key]
+                    sample_value_expanded = torch.cat([sample_value, condition_value], dim=0)
+                    sample[key] = sample_value_expanded
+                    # continue
+
+            return sample
+
+        raise ValueError(f"Unknown disentangle type: '{disentangle_type}'")            
+
+
+
     def decode_sequence(self, sample: Dict, train=False, teacher_forcing=False, **kwargs: Any) -> Dict:
         return self.sequence_decoder(sample, train=train, teacher_forcing=teacher_forcing, **kwargs)
 
@@ -246,6 +329,10 @@ class TalkingHeadBase(pl.LightningModule):
         # encode the sequence
         sample = self.encode_sequence(sample, train=train, **kwargs)
         check_nan(sample)
+
+        sample = self.disentangle(sample, train=train, **kwargs)
+        check_nan(sample)
+
         # decode the sequence
         sample = self.decode_sequence(sample, train=train, teacher_forcing=teacher_forcing, **kwargs)
         check_nan(sample)
@@ -255,10 +342,10 @@ class TalkingHeadBase(pl.LightningModule):
         check_nan(sample)
         return sample
 
-    def _compute_loss(self, sample, loss_name, loss_cfg): 
+    def _compute_loss(self, sample, training, loss_name, loss_cfg): 
         raise NotImplementedError("Please implement this method in your child class")
 
-    def compute_loss(self, sample): 
+    def compute_loss(self, sample, training): 
         """
         Compute the loss for the given sample. 
 
@@ -269,12 +356,12 @@ class TalkingHeadBase(pl.LightningModule):
 
         for loss_name, loss_cfg in self.cfg.learning.losses.items():
             assert loss_name not in losses.keys()
-            losses["loss_" + loss_name] = self._compute_loss(sample, loss_name, loss_cfg)
+            losses["loss_" + loss_name] = self._compute_loss(sample, training, loss_name, loss_cfg)
 
         for metric_name, metric_cfg in self.cfg.learning.metrics.items():
             assert metric_name not in metrics.keys()
             with torch.no_grad():
-                metrics["metric_" + metric_name] = self._compute_loss(sample, metric_name, metric_cfg)
+                metrics["metric_" + metric_name] = self._compute_loss(sample, training, metric_name, metric_cfg)
 
         total_loss = None
         for loss_name, loss_cfg in self.cfg.learning.losses.items():
@@ -307,6 +394,21 @@ def truncate_sequence_batch(sample: Dict, max_seq_length: int) -> Dict:
         else: 
             raise ValueError(f"Invalid type '{type(sample[key])}' for key '{key}'")
     return sample
+
+
+def expand_sequence_batch(sample, factor=2) -> Dict:
+    if isinstance(sample, torch.Tensor):
+        B = sample.shape[0]
+        sample = sample.unsqueeze(1)
+        shape = sample.shape
+        sample_value_expanded = sample.expand(shape[0], factor, *shape[2:]).view(B * factor, *shape[2:])
+    elif isinstance(sample, Dict):
+        sample_value_expanded = {}
+        for key in sample.keys():
+            sample_value_expanded[key] = expand_sequence_batch(sample[key], factor=factor)
+    else: 
+        raise ValueError(f"Invalid type '{type(sample)}' for key '{key}'")
+    return sample_value_expanded
 
 
 def check_nan(sample: Dict): 

@@ -73,7 +73,7 @@ class FaceFormer(TalkingHeadBase):
     def _rotation_representation(self):
         return self.sequence_decoder._rotation_representation()
 
-    def _compute_loss(self, sample, loss_name, loss_cfg): 
+    def _compute_loss(self, sample, training, loss_name, loss_cfg): 
         loss_type = loss_name if 'loss_type' not in loss_cfg.keys() else loss_cfg['loss_type']
         
         mask_invalid = loss_cfg.get('mask_invalid', False) # mask invalid frames 
@@ -87,15 +87,26 @@ class FaceFormer(TalkingHeadBase):
             mask = torch.ones((*sample["predicted_vertices"].shape[:2], 1), device=sample["predicted_vertices"].device, dtype=torch.bool)
 
         # mask = torch.zeros_like(mask)
-        mask_sum = mask.sum().item()
+
+
+        
+
+        B = sample["predicted_vertices"].shape[0] # total batch size
+        B_orig = B // self.disentangle_expansion_factor(training) # original batch size before disentanglement expansion
+        # effective batch size for computation of this particular loss 
+        # some loss functions should be computed on only the original part of the batch (vertex error)
+        # and some on everything (lip reading loss)
+        B_eff = B if loss_cfg.get('apply_on_disentangled', False) else B_orig 
+
+        mask_sum = mask[:B_eff].sum().item()
 
         if mask_invalid and mask_sum == 0:
             return 0.
 
         if loss_type in ["jawpose_loss", "jaw_loss"]:
-            mask_ = mask.repeat(1,1, sample["predicted_jaw"].shape[2])
-            pred_jaw = sample["predicted_jaw"][mask_].view(mask.shape[0], mask_sum, -1)
-            gt_jaw = sample["gt_jaw"][mask_].view(mask.shape[0], mask_sum, -1)
+            mask_ = mask.repeat(1,1, sample["predicted_jaw"].shape[2])[:B_eff]
+            pred_jaw = sample["predicted_jaw"][:B_eff][mask_].view(B_eff, mask_sum, -1)
+            gt_jaw = sample["gt_jaw"][:B_eff][mask_].view(B_eff, mask_sum, -1)
             loss_value = compute_rotation_loss(
                 pred_jaw, 
                 gt_jaw,  
@@ -106,16 +117,16 @@ class FaceFormer(TalkingHeadBase):
                 )
         elif loss_type in ["expression_loss", "exp_loss"]:
             min_dim = min(sample["predicted_exp"].shape[-1], sample["gt_exp"].shape[-1])
-            mask_ = mask.repeat(1,1, min_dim)
-            pred_exp = sample["predicted_exp"][...,:min_dim][mask_].view(mask.shape[0], mask_sum, -1)[:,:,:min_dim]
-            gt_exp = sample["gt_exp"][...,:min_dim][mask_].view(mask.shape[0], mask_sum, -1)
+            mask_ = mask.repeat(1,1, min_dim)[:B_eff]
+            pred_exp = sample["predicted_exp"][:B_eff][...,:min_dim][mask_].view(B_eff, mask_sum, -1)[:,:,:min_dim]
+            gt_exp = sample["gt_exp"][:B_eff][...,:min_dim][mask_].view(B_eff, mask_sum, -1)
             loss_value = F.mse_loss(pred_exp, gt_exp)
             # loss_value = F.mse_loss(mask*sample["predicted_exp"][..., :min_dim], mask*sample["gt_exp"][..., :min_dim], 
             #     reduction='sum') / mask_sum
         elif loss_type == "vertex_loss":
-            mask_ = mask.repeat(1,1, sample["predicted_vertices"].shape[2])
-            pred_vertices = sample["predicted_vertices"][mask_].view(mask.shape[0], mask_sum, -1)
-            gt_vertices = sample["gt_vertices"][mask_].view(mask.shape[0], mask_sum, -1)
+            mask_ = mask.repeat(1,1, sample["predicted_vertices"].shape[2])[:B_eff]
+            pred_vertices = sample["predicted_vertices"][:B_eff][mask_].view(B_eff, mask_sum, -1)
+            gt_vertices = sample["gt_vertices"][:B_eff][mask_].view(B_eff, mask_sum, -1)
             loss_value = F.mse_loss(pred_vertices, gt_vertices) 
 
             # v_pred = sample["predicted_vertices"][0][0].view(-1, 3).cpu().numpy()
@@ -137,24 +148,24 @@ class FaceFormer(TalkingHeadBase):
             
         # velocity losses
         elif loss_type == "vertex_velocity_loss":
-            mask_ = mask.repeat(1,1, sample["predicted_vertices"].shape[2])
-            pred_vertices = sample["predicted_vertices"][mask_].view(mask.shape[0], mask_sum, -1)
-            gt_vertices = sample["gt_vertices"][mask_].view(mask.shape[0], mask_sum, -1)
+            mask_ = mask.repeat(1,1, sample["predicted_vertices"].shape[2])[:B_eff]
+            pred_vertices = sample["predicted_vertices"][:B_eff][mask_].view(B_eff, mask_sum, -1)
+            gt_vertices = sample["gt_vertices"][:B_eff][mask_].view(B_eff, mask_sum, -1)
             loss_value = velocity_loss(pred_vertices, gt_vertices, F.mse_loss)
             # loss_value = velocity_loss(mask*sample["predicted_vertices"], mask*sample["gt_vertices"], 
             #     F.mse_loss, reduction='sum') / mask_sum
         elif loss_type in ["expression_velocity_loss", "exp_velocity_loss"]:
             min_dim = min(sample["predicted_exp"].shape[-1], sample["gt_exp"].shape[-1])
-            mask_ = mask.repeat(1,1, min_dim)
-            pred_exp = sample["predicted_exp"][...,:min_dim][mask_].view(mask.shape[0], mask_sum, -1)[:,:,:min_dim]
-            gt_exp = sample["gt_exp"][...,:min_dim][mask_].view(mask.shape[0], mask_sum, -1)
+            mask_ = mask.repeat(1,1, min_dim)[:B_eff]
+            pred_exp = sample["predicted_exp"][:B_eff][...,:min_dim][mask_].view(B_eff, mask_sum, -1)[:,:,:min_dim]
+            gt_exp = sample["gt_exp"][:B_eff][...,:min_dim][mask_].view(B_eff, mask_sum, -1)
             loss_value = velocity_loss(pred_exp, gt_exp, F.mse_loss)
             # loss_value = velocity_loss(mask*sample["predicted_exp"][..., :min_dim], mask*sample["gt_exp"][..., :min_dim],
             #     F.mse_loss, reduction='sum') / mask_sum
         elif loss_type in ["jawpose_velocity_loss", "jaw_velocity_loss"]:
-            mask_ = mask.repeat(1,1, sample["predicted_jaw"].shape[2])
-            pred_jaw = sample["predicted_jaw"][mask_].view(mask.shape[0], mask_sum, -1)
-            gt_jaw = sample["gt_jaw"][mask_].view(mask.shape[0], mask_sum, -1)
+            mask_ = mask.repeat(1,1, sample["predicted_jaw"].shape[2])[:B_eff]
+            pred_jaw = sample["predicted_jaw"][:B_eff][mask_].view(B_eff, mask_sum, -1)
+            gt_jaw = sample["gt_jaw"][:B_eff][mask_].view(B_eff, mask_sum, -1)
             loss_value = rotation_velocity_loss(pred_jaw, gt_jaw,
                 r1_input_rep=self._rotation_representation(), 
                 r2_input_rep="aa", # gt is in axis-angle
@@ -172,7 +183,7 @@ class FaceFormer(TalkingHeadBase):
         elif loss_type == "emotion_loss":
             cam_name = list(sample["predicted_video"].keys())[0]
             assert len(list(sample["predicted_video"].keys())) == 1, "More cameras are not supported yet"
-            B,T = sample["predicted_video"][cam_name].shape[:2] 
+            T = sample["predicted_video"][cam_name].shape[1] 
             rest = sample["predicted_video"][cam_name].shape[2:]
             for cam_name in sample["predicted_video"].keys():
                 target_method = loss_cfg.get('target_method_image', None)
@@ -180,21 +191,22 @@ class FaceFormer(TalkingHeadBase):
                     target_dict = sample
                 else: 
                     target_dict = sample["reconstruction"][target_method]
-                gt_vid = target_dict["gt_video"][cam_name].view(B*T, *rest)
-                pred_vid = sample["predicted_video"][cam_name].view(B*T, *rest)
-                mask_ = mask.view(B*T, -1).unsqueeze(-1).unsqueeze(-1)
+                gt_vid = target_dict["gt_video"][cam_name][:B_eff].view(B_eff*T, *rest)
+                pred_vid = sample["predicted_video"][cam_name][:B_eff].view(B_eff*T, *rest)
+                mask_ = mask[:B_eff].view(B_eff*T, -1).unsqueeze(-1).unsqueeze(-1)
                 mask_ = mask_.expand(*pred_vid.shape)
-                gt_vid = gt_vid[mask_].view(B*mask_sum, *gt_vid.shape[1:])
-                pred_vid = pred_vid[mask_].view(B*mask_sum, *pred_vid.shape[1:])
+                gt_vid = gt_vid[mask_].view(B_eff*mask_sum, *gt_vid.shape[1:])
+                pred_vid = pred_vid[mask_].view(B_eff*mask_sum, *pred_vid.shape[1:])
                 _, emo_feat_loss_2, valence_loss, arousal_loss, expression_loss, _ = \
                     self.neural_losses.emotion_loss.compute_loss(gt_vid, pred_vid)        
             loss_value = emo_feat_loss_2
 
         elif loss_type == "lip_reading_loss":
+            B_eff = B if loss_cfg.get('apply_on_disentangled', True) else B_orig  ## WARNING, HERE TRUE BY DEFAULT
             cam_name = list(sample["predicted_mouth_video"].keys())[0]
             assert len(list(sample["predicted_mouth_video"].keys())) == 1, "More cameras are not supported yet"
-            B,T = sample["predicted_mouth_video"][cam_name].shape[:2] 
-            rest = sample["predicted_mouth_video"][cam_name].shape[2:]
+            T = sample["predicted_mouth_video"][cam_name].shape[1] 
+            rest = sample["predicted_mouth_video"][cam_name][:B_eff].shape[2:]
 
             for cam_name in sample["predicted_mouth_video"].keys():
                 target_method = loss_cfg.get('target_method_image', None)
@@ -212,15 +224,15 @@ class FaceFormer(TalkingHeadBase):
                 # pred_vid = pred_vid[mask_].view(B*mask_sum, *pred_vid.shape[1:])
 
                 loss_values = []
-                for bi in range(B):
+                for bi in range(B_eff):
                     gt_vid = target_dict["gt_mouth_video"][cam_name][bi].view(T, *rest)
                     pred_vid = sample["predicted_mouth_video"][cam_name][bi].view(T, *rest)
-                    mask_sum_ = mask[bi].sum()
-                    mask_ = mask.view(T, -1).unsqueeze(-1).unsqueeze(-1)
-                    mask_ = mask_.expand(*pred_vid.shape)
-                    gt_vid = gt_vid[mask_].view(mask_sum_, *gt_vid.shape[1:])
-                    pred_vid = pred_vid[mask_].view(mask_sum_, *pred_vid.shape[1:])
-                    loss = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid)
+                    # mask_sum_ = mask[bi].sum()
+                    # mask_sum_ = mask[bi].view(T, -1).unsqueeze(-1).unsqueeze(-1)
+                    # mask_ = mask_.expand(*pred_vid.shape)
+                    # gt_vid = gt_vid[mask_].view(mask_sum_, *gt_vid.shape[1:])
+                    # pred_vid = pred_vid[mask_].view(mask_sum_, *pred_vid.shape[1:])
+                    loss = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask[bi])
                     loss_values.append(loss)
                 loss_value = torch.stack(loss_values).mean()
         else: 
