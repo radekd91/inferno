@@ -222,7 +222,7 @@ class FaceFormer(TalkingHeadBase):
                     pred_vid = pred_vid[mask_].view(mask_sum_, *pred_vid.shape[1:])
                     loss = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid)
                     loss_values.append(loss)
-                loss_value = torch.tensor(loss_values).mean()
+                loss_value = torch.stack(loss_values).mean()
         else: 
             raise ValueError(f"Unknown loss type: {loss_type}")
         return loss_value
