@@ -21,3 +21,7 @@ metrics:
     weight: 1.    
     rotation_rep: 6d
     metric: l2
+  
+
+  expression_reg: 
+    weight: 0.0001
