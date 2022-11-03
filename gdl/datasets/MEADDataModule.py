@@ -390,6 +390,16 @@ class MEADDataModule(FaceVideoDataModule):
             identity_expression_intensity2idx[key] += [i]
         return identity_expression_intensity2idx
 
+    def _get_identity_map(self, indices):
+        identity2idx = {}
+        for i in indices:
+            identity = self._video_identity(i)
+            key = identity
+            if key not in identity2idx:
+                identity2idx[key] = []
+            identity2idx[key] += [i]
+        return identity2idx
+
     def _get_subsets(self, set_type=None):
         set_type = set_type or "unknown"
         self.temporal_split = None
@@ -429,7 +439,61 @@ class MEADDataModule(FaceVideoDataModule):
                 validation += idxs[num_train:]
 
             return training, validation, []
+        elif "random_by_identityV2" in set_type:
+            res = set_type.split("_")
+            random_or_sorted = res[3] 
+            assert random_or_sorted in ["random", "sorted"], f"Unknown random_or_sorted value: '{random_or_sorted}'"
+            train = float(res[-3])
+            val = float(res[-2])
+            test = float(res[-1])
+            train_ = train / (train + val + test)
+            val_ = val / (train + val + test)
+            test_ = 1 - train_ - val_
+            indices = np.arange(len(self.video_list), dtype=np.int32)
+
+            identity2idx = self._get_identity_map(indices)
+            # set of identities
+            identities = sorted(list(set(identity2idx.keys())))
+            male_identities = [i for i in identities if i.startswith("M")]
+            female_identities = [i for i in identities if i.startswith("W")]
+            rest = set(identities) - set(male_identities) - set(female_identities)
+            assert len(rest) == 0, f"Unexpected identities: {rest}"
+
+            if random_or_sorted == "random":
+                rand.shuffle(identities)
+
+            # training_ids = identities[:int(len(identities) * train_)]
+            # validation_ids = identities[int(len(identities) * train_):int(len(identities) * (train_ + val_))]
+            # test_ids = identities[int(len(identities) * (train_ + val_)):]
+
+            training_ids = male_identities[:int(len(male_identities) * train_)]
+            validation_ids = male_identities[int(len(male_identities) * train_):int(len(male_identities) * (train_ + val_))]
+            test_ids = male_identities[int(len(male_identities) * (train_ + val_)):]
+
+            training_ids += female_identities[:int(len(female_identities) * train_)]
+            validation_ids += female_identities[int(len(female_identities) * train_):int(len(female_identities) * (train_ + val_))]
+            test_ids += female_identities[int(len(female_identities) * (train_ + val_)):]
+
+            training = []
+            validation = []
+            testing = []
+            for id, indices in identity2idx.items():
+                if id in training_ids:
+                    training += indices
+                elif id in validation_ids:
+                    validation += indices
+                elif id in test_ids:
+                    testing += indices
+                else:
+                    raise RuntimeError(f"Unassigned identity in training/validation/test split: '{id}'. This should not happen")
+            training.sort()
+            validation.sort()
+            testing.sort()
+            return training, validation, testing
+
         elif "random_by_identity" in set_type:
+            # WARNING: THIS NAME IS NOT ACCURATE, IT IS NOT RANDOM BY IDENTITY BUT RANDOM BY EXPRESSION AND INTENSITY
+            # SO ALL IDENTITIES ARE IN BOTH TRAIN AND VAL (BUT THE TRAIN AND VAL VIDEOS DON'T OVERLAP)
             # pretrain_02d_02d, such as pretrain_80_20 
             res = set_type.split("_")
             random_or_sorted = res[3] 
@@ -441,10 +505,10 @@ class MEADDataModule(FaceVideoDataModule):
             val_ = val / (train + val + test)
             test_ = 1 - train_ - val_
             indices = np.arange(len(self.video_list), dtype=np.int32)
-            # get video_clips_by_identity
-            video_clips_by_identity = {}
-            video_clips_by_identity_indices = {}
-            index_counter = 0
+            # # get video_clips_by_identity
+            # video_clips_by_identity = {}
+            # video_clips_by_identity_indices = {}
+            # index_counter = 0
 
             id_expression_intensity2idx = self._get_identity_expression_intensity_map(indices)
 
@@ -452,14 +516,14 @@ class MEADDataModule(FaceVideoDataModule):
             for key, idxs in id_expression_intensity2idx.items():
                 id_expression_intensity2filename[key] = [self.video_list[i] for i in idxs]
 
-            for i in range(len(self.video_list)):
-                key = self._video_identity(i)
-                if key in video_clips_by_identity.keys(): 
-                    video_clips_by_identity[key] += [i]
-                else: 
-                    video_clips_by_identity[key] = [i]
-                    video_clips_by_identity_indices[key] = index_counter
-                    index_counter += 1
+            # for i in range(len(self.video_list)):
+            #     key = self._video_identity(i)
+            #     if key in video_clips_by_identity.keys(): 
+            #         video_clips_by_identity[key] += [i]
+            #     else: 
+            #         video_clips_by_identity[key] = [i]
+            #         video_clips_by_identity_indices[key] = index_counter
+            #         index_counter += 1
             
             training = []
             validation = []
