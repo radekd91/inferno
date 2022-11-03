@@ -8,7 +8,9 @@ losses:
     # weight: 0.01
     # weight: 0.001
     # weight: 0.0001
-    weight: 0.00001
+    weight: 0.00001 # default
+    # weight: 0.000001 
+    # weight: 0.0000001 
     # emo_feat_loss: mse_loss
     trainable: false 
     normalize_features: false 
