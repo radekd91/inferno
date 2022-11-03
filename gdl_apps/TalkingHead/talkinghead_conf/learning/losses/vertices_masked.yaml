@@ -31,3 +31,6 @@ metrics:
     rotation_rep: 6d
     metric: l2
     mask_invalid: mediapipe_landmarks
+
+  expression_reg: 
+    weight: 0.0001

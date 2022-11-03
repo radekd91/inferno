@@ -180,6 +180,9 @@ class FaceFormer(TalkingHeadBase):
             #     reduction='sum'
             # ) / mask_sum
 
+        elif loss_type == "expression_reg": 
+            loss_value = (torch.sum(sample["predicted_exp"] ** 2, dim=-1) / 2).mean()
+
         elif loss_type == "emotion_loss":
             cam_name = list(sample["predicted_video"].keys())[0]
             assert len(list(sample["predicted_video"].keys())) == 1, "More cameras are not supported yet"
