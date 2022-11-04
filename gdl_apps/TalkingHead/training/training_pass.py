@@ -85,12 +85,14 @@ def locate_checkpoint(cfg, mode='latest'):
     if isinstance(mode, int):
         checkpoint = str(checkpoints[mode])
     elif mode == 'latest':
-        checkpoint = str(checkpoints[-1])
+        checkpoint = checkpoints[0].parent / "last.ckpt"
     elif mode == 'best':
         min_value = 999999999999999.
         min_idx = -1
         for idx, ckpt in enumerate(checkpoints):
-            if ckpt.stem == 'last':
+            if ckpt.stem == 'last' or 'model-step=' in ckpt.stem:
+                # skip the last checkpoint (doesn't have the loss value) and 
+                # the model-step checkpoints (also don't have the loss value)
                 continue
             end_idx = str(ckpt.stem).rfind('=') + 1
             loss_str = str(ckpt.stem)[end_idx:]
