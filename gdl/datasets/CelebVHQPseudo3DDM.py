@@ -50,7 +50,9 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
             emotion_type=None,
             return_emotion_feature=False,
             ):
-        super().__init__(root_dir, output_dir, processed_subfolder, face_detector, landmarks_from, face_detector_threshold, image_size, scale, processed_video_size, batch_size_train, batch_size_val, batch_size_test, 
+        super().__init__(root_dir, output_dir, processed_subfolder, face_detector, landmarks_from, 
+            face_detector_threshold, image_size, scale, 
+            processed_video_size, batch_size_train, batch_size_val, batch_size_test, 
             sequence_length_train, sequence_length_val, sequence_length_test, 
             bb_center_shift_x, bb_center_shift_y, 
             occlusion_settings_train, occlusion_settings_val, occlusion_settings_test, 
