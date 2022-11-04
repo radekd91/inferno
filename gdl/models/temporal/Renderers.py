@@ -42,7 +42,8 @@ class FlameRenderer(Renderer):
 
         # batch temporal squeeze
         verts = verts.view(B*T, *verts.shape[2:])
-        albedo = albedo.view(B*T, *albedo.shape[2:])
+        # albedo = albedo.view(B*T, *albedo.shape[2:])
+        albedo = albedo.reshape(B*T, *albedo.shape[2:])
         if self.project_landmarks:
             if landmarks2d is not None:
                 landmarks2d = landmarks2d.view(B*T, *landmarks2d.shape[2:])

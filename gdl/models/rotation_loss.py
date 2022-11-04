@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-
+from gdl.layers.losses.Masked import MaskedTemporalMAELoss, MaskedTemporalMSELoss
 from gdl.utils.DecaUtils import quaternion_to_angle_axis, quaternion_to_rotation_matrix
 
 
@@ -64,9 +64,11 @@ def compute_rotation_loss(r1, r2, mask=None,
     if metric == 'l1': 
         # diff = (r1 - r2)*mask
         # return diff.abs().sum(dim=vec_reduction_dim).sum(dim=bt_reduction_dim) / mask_sum
-        return F.l1_loss((r1*mask).view(B*T, -1), (r2*mask).view(B*T, -1), reduction ='sum' ) / mask_sum
+        # return F.l1_loss((r1*mask).view(B*T, -1), (r2*mask).view(B*T, -1), reduction ='sum' ) / mask_sum
+        return MaskedTemporalMAELoss()(r1, r2, mask)
     elif metric == 'l2': 
-        return F.mse_loss((r1*mask).view(B*T, -1), (r2*mask).view(B*T, -1), reduction='sum' ) / mask_sum
-        # return diff.square().sum(dim=vec_reduction_dim).sqrt().sum(dim=bt_reduction_dim) / mask_sum ## does not work, sqrt turns weights to NaNa after backward
+        # return F.mse_loss((r1*mask).view(B*T, -1), (r2*mask).view(B*T, -1), reduction='sum' ) / mask_sum
+        return MaskedTemporalMSELoss()(r1, r2, mask)
+        ## return diff.square().sum(dim=vec_reduction_dim).sqrt().sum(dim=bt_reduction_dim) / mask_sum ## does not work, sqrt turns weights to NaNa after backward
     else: 
         raise ValueError(f"Unsupported metric for rotation loss: '{metric}'")

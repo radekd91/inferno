@@ -111,9 +111,9 @@ class TalkingHeadBase(pl.LightningModule):
     def training_step(self, batch, batch_idx, *args, **kwargs):
         training = True 
         # forward pass
-        sample = self.forward(batch, train=training, teacher_forcing=False, **kwargs)
+        sample = self.forward(batch, train=training, validation=False, teacher_forcing=False, **kwargs)
         # loss 
-        total_loss, losses, metrics = self.compute_loss(sample, training=training, **kwargs)
+        total_loss, losses, metrics = self.compute_loss(sample, training=training, validation=False, **kwargs)
 
         losses_and_metrics_to_log = {**losses, **metrics}
         # losses_and_metrics_to_log = {"train_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
@@ -130,9 +130,9 @@ class TalkingHeadBase(pl.LightningModule):
         training = False 
 
         # forward pass
-        sample = self.forward(batch, train=training, teacher_forcing=True, **kwargs)
+        sample = self.forward(batch, train=training, validation=True, teacher_forcing=True, **kwargs)
         # loss 
-        total_loss, losses, metrics = self.compute_loss(sample, training=training, **kwargs)
+        total_loss, losses, metrics = self.compute_loss(sample, training=training, validation=True, **kwargs)
 
         losses_and_metrics_to_log = {**losses, **metrics}
         # losses_and_metrics_to_log = {"val_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
@@ -178,7 +178,7 @@ class TalkingHeadBase(pl.LightningModule):
         # forward pass
         sample = self.forward(batch, train=training, teacher_forcing=False, **kwargs)
         # loss 
-        total_loss, losses, metrics = self.compute_loss(sample, training, **kwargs)
+        total_loss, losses, metrics = self.compute_loss(sample, training, validation=False, **kwargs)
 
         losses_and_metrics_to_log = {**losses, **metrics}
         # losses_and_metrics_to_log = {"train_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
@@ -199,15 +199,21 @@ class TalkingHeadBase(pl.LightningModule):
     def disentangle_type(self): 
         return self.cfg.model.get('disentangle_type', None)
 
-    def disentangle_expansion_factor(self, training):
-        if self.disentangle_type is None or not training:
+    def disentangle_expansion_factor(self, training, validation):
+        if self.disentangle_type is None:
             return 1
         if self.disentangle_type == "sample_condition":
+            if not training: 
+                return 1
+            return 2
+        if self.disentangle_type == "condition_exchange":
+            if not training and not validation:
+                return 1
             return 2
         raise ValueError(f"Unknown disentangle type '{self.disentangle_type}'")
 
-    def disentangle(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
-        if not train: 
+    def disentangle(self, sample: Dict, train=False, validation=False, **kwargs: Any) -> Dict:
+        if not (train or validation):
             return sample
 
         disentangle_type = self.disentangle_type
@@ -216,14 +222,15 @@ class TalkingHeadBase(pl.LightningModule):
         
         B, T = sample["audio_feature"].shape[:2]
 
-        if disentangle_type == "sample_condition":
-            sample_shape = self.cfg.model.sequence_decoder.style_embedding.use_shape
-            num_shape = self.cfg.model.sequence_decoder.flame.n_shape
-            sample_expression = self.cfg.model.sequence_decoder.style_embedding.use_expression
-            num_expressions = self.cfg.model.sequence_decoder.style_embedding.n_expression
-            sample_valence = self.cfg.model.sequence_decoder.style_embedding.use_valence
-            sample_arousal = self.cfg.model.sequence_decoder.style_embedding.use_arousal
+        sample_shape = self.cfg.model.sequence_decoder.style_embedding.use_shape
+        num_shape = self.cfg.model.sequence_decoder.flame.n_shape
+        sample_expression = self.cfg.model.sequence_decoder.style_embedding.use_expression
+        num_expressions = self.cfg.model.sequence_decoder.style_embedding.n_expression
+        sample_valence = self.cfg.model.sequence_decoder.style_embedding.use_valence
+        sample_arousal = self.cfg.model.sequence_decoder.style_embedding.use_arousal
             
+        if disentangle_type == "sample_condition":
+
             # torch.distributions.categorical.Categorical(probs=torch.ones(num_expressions) / num_expressions)
 
             conditions = {}
@@ -263,7 +270,7 @@ class TalkingHeadBase(pl.LightningModule):
                     # expand the batch dimension by a factor of 2   
                     # sample_value_expanded = sample_value.unsqueeze(1).expand(-1, 2, -1, -1, -1).view(B * 2, -1, -1, -1)
                     # sample[key] = sample_value_expanded
-                    sample[key] = expand_sequence_batch(sample_value, 2)
+                    sample[key] = expand_sequence_batch(sample_value, 2, 'cat')
                     # continue  
                 # elif key in conditions:
                 else:
@@ -274,9 +281,42 @@ class TalkingHeadBase(pl.LightningModule):
 
             return sample
 
+        elif disentangle_type == "condition_exchange":
+            assert B == 2, f"Batch size must be 2 for disentangle_type '{disentangle_type}'" 
+
+            keys_to_exchange = [] 
+            if sample_shape:
+                keys_to_exchange += ["gt_shape"]
+            if sample_expression:
+                keys_to_exchange += ["gt_expression"]
+            if sample_valence:
+                keys_to_exchange += ["gt_valence"]
+            if sample_arousal:
+                keys_to_exchange += ["gt_arousal"]
+
+            sample["input_indices"] = torch.arange(B, dtype=torch.int64, device=self.device)
+            sample["condition_indices"] = torch.arange(B, dtype=torch.int64, device=self.device)
+
+            keys_to_exchange += ["condition_indices"]
+            
+            for key in sample.keys(): 
+                sample_value = sample[key] 
+                if key not in keys_to_exchange:
+                    sample[key] = expand_sequence_batch(sample_value, 2, 'cat')
+                    continue
+                else:
+                    # sample_value_exchanged = sample_value[[1, 0]]
+                    # sample[key] = torch.cat([sample_value, sample_value_exchanged], dim=0)
+                    if B == 2:
+                        indexation = 'reverse'
+                    else:
+                        indexation = 'permute'
+                    sample[key] = expand_sequence_batch(sample_value, 2, indexation)
+                    continue
+
+            return sample
+
         raise ValueError(f"Unknown disentangle type: '{disentangle_type}'")            
-
-
 
     def decode_sequence(self, sample: Dict, train=False, teacher_forcing=False, **kwargs: Any) -> Dict:
         return self.sequence_decoder(sample, train=train, teacher_forcing=teacher_forcing, **kwargs)
@@ -303,7 +343,7 @@ class TalkingHeadBase(pl.LightningModule):
         # sample = detach_dict(sample)
         return sample 
 
-    def forward(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
+    def forward(self, sample: Dict, train=False, validation=False, **kwargs: Any) -> Dict:
         """
         sample: Dict[str, torch.Tensor]
             - audio: (B, T, F)
@@ -330,7 +370,7 @@ class TalkingHeadBase(pl.LightningModule):
         sample = self.encode_sequence(sample, train=train, **kwargs)
         check_nan(sample)
 
-        sample = self.disentangle(sample, train=train, **kwargs)
+        sample = self.disentangle(sample, train=train, validation=validation, **kwargs)
         check_nan(sample)
 
         # decode the sequence
@@ -342,10 +382,10 @@ class TalkingHeadBase(pl.LightningModule):
         check_nan(sample)
         return sample
 
-    def _compute_loss(self, sample, training, loss_name, loss_cfg): 
+    def _compute_loss(self, sample, training, validation, loss_name, loss_cfg): 
         raise NotImplementedError("Please implement this method in your child class")
 
-    def compute_loss(self, sample, training): 
+    def compute_loss(self, sample, training, validation): 
         """
         Compute the loss for the given sample. 
 
@@ -356,12 +396,12 @@ class TalkingHeadBase(pl.LightningModule):
 
         for loss_name, loss_cfg in self.cfg.learning.losses.items():
             assert loss_name not in losses.keys()
-            losses["loss_" + loss_name] = self._compute_loss(sample, training, loss_name, loss_cfg)
+            losses["loss_" + loss_name] = self._compute_loss(sample, training, validation, loss_name, loss_cfg)
 
         for metric_name, metric_cfg in self.cfg.learning.metrics.items():
             assert metric_name not in metrics.keys()
             with torch.no_grad():
-                metrics["metric_" + metric_name] = self._compute_loss(sample, training, metric_name, metric_cfg)
+                metrics["metric_" + metric_name] = self._compute_loss(sample, training, validation, metric_name, metric_cfg)
 
         total_loss = None
         for loss_name, loss_cfg in self.cfg.learning.losses.items():
@@ -396,16 +436,31 @@ def truncate_sequence_batch(sample: Dict, max_seq_length: int) -> Dict:
     return sample
 
 
-def expand_sequence_batch(sample, factor=2) -> Dict:
+def expand_sequence_batch(sample, factor=2, how='cat') -> Dict:
     if isinstance(sample, torch.Tensor):
         B = sample.shape[0]
-        sample = sample.unsqueeze(1)
-        shape = sample.shape
-        sample_value_expanded = sample.expand(shape[0], factor, *shape[2:]).view(B * factor, *shape[2:])
+        # sample = sample.unsqueeze(1)
+        # shape = sample.shape
+        # sample_value_expanded = sample.expand(shape[0], factor, *shape[2:]).view(B * factor, *shape[2:])
+        indices = torch.arange(B, device=sample.device, dtype=torch.int64)
+        if how == 'cat':
+            indices = torch.cat([indices, indices], dim=0)
+        elif how == 'reverse':
+            indices = torch.cat([indices, indices.flip(0)], dim=0)
+        elif how == 'permute':
+            while True:
+                indices_permuted = indices[torch.randperm(B, device=sample.device)]
+                if (indices == indices_permuted).sum() == 0:
+                    break
+            indices = torch.cat([indices, indices_permuted], dim=0)
+        else:
+            raise ValueError(f"Invalid value '{how}' for argument 'how'")
+        sample_value_expanded = sample.index_select(0, indices)
+        # sample_value_expanded = sample.expand(shape[0], factor, *shape[2:]).reshape(B * factor, *shape[2:])
     elif isinstance(sample, Dict):
         sample_value_expanded = {}
         for key in sample.keys():
-            sample_value_expanded[key] = expand_sequence_batch(sample[key], factor=factor)
+            sample_value_expanded[key] = expand_sequence_batch(sample[key], factor=factor, how=how)
     else: 
         raise ValueError(f"Invalid type '{type(sample)}' for key '{key}'")
     return sample_value_expanded

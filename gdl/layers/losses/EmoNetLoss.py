@@ -126,6 +126,7 @@ def create_au_loss(device, au_loss):
 
 from .Metrics import get_metric
 from .BarlowTwins import BarlowTwinsLossHeadless, BarlowTwinsLoss
+from .Masked import MaskedLoss
 
 class EmoLossBase(torch.nn.Module):
 
@@ -180,7 +181,7 @@ class EmoLossBase(torch.nn.Module):
     def _forward_output(self, images):
         return self(images)
 
-    def compute_loss(self, input_images, output_images, batch_size=None, ring_size=None):
+    def compute_loss(self, input_images, output_images, batch_size=None, ring_size=None, mask=None):
         # input_emotion = None
         # self.output_emotion = None
 
@@ -198,8 +199,13 @@ class EmoLossBase(torch.nn.Module):
                 output_emofeat = output_emofeat / output_emofeat.view(output_images.shape[0], -1).norm(dim=1).view(-1, *((len(input_emofeat.shape)-1)*[1]) )
 
             if isinstance(self.emo_feat_loss, (BarlowTwinsLossHeadless, BarlowTwinsLoss)):
+                assert mask is None, "Masked loss not supported for Barlow Twins"
                 emo_feat_loss_1 = self.emo_feat_loss(input_emofeat, output_emofeat, batch_size=batch_size, ring_size=ring_size).mean()
+            elif isinstance(self.emo_feat_loss, MaskedLoss):
+                assert ring_size is None
+                emo_feat_loss_1 = self.emo_feat_loss(input_emofeat, output_emofeat, mask=mask)
             else:
+                assert mask is None, "Masked loss not supported for this loss"
                 emo_feat_loss_1 = self.emo_feat_loss(input_emofeat, output_emofeat).mean()
         else:
             emo_feat_loss_1 = None
@@ -213,8 +219,13 @@ class EmoLossBase(torch.nn.Module):
 
 
         if isinstance(self.emo_feat_loss, (BarlowTwinsLossHeadless, BarlowTwinsLoss)):
+            assert mask is None, "Masked loss not supported for Barlow Twins"
             emo_feat_loss_2 = self.emo_feat_loss(input_emofeat_2, output_emofeat_2, batch_size=batch_size, ring_size=ring_size).mean()
+        elif isinstance(self.emo_feat_loss, MaskedLoss):
+            assert ring_size is None
+            emo_feat_loss_2 = self.emo_feat_loss(input_emofeat_2, output_emofeat_2, mask=mask)
         else:
+            assert mask is None, "Masked loss not supported for this loss"
             emo_feat_loss_2 = self.emo_feat_loss(input_emofeat_2, output_emofeat_2).mean()
 
         if 'valence' in input_emotion.keys() and input_emotion['valence'] is not None:

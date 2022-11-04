@@ -73,7 +73,8 @@ class FlamePreprocessor(Preprocessor):
                 template_shape = gt_shape
                 ## shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).contiguous().view(B * T, -1)
                 # shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).view(B * T, -1)
-                shape = gt_shape.view(B, -1)[:, None, ...].expand(B, T, template_shape.shape[1]).view(B * T, -1)
+                # shape = gt_shape.view(B, -1)[:, None, ...].expand(B, T, template_shape.shape[1]).view(B * T, -1)
+                shape = gt_shape.view(B, -1)[:, None, ...].expand(B, T, template_shape.shape[1]).reshape(B * T, -1)
 
             # shape = torch.zeros((B * T, self.cfg.flame.n_exp))
             # template_shape = torch.zeros_like(template_shape)

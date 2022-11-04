@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from munch import Munch
 from omegaconf import DictConfig
 from .BarlowTwins import BarlowTwinsLossHeadless, BarlowTwinsLoss
+from .Masked import MaskedMSELoss, MaskedMAELoss, MaskedTemporalMSELoss, MaskedTemporalMAELoss
 
 
 def cosine_sim_negative(*args, **kwargs):
@@ -14,8 +15,16 @@ def metric_from_str(metric, **kwargs):
         return cosine_sim_negative
     elif metric in ["l1", "l1_loss", "mae"]:
         return torch.nn.functional.l1_loss
+    elif metric in ["masked_l1", "masked_l1_loss", "masked_mae"]:
+        return MaskedMAELoss()
+    elif metric in ["temporal_masked_l1", "temporal_l1_loss", "temporal_mae"]:
+        return MaskedTemporalMAELoss()
     elif metric in ["mse", "mse_loss", "l2", "l2_loss"]:
         return torch.nn.functional.mse_loss
+    elif metric in ["masked_mse", "masked_mse_loss", "masked_l2", "masked_l2_loss"]:
+        return MaskedMSELoss()
+    elif metric in ["temporal_mse", "temporal_mse_loss", "temporal_l2", "temporal_l2_loss"]:
+        return MaskedTemporalMSELoss()
     elif metric == "barlow_twins_headless":
         return BarlowTwinsLossHeadless(**kwargs)
     elif metric == "barlow_twins":
@@ -29,8 +38,16 @@ def metric_from_cfg(metric):
         return cosine_sim_negative
     elif metric.type in ["l1", "l1_loss", "mae"]:
         return torch.nn.functional.l1_loss
+    elif metric.type in ["masked_l1", "masked_l1_loss", "masked_mae"]:
+        return MaskedMAELoss()
+    elif metric.type in ["temporal_masked_l1", "temporal_l1_loss", "temporal_mae"]:
+        return MaskedTemporalMAELoss()
     elif metric.type in ["mse", "mse_loss", "l2", "l2_loss"]:
         return torch.nn.functional.mse_loss
+    elif metric.type in ["masked_mse", "masked_mse_loss", "masked_l2", "masked_l2_loss"]:
+        return MaskedMSELoss()
+    elif metric.type in ["temporal_mse", "temporal_mse_loss", "temporal_l2", "temporal_l2_loss"]:
+        return MaskedTemporalMSELoss()
     elif metric.type == "barlow_twins_headless":
         return BarlowTwinsLossHeadless(metric.feature_size)
     elif metric.type == "barlow_twins":
