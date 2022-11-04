@@ -1,0 +1,6 @@
+# @package model
+
+pl_module_class: FaceFormer
+max_epochs: 200
+
+disentangle_type: condition_exchange
