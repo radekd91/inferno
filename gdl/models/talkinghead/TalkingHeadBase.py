@@ -407,6 +407,9 @@ class TalkingHeadBase(pl.LightningModule):
         for loss_name, loss_cfg in self.cfg.learning.losses.items():
             term = losses["loss_" + loss_name] 
             if term is not None:
+                if isinstance(term, torch.Tensor) and term.isnan().any():
+                    print(f"[WARNING]: loss '{loss_name}' is NaN. Skipping this term.")
+                    continue
                 if total_loss is None: 
                     total_loss = 0.
                 weighted_term =  (term * loss_cfg["weight"])
