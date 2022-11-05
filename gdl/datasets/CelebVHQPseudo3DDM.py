@@ -57,11 +57,13 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
             bb_center_shift_x, bb_center_shift_y, 
             occlusion_settings_train, occlusion_settings_val, occlusion_settings_test, 
             split, 
-            num_workers, device, augmentation, drop_last, include_processed_audio, include_raw_audio, preload_videos, inflate_by_video_size, training_sampler, landmark_types, landmark_sources, segmentation_source)
+            num_workers, device, augmentation, drop_last, include_processed_audio, include_raw_audio, preload_videos, inflate_by_video_size, training_sampler, landmark_types, landmark_sources, segmentation_source,
+            read_video = read_video,
+            )
 
         self.test_condition_source = test_condition_source or "original"
         self.test_condition_settings = test_condition_settings
-        self.read_video = read_video
+        # self.read_video = read_video
 
         self.reconstruction_type = reconstruction_type
         if self.reconstruction_type is not None: 

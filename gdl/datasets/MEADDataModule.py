@@ -55,7 +55,7 @@ class MEADDataModule(FaceVideoDataModule):
             landmark_sources=None,
             segmentation_source=None,
             viewing_angles=None,
-
+            read_video=True,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, 
@@ -73,6 +73,7 @@ class MEADDataModule(FaceVideoDataModule):
             include_raw_audio = include_raw_audio,
             preload_videos=preload_videos,
             inflate_by_video_size=inflate_by_video_size,
+            read_video=read_video,
             )
         # self.detect_landmarks_on_restored_images = landmarks_from
         self.batch_size_train = batch_size_train
@@ -616,6 +617,7 @@ class MEADDataModule(FaceVideoDataModule):
                 temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+                read_video=self.read_video,
               )
                     
         self.validation_set = MEADDataset(self.root_dir, self.output_dir, 
@@ -633,6 +635,7 @@ class MEADDataModule(FaceVideoDataModule):
                 temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+                read_video=self.read_video,
             )
 
         self.test_set = MEADDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
@@ -649,6 +652,7 @@ class MEADDataModule(FaceVideoDataModule):
                 temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+                read_video=self.read_video,
                 )
 
     def train_sampler(self):
@@ -722,6 +726,13 @@ class MEADDataset(VideoDatasetBase):
             preload_videos=False,
             inflate_by_video_size=False,
             include_filename=False, # if True includes the filename of the video in the sample
+            read_video=True,
+            reconstruction_type=None,
+            return_global_pose = False,
+            return_appearance = False,
+            average_shape_decode = True,
+            emotion_type=None,
+            return_emotion_feature=False,
     ) -> None:
         landmark_types = landmark_types or ["mediapipe", "fan"]
         super().__init__(
@@ -756,7 +767,28 @@ class MEADDataset(VideoDatasetBase):
             preload_videos=preload_videos,
             inflate_by_video_size=inflate_by_video_size,
             include_filename=include_filename,
+            read_video=read_video,
+            reconstruction_type=reconstruction_type,
+            return_global_pose = return_global_pose,
+            return_appearance = return_appearance,
+            average_shape_decode = average_shape_decode,
+            emotion_type=emotion_type,
+            return_emotion_feature=return_emotion_feature,
         )
+
+    def _read_landmarks(self, index, landmark_type, landmark_source):
+        landmarks_dir = self._path_to_landmarks(index, landmark_type, landmark_source)
+        if landmark_source == "original":
+            landmark_list_file = landmarks_dir / f"landmarks_aligned_video_smoothed.pkl"
+            landmark_list = FaceDataModuleBase.load_landmark_list(landmark_list_file)  
+            landmark_valid_indices = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_alignment_used_frame_indices.pkl")  
+        elif landmark_source == "aligned": 
+            landmarks, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
+            landmark_valid_indices = landmark_confidences
+        else: 
+            raise ValueError(f"Unknown landmark source {landmark_source}")
+        return landmark_list, landmark_valid_indices
+
 
     def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
         sequence_length = self._get_sample_length(index)
@@ -772,13 +804,27 @@ class MEADDataset(VideoDatasetBase):
                 # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{landmark_source}.pkl")  
                 # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_aligned_video.pkl")  
                 landmark_list_file = landmarks_dir / f"landmarks_aligned_video_smoothed.pkl"
+
+                # if not self.preload_videos: 
+                #     # landmark_list = FaceDataModuleBase.load_landmark_list(landm?arks_dir / f"landmarks_{landmark_source}.pkl")  
+                #     landmark_list = self._read_landmarks(index, landmark_type, landmark_source)
+                #     # landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
+                # else: 
+                #     landmark_list = self.lmk_cache[index][landmark_type]
+                #     # landmark_types = self.lmk_cache[index]["landmark_types"]
+
                 if landmark_list_file.exists():
-                    landmark_list = FaceDataModuleBase.load_landmark_list(landmark_list_file)  
-                    landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
+                    if not self.preload_videos:
+                        landmark_list, landmark_valid_indices = self._read_landmarks(index, landmark_type, landmark_source)
+                    else:
+                        landmark_list, landmark_valid_indices = self.lmk_cache[index][landmark_type][landmark_source]
+                        
+                    # landmark_list = FaceDataModuleBase.load_landmark_list(landmark_list_file)  
+                    # landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
                     landmarks = landmark_list[start_frame: sequence_length + start_frame] 
                     landmarks = np.stack(landmarks, axis=0)
 
-                    landmark_valid_indices = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_alignment_used_frame_indices.pkl")  
+                    # landmark_valid_indices = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_alignment_used_frame_indices.pkl")  
                     landmark_validity = np.zeros((len(landmark_list), 1), dtype=np.float32)
                     landmark_validity[landmark_valid_indices] = 1.0
                     landmark_validity = landmark_validity[start_frame: sequence_length + start_frame]
@@ -793,7 +839,11 @@ class MEADDataset(VideoDatasetBase):
 
 
             elif landmark_source == "aligned":
-                landmarks, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
+                if not self.preload_videos:
+                    landmarks, landmark_confidences = self._read_landmarks(index, landmark_type, landmark_source)
+                    # landmarks, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
+                else: 
+                    landmarks, landmark_confidences = self.lmk_cache[index][landmark_type][landmark_source]
 
                 # scale by image size 
                 landmarks = landmarks * sample["video"].shape[1]

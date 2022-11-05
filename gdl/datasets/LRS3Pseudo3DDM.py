@@ -4,6 +4,7 @@ import imgaug
 import numpy as np
 import torch
 from gdl.datasets.ConditionedVideoTestDatasetWrapper import ConditionedVideoTestDatasetWrapper
+import omegaconf
 
 
 class LRS3Pseudo3DDM(LRS3DataModule): 
@@ -95,7 +96,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 # segmentation_source=self.segmentation_source,
                 temporal_split_start= 0 if self.temporal_split is not None else None,
                 temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
-                # preload_videos=self.preload_videos,
+                preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
                 read_video=self.read_video,
                 reconstruction_type=self.reconstruction_type,
@@ -119,7 +120,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 # segmentation_source=self.segmentation_source,
                 temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
                 temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
-                # preload_videos=self.preload_videos,
+                preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
                 read_video=self.read_video,
                 reconstruction_type=self.reconstruction_type,
@@ -486,18 +487,25 @@ class LRS3Pseudo3dDataset(LRS3Dataset):
             temporal_split_end=temporal_split_end, 
             include_processed_audio=include_processed_audio,
             include_raw_audio=include_raw_audio,
+            read_video = read_video,
+            reconstruction_type = reconstruction_type,
+            return_global_pose = return_global_pose,
+            return_appearance = return_appearance,
+            average_shape_decode = average_shape_decode,
+            emotion_type = emotion_type,
+            return_emotion_feature = return_emotion_feature,
             )
-        self.read_video = read_video
+        # self.read_video = read_video
 
-        self.reconstruction_type = reconstruction_type
-        if self.reconstruction_type is not None:
-            self.return_global_pose = return_global_pose
-            self.return_appearance = return_appearance
-            self.average_shape_decode = average_shape_decode
-            # self._load_flame()
+        # self.reconstruction_type = reconstruction_type
+        # if self.reconstruction_type is not None:
+        #     self.return_global_pose = return_global_pose
+        #     self.return_appearance = return_appearance
+        #     self.average_shape_decode = average_shape_decode
+        #     # self._load_flame()
 
-        self.emotion_type = emotion_type
-        self.return_emotion_feature = return_emotion_feature
+        # self.emotion_type = emotion_type
+        # self.return_emotion_feature = return_emotion_feature
             
 
 

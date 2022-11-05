@@ -78,10 +78,10 @@ class MEADPseudo3DDM(MEADDataModule):
             landmark_types=landmark_types,
             landmark_sources=landmark_sources,
             segmentation_source=segmentation_source,
+            read_video=read_video,
             )
         self.test_condition_source = test_condition_source or "original"
         self.test_condition_settings = test_condition_settings
-        self.read_video = read_video
 
         self.reconstruction_type = reconstruction_type
         if self.reconstruction_type is not None: 
@@ -134,7 +134,8 @@ class MEADPseudo3DDM(MEADDataModule):
 
         # training_augmenter = create_image_augmenter(self.image_size, self.augmentation)
         training_augmenter = None
-        self.training_set = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, train, 
+        self.training_set = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+                train, 
                 self.audio_metas, self.sequence_length_train, image_size=self.image_size, 
                 transforms=training_augmenter,
                 **self.occlusion_settings_train,
@@ -148,7 +149,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 # segmentation_source=self.segmentation_source,
                 temporal_split_start= 0 if self.temporal_split is not None else None,
                 temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
-                # preload_videos=self.preload_videos,
+                preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
                 read_video=self.read_video,
                 reconstruction_type=self.reconstruction_type,
@@ -160,7 +161,9 @@ class MEADPseudo3DDM(MEADDataModule):
               )
                     
         self.validation_set = MEADPseudo3dDataset(self.root_dir, self.output_dir, 
-                self.video_list, self.video_metas, val, self.audio_metas, 
+                self.video_list, self.video_metas, 
+                val, 
+                self.audio_metas, 
                 self.sequence_length_val, image_size=self.image_size,  
                 **self.occlusion_settings_val,
                 hack_length=False, 
@@ -172,7 +175,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 # segmentation_source=self.segmentation_source,
                 temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
                 temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
-                # preload_videos=self.preload_videos,
+                preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
                 read_video=self.read_video,
                 reconstruction_type=self.reconstruction_type,
@@ -571,18 +574,25 @@ class MEADPseudo3dDataset(MEADDataset):
             temporal_split_end=temporal_split_end, 
             include_processed_audio=include_processed_audio,
             include_raw_audio=include_raw_audio,
+            read_video=read_video,
+            reconstruction_type=reconstruction_type,
+            return_global_pose = return_global_pose,
+            return_appearance = return_appearance,
+            average_shape_decode = average_shape_decode,
+            emotion_type = emotion_type,
+            return_emotion_feature = return_emotion_feature,
             )
-        self.read_video = read_video
+        # self.read_video = read_video
 
-        self.reconstruction_type = reconstruction_type
-        if self.reconstruction_type is not None:
-            self.return_global_pose = return_global_pose
-            self.return_appearance = return_appearance
-            self.average_shape_decode = average_shape_decode
+        # self.reconstruction_type = reconstruction_type
+        # if self.reconstruction_type is not None:
+        #     self.return_global_pose = return_global_pose
+        #     self.return_appearance = return_appearance
+        #     self.average_shape_decode = average_shape_decode
             # self._load_flame()
 
-        self.emotion_type = emotion_type
-        self.return_emotion_feature = return_emotion_feature
+        # self.emotion_type = emotion_type
+        # self.return_emotion_feature = return_emotion_feature
             
 
 

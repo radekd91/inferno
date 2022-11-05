@@ -67,7 +67,12 @@ class VideoDatasetBase(AbstractVideoDataset):
             align_images = True,
             use_audio=True, #if True, includes audio in the sample
             reconstruction_type = None,
+            return_global_pose = False,
+            return_appearance = False,
+            average_shape_decode = False,
             emotion_type = None,
+            return_emotion_feature=False,
+            read_video=True,
         ) -> None:
         super().__init__()
         self.root_path = root_path
@@ -140,22 +145,26 @@ class VideoDatasetBase(AbstractVideoDataset):
         self.preload_videos = preload_videos
         self.inflate_by_video_size = inflate_by_video_size
 
-        self.read_video = True
+        # self.read_video = True
+        self.read_video = read_video
 
         self.reconstruction_type = reconstruction_type 
         if self.reconstruction_type is not None: 
             if isinstance(self.reconstruction_type, str): 
                 self.reconstruction_type = [self.reconstruction_type]
             assert isinstance(self.reconstruction_type, list), "reconstruction_type must be a list or None"
-        self.return_global_pose = False
-        self.return_appearance = False
-        self.average_shape_decode = False
+        self.return_global_pose = return_global_pose
+        self.return_appearance = return_appearance
+        self.average_shape_decode = average_shape_decode
 
         self.emotion_type = emotion_type
-        self.return_emotion_feature = False
+        self.return_emotion_feature = return_emotion_feature
 
         self.video_cache = {}
         self.seg_cache = {}
+        self.lmk_cache = {}
+        self.rec_cache = {}
+        self.emo_cache = {}
         if self.preload_videos:
             self._preload_videos()
             
@@ -205,11 +214,36 @@ class VideoDatasetBase(AbstractVideoDataset):
 
     def _preload_videos(self): 
         # indices = np.unique(self.video_indices)
-        for i in range(len(self.video_indices)):
+        from tqdm import auto
+        for i in auto.tqdm( range(len(self.video_indices)), desc="Preloading videos" ):
             video_path = str(self._get_video_path(i))
-            if video_path not in self.video_cache:
-                self.video_cache[video_path] = vread(video_path)
-                self.seg_cache[video_path] = self._read_segmentations(i)
+            if self.read_video:
+                if video_path not in self.video_cache:
+                    self.video_cache[video_path] = vread(video_path)
+                    self.seg_cache[video_path] = self._read_segmentations(i) 
+            for lmk_type, lmk_source in zip(self.landmark_types, self.landmark_source):
+                if i not in self.lmk_cache:
+                    self.lmk_cache[i] = {}
+                if lmk_type not in self.lmk_cache[i]:
+                    self.lmk_cache[i][lmk_type] = {}
+                # if lmk_source not in self.lmk_cache[i][lmk_type]:
+                self.lmk_cache[i][lmk_type][lmk_source] = self._read_landmarks(i, lmk_type, lmk_source)
+            if self.reconstruction_type is not None: 
+                for rec_type in self.reconstruction_type: 
+                    shape_pose_cam, appearance = self._load_reconstructions(i, rec_type, self.return_appearance)
+                    if i not in self.rec_cache:
+                        self.rec_cache[i] = {}
+                    video_dict = self.rec_cache[i]
+                    if rec_type not in video_dict:
+                        video_dict[rec_type] = {}
+                    self.rec_cache[i][rec_type]["shape_pose_cam"] = shape_pose_cam
+                    self.rec_cache[i][rec_type]["appearance"] = appearance
+            if self.emotion_type is not None: 
+                emotions, features = self._load_emotions(i)
+                if i not in self.emo_cache:
+                    self.emo_cache[i] = {}
+                self.emo_cache[i]["emotions"] = emotions 
+                self.emo_cache[i]["features"] = features
     
 
         print("Video cache loaded")
@@ -547,6 +581,13 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         return sample
 
+    def _path_to_landmarks(self, index, landmark_type, landmark_source): 
+        return  (Path(self.output_dir) / f"landmarks_{landmark_source}" / landmark_type /  self.video_list[self.video_indices[index]]).with_suffix("")
+
+    def _read_landmarks(self, index, landmark_type, landmark_source):
+        landmarks_dir = self._path_to_landmarks(index, landmark_type, landmark_source)
+        landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{landmark_source}.pkl")  
+        return landmark_list
 
     def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
         sequence_length = self._get_sample_length(index)
@@ -554,15 +595,19 @@ class VideoDatasetBase(AbstractVideoDataset):
         landmark_validity_dict = {}
         for lti, landmark_type in enumerate(self.landmark_types):
             landmark_source = self.landmark_source[lti]
-            landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}" / landmark_type /  self.video_list[self.video_indices[index]]).with_suffix("")
+            landmarks_dir = self._path_to_landmarks(index, landmark_type, landmark_source)
             landmarks = []
             if (landmarks_dir / "landmarks.pkl").exists(): # landmarks are saved per video in a single file
             #    landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks.pkl")  
-            #    landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_original.pkl")  
-                landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{landmark_source}.pkl")  
-                landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
+            #    landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_original.pkl") 
+                if not self.preload_videos: 
+                    # landmark_list = FaceDataModuleBase.load_landmark_list(landm?arks_dir / f"landmarks_{landmark_source}.pkl")  
+                    landmark_list = self._read_landmarks(index, landmark_type, landmark_source)
+                    # landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
+                else: 
+                    landmark_list = self.lmk_cache[index][landmark_type][landmark_source]
+                    # landmark_types = self.lmk_cache[index]["landmark_types"]
                 landmarks = landmark_list[start_frame: sequence_length + start_frame] 
-
                 landmark_validity = np.ones((len(landmarks), 1), dtype=np.float32)
                 for li in range(len(landmarks)): 
                     if len(landmarks[li]) == 0: # dropped detection
@@ -817,7 +862,16 @@ class VideoDatasetBase(AbstractVideoDataset):
         sequence_length = self._get_sample_length(index)
         if self.reconstruction_type is None:
             return sample
-        shape_pose_cam, appearance = self._load_reconstructions(index, rec_type, self.return_appearance)
+        if not self.preload_videos:
+            shape_pose_cam, appearance = self._load_reconstructions(index, rec_type, self.return_appearance)
+        else: 
+            shape_pose_cam_ = self.rec_cache[index][rec_type]["shape_pose_cam"]
+            appearance_ = self.rec_cache[index][rec_type]["appearance"]
+            shape_pose_cam = shape_pose_cam_.copy()
+            if appearance_ is not None:
+                appearance = appearance_.copy()
+            else:
+                appearance = None
         for key in shape_pose_cam.keys():
             shape_pose_cam[key] = shape_pose_cam[key][0][start_frame:start_frame+num_read_frames]
         if appearance is not None:
@@ -941,7 +995,13 @@ class VideoDatasetBase(AbstractVideoDataset):
         sequence_length = self._get_sample_length(index)
         if self.emotion_type is None:
             return sample
-        emotions, features = self._load_emotions(index, self.return_emotion_feature)
+        if not self.preload_videos:
+            emotions, features = self._load_emotions(index, self.return_emotion_feature)
+        else: 
+            emotions = self.emo_cache[index]["emotions"].copy() 
+            features = self.emo_cache[index]["features"]
+            if features is not None:
+                features = features.copy()
         
         for key in emotions.keys():
             assert key not in sample.keys(), f"Key {key} already exists in sample."

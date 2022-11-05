@@ -723,6 +723,13 @@ class LRS3Dataset(VideoDatasetBase):
             preload_videos=False,
             inflate_by_video_size=False,
             include_filename=False, # if True includes the filename of the video in the sample
+            read_video=True,
+            reconstruction_type=None,
+            return_global_pose = False,
+            return_appearance = False,
+            average_shape_decode = True,
+            emotion_type=None,
+            return_emotion_feature=False,
     ) -> None:
         landmark_types = landmark_types or "mediapipe"
         super().__init__(
@@ -757,6 +764,13 @@ class LRS3Dataset(VideoDatasetBase):
             preload_videos=preload_videos,
             inflate_by_video_size=inflate_by_video_size,
             include_filename=include_filename, 
+            read_video = read_video,
+            reconstruction_type = reconstruction_type,
+            return_global_pose = return_global_pose,
+            return_appearance = return_appearance,
+            average_shape_decode = average_shape_decode,
+            emotion_type = emotion_type,
+            return_emotion_feature = return_emotion_feature,
         )
 
 
