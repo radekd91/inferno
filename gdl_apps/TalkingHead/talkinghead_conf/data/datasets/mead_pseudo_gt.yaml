@@ -15,6 +15,7 @@ face_detector_threshold: 0.05
 include_processed_audio: False
 include_raw_audio: True
 preload_videos: False
+# preload_videos: True
 inflate_by_video_size: False
 
 ring_type: none
@@ -55,6 +56,7 @@ segmentation_source: aligned
 
 # split: random_70_15_15
 split: random_by_identity_70_15_15
+# split: random_by_identityV2_sorted_70_15_15
 
 train_subjects: []
 #   - FaceTalk_170728_03272_TA 
