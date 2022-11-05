@@ -205,7 +205,9 @@ class EmoLossBase(torch.nn.Module):
                 assert ring_size is None
                 emo_feat_loss_1 = self.emo_feat_loss(input_emofeat, output_emofeat, mask=mask)
             else:
-                assert mask is None, "Masked loss not supported for this loss"
+                # assert mask is None, "Masked loss not supported for this loss"
+                if mask is not None: 
+                    print("[WARNING] Masked loss not supported for this loss")
                 emo_feat_loss_1 = self.emo_feat_loss(input_emofeat, output_emofeat).mean()
         else:
             emo_feat_loss_1 = None
@@ -225,7 +227,9 @@ class EmoLossBase(torch.nn.Module):
             assert ring_size is None
             emo_feat_loss_2 = self.emo_feat_loss(input_emofeat_2, output_emofeat_2, mask=mask)
         else:
-            assert mask is None, "Masked loss not supported for this loss"
+            # assert mask is None, "Masked loss not supported for this loss"
+            if mask is not None: 
+                print("[WARNING] Masked loss not supported for this loss")
             emo_feat_loss_2 = self.emo_feat_loss(input_emofeat_2, output_emofeat_2).mean()
 
         if 'valence' in input_emotion.keys() and input_emotion['valence'] is not None:
