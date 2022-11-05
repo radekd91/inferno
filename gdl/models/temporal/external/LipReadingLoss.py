@@ -53,8 +53,57 @@ class LipReadingNet(torch.nn.Module):
 
 
     def forward(self, lip_images):
+        """
+        :param lip_images: (batch_size, seq_len, 1, 88, 88) or (seq_len, 1, 88, 88))
+        """
+        # this is my - hopefully fixed version of the forward pass
+        # In other words, in the lip reading repo code, the following happens:
+        # gdl/external/spectre/external/Visual_Speech_Recognition_for_Multiple_Languages/espnet/nets/pytorch_backend/backbones/conv3d_extractor.py
+        # line 95:
+        # B, C, T, H, W = xs_pad.size() # evaluated to: torch.Size([B, 1, 70, 88, 88]) - so the temporal window is collapsed into the batch size
+        ndim = lip_images.ndim
+        B, T = lip_images.shape[:2]
+        rest = lip_images.shape[2:]
+        if ndim == 5: # batched 
+            lip_images = lip_images.view(B * T, *rest)
+        elif ndim == 4: # single
+            pass
+        else: 
+            raise ValueError("Lip images should be of shape (batch_size, seq_len, 1, 88, 88) or (seq_len, 1, 88, 88)")
+
         channel_dim = 1
         lip_images = self.mouth_transform(lip_images.squeeze(channel_dim)).unsqueeze(channel_dim)
+
+        
+        if ndim == 5:
+            lip_images = lip_images.view(B, T, *lip_images.shape[2:])
+        elif ndim == 4: 
+            lip_images = lip_images.unsqueeze(0)
+            lip_images = lip_images.squeeze(2)
+
+        # the image is now of shape (B, T, 88, 88), the missing channel dimension is unsqueezed in the lipread net code
+
+        lip_features = self.lip_reader.model.encoder(
+            lip_images,
+            None,
+            extract_resnet_feats=True
+        )
+        return lip_features
+
+
+    def forward_old(self, lip_images):
+        # this appears to be how the lipread net was originally used in the spectre paper, 
+        # however, it seems to be wrong. it looks like they are feeding the video frames into the lipread net
+        # with temporal window size acting as batch size and they only use batch size 1. 
+        # by some weird coincidence, this does not crash the lipread net and it seems to work for them .... 
+        # however, shouldn't the video be passed such that the temporal sequence lenght is the batch size is correct?
+        # In other words, in the lip reading repo code, the following happens:
+        # gdl/external/spectre/external/Visual_Speech_Recognition_for_Multiple_Languages/espnet/nets/pytorch_backend/backbones/conv3d_extractor.py
+        # line 95:
+        # B, C, T, H, W = xs_pad.size() # evaluated to: torch.Size([70, 1, 1, 88, 88]) - so the temporal window is collapsed into the batch size
+        channel_dim = 1
+        lip_images = self.mouth_transform(lip_images.squeeze(channel_dim)).unsqueeze(channel_dim)
+        lip_images = lip_images.view(-1, lip_images.shape[1], lip_images.shape[-2], lip_images.shape[-1])
         lip_features = self.lip_reader.model.encoder(
             lip_images,
             None,
@@ -77,6 +126,7 @@ class LipReadingLoss(torch.nn.Module):
         # there is no need to keep gradients for input (even if we're finetuning, which we don't, it's the output image we'd wannabe finetuning on)
         with torch.no_grad():
             result = self.model(images)
+            # result_ = self.model.forward_old(images)
         return result
 
     def _forward_output(self, images):
@@ -90,10 +140,16 @@ class LipReadingLoss(torch.nn.Module):
         lip_features_pred = lip_features_pred.view(-1, lip_features_pred.shape[-1])
         
         if mask is not None:
-            lip_features_gt = lip_features_gt[mask.squeeze(1)]
-            lip_features_pred = lip_features_pred[mask.squeeze(1)]
+            lip_features_gt = lip_features_gt[mask.view(-1)]
+            lip_features_pred = lip_features_pred[mask.view(-1)]
+            # lip_features_gt = lip_features_gt[mask.squeeze(-1)]
+            # lip_features_pred = lip_features_pred[mask.squeeze(-1)]
 
-        lr = (lip_features_gt*lip_features_pred).sum(1)/torch.linalg.norm(lip_features_pred,dim=1)/torch.linalg.norm(lip_features_gt,dim=1)
+        # # manual cosine similarity  take over from spectre
+        # lr = (lip_features_gt*lip_features_pred).sum(1)/torch.linalg.norm(lip_features_pred,dim=1)/torch.linalg.norm(lip_features_gt,dim=1)
+
+        # pytorch cosine similarity
+        lr = 1-torch.nn.functional.cosine_similarity(lip_features_gt, lip_features_pred, dim=1).mean()
 
         loss = 1-torch.mean(lr)
         return loss

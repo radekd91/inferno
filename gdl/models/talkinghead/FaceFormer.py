@@ -234,13 +234,24 @@ class FaceFormer(TalkingHeadBase):
                 # gt_vid = gt_vid[mask_].view(B*mask_sum, *gt_vid.shape[1:])
                 # pred_vid = pred_vid[mask_].view(B*mask_sum, *pred_vid.shape[1:])
 
-                loss_values = []
-                for bi in range(B_eff):
-                    gt_vid = target_dict["gt_mouth_video"][cam_name][bi].view(T, *rest)
-                    pred_vid = sample["predicted_mouth_video"][cam_name][bi].view(T, *rest)
-                    loss = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask[bi])
-                    loss_values.append(loss)
-                loss_value = torch.stack(loss_values).mean()
+                # # the old way (loop over batch dimension) - fixed after finding the spectre bug
+                # loss_values = []
+                # for bi in range(B_eff):
+                #     gt_vid = target_dict["gt_mouth_video"][cam_name][bi].view(T, *rest)
+                #     pred_vid = sample["predicted_mouth_video"][cam_name][bi].view(T, *rest)
+                #     loss = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask[bi])
+                #     loss_values.append(loss)
+                # loss_value = torch.stack(loss_values).mean()
+
+                # the new way (vectorized) 
+                gt_vid = target_dict["gt_mouth_video"][cam_name]
+                pred_vid = sample["predicted_mouth_video"][cam_name]
+                loss_value = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask)
+                # loss_value_ = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask)
+
+                # print("loss_value", loss_value)
+                # print("loss_value_", loss_value_)
+                # pass
         
         elif loss_type == "lip_reading_loss_disentangled":
             assert B_orig != B, "No disentanglement done"
@@ -275,13 +286,18 @@ class FaceFormer(TalkingHeadBase):
                 # gt_vid = gt_vid[mask_].view(B*mask_sum, *gt_vid.shape[1:])
                 # pred_vid = pred_vid[mask_].view(B*mask_sum, *pred_vid.shape[1:])
 
-                loss_values = []
-                for bi in range(B_orig):
-                    gt_vid = target_dict["gt_mouth_video"][cam_name][0 + input_indices_1[bi]].view(T, *rest)
-                    pred_vid = sample["predicted_mouth_video"][cam_name][B_orig + input_indices_2[bi]].view(T, *rest)
-                    loss = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask[bi])
-                    loss_values.append(loss)
-                loss_value = torch.stack(loss_values).mean()
+                # # the old way (loop over batch dimension) - fixed after finding the spectre bug
+                # loss_values = []
+                # for bi in range(B_orig):
+                #     gt_vid = target_dict["gt_mouth_video"][cam_name][0 + input_indices_1[bi]].view(T, *rest)
+                #     pred_vid = sample["predicted_mouth_video"][cam_name][B_orig + input_indices_2[bi]].view(T, *rest)
+                #     loss = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask[bi])
+                #     loss_values.append(loss)
+                # loss_value = torch.stack(loss_values).mean()
+
+                gt_vid = target_dict["gt_mouth_video"][cam_name][:B_orig]
+                pred_vid = sample["predicted_mouth_video"][cam_name][B_orig + input_indices_2]
+                loss_value = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask)
         
         else: 
             raise ValueError(f"Unknown loss type: {loss_type}")
