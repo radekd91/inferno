@@ -425,7 +425,8 @@ class SpeechEmotionRecognitionPreprocessor(Preprocessor):
                 if val.ndim == 2:
                     val = val.unsqueeze(1)
                     # val = val.repeat(1, T, 1)
-                    val = val.expand(val.shaoe[0], T, val.shape[2])
+                    val = val.expand(val.shape[0], T, val.shape[2])
+                assert output_prefix + key not in batch.keys(), f"key {output_prefix + key} already in batch"
                 batch[output_prefix + key] = val.view(B, T, -1)
                 output_num += 1
         
