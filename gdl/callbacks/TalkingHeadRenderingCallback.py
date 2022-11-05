@@ -142,42 +142,44 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
         # audio = self.video_names_to_process[subfolder]
         framerate = self.video_framerates_to_process[subfolder]
         samplerate = self.audio_samplerates_to_process[subfolder]
-
-        # find all renderings in the subfolder
-        renderings = sorted([f for f in subfolder.iterdir() if f.is_file() and f.suffix == ".png"])    
-
-        # create audio 
-        audio_chunks_files = sorted([f for f in subfolder.iterdir() if f.is_file() and f.suffix == ".pkl"])
-        audio_chunks = [pkl.load(open(f, "rb")) for f in audio_chunks_files]
-        audio_chunks = np.concatenate(audio_chunks, axis=0)
-        audio_path = subfolder / "audio.wav"
-        sf.write(audio_path, audio_chunks, samplerate)
-
-
-        # create video with audio
         video_path = subfolder / ("output.mp4")
-        ffmpeg_cmd = f"ffmpeg -y -framerate {framerate} -start_number {renderings[0].stem} -i {str(subfolder)}/" + self.image_format + ".png"\
-            f" -i {str(audio_path)} -c:v libx264 -c:a aac -strict experimental -b:a 192k -pix_fmt yuv420p {str(video_path)}"
-        # ffmpeg_cmd = f"ffmpeg -y -framerate {framerate}  -start_number {renderings[0].stem} -i {str(subfolder)}/*.png"\
-        #     f" -i {str(audio_path)} -c:v libx264 -c:a aac -strict experimental -b:a 192k -pix_fmt yuv420p {str(video_path)}"
-        # ffmpeg_cmd = f"ffmpeg -framerate 30 -i {str(subfolder)}/" + self.image_format + f".png -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p {str(video_path)}"
 
-        # create video from renderings
-        os.system(ffmpeg_cmd)
+        if not video_path.is_file():
 
-        # check if the video was created
-        if not video_path.exists():
-            print(f"Video {video_path} was not created. The renderings are in {subfolder}")
-            return
-        
-        print(f"Video {video_path} was created. Deleting renderings.")
-        for rendering in renderings:
-            os.remove(rendering)
-        
-        # delete the audio chungs 
-        for audio_chunk in audio_chunks_files:
-            os.remove(audio_chunk)
-        os.remove(audio_path)
+            # find all renderings in the subfolder
+            renderings = sorted([f for f in subfolder.iterdir() if f.is_file() and f.suffix == ".png"])    
+
+            # create audio 
+            audio_chunks_files = sorted([f for f in subfolder.iterdir() if f.is_file() and f.suffix == ".pkl"])
+            audio_chunks = [pkl.load(open(f, "rb")) for f in audio_chunks_files]
+            audio_chunks = np.concatenate(audio_chunks, axis=0)
+            audio_path = subfolder / "audio.wav"
+            sf.write(audio_path, audio_chunks, samplerate)
+
+
+            # create video with audio
+            ffmpeg_cmd = f"ffmpeg -y -framerate {framerate} -start_number {renderings[0].stem} -i {str(subfolder)}/" + self.image_format + ".png"\
+                f" -i {str(audio_path)} -c:v libx264 -c:a aac -strict experimental -b:a 192k -pix_fmt yuv420p {str(video_path)}"
+            # ffmpeg_cmd = f"ffmpeg -y -framerate {framerate}  -start_number {renderings[0].stem} -i {str(subfolder)}/*.png"\
+            #     f" -i {str(audio_path)} -c:v libx264 -c:a aac -strict experimental -b:a 192k -pix_fmt yuv420p {str(video_path)}"
+            # ffmpeg_cmd = f"ffmpeg -framerate 30 -i {str(subfolder)}/" + self.image_format + f".png -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p {str(video_path)}"
+
+            # create video from renderings
+            os.system(ffmpeg_cmd)
+
+            # check if the video was created
+            if not video_path.exists():
+                print(f"Video {video_path} was not created. The renderings are in {subfolder}")
+                return
+            
+            print(f"Video {video_path} was created. Deleting renderings.")
+            for rendering in renderings:
+                os.remove(rendering)
+            
+            # delete the audio chungs 
+            for audio_chunk in audio_chunks_files:
+                os.remove(audio_chunk)
+            os.remove(audio_path)
 
         # log the video
         self._log_video(video_path, logger, epoch)
