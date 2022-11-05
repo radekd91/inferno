@@ -282,7 +282,7 @@ class TalkingHeadBase(pl.LightningModule):
             return sample
 
         elif disentangle_type == "condition_exchange":
-            assert B == 2, f"Batch size must be 2 for disentangle_type '{disentangle_type}'" 
+            # assert B == 2, f"Batch size must be 2 for disentangle_type '{disentangle_type}'" 
 
             keys_to_exchange = [] 
             if sample_shape:
