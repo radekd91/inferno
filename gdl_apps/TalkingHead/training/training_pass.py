@@ -32,6 +32,7 @@ import time as t
 from omegaconf import DictConfig, OmegaConf
 import copy
 from gdl.callbacks.TalkingHeadRenderingCallback import TalkingHeadTestRenderingCallback
+from gdl.callbacks.ImageSavingCallback import ImageSavingCallback
 
 project_name = 'TalkingHead'
 
@@ -43,6 +44,27 @@ def get_rendering_callback(cfg, flame_template_path):
     if cfg.data.data_class == 'MEADPseudo3DDM':
         path_chunks_to_cat = 4
     return TalkingHeadTestRenderingCallback(flame_template_path, path_chunks_to_cat)
+
+
+def get_image_callback(cfg): 
+    # if model has a renderer 
+    if cfg.model.renderer is not None: 
+        rec_types = cfg.data.reconstruction_type 
+        if isinstance(rec_types, str):
+            rec_types = [rec_types]
+        if cfg.model.renderer.type == 'fixed_view':
+            image_keys_to_save = []
+            for cam_name in cfg.model.renderer.cam_names:
+                image_keys_to_save += [f"predicted_mouth_video.{cam_name}"]
+                image_keys_to_save += [f"predicted_video.{cam_name}"]
+                for rec_type in rec_types:
+                    image_keys_to_save += [f"reconstruction.{rec_type}.gt_video.{cam_name}"]
+                    image_keys_to_save += [f"reconstruction.{rec_type}.gt_mouth_video.{cam_name}"]
+            # image_keys_to_save += [f"gt_mouth_video.{cam_name}"]
+            # image_keys_to_save += [f"gt_video.{cam_name}"]
+            frequency=100 # every 100 steps
+            num_images_in_seq=25 # save the first 25 images from the sequence
+            return ImageSavingCallback(image_keys_to_save, frequency, num_images_in_seq)
 
 
 def get_checkpoint_with_kwargs(cfg, prefix, checkpoint_mode=None):
@@ -291,6 +313,12 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
 
         rendering_callback = get_rendering_callback(cfg, flame_template_path)
         callbacks += [rendering_callback]
+
+    if stage == 'train':
+        image_callback = get_image_callback(cfg)
+        if image_callback is not None:
+            callbacks += [image_callback]
+
 
     val_check_interval = 1.0
     if 'val_check_interval' in cfg.model.keys():
