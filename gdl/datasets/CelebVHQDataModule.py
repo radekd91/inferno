@@ -433,7 +433,9 @@ class CelebVHQDataModule(FaceVideoDataModule):
         sampler = self.train_sampler()
         dl =  DataLoader(self.training_set, shuffle=sampler is None, num_workers=self.num_workers, pin_memory=True,
                         batch_size=self.batch_size_train, drop_last=self.drop_last, sampler=sampler, 
-                        collate_fn=robust_collate)
+                        collate_fn=robust_collate, 
+                        persistent_workers=True,
+                        )
         return dl
 
     def val_dataloader(self):
@@ -441,13 +443,17 @@ class CelebVHQDataModule(FaceVideoDataModule):
                           batch_size=self.batch_size_val, 
                         #   drop_last=self.drop_last
                           drop_last=False, 
-                        collate_fn=robust_collate)
+                        collate_fn=robust_collate, 
+                        persistent_workers=True,
+                        )
         if hasattr(self, "validation_set_2"): 
             dl2 =  DataLoader(self.validation_set_2, shuffle=False, num_workers=self.num_workers, pin_memory=True,
                             batch_size=self.batch_size_val, 
                             # drop_last=self.drop_last, 
                             drop_last=False, 
-                            collate_fn=robust_collate)
+                            collate_fn=robust_collate, 
+                            persistent_workers=True,
+                            )
                             
             return [dl, dl2]
         return dl 
