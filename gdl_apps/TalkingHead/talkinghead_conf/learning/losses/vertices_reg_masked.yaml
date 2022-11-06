@@ -1,0 +1,45 @@
+# @package learning
+losses:
+  vertex_loss:
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+
+  expression_reg: 
+    weight: 0.001
+    # weight: 0.0001
+    # weight: 0.00001
+    # weight: 0.000001
+    # weight: 0.0000001
+    # weight: 0.00000001
+    # weight: 0.000000001
+    # weight: 0.0000000001
+    # weight: 0.0
+
+metrics: 
+  exp_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+
+  jaw_loss: 
+    weight: 1.    
+    rotation_rep: 6d
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+
+  vertex_velocity_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+  
+  exp_velocity_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+  
+  jaw_velocity_loss: 
+    weight: 1.    
+    rotation_rep: 6d
+    metric: l2
+    mask_invalid: mediapipe_landmarks
