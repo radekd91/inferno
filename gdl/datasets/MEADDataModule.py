@@ -667,7 +667,8 @@ class MEADDataModule(FaceVideoDataModule):
         dl =  DataLoader(self.training_set, shuffle=sampler is None, num_workers=self.num_workers, pin_memory=True,
                         batch_size=self.batch_size_train, drop_last=self.drop_last, sampler=sampler, 
                         collate_fn=robust_collate, 
-                        persistent_workers=True,
+                        # persistent_workers=True,
+                        persistent_workers=self.num_workers > 0,
                         )
         return dl
 
@@ -677,7 +678,8 @@ class MEADDataModule(FaceVideoDataModule):
                         #   drop_last=self.drop_last
                           drop_last=False, 
                         collate_fn=robust_collate,
-                        persistent_workers=True,
+                        # persistent_workers=True,
+                        persistent_workers=self.num_workers > 0,
                         )
         if hasattr(self, "validation_set_2"): 
             dl2 =  DataLoader(self.validation_set_2, shuffle=False, num_workers=self.num_workers, pin_memory=True,
@@ -685,7 +687,8 @@ class MEADDataModule(FaceVideoDataModule):
                             # drop_last=self.drop_last, 
                             drop_last=False, 
                             collate_fn=robust_collate, 
-                        persistent_workers=True,
+                        # persistent_workers=True,
+                        persistent_workers=self.num_workers > 0,
                             )
                             
             return [dl, dl2]
