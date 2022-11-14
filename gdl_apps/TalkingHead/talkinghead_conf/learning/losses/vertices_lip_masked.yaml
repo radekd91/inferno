@@ -12,9 +12,22 @@ losses:
     # weight: 0.01
     # weight: 0.001
     # weight: 0.0001
-    # weight: 0.00001 # default
-    # weight: 0.000001 
-    weight: 0.0000001 # 
+    # weight: 0.00005
+    # weight: 0.00001 
+    # weight: 0.000005
+    # weight: 0.000003 
+    # weight: 0.000001 # default
+    # weight: 0.0000008 # too strong (weirdly flapping lips)
+    # weight: 0.0000005 # still a little too strong
+    # weight: 0.0000004 # looking for the sweet spot
+    # weight: 0.0000003 # looking for the sweet spot - slightly uncanny (the flapping is small but still there)
+    weight: 0.000000275 # looking for the sweet spot
+    # weight: 0.00000025 # looking for the sweet spot
+    # weight: 0.000000225 # looking for the sweet spot
+    # weight: 0.0000002 # looking for the sweet spot
+    # weight: 0.000000175 # looking for the sweet spot
+    # weight: 0.00000015 # looking for the sweet spot
+    # weight: 0.0000001 # # too weak but let's recheck that
     # weight: 0.00000001
     # weight: 0.000000001
     # weight: 0.0000000001
@@ -26,7 +39,9 @@ losses:
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
 
   expression_reg: 
-    weight: 0.0001
+    # weight: 0.0001 # too high
+    weight: 1.e-9
+    # weight: 1.e-10
 
 metrics: 
   emotion_loss:

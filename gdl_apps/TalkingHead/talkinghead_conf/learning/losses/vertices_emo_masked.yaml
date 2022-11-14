@@ -17,6 +17,7 @@ losses:
     # weight: 0.0000001
     # weight: 0.00000001
     # weight: 0.000000001
+    # weight: 0.0000000001
     # weight: 0.0
     network_path: /is/cluster/work/rdanecek/emoca/emodeca/2021_11_09_05-15-38_-8198495972451127810_EmoCnn_resnet50_shake_samp-balanced_expr_Aug_early
     # emo_feat_loss: mse_loss
@@ -27,7 +28,8 @@ losses:
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
 
   expression_reg: 
-    weight: 0.0001
+    # weight: 0.0001 # too strong 
+    weight: 1.e-9
 
 metrics: 
   lip_reading_loss:

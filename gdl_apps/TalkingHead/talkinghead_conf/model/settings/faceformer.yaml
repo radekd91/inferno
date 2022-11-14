@@ -2,3 +2,4 @@
 
 pl_module_class: FaceFormer
 max_epochs: 200
+min_steps: 7000
