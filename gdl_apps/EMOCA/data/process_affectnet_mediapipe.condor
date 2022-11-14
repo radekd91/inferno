@@ -1,0 +1,10 @@
+executable = process_affectnet_mediapipe.sh
+arguments = $(Process)
+error = logs_affectnet/process_affectnet.$(Process).err
+output = logs_affectnet/process_affectnet.$(Process).out
+log = logs_affectnet/process_affectnet.$(Process).log
+request_memory = 30000
+request_cpus = 4
+request_gpus = 0
+concurrency_limits = user.process_affectnet:150
+queue 421

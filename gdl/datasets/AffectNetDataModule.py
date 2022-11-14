@@ -249,8 +249,11 @@ class AffectNetDataModule(FaceDataModuleBase):
     def _path_to_segmentations(self):
         return Path(self.output_dir) / "segmentations"
 
-    def _path_to_landmarks(self):
-        return Path(self.output_dir) / "landmarks"
+    def _path_to_landmarks(self, landmark_type=None):
+        if landmark_type is None:
+            return Path(self.output_dir) / "landmarks"
+        return Path(self.output_dir) / f"landmarks_{landmark_type}"
+        
 
     def _path_to_emotions(self):
         return Path(self.output_dir) / "emotions"
@@ -368,6 +371,75 @@ class AffectNetDataModule(FaceDataModuleBase):
             self._segment_images(detection_fnames, self._path_to_segmentations(), path_depth=1)
 
             status_array = np.memmap(self.status_array_path,
+                                     dtype=np.bool,
+                                     mode='r+',
+                                     shape=(self.num_subsets,)
+                                     )
+            status_array[start_i // self.subset_size] = True
+            status_array.flush()
+            del status_array
+            print(f"Processing subset {start_i // self.subset_size} finished")
+        else:
+            print(f"Subset {start_i // self.subset_size} is already processed")
+
+    
+    def _detect_landmarks_mediapipe(self, start_i, end_i):
+        detections_path = self._path_to_detections()
+        landmark_type = "mediapipe"
+        landmark_path = self._path_to_landmarks(landmark_type=landmark_type)
+        landmark_path.mkdir(parents=True, exist_ok=True)
+
+        status_array_path = Path(self.output_dir) / "mediapipe_status.memmap"
+
+        status_array = np.memmap(status_array_path,
+                                 dtype=np.bool,
+                                 mode='r',
+                                 shape=(self.num_subsets,)
+                                 )
+                                 
+        completed = status_array[start_i // self.subset_size]
+        del status_array
+        from gdl.utils.FaceDetector import save_landmark_v2, save_landmark
+        from gdl.utils.MediaPipeLandmarkDetector import MediaPipeLandmarkDetector
+
+        detector = MediaPipeLandmarkDetector()
+
+        if not completed:
+            print(f"Processing subset {start_i // self.subset_size}")
+            for i in auto.tqdm(range(start_i, end_i)):
+                im_file = self.df.loc[i]["subDirectory_filePath"]
+                # left = self.df.loc[i]["face_x"]
+                # top = self.df.loc[i]["face_y"]
+                # right = left + self.df.loc[i]["face_width"]
+                # bottom = top + self.df.loc[i]["face_height"]
+                # bb = np.array([top, left, bottom, right])
+
+                image_path = (detections_path / im_file).with_suffix(self.processed_ext)
+                # save landmarks
+                out_landmark_fname = landmark_path / Path(im_file).parent / (Path(im_file).stem + ".pkl")
+                out_landmark_fname.parent.mkdir(exist_ok=True)
+                # landmark_fnames += [out_landmark_fname.relative_to(self.output_dir)]
+
+                if out_landmark_fname.exists():
+                    print(f"Landmark file {out_landmark_fname} already exists. Skipping")
+                    continue
+
+                try:
+                    image = imread(image_path)
+                except IOError as e:
+                    print(f"Failed to load file:")
+                    print(f"{image_path}")
+                    print(traceback.print_exc())
+                    continue
+
+                bb, lmk_type, landmarks = detector.run(image, with_landmarks=True)
+                save_landmark(out_landmark_fname, landmarks, lmk_type)
+                # save_landmark_v2(out_landmark_fname, landmarks, )
+                if len(bb) == 0:
+                    print(f"Failed to detect face in '{image_path}'")
+                    continue
+
+            status_array = np.memmap(status_array_path,
                                      dtype=np.bool,
                                      mode='r+',
                                      shape=(self.num_subsets,)

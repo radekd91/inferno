@@ -68,7 +68,7 @@ class MediaPipeLandmarkDetector(FaceDetector):
     def run(self, image, with_landmarks=False, detected_faces=None):
         '''
         image: 0-255, uint8, rgb, [h, w, 3]
-        return: detected box list
+        return: detected box list (in image coordinates), landmarks list (in image coordinates)
         '''
         # if detected_faces is None: 
         results = self.face_mesh.process(image)
