@@ -811,7 +811,7 @@ def plot_verts(image, kpts, color='r'):
     image = image.copy()
 
     for i in range(kpts.shape[0]):
-        st = kpts[i, :2]
+        st = kpts[i, :2].astype(np.int32)
         image = cv2.circle(image, (st[0], st[1]), 1, c, 2)
 
     return image

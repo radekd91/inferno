@@ -1231,6 +1231,22 @@ class AffectNet(EmotionalImageDatasetBase):
             segmentation_path = Path(self.image_path).parent / "segmentations" / im_rel_path
             segmentation_path = segmentation_path.parent / (segmentation_path.stem + ".pkl")
 
+            # try mediapipe landmarks if available
+            mediapipe_landmark_path = Path(self.image_path).parent / "landmarks_mediapipe" / im_rel_path
+            mediapipe_landmark_path = mediapipe_landmark_path.parent / (mediapipe_landmark_path.stem + ".pkl")
+
+            # try:
+            if mediapipe_landmark_path.is_file():
+                mp_landmark_type, mediapipe_landmark = load_landmark(
+                    mediapipe_landmark_path)
+                if len(mediapipe_landmark) == 0:
+                    mediapipe_landmark = None
+                else:
+                    mediapipe_landmark = mediapipe_landmark[0]
+                mediapipe_landmark = mediapipe_landmark[np.newaxis, ..., :2]
+            else:
+                mediapipe_landmark = None
+
             seg_image, seg_type = load_segmentation(
                 segmentation_path)
             seg_image = seg_image[np.newaxis, :, :, np.newaxis]
@@ -1245,7 +1261,17 @@ class AffectNet(EmotionalImageDatasetBase):
             else:
                 emotion_features = None
 
+        if mediapipe_landmark is not None:
+            # concatenate landmark and mediapipe landmark
+            num_landmarks = landmark.shape[1]
+            landmark = np.concatenate([landmark, mediapipe_landmark], axis=1)
+
         img, seg_image, landmark = self._augment(img, seg_image, landmark)
+
+        if mediapipe_landmark is not None:
+            mediapipe_landmark = landmark[num_landmarks:, ...]
+            landmark = landmark[:num_landmarks, ...]
+
 
         sample = {
             "image": numpy_image_to_torch(img.astype(np.float32)),
@@ -1270,6 +1296,8 @@ class AffectNet(EmotionalImageDatasetBase):
 
         if landmark is not None:
             sample["landmark"] = torch.from_numpy(landmark)
+        if mediapipe_landmark is not None:
+            sample["landmark_mediapipe"] = torch.from_numpy(mediapipe_landmark)
         if seg_image is not None:
             sample["mask"] = numpy_image_to_torch(seg_image)[0]
         if emotion_features is not None:
@@ -1604,55 +1632,60 @@ if __name__ == "__main__":
     #          ring_size=4
     #         )
     import yaml
-    # augmenter = yaml.load(open(Path(__file__).parents[2] / "gdl_apps" / "EmotionRecognition" / "emodeca_conf" / "data" / "augmentations" / "default_with_resize.yaml"))["augmentation"]
-    augmenter = None
+    augmenter = yaml.load(
+            open(Path(__file__).parents[2] / "gdl_apps" / "EmotionRecognition" / "emodeca_conf" / "data" / "augmentations" / "default_with_resize.yaml"), 
+            Loader=yaml.FullLoader)["augmentation"]
+    # augmenter = None
     # # dm = AffectNetEmoNetSplitModule(
-    # dm = AffectNetEmoNetSplitModuleValTest(
-    # # dm = AffectNetDataModule(
-    #          # "/home/rdanecek/Workspace/mount/project/EmotionalFacialAnimation/data/affectnet/",
-    #          "/ps/project_cifs/EmotionalFacialAnimation/data/affectnet/",
-    #          # "/home/rdanecek/Workspace/mount/scratch/rdanecek/data/affectnet/",
-    #          # "/home/rdanecek/Workspace/mount/work/rdanecek/data/affectnet/",
-    #          "/is/cluster/work/rdanecek/data/affectnet/",
-    #          # processed_subfolder="processed_2021_Aug_27_19-58-02",
-    #          processed_subfolder="processed_2021_Apr_05_15-22-18",
-    #          processed_ext=".png",
-    #          mode="manual",
-    #          scale=1.7,
-    #          image_size=512,
-    #          bb_center_shift_x=0,
-    #          bb_center_shift_y=-0.3,
-    #          ignore_invalid=True,
-    #          # ignore_invalid="like_emonet",
-    #          # ring_type="gt_expression",
-    #          # ring_type="gt_va",
-    #          # ring_type="emonet_feature",
-    #          ring_size=4,
-    #         augmentation=augmenter,
-    #         # use_clean_labels=True
-    #         # dataset_type="AffectNetWithMGCNetPredictions",
-    #         # dataset_type="AffectNetWithExpNetPredictions",
-    #         )
-    #
-    # print(dm.num_subsets)
-    # dm.prepare_data()
-    # dm.setup()
+    dm = AffectNetEmoNetSplitModuleValTest(
+    # dm = AffectNetDataModule(
+             # "/home/rdanecek/Workspace/mount/project/EmotionalFacialAnimation/data/affectnet/",
+             "/ps/project_cifs/EmotionalFacialAnimation/data/affectnet/",
+             # "/home/rdanecek/Workspace/mount/scratch/rdanecek/data/affectnet/",
+             # "/home/rdanecek/Workspace/mount/work/rdanecek/data/affectnet/",
+             "/is/cluster/work/rdanecek/data/affectnet/",
+             # processed_subfolder="processed_2021_Aug_27_19-58-02",
+             processed_subfolder="processed_2021_Apr_05_15-22-18",
+             processed_ext=".png",
+             mode="manual",
+             scale=1.7,
+             image_size=512,
+             bb_center_shift_x=0,
+             bb_center_shift_y=-0.3,
+             ignore_invalid=True,
+             # ignore_invalid="like_emonet",
+             # ring_type="gt_expression",
+             # ring_type="gt_va",
+             # ring_type="emonet_feature",
+             ring_size=4,
+            augmentation=augmenter,
+            # use_clean_labels=True
+            # dataset_type="AffectNetWithMGCNetPredictions",
+            # dataset_type="AffectNetWithExpNetPredictions",
+            train_batch_size=4,
+            )
+    
+    print(dm.num_subsets)
+    dm.prepare_data()
+    dm.setup()
     # # # dm._extract_emotion_features()
-    # dltr = dm.train_dataloader()
+    dltr = dm.train_dataloader()
     # dlv = dm.val_dataloader()
     # dlt = dm.test_dataloader()
 
-    # # dataset = dm.training_set
+    dataset = dm.training_set
     # dataset = dm.test_set
 
-    # for i in range(len(dataset)):
-    #     sample = dataset[i]
-    #     if AffectNetExpressions(sample["affectnetexp"].item()) != AffectNetExpressions.Contempt:
-    #         # print(AffectNetExpressions(sample["affectnetexp"].item()))
-    #         continue
-    #     print(AffectNetExpressions(sample["affectnetexp"].item()))
-    #     print(sample["va"])
-    #     # dataset.visualize_sample(sample)
+    # for i in range(50):
+    for i, sample in enumerate(dltr):
+        # sample = dataset[i]
+        # sample = next(dltr)
+        # if AffectNetExpressions(sample["affectnetexp"].item()) != AffectNetExpressions.Contempt:
+        #     # print(AffectNetExpressions(sample["affectnetexp"].item()))
+        #     continue
+        # print(AffectNetExpressions(sample["affectnetexp"].item()))
+        print(sample["va"])
+        dataset.visualize_sample(sample)
 
     #     path = Path("/home/rdanecek/Downloads/AffectNet_Contempt")
     #     path.mkdir(exist_ok=True, parents=True)
