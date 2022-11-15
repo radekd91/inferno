@@ -84,7 +84,8 @@ class MediaPipeLandmarkDetector(FaceDetector):
         if not results.multi_face_landmarks:
             # det_results = self.mp_face_detection.process(image)
             # det_results_ = self.mp_face_detection_.process(image)
-            print("no face detected by mediapipe")
+            print("no face
+             detected by mediapipe")
             if with_landmarks:
                 return [],  'mediapipe', [] 
             else:

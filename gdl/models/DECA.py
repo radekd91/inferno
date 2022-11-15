@@ -39,10 +39,11 @@ from pathlib import Path
 from gdl.models.Renderer import SRenderY
 from gdl.models.DecaEncoder import ResnetEncoder, SecondHeadResnet, SwinEncoder
 from gdl.models.DecaDecoder import Generator, GeneratorAdaIn
-from gdl.models.DecaFLAME import FLAME, FLAMETex
+from gdl.models.DecaFLAME import FLAME, FLAMETex, FLAME_mediapipe
 from gdl.models.EmotionMLP import EmotionMLP
 
 import gdl.layers.losses.DecaLosses as lossfunc
+import gdl.layers.losses.MediaPipeLandmarkLosses as lossfunc_mp
 import gdl.utils.DecaUtils as util
 from gdl.datasets.AffWild2Dataset import Expression7
 from gdl.datasets.AffectNetDataModule import AffectNetExpressions
@@ -341,7 +342,7 @@ class DecaModule(LightningModule):
     def _expression_ring_exchange(self, original_batch_size, K,
                                   expcode, posecode, shapecode, lightcode, texcode,
                                   images, cam, lmk, masks, va, expr7, affectnetexp,
-                                  detailcode=None, detailemocode=None, exprw=None):
+                                  detailcode=None, detailemocode=None, exprw=None, lmk_mp=None):
         """
         Deprecated. Expression ring exchange is not used in EMOCA (nor DECA).
         """
@@ -382,6 +383,8 @@ class DecaModule(LightningModule):
         images = torch.cat([images, images],
                            dim=0)  # images = images.view(-1, images.shape[-3], images.shape[-2], images.shape[-1])
         lmk = torch.cat([lmk, lmk], dim=0)  # lmk = lmk.view(-1, lmk.shape[-2], lmk.shape[-1])
+        if lmk_mp is not None:
+            lmk_mp = torch.cat([lmk_mp, lmk_mp], dim=0)
         masks = torch.cat([masks, masks], dim=0)
 
 
@@ -414,7 +417,7 @@ class DecaModule(LightningModule):
             detailemocode = torch.cat([detailemocode, detailemocode[new_order]], dim=0)
 
         return expcode, posecode, shapecode, lightcode, texcode, images, cam, lmk, masks, va, expr7, affectnetexp, \
-               detailcode, detailemocode, exprw
+               detailcode, detailemocode, exprw, lmk_mp
 
         # return expcode, posecode, shapecode, lightcode, texcode, images, cam, lmk, masks, va, expr7
 
@@ -445,6 +448,12 @@ class DecaModule(LightningModule):
         if 'landmark' in batch.keys():
             lmk = batch['landmark']
             lmk = lmk.view(-1, lmk.shape[-2], lmk.shape[-1])
+        
+        if 'landmark_mediapipe' in batch.keys():
+            lmk_mp = batch['landmark_mediapipe']
+            lmk_mp = lmk_mp.view(-1, lmk_mp.shape[-2], lmk_mp.shape[-1])
+        else:
+            lmk_mp = None
 
         if 'mask' in batch.keys():
             masks = batch['mask']
@@ -522,6 +531,8 @@ class DecaModule(LightningModule):
                     images = torch.cat([images, images],
                                        dim=0)  # images = images.view(-1, images.shape[-3], images.shape[-2], images.shape[-1])
                     lmk = torch.cat([lmk, lmk], dim=0)  # lmk = lmk.view(-1, lmk.shape[-2], lmk.shape[-1])
+                    if lmk_mp is not None:
+                        lmk_mp = torch.cat([lmk_mp, lmk_mp], dim=0)
                     masks = torch.cat([masks, masks], dim=0)
 
                     if va is not None:
@@ -558,6 +569,8 @@ class DecaModule(LightningModule):
                     print(f"TRAINING: {training}")
                     if lmk is not None:
                         lmk = torch.cat([lmk, lmk], dim=0)  # lmk = lmk.view(-1, lmk.shape[-2], lmk.shape[-1])
+                    if lmk_mp is not None:
+                        lmk_mp = torch.cat([lmk_mp, lmk_mp], dim=0)
                     masks = torch.cat([masks, masks], dim=0)
 
                     ref_images_identity_idxs = np.concatenate([old_order, old_order])
@@ -618,10 +631,10 @@ class DecaModule(LightningModule):
                 elif 'expression_constrain_type' in self.deca.config.keys() and \
                         self.deca.config.expression_constrain_type == 'exchange':
                     ## NOT USED IN EMOCA OR DECA, deprecated
-                    expcode, posecode, shapecode, lightcode, texcode, images, cam, lmk, masks, va, expr7, affectnetexp, _, _, exprw = \
+                    expcode, posecode, shapecode, lightcode, texcode, images, cam, lmk, masks, va, expr7, affectnetexp, _, _, exprw, lmk_mp = \
                         self._expression_ring_exchange(original_batch_size, K,
                                   expcode, posecode, shapecode, lightcode, texcode,
-                                  images, cam, lmk, masks, va, expr7, affectnetexp, None, None, exprw)
+                                  images, cam, lmk, masks, va, expr7, affectnetexp, None, None, exprw, lmk_mp)
                     # (self, original_batch_size, K,
                     #                                   expcode, posecode, shapecode, lightcode, texcode,
                     #                                   images, cam, lmk, masks, va, expr7, affectnetexp,
@@ -782,6 +795,8 @@ class DecaModule(LightningModule):
             codedict['masks'] = masks
         if 'landmark' in batch.keys():
             codedict['lmk'] = lmk
+        if lmk_mp is not None:
+            codedict['lmk_mp'] = lmk_mp
 
         if 'va' in batch.keys():
             codedict['va'] = va
@@ -840,14 +855,22 @@ class DecaModule(LightningModule):
 
         # 1) Reconstruct the face mesh
         # FLAME - world space
-        verts, landmarks2d, landmarks3d = self.deca.flame(shape_params=shapecode, expression_params=expcode,
+        if not isinstance(self.deca.flame, FLAME_mediapipe):
+            verts, landmarks2d, landmarks3d = self.deca.flame(shape_params=shapecode, expression_params=expcode,
                                                           pose_params=posecode)
+            landmarks2d_mediapipe = None
+        else:
+            verts, landmarks2d, landmarks3d, landmarks2d_mediapipe = self.deca.flame(shapecode, expcode, posecode)
         # world to camera
         trans_verts = util.batch_orth_proj(verts, cam)
         predicted_landmarks = util.batch_orth_proj(landmarks2d, cam)[:, :, :2]
         # camera to image space
         trans_verts[:, :, 1:] = -trans_verts[:, :, 1:]
         predicted_landmarks[:, :, 1:] = - predicted_landmarks[:, :, 1:]
+
+        if landmarks2d_mediapipe is not None:
+            predicted_landmarks_mediapipe = util.batch_orth_proj(landmarks2d_mediapipe, cam)[:, :, :2]
+            predicted_landmarks_mediapipe[:, :, 1:] = - predicted_landmarks_mediapipe[:, :, 1:]
 
         if self.uses_texture():
             albedo = self.deca.flametex(texcode)
@@ -1059,6 +1082,7 @@ class DecaModule(LightningModule):
         codedict['landmarks2d'] = landmarks2d
         codedict['landmarks3d'] = landmarks3d
         codedict['predicted_landmarks'] = predicted_landmarks
+        codedict['predicted_landmarks_mediapipe'] = predicted_landmarks_mediapipe
         codedict['trans_verts'] = trans_verts
         codedict['masks'] = masks
 
@@ -1499,10 +1523,16 @@ class DecaModule(LightningModule):
         metrics = {}
 
         predicted_landmarks = codedict["predicted_landmarks"]
+        predicted_landmarks_mediapipe = codedict.get("predicted_landmarks_mediapipe", None)
         if "lmk" in codedict.keys():
             lmk = codedict["lmk"]
         else:
             lmk = None
+        
+        if "lmk_mp" in codedict.keys():
+            lmk_mp = codedict["lmk_mp"]
+        else:
+            lmk_mp = None
 
         if "masks" in codedict.keys():
             masks = codedict["masks"]
@@ -1572,6 +1602,8 @@ class DecaModule(LightningModule):
                 #     d = metrics
                 d = self._metric_or_loss(losses, metrics, self.deca.config.use_landmarks)
 
+
+
                 if self.deca.config.useWlmk:
                     d['landmark'] = \
                         lossfunc.weighted_landmark_loss(predicted_landmarks[:geom_losses_idxs, ...], lmk[:geom_losses_idxs, ...]) * self.deca.config.lmk_weight
@@ -1593,6 +1625,23 @@ class DecaModule(LightningModule):
                                          self.deca.config.use_mouth_corner_distance)
                 d['mouth_corner_distance'] = lossfunc.mouth_corner_loss(predicted_landmarks[:geom_losses_idxs, ...],
                                                        lmk[:geom_losses_idxs, ...]) * self.deca.config.lipd
+
+                if predicted_landmarks_mediapipe is not None and lmk_mp is not None:
+                    use_mediapipe_landmarks = self.deca.config.get('use_mediapipe_landmarks', False) 
+                    d = self._metric_or_loss(losses, metrics, use_mediapipe_landmarks)
+                    lossfunc_mp.landmark_loss(predicted_landmarks_mediapipe[:geom_losses_idxs, ...], lmk_mp[:geom_losses_idxs, ...]) * self.deca.config.lmk_weight_mp
+
+                    d = self._metric_or_loss(losses, metrics, self.deca.config.get('use_eye_distance_mediapipe', False) )
+                    d['eye_distance_mediapipe'] = lossfunc_mp.eyed_loss(predicted_landmarks_mediapipe[:geom_losses_idxs, ...],
+                                                        lmk_mp[:geom_losses_idxs, ...]) * self.deca.config.eyed_mp
+                    d = self._metric_or_loss(losses, metrics,  self.deca.config.get('use_lip_distance_mediapipe', False) )
+                    d['lip_distance_mediapipe'] = lossfunc_mp.lipd_loss(predicted_landmarks_mediapipe[:geom_losses_idxs, ...],
+                                                        lmk_mp[:geom_losses_idxs, ...]) * self.deca.config.lipd_mp
+
+                    d = self._metric_or_loss(losses, metrics, self.deca.config.get('use_mouth_corner_distance_mediapipe', False))
+                    d['mouth_corner_distance_mediapipe'] = lossfunc_mp.mouth_corner_loss(predicted_landmarks_mediapipe[:geom_losses_idxs, ...],
+                                                        lmk_mp[:geom_losses_idxs, ...]) * self.deca.config.lipd_mp
+
 
                 #TODO: fix this on the next iteration lipd_loss
                 # d['lip_distance'] = lossfunc.lipd_loss(predicted_landmarks, lmk) * self.deca.config.lipd
@@ -2586,7 +2635,10 @@ class DECA(torch.nn.Module):
         import copy 
         flame_cfg = copy.deepcopy(self.config)
         flame_cfg.n_shape = self._get_num_shape_params()
-        self.flame = FLAME(flame_cfg)
+        if 'flame_mediapipe_lmk_embedding_path' not in flame_cfg.keys():
+            self.flame = FLAME(flame_cfg)
+        else:
+            self.flame = FLAME_mediapipe(flame_cfg)
 
         if self.uses_texture():
             self.flametex = FLAMETex(self.config)
