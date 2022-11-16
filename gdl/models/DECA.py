@@ -25,6 +25,7 @@ import os, sys
 import torch
 import torchvision
 import torch.nn.functional as F
+import torchvision.transforms.functional as F_v
 import adabound
 from pytorch_lightning import LightningModule
 from pytorch_lightning.loggers import WandbLogger
@@ -133,6 +134,10 @@ class DecaModule(LightningModule):
         self.au_loss = None
         self._init_au_loss()
 
+        # initialize the lip reading perceptual loss (not currently used in original EMOCA)
+        self.lipread_loss = None
+        self._init_lipread_loss()
+
         # MPL regressor from the encoded space to emotion labels (not used in EMOCA but could be used for direct emotion supervision)
         if 'mlp_emotion_predictor' in self.deca.config.keys():
             # self._build_emotion_mlp(self.deca.config.mlp_emotion_predictor)
@@ -224,6 +229,34 @@ class DecaModule(LightningModule):
             self.au_loss = create_au_loss(self.device, self.deca.config.au_loss)
         else:
             self.au_loss = None
+
+    def _init_lipread_loss(self):
+        """
+        Initialize the au perceptual loss (not currently used in EMOCA)
+        """
+        if 'lipread_loss' in self.deca.config.keys():
+            if self.lipread_loss is not None:
+                force_override = True if 'force_override' in self.deca.config.lipread_loss.keys() \
+                                         and self.deca.config.lipread_loss.force_override else False
+                assert self.lipread_loss.is_trainable(), "Trainable lip reading loss is not supported yet."
+                if self.lipread_loss.is_trainable():
+                    if not force_override:
+                        print("The old lip reading loss is trainable and will not be overrided or replaced.")
+                        return
+                        # raise NotImplementedError("The old emonet loss was trainable. Changing a trainable loss is probably now "
+                        #                       "what you want implicitly. If you need this, use the '`'emoloss_force_override' config.")
+                    else:
+                        print("The old lip reading loss is trainable but override is set so it will be replaced.")
+                else:
+                    print("The old lip reading loss is not trainable. It will be replaced.")
+
+            # old_lipread_loss = self.emonet_loss
+            from gdl.models.temporal.external.LipReadingLoss import LipReadingLoss
+            self.lipread_loss = LipReadingLoss(self.device)
+            self.lipread_loss.eval()
+            self.lipread_loss.requires_grad_(False)
+        else:
+            self.lipread_loss = None
 
     def reconfigure(self, model_params, inout_params, learning_params, stage_name="", downgrade_ok=False, train=True):
         """
@@ -1227,6 +1260,157 @@ class DecaModule(LightningModule):
         #     d = metric_dict
 
 
+    def _cut_mouth_vectorized(self, images, landmarks, convert_grayscale=True):
+        # mouth_window_margin = 12
+        mouth_window_margin = 1 # not temporal
+        mouth_crop_height = 96
+        mouth_crop_width = 96
+        mouth_landmark_start_idx = 48
+        mouth_landmark_stop_idx = 68
+        B, T = images.shape[:2]
+
+        landmarks = landmarks.to(torch.float32)
+
+        with torch.no_grad():
+            image_size = images.shape[-1] / 2
+
+            landmarks = landmarks * image_size + image_size
+            # #1) smooth the landmarks with temporal convolution
+            # landmarks are of shape (T, 68, 2) 
+            # reshape to (T, 136) 
+            landmarks_t = landmarks.reshape(*landmarks.shape[:2], -1)
+            # make temporal dimension last 
+            landmarks_t = landmarks_t.permute(0, 2, 1)
+            # change chape to (N, 136, T)
+            # landmarks_t = landmarks_t.unsqueeze(0)
+            # smooth with temporal convolution
+            temporal_filter = torch.ones(mouth_window_margin, device=images.device) / mouth_window_margin
+            # pad the the landmarks 
+            landmarks_t_padded = F.pad(landmarks_t, (mouth_window_margin // 2, mouth_window_margin // 2), mode='replicate')
+            # convolve each channel separately with the temporal filter
+            num_channels = landmarks_t.shape[1]
+            if temporal_filter.numel() > 1:
+                smooth_landmarks_t = F.conv1d(landmarks_t_padded, 
+                    temporal_filter.unsqueeze(0).unsqueeze(0).expand(num_channels,1,temporal_filter.numel()), 
+                    groups=num_channels, padding='valid'
+                )
+                smooth_landmarks_t = smooth_landmarks_t[..., 0:landmarks_t.shape[-1]]
+            else:
+                smooth_landmarks_t = landmarks_t
+
+            # reshape back to the original shape 
+            smooth_landmarks_t = smooth_landmarks_t.permute(0, 2, 1).view(landmarks.shape)
+            smooth_landmarks_t = smooth_landmarks_t + landmarks.mean(dim=2, keepdims=True) - smooth_landmarks_t.mean(dim=2, keepdims=True)
+
+            # #2) get the mouth landmarks
+            mouth_landmarks_t = smooth_landmarks_t[..., mouth_landmark_start_idx:mouth_landmark_stop_idx, :]
+            
+            # #3) get the mean of the mouth landmarks
+            mouth_landmarks_mean_t = mouth_landmarks_t.mean(dim=-2, keepdims=True)
+        
+            # #4) get the center of the mouth
+            center_x_t = mouth_landmarks_mean_t[..., 0]
+            center_y_t = mouth_landmarks_mean_t[..., 1]
+
+            # #5) use grid_sample to crop the mouth in every image 
+            # create the grid
+            height = mouth_crop_height//2
+            width = mouth_crop_width//2
+
+            torch.arange(0, mouth_crop_width, device=images.device)
+
+            grid = torch.stack(torch.meshgrid(torch.linspace(-height, height, mouth_crop_height).to(images.device) / (images.shape[-2] /2),
+                                            torch.linspace(-width, width, mouth_crop_width).to(images.device) / (images.shape[-1] /2) ), 
+                                            dim=-1)
+            grid = grid[..., [1, 0]]
+            grid = grid.unsqueeze(0).unsqueeze(0).repeat(*images.shape[:2], 1, 1, 1)
+
+            center_x_t -= images.shape[-1] / 2
+            center_y_t -= images.shape[-2] / 2
+
+            center_x_t /= images.shape[-1] / 2
+            center_y_t /= images.shape[-2] / 2
+
+            grid = grid + torch.cat([center_x_t, center_y_t ], dim=-1).unsqueeze(-2).unsqueeze(-2)
+
+        images = images.view(B*T, *images.shape[2:])
+        grid = grid.view(B*T, *grid.shape[2:])
+
+        if convert_grayscale: 
+            images = F_v.rgb_to_grayscale(images)
+
+        image_crops = F.grid_sample(
+            images, 
+            grid,  
+            align_corners=True, 
+            padding_mode='zeros',
+            mode='bicubic'
+            )
+        image_crops = image_crops.view(B, T, *image_crops.shape[1:])
+
+        if convert_grayscale:
+            image_crops = image_crops#.squeeze(1)
+
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.imshow(image_crops[0, 0].permute(1,2,0).cpu().numpy())
+        # plt.show()
+
+        # plt.figure()
+        # plt.imshow(image_crops[0, 10].permute(1,2,0).cpu().numpy())
+        # plt.show()
+
+        # plt.figure()
+        # plt.imshow(image_crops[0, 20].permute(1,2,0).cpu().numpy())
+        # plt.show()
+
+        # plt.figure()
+        # plt.imshow(image_crops[1, 0].permute(1,2,0).cpu().numpy())
+        # plt.show()
+
+        # plt.figure()
+        # plt.imshow(image_crops[1, 10].permute(1,2,0).cpu().numpy())
+        # plt.show()
+
+        # plt.figure()
+        # plt.imshow(image_crops[1, 20].permute(1,2,0).cpu().numpy())
+        # plt.show()
+        return image_crops
+
+
+    def _compute_lipread_loss(self, images, predicted_images, landmarks, predicted_landmarks, loss_dict, metric_dict, prefix, with_grad=True): 
+        def loss_or_metric(name, loss, is_loss):
+            if not is_loss:
+                metric_dict[name] = loss
+            else:
+                loss_dict[name] = loss
+
+        # shape of images is: (B, R, C, H, W)
+        # convert to (B * R, 1, H, W, C)
+        images = images.unsqueeze(1)
+        predicted_images = predicted_images.unsqueeze(1)
+        landmarks = landmarks.unsqueeze(1)
+        predicted_landmarks = predicted_landmarks.unsqueeze(1)
+
+        # cut out the mouth region
+
+
+        images_mouth = self._cut_mouth_vectorized(images, landmarks)
+        predicted_images_mouth  = self._cut_mouth_vectorized(predicted_images, predicted_landmarks)
+
+        # make sure that the lip reading net interprests  things with depth=1, 
+
+        # if self.deca.config.use_emonet_loss:
+        if with_grad:
+            d = loss_dict
+            loss = self.lipread_loss.compute_loss(images_mouth, predicted_images_mouth)
+        else:
+            d = metric_dict
+            with torch.no_grad():
+                loss = self.lipread_loss.compute_loss(images_mouth, predicted_images_mouth)
+
+        d[prefix + '_lipread'] = loss * self.deca.config.lipread_loss.weight
+
 
     def _metric_or_loss(self, loss_dict, metric_dict, is_loss):
         if is_loss:
@@ -1737,6 +1921,17 @@ class DecaModule(LightningModule):
                     self._compute_au_loss(images, predicted_translated_image, losses, metrics, "coarse",
                                           au=None,
                                           with_grad=self.deca.config.au_loss.use_as_loss and self.deca._has_neural_rendering())
+
+            if self.lipread_loss is not None:
+                # with torch.no_grad():
+
+                self._compute_lipread_loss(images, predicted_images, lmk, predicted_landmarks, losses, metrics, "coarse",
+                                      with_grad=self.deca.config.lipread_loss.use_as_loss and not self.deca._has_neural_rendering())
+                if self.deca._has_neural_rendering():
+                    self._compute_lipread_loss(images, predicted_translated_image, 
+                                        lmk, predicted_landmarks,
+                                          losses, metrics, "coarse",
+                                          with_grad=self.deca.config.lipread_loss.use_as_loss and self.deca._has_neural_rendering())
 
         ## DETAIL loss only
         if self.mode == DecaMode.DETAIL:

@@ -189,7 +189,7 @@ class MEADPseudo3DDM(MEADDataModule):
         val_test_set = self._get_smaller_renderable_subset_single_identity(val, max_videos_per_category=1)
         train_test_set = self._get_smaller_renderable_subset_single_identity(train, max_videos_per_category=1)
         train_test_cond_set = self._get_smaller_renderable_subset_single_identity(train, max_videos_per_category=1, accepted_expression='neutral')
-        val_test_cond_set = self._get_smaller_renderable_subset_single_identity(val, max_videos_per_category=1, accepted_expression='neutral')
+        val_test_cond_setz = self._get_smaller_renderable_subset_single_identity(val, max_videos_per_category=1, accepted_expression='neutral')
 
         self.test_set_names = []
         # if len(test) > 0:

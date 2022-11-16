@@ -1012,6 +1012,8 @@ class AffectNet(EmotionalImageDatasetBase):
         self.use_gt = use_gt
         self.drop_last = False
 
+        self.load_mediapipe_landmarks = True # False in the original paper, True is experimental
+
         if ignore_invalid:
             # filter invalid classes
             ignored_classes = [AffectNetExpressions.Uncertain.value, AffectNetExpressions.Occluded.value]
@@ -1232,19 +1234,23 @@ class AffectNet(EmotionalImageDatasetBase):
             segmentation_path = segmentation_path.parent / (segmentation_path.stem + ".pkl")
 
             # try mediapipe landmarks if available
-            mediapipe_landmark_path = Path(self.image_path).parent / "landmarks_mediapipe" / im_rel_path
-            mediapipe_landmark_path = mediapipe_landmark_path.parent / (mediapipe_landmark_path.stem + ".pkl")
+            if self.load_mediapipe_landmarks:
+                mediapipe_landmark_path = Path(self.image_path).parent / "landmarks_mediapipe" / im_rel_path
+                mediapipe_landmark_path = mediapipe_landmark_path.parent / (mediapipe_landmark_path.stem + ".pkl")
 
-            # try:
-            if mediapipe_landmark_path.is_file():
-                mp_landmark_type, mediapipe_landmark = load_landmark(
-                    mediapipe_landmark_path)
-                if len(mediapipe_landmark) == 0:
-                    mediapipe_landmark = None
+                # try:
+                if mediapipe_landmark_path.is_file():
+                    mp_landmark_type, mediapipe_landmark = load_landmark(
+                        mediapipe_landmark_path)
+                    assert len(mediapipe_landmark) > 0, "Mediapipe not detected"
+                    if len(mediapipe_landmark) == 0:
+                        mediapipe_landmark = None
+                    else:
+                        mediapipe_landmark = mediapipe_landmark[0]
+                    mediapipe_landmark = mediapipe_landmark[np.newaxis, ..., :2]
                 else:
-                    mediapipe_landmark = mediapipe_landmark[0]
-                mediapipe_landmark = mediapipe_landmark[np.newaxis, ..., :2]
-            else:
+                    mediapipe_landmark = None
+            else: 
                 mediapipe_landmark = None
 
             seg_image, seg_type = load_segmentation(
@@ -1310,6 +1316,28 @@ class AffectNet(EmotionalImageDatasetBase):
         return sample
 
     def __getitem__(self, index):
+        # max_attempts = 10
+        max_attempts = 50
+        for i in range(max_attempts):
+            try: 
+                return self._getitem(index)
+            except AssertionError as e:
+                if not hasattr(self, "num_total_failed_attempts"):
+                    self.num_total_failed_attempts = 0
+                old_index = index
+                index = np.random.randint(0, self.__len__())
+                tb = traceback.format_exc()
+                if self.num_total_failed_attempts % 50 == 0:
+                    print(f"[ERROR] AssertionError in {self.__class__.__name__} dataset while retrieving sample {old_index}, retrying with new index {index}")
+                    print(f"In total, there has been {self.num_total_failed_attempts} failed attempts. This number should be very small. If it's not, check the data.")
+                    print("See the exception message for more details.")
+                    print(tb)
+                self.num_total_failed_attempts += 1
+        print("[ERROR] Failed to retrieve sample after {} attempts".format(max_attempts))
+        raise RuntimeError("Failed to retrieve sample after {} attempts".format(max_attempts))
+
+
+    def _getitem(self, index):
         # if self.ring_type is None or self.ring_size == 1:
         #TODO: check if following line is a breaking change
         if self.ring_type is None: # or self.ring_size == 1:
