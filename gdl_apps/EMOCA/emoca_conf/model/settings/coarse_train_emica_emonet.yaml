@@ -27,6 +27,7 @@ use_mediapipe_landmarks: False
 useWlmk: True
 #useWlmk: False
 lmk_weight: 1
+lmk_weight_mp: 1
 #eyed: 1.0
 #lipd: 0.1
 eyed: 0.5
