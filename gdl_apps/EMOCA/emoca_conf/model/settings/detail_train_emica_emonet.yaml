@@ -43,10 +43,13 @@ lmk_weight: 1
 
 eyed: 0.5
 lipd: 0.5
+eyed_mp: 0.5
+lipd_mp: 0.5
 use_photometric: True # used only when train_coarse is true
 photow: 2
 idw: 0.12 # used only when train_coarse is true
 use_landmarks: True
+use_mediapipe_landmarks: True
 useWlmk: true
 shape_reg: 0.0001
 exp_reg: 0.0001
