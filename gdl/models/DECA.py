@@ -1813,7 +1813,7 @@ class DecaModule(LightningModule):
                 if predicted_landmarks_mediapipe is not None and lmk_mp is not None:
                     use_mediapipe_landmarks = self.deca.config.get('use_mediapipe_landmarks', False) 
                     d = self._metric_or_loss(losses, metrics, use_mediapipe_landmarks)
-                    lossfunc_mp.landmark_loss(predicted_landmarks_mediapipe[:geom_losses_idxs, ...], lmk_mp[:geom_losses_idxs, ...]) * self.deca.config.lmk_weight_mp
+                    d['landmark_mediapipe'] =lossfunc_mp.landmark_loss(predicted_landmarks_mediapipe[:geom_losses_idxs, ...], lmk_mp[:geom_losses_idxs, ...]) * self.deca.config.lmk_weight_mp
 
                     d = self._metric_or_loss(losses, metrics, self.deca.config.get('use_eye_distance_mediapipe', False) )
                     d['eye_distance_mediapipe'] = lossfunc_mp.eyed_loss(predicted_landmarks_mediapipe[:geom_losses_idxs, ...],
