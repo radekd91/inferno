@@ -252,7 +252,7 @@ class DecaModule(LightningModule):
 
             # old_lipread_loss = self.emonet_loss
             from gdl.models.temporal.external.LipReadingLoss import LipReadingLoss
-            self.lipread_loss = LipReadingLoss(self.device)
+            self.lipread_loss = LipReadingLoss(self.device, self.deca.config.lipread_loss.lipread_loss)
             self.lipread_loss.eval()
             self.lipread_loss.requires_grad_(False)
         else:
