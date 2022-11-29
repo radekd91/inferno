@@ -357,6 +357,16 @@ class DecaModule(LightningModule):
         values = self.decode(values, training=False)
         return values
 
+    def _unwrap_list(self, codelist): 
+        shapecode, texcode, expcode, posecode, cam, lightcode = codelist
+        return shapecode, texcode, expcode, posecode, cam, lightcode
+
+    
+    def _unwrap_list_to_dict(self, codelist): 
+        shapecode, texcode, expcode, posecode, cam, lightcode = codelist
+        return {'shape': shapecode, 'tex': texcode, 'exp': expcode, 'pose': posecode, 'cam': cam, 'light': lightcode}
+        # return shapecode, texcode, expcode, posecode, cam, lightcode
+
     def _encode_flame(self, images):
         if self.mode == DecaMode.COARSE or \
                 (self.mode == DecaMode.DETAIL and self.deca.config.train_coarse):
@@ -368,9 +378,10 @@ class DecaModule(LightningModule):
                 parameters = self.deca._encode_flame(images)
         else:
             raise ValueError(f"Invalid EMOCA Mode {self.mode}")
-        code_list = self.deca.decompose_code(parameters)
-        shapecode, texcode, expcode, posecode, cam, lightcode = code_list
-        return shapecode, texcode, expcode, posecode, cam, lightcode
+        code_list, original_code = self.deca.decompose_code(parameters)
+        # shapecode, texcode, expcode, posecode, cam, lightcode = code_list
+        # return shapecode, texcode, expcode, posecode, cam, lightcode, original_code
+        return code_list, original_code
 
     def _expression_ring_exchange(self, original_batch_size, K,
                                   expcode, posecode, shapecode, lightcode, texcode,
@@ -523,7 +534,11 @@ class DecaModule(LightningModule):
 
         # 1) COARSE STAGE
         # forward pass of the coarse encoder
-        shapecode, texcode, expcode, posecode, cam, lightcode = self._encode_flame(images)
+        # shapecode, texcode, expcode, posecode, cam, lightcode = self._encode_flame(images)
+        code, original_code = self._encode_flame(images)
+        shapecode, texcode, expcode, posecode, cam, lightcode = self._unwrap_list(code)
+        if original_code is not None:
+            original_code = self._unwrap_list_to_dict(original_code)
 
         if training:
             # If training, we employ the disentanglement strategy
@@ -541,6 +556,14 @@ class DecaModule(LightningModule):
                     # shapecode_new = shapecode_mean[:, None, :].repeat(1, self.deca.K, 1)
                     shapecode_new = shapecode_mean[:, None, :].repeat(1, K, 1)
                     shapecode = shapecode_new.view(-1, self.deca._get_num_shape_params())
+
+                    # do the same for the original code dict
+                    shapecode_orig = original_code['shape']
+                    shapecode_orig_idK = shapecode_orig.view(original_batch_size, K, -1)
+                    shapecode_orig_mean = torch.mean(shapecode_orig_idK, dim=[1])
+                    shapecode_orig_new = shapecode_orig_mean[:, None, :].repeat(1, K, 1)
+                    original_code['shape'] = shapecode_orig_new.view(-1, self.deca._get_num_shape_params())
+
                 elif self.deca.config.shape_constrain_type == 'exchange':
                     ## Shuffle identitys shape codes within ring (they should correspond to the same identity)
                     '''
@@ -572,7 +595,20 @@ class DecaModule(LightningModule):
                         va = torch.cat([va, va], dim=0)
                     if expr7 is not None:
                         expr7 = torch.cat([expr7, expr7], dim=0)
+
+                    # do the same for the original code dict
+                    shapecode_orig = original_code['shape']
+                    shapecode_orig_new = shapecode_orig[new_order]
+                    original_code['shape'] = torch.cat([shapecode_orig, shapecode_orig_new], dim=0)
+                    original_code['tex'] = torch.cat([original_code['tex'], original_code['tex']], dim=0)
+                    original_code['exp'] = torch.cat([original_code['exp'], original_code['exp']], dim=0)
+                    original_code['pose'] = torch.cat([original_code['pose'], original_code['pose']], dim=0)
+                    original_code['cam'] = torch.cat([original_code['cam'], original_code['cam']], dim=0)
+                    original_code['light'] = torch.cat([original_code['light'], original_code['light']], dim=0)
+
+
                 elif self.deca.config.shape_constrain_type == 'shuffle_expression':
+                    assert original_code is not None
                     ## DEPRECATED, NOT USED IN EMOCA OR DECA
                     new_order = np.random.permutation(K*original_batch_size)
                     old_order = np.arange(K*original_batch_size)
@@ -616,6 +652,18 @@ class DecaModule(LightningModule):
                     if expr7 is not None:
                         expr7 = torch.cat([expr7, expr7[new_order]], dim=0)
 
+                    # do the same for the original code dict
+                    original_code['shape'] = torch.cat([original_code['shape'], original_code['shape']], dim=0)
+                    original_code['tex'] = torch.cat([original_code['tex'], original_code['tex']], dim=0)
+                    original_code['exp'] = torch.cat([original_code['exp'], original_code['exp'][new_order]], dim=0)
+                    original_global_pose = original_code['pose'][:, :3]
+                    original_jaw_pose = original_code['pose'][:, 3:]
+                    original_jaw_pose = torch.cat([original_jaw_pose, original_jaw_pose[new_order]], dim=0)
+                    original_global_pose = torch.cat([original_global_pose, original_global_pose], dim=0)
+                    original_code['pose'] = torch.cat([original_global_pose, original_jaw_pose], dim=1)
+                    original_code['cam'] = torch.cat([original_code['cam'], original_code['cam']], dim=0)
+                    original_code['light'] = torch.cat([original_code['light'], original_code['light']], dim=0)
+
                 elif self.deca.config.shape_constrain_type == 'shuffle_shape':
                     ## The shape codes are shuffled without duplication
                     new_order = np.random.permutation(K*original_batch_size)
@@ -648,6 +696,18 @@ class DecaModule(LightningModule):
                     if expr7 is not None:
                         expr7 = torch.cat([expr7, expr7], dim=0)
 
+                    # do the same for the original code dict
+                    shapecode_orig = original_code['shape']
+                    shapecode_orig_new = shapecode_orig[new_order]
+                    original_code['shape'] = torch.cat([shapecode_orig, shapecode_orig_new], dim=0)
+                    original_code['tex'] = torch.cat([original_code['tex'], original_code['tex']], dim=0)
+                    original_code['exp'] = torch.cat([original_code['exp'], original_code['exp']], dim=0)
+                    original_code['pose'] = torch.cat([original_code['pose'], original_code['pose']], dim=0)
+                    original_code['cam'] = torch.cat([original_code['cam'], original_code['cam']], dim=0)
+                    original_code['light'] = torch.cat([original_code['light'], original_code['light']], dim=0)
+                    original_code['ref_images_identity_idxs'] = ref_images_identity_idxs
+                    original_code['ref_images_expression_idxs'] = ref_images_expression_idxs
+
                 elif 'expression_constrain_type' in self.deca.config.keys() and \
                         self.deca.config.expression_constrain_type == 'same':
                     ## NOT USED IN EMOCA OR DECA, deprecated
@@ -660,6 +720,12 @@ class DecaModule(LightningModule):
                     # shapecode_new = shapecode_mean[:, None, :].repeat(1, self.deca.K, 1)
                     expcode_new = expcode_mean[:, None, :].repeat(1, K, 1)
                     expcode = expcode_new.view(-1, self.deca._get_num_shape_params())
+
+                    # do the same thing for the original code dict
+                    expcode_idK = original_code['exp'].view(original_batch_size, K, -1)
+                    expcode_mean = torch.mean(expcode_idK, dim=[1])
+                    expcode_new = expcode_mean[:, None, :].repeat(1, K, 1)
+                    original_code['exp'] = expcode_new.view(-1, self.deca._get_num_shape_params())
 
                 elif 'expression_constrain_type' in self.deca.config.keys() and \
                         self.deca.config.expression_constrain_type == 'exchange':
@@ -840,6 +906,9 @@ class DecaModule(LightningModule):
 
         if 'expression_weight' in batch.keys():
             codedict['expression_weight'] = exprw
+
+        if original_code is not None:
+            codedict['original_code'] = original_code
 
         return codedict
 
@@ -1900,6 +1969,23 @@ class DecaModule(LightningModule):
             losses['light_reg'] = ((torch.mean(lightcode, dim=2)[:, :,
                                     None] - lightcode) ** 2).mean() * self.deca.config.light_reg
 
+            if 'original_code' in codedict.keys():
+                # original jaw pose regularization
+                if self.deca.config.get('exp_deca_jaw_pose', False) and \
+                    'deca_jaw_reg' in self.deca.config.keys() and self.deca.config.deca_jaw_reg > 0:
+                    jaw_pose_orig = codedict['original_code']['pose'][:, :3]
+                    jaw_pose = codedict['posecode'][..., :3]
+                    deca_jaw_pose_reg = (torch.sum((jaw_pose - jaw_pose_orig) ** 2) / 2) * self.deca.config.deca_jaw_reg
+                    losses['deca_jaw_pose_reg'] = deca_jaw_pose_reg
+
+                # original expression regularization
+                if 'deca_expression_reg' in self.deca.config.keys() and self.deca.config.deca_expression_reg > 0:
+                    expression_orig = codedict['original_code']['exp']
+                    expression = codedict['expcode']
+                    deca_expression_reg = (torch.sum((expression - expression_orig) ** 2) / 2) * self.deca.config.deca_expression_reg
+                    losses['deca_expression_reg'] = deca_expression_reg
+
+
             losses, metrics, codedict = self._compute_emonet_loss_wrapper(codedict, batch, training, testing, losses, metrics,
                                                                  prefix="coarse", image_key="predicted_images",
                                                                 with_grad=self.deca.config.use_emonet_loss and not self.deca._has_neural_rendering(),
@@ -2947,7 +3033,7 @@ class DECA(torch.nn.Module):
             start = start + num_list[i]
         # shapecode, texcode, expcode, posecode, cam, lightcode = code_list
         code_list[-1] = code_list[-1].reshape(code.shape[0], 9, 3)
-        return code_list
+        return code_list, None
 
     def displacement2normal(self, uv_z, coarse_verts, coarse_normals, detach=True):
         """
@@ -3120,10 +3206,16 @@ class ExpDECA(DECA):
         deca_code = code[0]
         expdeca_code = code[1]
 
-        deca_code_list = super().decompose_code(deca_code)
+        deca_code_list, _ = super().decompose_code(deca_code)
         # shapecode, texcode, expcode, posecode, cam, lightcode = deca_code_list
         exp_idx = 2
         pose_idx = 3
+
+        # deca_exp_code = deca_code_list[exp_idx]
+        # deca_global_pose_code = deca_code_list[pose_idx][:3]
+        # deca_jaw_pose_code = deca_code_list[pose_idx][3:6]
+
+        deca_code_list_copy = deca_code_list.copy()
 
         # self.E_mica.cfg.model.n_shape
 
@@ -3151,7 +3243,7 @@ class ExpDECA(DECA):
             exp_code = expdeca_code
             deca_code_list[exp_idx] = exp_code
 
-        return deca_code_list
+        return deca_code_list, deca_code_list_copy
 
     def train(self, mode: bool = True):
         super().train(mode)
@@ -3294,7 +3386,7 @@ class EMICA(ExpDECA):
         expdeca_code = code[1]
         mica_code = code[2]
 
-        code_list = super().decompose_code((deca_code, expdeca_code), )
+        code_list, deca_code_list_copy = super().decompose_code((deca_code, expdeca_code), )
 
         id_idx = 0 # identity is the first part of the vector
         # assert self.config.n_shape == mica_code.shape[-1]
@@ -3303,7 +3395,7 @@ class EMICA(ExpDECA):
             code_list[id_idx] = mica_code
         else: 
             code_list[id_idx] = mica_code[..., :self.config.n_shape]
-        return code_list
+        return code_list, deca_code_list_copy
 
 
 def instantiate_deca(cfg, stage, prefix, checkpoint=None, checkpoint_kwargs=None):

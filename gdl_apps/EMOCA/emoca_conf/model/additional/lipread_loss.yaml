@@ -6,6 +6,7 @@ lipread_loss:
   # feat_loss: l1_loss
   # lipread_loss: l1_loss
   lipread_loss: cosine_similarity
+  # lipread_loss: mse_loss
 
   # normalize_features: false
   # trainable: false

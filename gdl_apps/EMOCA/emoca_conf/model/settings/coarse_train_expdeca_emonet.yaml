@@ -25,13 +25,22 @@ use_mediapipe_landmarks: False
 useWlmk: True
 #useWlmk: False
 lmk_weight: 1
-lmk_weight_mp: 1
+# lmk_weight_mp: 1.
+lmk_weight_mp: 1.5
+# lmk_weight_mp: 1.75
+# lmk_weight_mp: 2.
+# lmk_weight_mp: 2.25
+# lmk_weight_mp: 2.5
+# lmk_weight_mp: 3.0
+# lmk_weight_mp: 3.5
 #eyed: 1.0
 #lipd: 0.1
 eyed: 0.5
 lipd: 0.5
-eyed_mp: 0.5
-lipd_mp: 0.5
+# eyed_mp: 0.5
+# lipd_mp: 0.5
+eyed_mp: 1.
+lipd_mp: 1.
 #idw: 0.15 # from Yao's code
 idw: 0.2 # value written in the paper
 exp_reg: 1e-4
