@@ -1973,10 +1973,17 @@ class DecaModule(LightningModule):
                 # original jaw pose regularization
                 if self.deca.config.get('exp_deca_jaw_pose', False) and \
                     'deca_jaw_reg' in self.deca.config.keys() and self.deca.config.deca_jaw_reg > 0:
-                    jaw_pose_orig = codedict['original_code']['pose'][:, :3]
-                    jaw_pose = codedict['posecode'][..., :3]
+                    jaw_pose_orig = codedict['original_code']['pose'][:, 3:]
+                    jaw_pose = codedict['posecode'][..., 3:]
                     deca_jaw_pose_reg = (torch.sum((jaw_pose - jaw_pose_orig) ** 2) / 2) * self.deca.config.deca_jaw_reg
                     losses['deca_jaw_pose_reg'] = deca_jaw_pose_reg
+
+                if self.deca.config.get('exp_deca_global_pose', False) and \
+                    'deca_global_reg' in self.deca.config.keys() and self.deca.config.deca_global_reg > 0:
+                    global_pose_orig = codedict['original_code']['pose'][:, :3]
+                    global_pose = codedict['posecode'][..., :3]
+                    global_pose_reg = (torch.sum((global_pose - global_pose_orig) ** 2) / 2) * self.deca.config.deca_global_reg
+                    losses['deca_global_pose_reg'] = global_pose_reg
 
                 # original expression regularization
                 if 'deca_expression_reg' in self.deca.config.keys() and self.deca.config.deca_expression_reg > 0:
