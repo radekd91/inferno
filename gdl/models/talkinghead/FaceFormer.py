@@ -53,7 +53,8 @@ class FaceFormer(TalkingHeadBase):
                 self.neural_losses.emotion_loss.requires_grad_(False)
             elif loss_type == "lip_reading_loss": 
                 from gdl.models.temporal.external.LipReadingLoss import LipReadingLoss
-                self.neural_losses.lip_reading_loss = LipReadingLoss(self.device)
+                self.neural_losses.lip_reading_loss = LipReadingLoss(self.device, 
+                    loss_cfg.get('metric', 'cosine_similarity'))
                 self.neural_losses.lip_reading_loss.eval()
                 self.neural_losses.lip_reading_loss.requires_grad_(False)
             # elif loss_type == "face_recognition":
