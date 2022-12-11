@@ -27,6 +27,7 @@ useWlmk: True
 lmk_weight: 1
 # lmk_weight_mp: 1.
 lmk_weight_mp: 1.5
+# lmk_weight_mp: 5.
 # lmk_weight_mp: 1.75
 # lmk_weight_mp: 2.
 # lmk_weight_mp: 2.25
@@ -41,6 +42,8 @@ lipd: 0.5
 # lipd_mp: 0.5
 eyed_mp: 1.
 lipd_mp: 1.
+# eyed_mp: 5.
+# lipd_mp: 5.
 #idw: 0.15 # from Yao's code
 idw: 0.2 # value written in the paper
 exp_reg: 1e-4
