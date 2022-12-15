@@ -35,35 +35,8 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--input_video', type=str, default=str(Path(gdl.__file__).parents[1] / "data/EMOCA_test_example_data/videos/82-25-854x480_affwild2.mp4"), 
-        help="Filename of the video for reconstruction.")
-    parser.add_argument('--output_folder', type=str, default="video_output", help="Output folder to save the results to.")
-    parser.add_argument('--model_name', type=str, default='EMOCA', help='Name of the model to use. Currently EMOCA or DECA are available.')
-    parser.add_argument('--path_to_models', type=str, default=str(Path(gdl.__file__).parents[1] / "assets/EMOCA/models"))
-    parser.add_argument('--save_images', type=str2bool, default=True, help="If true, output images will be saved")
-    parser.add_argument('--save_codes', type=str2bool, default=False, help="If true, output FLAME values for shape, expression, jaw pose will be saved")
-    parser.add_argument('--save_mesh', type=str2bool, default=False, help="If true, output meshes will be saved")
-    # add a string argument with several options for image type
-    parser.add_argument('--image_type', type=str, default='geometry_detail', 
-        choices=["geometry_detail", "geometry_coarse", "out_im_detail", "out_im_coarse"], 
-        help="Which image to use for the reconstruction video.")
-    parser.add_argument('--processed_subfolder', type=str, default=None, 
-        help="If you want to resume previously interrupted computation over a video, make sure you specify" \
-            "the subfolder where the got unpacked. It will be in format 'processed_%Y_%b_%d_%H-%M-%S'")
-    parser.add_argument('--cat_dim', type=int, default=0, 
-        help="The result video will be concatenated vertically if 0 and horizontally if 1")
-    parser.add_argument('--include_rec', type=str2bool, default=True, 
-        help="The reconstruction (non-transparent) will be in the video if True")
-    parser.add_argument('--include_transparent', type=str2bool, default=True, 
-        help="Apart from the reconstruction video, also a video with the transparent mesh will be added")
-    parser.add_argument('--include_original', type=str2bool, default=True, 
-        help="Apart from the reconstruction video, also a video with the transparent mesh will be added")
-    parser.add_argument('--black_background', type=str2bool, default=False, help="If true, the background of the reconstruction video will be black")
-    parser.add_argument('--use_mask', type=str2bool, default=True, help="If true, the background of the reconstruction video will be black")
-    args = parser.parse_args()
-    
+
+def reconstruct_video(args):
     path_to_models = args.path_to_models
     input_video = args.input_video
     output_folder = args.output_folder
@@ -77,7 +50,8 @@ def main():
     include_transparent = bool(args.include_transparent)
     processed_subfolder = args.processed_subfolder
 
-    mode = 'detail'
+    mode = args.mode
+    # mode = 'detail'
     # mode = 'coarse'
    
     ## 1) Process the video - extract the frames from video and detected faces
@@ -94,7 +68,10 @@ def main():
     emoca.cuda()
     emoca.eval()
 
-    outfolder = str(Path(output_folder) / processed_subfolder / Path(input_video).stem / "results" / model_name)
+    if Path(output_folder).is_absolute():
+        outfolder = output_folder
+    else:
+        outfolder = str(Path(output_folder) / processed_subfolder / Path(input_video).stem / "results" / model_name)
 
     ## 3) Get the data loadeer with the detected faces
     dl = dm.test_dataloader()
@@ -126,6 +103,43 @@ def main():
             include_rec = include_rec,
             black_background=black_background, 
             use_mask=use_mask)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input_video', type=str, default=str(Path(gdl.__file__).parents[1] / "data/EMOCA_test_example_data/videos/82-25-854x480_affwild2.mp4"), 
+        help="Filename of the video for reconstruction.")
+    parser.add_argument('--output_folder', type=str, default="video_output", help="Output folder to save the results to.")
+    parser.add_argument('--model_name', type=str, default='EMOCA', help='Name of the model to use. Currently EMOCA or DECA are available.')
+    parser.add_argument('--path_to_models', type=str, default=str(Path(gdl.__file__).parents[1] / "assets/EMOCA/models"))
+    parser.add_argument('--mode', type=str, default="detail", choices=["detail", "coarse"], help="Which model to use for the reconstruction.")
+    parser.add_argument('--save_images', type=str2bool, default=True, help="If true, output images will be saved")
+    parser.add_argument('--save_codes', type=str2bool, default=False, help="If true, output FLAME values for shape, expression, jaw pose will be saved")
+    parser.add_argument('--save_mesh', type=str2bool, default=False, help="If true, output meshes will be saved")
+    # add a string argument with several options for image type
+    parser.add_argument('--image_type', type=str, default='geometry_detail', 
+        choices=["geometry_detail", "geometry_coarse", "out_im_detail", "out_im_coarse"], 
+        help="Which image to use for the reconstruction video.")
+    parser.add_argument('--processed_subfolder', type=str, default=None, 
+        help="If you want to resume previously interrupted computation over a video, make sure you specify" \
+            "the subfolder where the got unpacked. It will be in format 'processed_%Y_%b_%d_%H-%M-%S'")
+    parser.add_argument('--cat_dim', type=int, default=0, 
+        help="The result video will be concatenated vertically if 0 and horizontally if 1")
+    parser.add_argument('--include_rec', type=str2bool, default=True, 
+        help="The reconstruction (non-transparent) will be in the video if True")
+    parser.add_argument('--include_transparent', type=str2bool, default=True, 
+        help="Apart from the reconstruction video, also a video with the transparent mesh will be added")
+    parser.add_argument('--include_original', type=str2bool, default=True, 
+        help="Apart from the reconstruction video, also a video with the transparent mesh will be added")
+    parser.add_argument('--black_background', type=str2bool, default=False, help="If true, the background of the reconstruction video will be black")
+    parser.add_argument('--use_mask', type=str2bool, default=True, help="If true, the background of the reconstruction video will be black")
+    args = parser.parse_args()
+    return args
+
+
+def main():
+    args = parse_args()
+    reconstruct_video(args)
     print("Done")
 
 
