@@ -102,7 +102,8 @@ def reconstruct_video(args):
             include_original=include_original, 
             include_rec = include_rec,
             black_background=black_background, 
-            use_mask=use_mask)
+            use_mask=use_mask, 
+            out_folder=outfolder)
 
 
 def parse_args():

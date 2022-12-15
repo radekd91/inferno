@@ -1717,7 +1717,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
     def create_reconstruction_video(self, sequence_id, overwrite=False, distance_threshold=0.5,
                                     rec_method='emoca', image_type=None, retarget_suffix=None, cat_dim=0, include_transparent=True, 
-                                    include_original=True, include_rec=True, black_background=False, use_mask=True):
+                                    include_original=True, include_rec=True, black_background=False, use_mask=True, 
+                                    out_folder=None):
         print("Include original: " + str(include_original)) 
         print("========================")
         from PIL import Image, ImageDraw
@@ -1725,7 +1726,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         image_type = image_type or "geometry_detail"
         detection_fnames, centers, sizes, last_frame_id = self._get_detection_for_sequence(sequence_id)
         vis_fnames = self._get_reconstructions_for_sequence(sequence_id, rec_method=rec_method, 
-            retarget_suffix=retarget_suffix, image_type=image_type)
+            retarget_suffix=retarget_suffix, image_type=image_type, out_folder=out_folder)
 
         vid_frames = self._get_frames_for_sequence(sequence_id)
 
@@ -3223,12 +3224,18 @@ class TestFaceVideoDM(FaceVideoDataModule):
     def _get_path_to_sequence_results(self, sequence_id, rec_method='EMOCA', suffix=''):
         return self._get_path_to_sequence_files(sequence_id, "results", rec_method, suffix)
 
-    def _get_reconstructions_for_sequence(self, sid, rec_method='emoca', retarget_suffix=None, image_type=None):
-        out_folder = self._get_path_to_sequence_results(sid, rec_method=rec_method, 
-            suffix=retarget_suffix)
+    def _get_reconstructions_for_sequence(self, sid, rec_method='emoca', retarget_suffix=None, image_type=None, out_folder=None):
+        if out_folder is None:
+            out_folder = self._get_path_to_sequence_results(sid, rec_method=rec_method, 
+                suffix=retarget_suffix)
+        else: 
+            out_folder = Path(out_folder)
         if image_type is None:
             image_type = "geometry_detail"
         assert image_type in ["geometry_detail", "geometry_coarse", "out_im_detail", "out_im_coarse"], f"Invalid image type: '{image_type}'"
+        # use subprocess to find all the image_type.png files in the out_folder, 
+        # and sort them. 
+        # vis_fnames = subprocess.check_output(["find", str(out_folder), "-name", f"{image_type}.png"])
         vis_fnames = sorted(list(out_folder.glob(f"**/{image_type}.png")))
         return vis_fnames
 
