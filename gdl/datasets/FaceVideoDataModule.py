@@ -1727,7 +1727,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         detection_fnames, centers, sizes, last_frame_id = self._get_detection_for_sequence(sequence_id)
         vis_fnames = self._get_reconstructions_for_sequence(sequence_id, rec_method=rec_method, 
             retarget_suffix=retarget_suffix, image_type=image_type, out_folder=out_folder)
-
+        
         vid_frames = self._get_frames_for_sequence(sequence_id)
 
         vis_fnames.sort()
@@ -1782,7 +1782,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
                 vis_name = vis_fnames[did]
 
-                if detection_name.stem not in str(vis_name):
+                if detection_name.stem not in str(vis_name) :
                     print("%s != %s" % (detection_name.stem, vis_name.stem))
                     raise RuntimeError("Detection and visualization filenames should match but they don't.")
 
@@ -1887,7 +1887,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
             im_cv = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
             writer.write(im_cv)
         writer.release()
-        attach_audio_to_reconstruction_video(outfile, self.root_dir / self.video_list[sequence_id])
+        outfile_with_sound = attach_audio_to_reconstruction_video(outfile, self.root_dir / self.video_list[sequence_id])
+        return outfile, outfile_with_sound
         # plt.figure()
         # plt.imshow(im)
         # plt.show()
@@ -3149,6 +3150,7 @@ def attach_audio_to_reconstruction_video(input_video, input_video_with_audio, ou
     cmd = "ffmpeg -y -i %s -i %s -c copy -map 0:0 -map 1:1 -shortest %s" \
           % (input_video, input_video_with_audio, output_video)
     os.system(cmd)
+    return output_video
 
 
 

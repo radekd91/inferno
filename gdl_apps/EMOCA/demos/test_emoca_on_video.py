@@ -97,13 +97,34 @@ def reconstruct_video(args):
                 save_codes(Path(outfolder), name, vals, i)
 
     ## 5) Create the reconstruction video (reconstructions overlayed on the original video)
-    dm.create_reconstruction_video(0,  rec_method=model_name, image_type=image_type, overwrite=True, 
+    video_file, video_file_with_sound = dm.create_reconstruction_video(0,  rec_method=model_name, image_type=image_type, overwrite=True, 
             cat_dim=cat_dim, include_transparent=include_transparent, 
             include_original=include_original, 
             include_rec = include_rec,
             black_background=black_background, 
             use_mask=use_mask, 
             out_folder=outfolder)
+
+    if args.logger == "wandb":
+        from gdl_apps.EMOCA.training.test_and_finetune_deca import  create_logger, project_name
+        import wandb
+        # project_name = 'EmotionalDeca'
+        cfg_detail = conf.detail
+        version = cfg_detail.inout.time
+        version += "_" + cfg_detail.inout.random_id
+        full_run_dir = cfg_detail.inout.full_run_dir
+        name = cfg_detail.inout.name
+        logger = create_logger("WandbLogger", 
+                        name=name,
+                        project_name=project_name,
+                        #  config=OmegaConf.to_container(conf),
+                        version=version,
+                        save_dir=full_run_dir)
+
+        logger.experiment.log({f"test_video/{Path(input_video).stem}_{image_type}": wandb.Video(video_file_with_sound, format="mp4", caption="Reconstruction with sound")})
+        
+        # import wandb
+        # wandb.save(str(Path(outfolder) / "reconstruction.mp4"))
 
 
 def parse_args():
@@ -134,6 +155,8 @@ def parse_args():
         help="Apart from the reconstruction video, also a video with the transparent mesh will be added")
     parser.add_argument('--black_background', type=str2bool, default=False, help="If true, the background of the reconstruction video will be black")
     parser.add_argument('--use_mask', type=str2bool, default=True, help="If true, the background of the reconstruction video will be black")
+    parser.add_argument('--logger', type=str, default="", choices=["", "wandb"], help="Specify how to log the results if at all.")
+    
     args = parser.parse_args()
     return args
 
