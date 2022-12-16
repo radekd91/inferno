@@ -104,6 +104,7 @@ def reconstruct_video(args):
             black_background=black_background, 
             use_mask=use_mask, 
             out_folder=outfolder)
+    print("Video saved to: ", video_file_with_sound)
 
     if args.logger == "wandb":
         from gdl_apps.EMOCA.training.test_and_finetune_deca import  create_logger, project_name
@@ -121,10 +122,10 @@ def reconstruct_video(args):
                         version=version,
                         save_dir=full_run_dir)
 
+        print("Logging the video to wandb", video_file_with_sound)
         logger.experiment.log({f"test_video/{Path(input_video).stem}_{image_type}": wandb.Video(video_file_with_sound, format="mp4", caption="Reconstruction with sound")})
         
-        # import wandb
-        # wandb.save(str(Path(outfolder) / "reconstruction.mp4"))
+    print("Done")
 
 
 def parse_args():
