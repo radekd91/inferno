@@ -1184,7 +1184,8 @@ class DecaModule(LightningModule):
         codedict['landmarks2d'] = landmarks2d
         codedict['landmarks3d'] = landmarks3d
         codedict['predicted_landmarks'] = predicted_landmarks
-        codedict['predicted_landmarks_mediapipe'] = predicted_landmarks_mediapipe
+        if landmarks2d_mediapipe is not None:
+            codedict['predicted_landmarks_mediapipe'] = predicted_landmarks_mediapipe
         codedict['trans_verts'] = trans_verts
         codedict['masks'] = masks
 
