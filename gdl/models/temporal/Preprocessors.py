@@ -200,9 +200,18 @@ class EmocaPreprocessor(Preprocessor):
                 outputs.append(self.model.encode(batch_, training=False))
             
             # combine into a single output
+            # values = cat_tensor_or_dict(outputs, dim=0)
+
             values = {}
             for k in outputs[0].keys():
-                values[k] = torch.cat([o[k] for o in outputs], dim=0)
+                if isinstance(outputs[0][k], torch.Tensor):
+                    values[k] = torch.cat([o[k] for o in outputs], dim=0)
+                elif isinstance(outputs[0][k], dict):
+                    values[k] = {}
+                    for k2 in outputs[0][k].keys():
+                        values[k][k2] = torch.cat([o[k][k2] for o in outputs], dim=0)
+                else:
+                    raise NotImplementedError("Not implemented for type {}".format(type(outputs[0][k])))
 
         # # vals, visdict = decode(deca, batch, vals, training=False)
         # values = self.model.encode(batch_, training=False)
@@ -234,7 +243,14 @@ class EmocaPreprocessor(Preprocessor):
             for i in range(0, BT, self.max_b):
                 values_ = {}
                 for k in values.keys():
-                    values_[k] = values[k][i:i+self.max_b]
+                    if isinstance(values[k], torch.Tensor):
+                        values_[k] = values[k][i:i+self.max_b]
+                    elif isinstance(values[k], dict):
+                        values_[k] = {}
+                        for k2 in values[k].keys():
+                            values_[k][k2] = values[k][k2][i:i+self.max_b]
+                    else:
+                        raise NotImplementedError("Not implemented for type {}".format(type(values[k])))
                 outputs_ = self.model.decode(values_, training=False, render=self.render)
                 unused_keys = [k for k in outputs_.keys() if k not in used_keys]
                 for key in unused_keys:
@@ -433,3 +449,24 @@ class SpeechEmotionRecognitionPreprocessor(Preprocessor):
         assert output_num > 0, "No output was used"
 
         return batch
+
+
+def cat_tensor_or_dict(dicts, dim=0):
+    """Concatenate a list of tensors or dictionaries along a given dimension.
+    Args:
+        dicts (list[dict]): List of tensors or dictionaries to concatenate.
+        dim (int): Dimension along which to concatenate.
+    Returns:
+
+        dict: Concatenated tensor or dictionary.
+    """
+    outputs = {}
+    for k in dicts[0].keys():
+        if isinstance(dicts[0][k], torch.Tensor):
+            outputs[k] = torch.cat([o[k] for o in dicts], dim=dim)
+        
+        elif isinstance(dicts[0][k], dict):
+            outputs[k] = cat_tensor_or_dict([o[k] for o in dicts], dim=dim)
+        else: 
+            raise ValueError(f"Unknown type {type(dicts[0][k])}")
+    return outputs

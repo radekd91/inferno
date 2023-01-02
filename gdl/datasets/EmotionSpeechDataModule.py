@@ -863,58 +863,38 @@ class EmotionalSpeechDataset(VideoDatasetBase):
         else: 
             path_prefix = Path(self.output_dir) / "videos_aligned"  
             parts = self.video_list[self.video_indices[index]].parts
-            video_part = parts[1] 
-            expected_values = ["video"]
-            assert video_part in expected_values, f"Expected video part to be one of {expected_values}, but got '{video_part}'"
-            video_path = path_prefix / parts[0] / "/".join(parts[2:])
+            video_path = path_prefix /  "/".join(parts[1:])
         return video_path
 
     def _get_audio_path(self, index):
         path_prefix = Path(self.output_dir) / "audio"  
         parts = self.video_list[self.video_indices[index]].parts
-        video_part = parts[1] 
-        expected_values = ["video"]
-        assert video_part in expected_values, f"Expected video part to be one of {expected_values}, but got '{video_part}'"
-        audio_path = path_prefix / parts[0] / "/".join(parts[2:])
+        audio_path = path_prefix /  "/".join(parts[1:])
         audio_path = audio_path.with_suffix(".wav")
         return audio_path
 
-
     def _path_to_segmentations(self, index): 
         parts = self.video_list[self.video_indices[index]].parts
-        video_part = parts[1] 
-        expected_values = ["video"]
-        assert video_part in expected_values, f"Expected video part to be one of {expected_values}, but got '{video_part}'"
         path_prefix = Path(self.output_dir) / f"segmentations_{self.segmentation_source}" / self.segmentation_type
-        seg_path = path_prefix / parts[0] / "/".join(parts[2:])
+        seg_path = path_prefix /  "/".join(parts[1:])
         return seg_path.with_suffix("")
 
     def _path_to_landmarks(self, index, landmark_type, landmark_source): 
         parts = self.video_list[self.video_indices[index]].parts
-        video_part = parts[1] 
-        expected_values = ["video"]
-        assert video_part in expected_values, f"Expected video part to be one of {expected_values}, but got '{video_part}'"
         path_prefix = Path(self.output_dir) / f"landmarks_{landmark_source}/{landmark_type}" 
-        lmk_path = path_prefix / parts[0] / "/".join(parts[2:])
+        lmk_path = path_prefix /  "/".join(parts[1:])
         return lmk_path.with_suffix("")
 
     def _path_to_reconstructions(self, index, rec_type): 
         parts = self.video_list[self.video_indices[index]].parts
-        video_part = parts[1] 
-        expected_values = ["video"]
-        assert video_part in expected_values, f"Expected video part to be one of {expected_values}, but got '{video_part}'"
-        # path_prefix = Path(self.output_dir) / f"reconstructions" / self.reconstruction_type 
         path_prefix = Path(self.output_dir) / f"reconstructions" / rec_type
-        rec_path = path_prefix / parts[0] / "/".join(parts[2:])
+        rec_path = path_prefix /  "/".join(parts[1:])
         return rec_path.with_suffix("")
 
     def _path_to_emotions(self, index): 
         parts = self.video_list[self.video_indices[index]].parts
-        video_part = parts[1] 
-        expected_values = ["video"]
-        assert video_part in expected_values, f"Expected video part to be one of {expected_values}, but got '{video_part}'"
         path_prefix = Path(self.output_dir) / f"emotions" / self.emotion_type 
-        emo_path = path_prefix / parts[0] / "/".join(parts[2:])
+        emo_path = path_prefix /  "/".join(parts[1:])
         return emo_path.with_suffix("")
 
 
