@@ -2570,6 +2570,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             '-r': self.video_metas[sequence_id]['fps'],
             '-b': self.video_metas[sequence_id].get('bit_rate', '300000000'),
         }
+        Path(output_video_file).parent.mkdir(parents=True, exist_ok=True)
         writer = skvideo.io.FFmpegWriter(str(output_video_file), outputdict=output_dict)
 
         # write the first already read out frame
