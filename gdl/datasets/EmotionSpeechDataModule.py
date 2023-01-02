@@ -307,7 +307,7 @@ class EmotionalSpeechDataModule(FaceVideoDataModule):
             assert video_file.parts[1] in expected_values, f"Unexpected path structure. Expected one of {expected_values}, got {video_file.parts[1]}"
       
         # suffix = Path(file_type) / video_file.stem
-        person_id = video_file.parts[0]
+        person_id = self._video_identity(sequence_id)
         
         suffix = Path(file_type) / person_id / "/".join(video_file.parts[2:-1]) / video_file.stem
         out_folder = Path(self.output_dir) / suffix
