@@ -1456,7 +1456,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             with torch.no_grad():
                 batch = dict_to_device(batch, device)
                 for emo_method in emo_methods:
-                    if out_file_emotion[emo_method].is_file() and  out_file_features[emo_method].is_file(): 
+                    if out_file_emotion[emo_method].is_file() and out_file_features[emo_method].is_file(): 
                         continue
                     emotion_net = self._get_emotion_recognition_net(device, rec_method=emo_method)
                     result = emotion_net(batch, input_key='video', output_prefix="")
@@ -1472,7 +1472,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     # hkl.dump(emotion_features, out_file_features[emo_method])
 
                     save_emotion_list(out_file_emotion[emo_method], emotion_labels)
-                    save_emotion_list(out_file_features[emo_method], emotion_labels)
+                    save_emotion_list(out_file_features[emo_method], emotion_features)
 
         print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
 
