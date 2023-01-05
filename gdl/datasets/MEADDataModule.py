@@ -20,12 +20,17 @@ def get_affectnet_index_from_mead_expression_str(expr_str):
         expr_str = "anger"
     elif expr_str == "surprised": 
         expr_str = "surprise"
-    elif expr_str == "disgust": 
-        expr_str = "disgusted"
+    elif expr_str == "disgusted": 
+        expr_str = "disgust"
     # first letter capitalization
     expr_str = expr_str[0].upper() + expr_str[1:]
     # get index
-    return AffectNetExpressions[expr_str].value
+    try: 
+        return AffectNetExpressions[expr_str].value
+    except KeyError as e: 
+        print(f"Expression {expr_str} not found in AffectNet")
+        raise e
+
 
 
 class MEADDataModule(FaceVideoDataModule): 
@@ -379,10 +384,16 @@ class MEADDataModule(FaceVideoDataModule):
         return self.video_list[index].parts[0]
 
     def _video_expression(self, index): 
-        return self.video_list[index].parts[3]
+        expr = self.video_list[index].parts[3] 
+        if expr in ["front", "down", "top", "left_30",  "left_60", "right_30", "right_60", "1", "2"]: # a hack for the MORONIC inconsistency in the paths of the MEAD dataset
+            return self.video_list[index].parts[4]
+        return expr
 
     def _expression_intensity(self, index): 
-        return self.video_list[index].parts[4]
+        intensity = self.video_list[index].parts[4]
+        if "level" not in intensity: # a hack for the MORONIC inconsistency in the paths of the MEAD dataset
+            return self.video_list[index].parts[5]
+        return intensity
 
     def _get_expression_intensity_map(self, indices):
         expression_intensity2idx = {}
@@ -816,10 +827,16 @@ class MEADDataset(VideoDatasetBase):
         return landmark_list, landmark_valid_indices
 
     def _video_expression(self, index): 
-        return self.video_list[self.video_indices[index]].parts[3]
+        expr = self.video_list[self.video_indices[index]].parts[3] 
+        if expr in ["front", "down", "top", "left_30",  "left_60", "right_30", "right_60", "1", "2"]: # a hack for MORONIC inconsistency in the paths of the MEAD dataset
+            return self.video_list[self.video_indices[index]].parts[4]
+        return expr
 
     def _expression_intensity(self, index): 
-        return self.video_list[self.video_indices[index]].parts[4]
+        intensity = self.video_list[self.video_indices[index]].parts[4]
+        if "level" not in intensity: # a hack for MORONIC inconsistency in the paths of the MEAD dataset
+            return self.video_list[self.video_indices[index]].parts[5]
+        return intensity
 
     def _get_emotions(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
         sample = super()._get_emotions(index, start_frame, num_read_frames, video_fps, num_frames, sample)
