@@ -47,12 +47,16 @@ class TransformerEncoder(torch.nn.Module):
         self.cfg = cfg
         self.input_dim = input_dim
         self.output_dim = input_dim
-        self.PE = positional_encoding_from_cfg(cfg, self.input_dim)
+        if self.input_dim == cfg.feature_dim:
+            self.bottleneck = None
+        else:
+            self.bottleneck = nn.Linear(self.input_dim, cfg.feature_dim)
+        self.PE = positional_encoding_from_cfg(cfg, cfg.feature_dim)
         dim_factor = self._total_dim_factor()
         encoder_layer = torch.nn.TransformerEncoderLayer(
-                    d_model=self.input_dim * dim_factor, 
+                    d_model=cfg.feature_dim * dim_factor, 
                     nhead=cfg.nhead, 
-                    dim_feedforward=dim_factor*self.input_dim, 
+                    dim_feedforward=dim_factor*cfg.feature_dim, 
                     activation=cfg.activation,
                     dropout=cfg.dropout, batch_first=True
         )
@@ -73,10 +77,15 @@ class TransformerEncoder(torch.nn.Module):
         else:
             raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
 
-    def encoder_output_dim(self):
+    def encoder_input_dim(self):
         return self.input_dim
 
+    def encoder_output_dim(self):
+        return self.cfg.feature_dim
+
     def forward(self, sample, train=False, teacher_forcing=True): 
+        if self.bottleneck is not None:
+            sample["hidden_feature"] = self.bottleneck(sample["hidden_feature"])
         hidden_states = self._positional_enc(sample)
         encoded_feature = self._encode(sample, hidden_states)
         sample["encoded_sequence_feature"] = encoded_feature
