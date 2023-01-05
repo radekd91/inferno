@@ -11,6 +11,22 @@ from gdl.utils.collate import robust_collate
 from torch.utils.data import DataLoader
 import subprocess
 import random as rand
+from gdl.datasets.AffectNetDataModule import AffectNetExpressions
+
+
+def get_affectnet_index_from_mead_expression_str(expr_str): 
+    # string correction
+    if expr_str == "angry": 
+        expr_str = "anger"
+    elif expr_str == "surprised": 
+        expr_str = "surprise"
+    elif expr_str == "disgust": 
+        expr_str = "disgusted"
+    # first letter capitalization
+    expr_str = expr_str[0].upper() + expr_str[1:]
+    # get index
+    return AffectNetExpressions[expr_str].value
+
 
 class MEADDataModule(FaceVideoDataModule): 
 
@@ -799,6 +815,17 @@ class MEADDataset(VideoDatasetBase):
             raise ValueError(f"Unknown landmark source {landmark_source}")
         return landmark_list, landmark_valid_indices
 
+    def _video_expression(self, index): 
+        return self.video_list[self.video_indices[index]].parts[3]
+
+    def _expression_intensity(self, index): 
+        return self.video_list[self.video_indices[index]].parts[4]
+
+    def _get_emotions(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
+        sample = super()._get_emotions(index, start_frame, num_read_frames, video_fps, num_frames, sample)
+        sample["gt_expression_label"] = get_affectnet_index_from_mead_expression_str(self._video_expression(index))
+        sample["gt_expression_intensity"] = int(self._expression_intensity(index)[-1])
+        return sample
 
     def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
         sequence_length = self._get_sample_length(index)
