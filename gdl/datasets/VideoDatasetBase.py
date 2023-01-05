@@ -708,6 +708,8 @@ class VideoDatasetBase(AbstractVideoDataset):
         emotions = load_emotion_list(emotions_dir / "emotions.pkl")
         if features:
             features = load_emotion_list(emotions_dir / "features.pkl")
+            assert "feature" in features.keys(), "Features not found in emotion file. This is likely due to a bug in emotions saving. " \
+                "Please delete the emotion feature file and recompute them."
         else: 
             features = None
         return emotions, features
@@ -1002,7 +1004,8 @@ class VideoDatasetBase(AbstractVideoDataset):
             features = self.emo_cache[index]["features"]
             if features is not None:
                 features = features.copy()
-        
+        if features is not None:
+            features = {"emo_" + key: features[key] for key in features.keys()} # just add the emo_ prefix to the keys
         for key in emotions.keys():
             assert key not in sample.keys(), f"Key {key} already exists in sample."
             sample['gt_' + key] = emotions[key][0][start_frame:start_frame+num_read_frames].astype(np.float32)
