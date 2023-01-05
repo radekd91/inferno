@@ -51,11 +51,15 @@ class AutoRegressiveDecoder(nn.Module):
         raise NotImplementedError("")
 
 
-def positional_encoding_from_cfg(cfg): 
+def positional_encoding_from_cfg(cfg, feature_dim= None):
+    if feature_dim is None:
+        feature_dim = cfg.feature_dim 
     if cfg.positional_encoding.type == 'PeriodicPositionalEncoding': 
-        return PeriodicPositionalEncoding(cfg.feature_dim, **cfg.positional_encoding)
+        # return PeriodicPositionalEncoding(cfg.feature_dim, **cfg.positional_encoding)
+        return PeriodicPositionalEncoding(feature_dim, **cfg.positional_encoding)
     elif cfg.positional_encoding.type == 'PositionalEncoding':
-        return PositionalEncoding(cfg.feature_dim, **cfg.positional_encoding)
+        # return PositionalEncoding(cfg.feature_dim, **cfg.positional_encoding)
+        return PositionalEncoding(feature_dim, **cfg.positional_encoding)
     elif not cfg.positional_encoding.type or str(cfg.positional_encoding.type).lower() == 'none':
         return None
     raise ValueError("Unsupported positional encoding")
@@ -325,7 +329,7 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
 
 class PeriodicPositionalEncoding(nn.Module):
     
-    def __init__(self, d_model, dropout=0.1, period=25, max_seq_len=600, op: str = 'add', **kwargs):
+    def __init__(self, d_model, dropout=0.1, period=25, max_seq_len=600, op: str = 'add',  batch_first=True, **kwargs):
         super(PeriodicPositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(p=dropout)        
         self.op = op
@@ -338,14 +342,23 @@ class PeriodicPositionalEncoding(nn.Module):
         pe = pe.unsqueeze(0) # (1, period, d_model)
         repeat_num = (max_seq_len//period) + 1
         pe = pe.repeat(1, repeat_num, 1)
+        self.batch_first = batch_first
+        if not self.batch_first:
+            pe = pe.transpose(0,1).contiguous()
         self.register_buffer('pe', pe)
+
 
     def forward(self, x):
         """
         Args:
             x: Tensor, shape [seq_len, batch_size, embedding_dim]
         """
-        pe = self.pe[:, :x.size(1), :]
+        if self.batch_first:
+            T = x.size(1)
+            pe = self.pe[:, :T, :]
+        else:
+            T = x.size(0)
+            pe = self.pe[:T, :]
         if self.op in ['add', 'sum']:
             x = x + pe
         elif self.op in ['concat', 'cat', 'concatenate']:
@@ -365,7 +378,7 @@ class PeriodicPositionalEncoding(nn.Module):
 
 class PositionalEncoding(torch.nn.Module):
 
-    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 600, op: str = 'add', **kwargs):
+    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 600, op: str = 'add',  batch_first=True, **kwargs):
         super().__init__()
         self.dropout = torch.nn.Dropout(p=dropout)
         self.op = op
@@ -375,15 +388,22 @@ class PositionalEncoding(torch.nn.Module):
         pe = torch.zeros(max_len, 1, d_model)
         pe[:, 0, 0::2] = torch.sin(position * div_term)
         pe[:, 0, 1::2] = torch.cos(position * div_term)
+        self.batch_first = batch_first
+        if self.batch_first:
+            pe = pe.transpose(0,1).contiguous()
         self.register_buffer('pe', pe)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: Tensor, shape [seq_len, batch_size, embedding_dim]
+            x: Tensor, shape [batch_size, seq_len, embedding_dim] if batch_first=True else [seq_len, batch_size, embedding_dim]
         """
-        # pe = self.pe[:x.size(0), :]
-        pe = self.pe[:, :x.size(1), :]
+        if self.batch_first:
+            T = x.size(1)
+            pe = self.pe[:, :T, :]
+        else:
+            T = x.size(0)
+            pe = self.pe[:T, :]
         if self.op in ['add', 'sum']:
             x = x + pe
         elif self.op in ['concat', 'cat', 'concatenate']:
