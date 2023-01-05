@@ -12,8 +12,8 @@ losses:
     ## assuming cosine_similarity
     # weight: 10.0 
     # weight: 1.0
-    # weight: 0.1
-    # weight: 0.01
+    # weight: 0.1 # for MSE this breaks
+    # weight: 0.01 # for MSE this seems stable (but is it good?)
     # weight: 0.001
     # weight: 0.0001
     # weight: 0.00005
