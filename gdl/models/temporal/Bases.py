@@ -2,6 +2,21 @@ import torch
 from typing import Dict, List, Optional, Tuple, Union, Any
 
 
+class TemporalFeatureEncoder(torch.nn.Module): 
+
+    def __init__(self):
+        super().__init__() 
+
+    def forward(self, sample, train=False, desired_output_length=None, **kwargs): 
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def get_trainable_parameters(self): 
+        raise NotImplementedError()
+
+    def output_feature_dim(self): 
+        raise NotImplementedError()
+
+
 class TemporalAudioEncoder(torch.nn.Module): 
 
     def __init__(self):
@@ -70,6 +85,46 @@ class SequenceDecoder(torch.nn.Module):
         raise NotImplementedError()
 
     def get_shape_model(self):
+        raise NotImplementedError()
+
+
+class SequenceClassificationEncoder(torch.nn.Module):
+
+    def __init__(self):
+        super().__init__() 
+        
+    def forward(self, sample):
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def get_trainable_parameters(self): 
+        if self.trainable:
+            return list(self.parameters())
+        return []
+
+    def output_feature_dim(self): 
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def get_trainable_parameters(self): 
+        raise NotImplementedError()
+
+
+class ClassificationHead(torch.nn.Module):
+
+    def __init__(self):
+        super().__init__() 
+        
+    def forward(self, sample):
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def get_trainable_parameters(self): 
+        if self.trainable:
+            return list(self.parameters())
+        return []
+
+    def num_classes(self): 
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def get_trainable_parameters(self): 
         raise NotImplementedError()
 
 
