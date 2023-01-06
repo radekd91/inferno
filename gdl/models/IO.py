@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 
-def locate_checkpoint(cfg_or_checkpoint_dir, replace_root = None, relative_to = None, mode=None):
+def locate_checkpoint(cfg_or_checkpoint_dir, replace_root = None, relative_to = None, mode=None, pattern=None):
     if isinstance(cfg_or_checkpoint_dir, (str, Path)):
         checkpoint_dir = str(cfg_or_checkpoint_dir)
     else:
@@ -45,6 +45,8 @@ def locate_checkpoint(cfg_or_checkpoint_dir, replace_root = None, relative_to = 
         print(f"Found {len(checkpoints)} checkpoints")
     else:
         print(f"Found {len(checkpoints)} checkpoints")
+    if pattern is not None:
+        checkpoints = [ckpt for ckpt in checkpoints if pattern in str(ckpt)]
     for ckpt in checkpoints:
         print(f" - {str(ckpt)}")
 
@@ -58,6 +60,7 @@ def locate_checkpoint(cfg_or_checkpoint_dir, replace_root = None, relative_to = 
     elif mode == 'best':
         min_value = 999999999999999.
         min_idx = -1
+        # remove all checkpoints that do not containt the pattern 
         for idx, ckpt in enumerate(checkpoints):
             if ckpt.stem == "last": # disregard last
                 continue
@@ -80,9 +83,9 @@ def locate_checkpoint(cfg_or_checkpoint_dir, replace_root = None, relative_to = 
     return checkpoint
 
 
-def get_checkpoint_with_kwargs(cfg, prefix, replace_root = None, relative_to = None, checkpoint_mode=None):
+def get_checkpoint_with_kwargs(cfg, prefix, replace_root = None, relative_to = None, checkpoint_mode=None, pattern=None):
     checkpoint = get_checkpoint(cfg, replace_root = replace_root,
-                                relative_to = relative_to, checkpoint_mode=checkpoint_mode)
+                                relative_to = relative_to, checkpoint_mode=checkpoint_mode, pattern=pattern)
     cfg.model.resume_training = False  # make sure the training is not magically resumed by the old code
     # checkpoint_kwargs = {
     #     "model_params": cfg.model,
@@ -94,11 +97,11 @@ def get_checkpoint_with_kwargs(cfg, prefix, replace_root = None, relative_to = N
     return checkpoint, checkpoint_kwargs
 
 
-def get_checkpoint(cfg, replace_root = None, relative_to = None, checkpoint_mode=None):
+def get_checkpoint(cfg, replace_root = None, relative_to = None, checkpoint_mode=None, pattern=None):
     if checkpoint_mode is None:
         checkpoint_mode = 'latest'
         if hasattr(cfg.learning, 'checkpoint_after_training'):
             checkpoint_mode = cfg.learning.checkpoint_after_training
     checkpoint = locate_checkpoint(cfg, replace_root = replace_root,
-                                   relative_to = relative_to, mode=checkpoint_mode)
+                                   relative_to = relative_to, mode=checkpoint_mode, pattern=pattern)
     return checkpoint
