@@ -261,35 +261,40 @@ def create_experiment_name(cfg, version=0):
         model_name = cfg.model.sequence_encoder.type
         if model_name == "TransformerSequenceClassifier":
             model_name = "TSC"
+        elif model_name == "GRUSequenceClassifier":
+            model_name = "GRU"
         experiment_name += model_name
 
         nl = cfg.model.sequence_encoder.get('num_layers ', None)
         if nl is not None: 
             experiment_name += f"{nl}" 
-    
-
-        pos_enc = cfg.model.sequence_encoder.encoder.get('positional_encoding', False)
-        # if isinstance(pos_enc, DictConfig):
-        #     pos_enc = pos_enc.type
-        if pos_enc:
-            if pos_enc.type == 'PeriodicPositionalEncoding':
-                experiment_name += "_PPE"
-            elif pos_enc.type == 'PositionalEncoding':
-                experiment_name += "_PE"
-            elif str(pos_enc.type).lower() == 'none':
+        if model_name == "TSC":
+            pos_enc = cfg.model.sequence_encoder.encoder.get('positional_encoding', False)
+            # if isinstance(pos_enc, DictConfig):
+            #     pos_enc = pos_enc.type
+            if pos_enc:
+                if pos_enc.type == 'PeriodicPositionalEncoding':
+                    experiment_name += "_PPE"
+                elif pos_enc.type == 'PositionalEncoding':
+                    experiment_name += "_PE"
+                elif str(pos_enc.type).lower() == 'none':
+                    experiment_name += "_NPE"
+            else: 
                 experiment_name += "_NPE"
-        else: 
-            experiment_name += "_NPE"
 
-        temporal_bias_type = cfg.model.sequence_encoder.get('temporal_bias_type', False) 
-        if temporal_bias_type == 'faceformer_future':
-            experiment_name += "_Tff"
-        elif temporal_bias_type == 'classic':
-            experiment_name += "_Tc"
-        elif temporal_bias_type == 'classic_future':
-            experiment_name += "_Tcf"
-        elif temporal_bias_type == 'none':
-            experiment_name += "_Tn"
+            temporal_bias_type = cfg.model.sequence_encoder.get('temporal_bias_type', False) 
+            if temporal_bias_type == 'faceformer_future':
+                experiment_name += "_Tff"
+            elif temporal_bias_type == 'classic':
+                experiment_name += "_Tc"
+            elif temporal_bias_type == 'classic_future':
+                experiment_name += "_Tcf"
+            elif temporal_bias_type == 'none':
+                experiment_name += "_Tn"
+        elif model_name == "GRU":
+            if cfg.model.sequence_encoder.bidirectional:
+                experiment_name += "bi"
+            experiment_name += "_nl-" + str(cfg.model.sequence_encoder.num_layers)
 
         # use_alignment_bias = cfg.model.classifier.get('use_alignment_bias', True)
         # if not use_alignment_bias:

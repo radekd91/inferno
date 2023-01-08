@@ -1,0 +1,21 @@
+# @package model
+type: GRUSequenceClassifier 
+
+# num_layers: 1
+# num_layers: 2
+num_layers: 4
+# num_layers: 6
+# num_layers: 8
+
+# feature_dim: 64
+# feature_dim: 128
+# feature_dim: 256
+feature_dim: 512
+# feature_dim: 2048 # the size of resnet feature
+
+dropout: 0.25
+# activation: relu
+# activation: gelu
+# max_len: 600 
+
+bidirectional: true 

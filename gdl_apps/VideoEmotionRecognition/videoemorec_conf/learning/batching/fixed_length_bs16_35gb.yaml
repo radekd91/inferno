@@ -1,5 +1,17 @@
 # @package learning
 
+# sequence_length_train: 250
+# sequence_length_val: 250
+# sequence_length_test: 250
+
+# sequence_length_train: 200
+# sequence_length_val: 200
+# sequence_length_test: 200
+
+# sequence_length_train: 150
+# sequence_length_val: 150
+# sequence_length_test: 150
+
 # sequence_length_train: 100
 # sequence_length_val: 100
 # sequence_length_test: 100

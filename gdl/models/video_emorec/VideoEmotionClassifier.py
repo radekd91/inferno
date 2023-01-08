@@ -39,6 +39,25 @@ class TransformerPooler(nn.Module):
         sample["pooled_sequence_feature"] = pooled_output
         return sample
 
+class GRUPooler(nn.Module):
+    """
+    inspired by: 
+    https://huggingface.co/transformers/v3.3.1/_modules/transformers/modeling_bert.html#BertPooler 
+    """
+    def __init__(self, input_dim, output_dim):
+        super().__init__()
+        self.dense = nn.Linear(input_dim, output_dim)
+        self.activation = nn.Tanh()
+
+    def forward(self, sample, input_key = "encoded_sequence_feature"):
+        # We "pool" the model by simply taking the last output of the GRU
+        hidden_states = sample[input_key]
+        last_output = hidden_states[:, -1]
+        pooled_output = self.dense(last_output)
+        pooled_output = self.activation(pooled_output)
+        sample["pooled_sequence_feature"] = pooled_output
+        return sample
+
 
 class TransformerEncoder(torch.nn.Module):
 
@@ -133,7 +152,43 @@ def pooler_from_cfg(cfg):
     raise ValueError(f"Unsupported encoder type '{cfg.type}'")
 
 
+class GRUSequenceClassifier(SequenceClassificationEncoder):
 
+    def __init__(self, cfg, input_dim, **kwargs):
+        super().__init__()
+        self.cfg = cfg
+        self.input_dim = input_dim
+        self.latent_dim = cfg.feature_dim
+        self.num_layers = cfg.num_layers
+        self.bidirectional = cfg.bidirectional
+        self.dropout = cfg.dropout
+        if self.input_dim == cfg.feature_dim:
+            self.bottleneck = None
+        else:
+            self.bottleneck = nn.Linear(self.input_dim, cfg.feature_dim)
+        self.gru = torch.nn.GRU(self.latent_dim, self.latent_dim, num_layers=self.num_layers, 
+            bidirectional=self.bidirectional, dropout=self.dropout, batch_first=True)
+        self.pooler = GRUPooler(self.output_feature_dim(), self.output_feature_dim())
+
+    def forward(self, sample, train=False, teacher_forcing=True): 
+        if self.bottleneck is not None:
+            sample["hidden_feature"] = self.bottleneck(sample["hidden_feature"])
+        output, hidden_states = self.gru(sample["hidden_feature"])
+        sample["encoded_sequence_feature"] = output
+        sample = self.pooler(sample)
+        return sample
+
+    def get_trainable_parameters(self): 
+        return list(self.parameters())
+
+    def input_feature_dim(self):
+        return self.cfg.feature_dim
+
+    def output_feature_dim(self):
+        return self.cfg.feature_dim * 2 if self.bidirectional else self.cfg.feature_dim
+
+    def encoder_output_dim(self):
+        return self.output_feature_dim()
 
 
 class TransformerSequenceClassifier(SequenceClassificationEncoder):
@@ -159,7 +214,8 @@ class TransformerSequenceClassifier(SequenceClassificationEncoder):
 
     def get_trainable_parameters(self):
         return list(self.parameters())
-    
+
+
 
 class LinearClassificationHead(ClassificationHead): 
     def __init__(self, cfg, input_dim,  num_classes):
@@ -418,6 +474,8 @@ class VideoClassifierBase(pl.LightningModule):
 def sequence_encoder_from_cfg(cfg, feature_dim):
     if cfg.type == "TransformerSequenceClassifier":
         return TransformerSequenceClassifier(cfg, feature_dim)
+    elif cfg.type == "GRUSequenceClassifier":
+        return GRUSequenceClassifier(cfg, feature_dim)
     else:
         raise ValueError(f"Unknown sequence classifier model: {cfg.model}")
 
