@@ -23,7 +23,7 @@ from gdl.datasets.LRS3Pseudo3DDM import LRS3Pseudo3DDM
 from gdl_apps.VideoEmotionRecognition.training.training_pass import( single_stage_training_pass, 
             get_checkpoint_with_kwargs, create_logger, configure) #, configure_and_train)
 # from gdl.datasets.DecaDataModule import DecaDataModule
-from gdl.models.video_emorec.VideoEmotionClassifier import VideoEmotionClassifier
+from gdl.models.video_emorec.VideoEmotionClassifier import VideoEmotionClassifier, MostFrequentEmotionClassifier
 from gdl.datasets.FaceformerVocasetDM import FaceformerVocasetDM
 from gdl.datasets.CelebVHQPseudo3DDM import CelebVHQPseudo3DDM
 from gdl.datasets.MEADPseudo3DDM import MEADPseudo3DDM
@@ -243,7 +243,8 @@ def prepare_data(cfg):
 
 def create_experiment_name(cfg, version=0):
     experiment_name = cfg.model.pl_module_class
-    if version <= 2:
+    # if version <= 2:
+    if  cfg.model.pl_module_class != "MostFrequentEmotionClassifier":
         if cfg.data.data_class:
             experiment_name += '_' + cfg.data.data_class[:5]
         experiment_name += "_"

@@ -133,6 +133,9 @@ def pooler_from_cfg(cfg):
     raise ValueError(f"Unsupported encoder type '{cfg.type}'")
 
 
+
+
+
 class TransformerSequenceClassifier(SequenceClassificationEncoder):
 
     def __init__(self, cfg, input_dim, **kwargs):
@@ -196,8 +199,8 @@ class VideoClassifierBase(pl.LightningModule):
 
     def get_trainable_parameters(self):
         trainable_params = []
-        if self.sequence_encoder is not None:
-            trainable_params += self.sequence_encoder.get_trainable_parameters()
+        if self.feature_model is not None:
+            trainable_params += self.feature_model.get_trainable_parameters()
         if self.sequence_encoder is not None:
             trainable_params += self.sequence_encoder.get_trainable_parameters()
         if self.classification_head is not None:
@@ -211,6 +214,10 @@ class VideoClassifierBase(pl.LightningModule):
     def configure_optimizers(self):
         trainable_params = []
         trainable_params += list(self.get_trainable_parameters())
+
+        if trainable_params is None or len(trainable_params) == 0:
+            print("[WARNING] No trainable parameters found.")
+            return 
 
         if self.cfg.learning.optimizer == 'Adam':
             opt = torch.optim.Adam(
@@ -428,6 +435,30 @@ def sequence_feature_from_cfg(cfg):
     #     return TransformerSequenceFeature(cfg, feature_dim, num_labels)
     else:
         raise ValueError(f"Unknown sequence classifier model: {cfg.model}")
+
+
+class MostFrequentEmotionClassifier(VideoClassifierBase): 
+
+    def __init__(self, cfg):
+        super().__init__(cfg)
+    
+    def get_trainable_parameters(self):
+        return super().get_trainable_parameters()
+
+    def forward(self, batch, train=True, teacher_forcing=True, **kwargs):
+        sample = batch
+        scores = sample['gt_expression'].mean(dim=1)
+        sample['predicted_logits'] = scores
+        return sample
+
+    @classmethod
+    def instantiate(cls, cfg, stage, prefix, checkpoint, checkpoint_kwargs) -> 'VideoEmotionClassifier':
+        """
+        Function that instantiates the model from checkpoint or config
+        """
+        model = MostFrequentEmotionClassifier(cfg)
+        return model
+
 
 
 class VideoEmotionClassifier(VideoClassifierBase): 
