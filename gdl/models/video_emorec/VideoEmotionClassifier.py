@@ -2,6 +2,7 @@ import pytorch_lightning as pl
 from typing import Any, Optional, Dict
 from gdl.models.temporal.Bases import TemporalFeatureEncoder, SequenceClassificationEncoder, Preprocessor, ClassificationHead
 from gdl.models.talkinghead.FaceFormerDecoder import PositionalEncoding, init_biased_mask_future, init_biased_mask, init_mask
+from gdl.models.temporal.AudioEncoders import Wav2Vec2Encoder
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -66,10 +67,10 @@ class TransformerEncoder(torch.nn.Module):
         self.cfg = cfg
         self.input_dim = input_dim
         self.output_dim = input_dim
-        if self.input_dim == cfg.feature_dim:
-            self.bottleneck = None
-        else:
-            self.bottleneck = nn.Linear(self.input_dim, cfg.feature_dim)
+        # if self.input_dim == cfg.feature_dim:
+        #     self.bottleneck = None
+        # else:
+        self.bottleneck = nn.Linear(self.input_dim, cfg.feature_dim)
         self.PE = positional_encoding_from_cfg(cfg, cfg.feature_dim)
         dim_factor = self._total_dim_factor()
         encoder_layer = torch.nn.TransformerEncoderLayer(
@@ -162,10 +163,10 @@ class GRUSequenceClassifier(SequenceClassificationEncoder):
         self.num_layers = cfg.num_layers
         self.bidirectional = cfg.bidirectional
         self.dropout = cfg.dropout
-        if self.input_dim == cfg.feature_dim:
-            self.bottleneck = None
-        else:
-            self.bottleneck = nn.Linear(self.input_dim, cfg.feature_dim)
+        # if self.input_dim == cfg.feature_dim:
+        #     self.bottleneck = None
+        # else:
+        self.bottleneck = nn.Linear(self.input_dim, cfg.feature_dim)
         self.gru = torch.nn.GRU(self.latent_dim, self.latent_dim, num_layers=self.num_layers, 
             bidirectional=self.bidirectional, dropout=self.dropout, batch_first=True)
         self.pooler = GRUPooler(self.output_feature_dim(), self.output_feature_dim())
@@ -241,7 +242,7 @@ class VideoClassifierBase(pl.LightningModule):
 
     def __init__(self, 
                  cfg, 
-                 preprocessor: Optional[TemporalFeatureEncoder] = None,
+                 preprocessor: Optional[Preprocessor] = None,
                  feature_model: Optional[TemporalFeatureEncoder] = None,
                  sequence_encoder: Optional[SequenceClassificationEncoder] = None,
                  classification_head: Optional[ClassificationHead] = None,
@@ -321,7 +322,7 @@ class VideoClassifierBase(pl.LightningModule):
             - audio: (B, T, F)
             # - masked_audio: (B, T, F)
         """
-        input_key = "gt_emo_feature"
+        input_key = "gt_emo_feature" # TODO: this needs to be redesigned
         T = sample[input_key].shape[1]
         if self.max_seq_length < T: # truncate
             print("[WARNING] Truncating audio sequence from {} to {}".format(T, self.max_seq_length))
@@ -398,7 +399,8 @@ class VideoClassifierBase(pl.LightningModule):
     def training_step(self, batch, batch_idx, *args, **kwargs):
         training = True 
         # forward pass
-        sample = self.forward(batch, train=training, validation=False, teacher_forcing=False, **kwargs)
+        sample = self.forward(batch, train=training, validation=False, **kwargs)
+        # sample = self.forward(batch, train=training, validation=False, teacher_forcing=False, **kwargs)
         # loss 
         total_loss, losses, metrics = self.compute_loss(sample, training=training, validation=False, **kwargs)
 
@@ -486,13 +488,40 @@ def classification_head_from_cfg(cfg, feature_size, num_classes):
         raise ValueError(f"Unknown classification head model: {cfg.model}")
 
 
-def sequence_feature_from_cfg(cfg):
+def feature_enc_from_cfg(cfg):
     if cfg is None or not cfg.type: 
         return None
+    elif cfg.type == "wav2vec2": 
+        encoder = Wav2VecFeature(cfg)
+        return encoder
     # elif cfg.model == "transformer":
     #     return TransformerSequenceFeature(cfg, feature_dim, num_labels)
     else:
         raise ValueError(f"Unknown sequence classifier model: {cfg.model}")
+
+class Wav2VecFeature(TemporalFeatureEncoder): 
+
+    def __init__(self, cfg):
+        super().__init__()
+        self.cfg = cfg
+        self.encoder = Wav2Vec2Encoder(cfg.model_specifier, cfg.trainable, cfg.get('with_processor', True), 
+            expected_fps=cfg.get('model_expected_fps', 50), # 50 fps is the default for wav2vec2 (but not sure if this holds universally)
+            target_fps=cfg.get('target_fps', 25), # 25 fps is the default since we use 25 fps for the videos 
+            freeze_feature_extractor=cfg.get('freeze_feature_extractor', True),
+            dropout_cfg=cfg.get('dropout_cfg', None),
+        )
+    
+    def forward(self, sample, train=False, desired_output_length=None, **kwargs): 
+        sample = self.encoder(sample, train=train, desired_output_length=desired_output_length, **kwargs)
+        sample["hidden_feature"] = sample["audio_feature"]
+        return sample
+
+    def get_trainable_parameters(self): 
+        return self.encoder.get_trainable_parameters()
+
+    def output_feature_dim(self): 
+        return self.encoder.output_feature_dim()
+
 
 
 class MostFrequentEmotionClassifier(VideoClassifierBase): 
@@ -526,8 +555,8 @@ class VideoEmotionClassifier(VideoClassifierBase):
         ):
         self.cfg = cfg
         preprocessor = None
-        feature_model = sequence_feature_from_cfg(cfg.model.get('feature_extractor', None))
-        feature_size = feature_model.output_size if feature_model is not None else cfg.model.input_feature_size
+        feature_model = feature_enc_from_cfg(cfg.model.get('feature_extractor', None))
+        feature_size = feature_model.output_feature_dim() if feature_model is not None else cfg.model.input_feature_size
         sequence_classifier = sequence_encoder_from_cfg(cfg.model.get('sequence_encoder', None), feature_size)
         classification_head = classification_head_from_cfg(cfg.model.get('classification_head', None), 
                                                            sequence_classifier.encoder_output_dim(), 

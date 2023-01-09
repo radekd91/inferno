@@ -253,10 +253,11 @@ def create_experiment_name(cfg, version=0):
         # if cfg.model.audio.get('trainable', False):
         #     experiment_name += "T"
        
-        if cfg.model.encoder.type:
-            experiment_name += cfg.model.encoder.type 
-            if cfg.model.encoder.get('trainable', False):
+        if cfg.model.feature_extractor.type:
+            experiment_name += cfg.model.feature_extractor.type 
+            if cfg.model.feature_extractor.get('trainable', False):
                 experiment_name += "T"
+            experiment_name += "_"
 
         model_name = cfg.model.sequence_encoder.type
         if model_name == "TransformerSequenceClassifier":

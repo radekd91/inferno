@@ -15,7 +15,7 @@ defaults:
   # - model/face@model/face: full_space
   - model/sequence_encoder@model/sequence_encoder: gru_classifier
   - model/classification_head@model/classification_head: linear
-  - model/encoder@model/encoder: none
+  - model/feature_extractor@model/feature_extractor: none
   ## - model/output@model/output: exp_jaw
   # # - model/output@model/output: vertices
   - learning/losses: cross_entropy
