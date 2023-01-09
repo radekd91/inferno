@@ -316,14 +316,43 @@ class VideoClassifierBase(pl.LightningModule):
         # sample = detach_dict(sample)
         return sample 
 
+    def signal_fusion(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
+        # video_feat = sample["visual_feature"] # b, t, fv
+        # audio_feat = sample["audio_feature"] # b, t, fa 
+
+        modality_list = self.cfg.model.get('modality_list', None)
+        modality_features = [sample[key] for key in modality_list]
+
+        if self.cfg.model.fusion_type in ["concat", "cat", "concatenate"]:
+            fused_feature = torch.cat(modality_features, dim=2) # b, t, fv + fa
+        elif self.cfg.model.fusion_type in ["add", "sum"]:
+            # stack the tensors and then sum them up 
+            fused_feature = torch.cat(modality_features, dim=0)
+            fused_feature = fused_feature.sum(dim=0)
+        elif self.cfg.model.fusion_type in ["max"]:
+            fused_feature = torch.stack(modality_features, dim=0).max(dim=0)
+        else: 
+            raise ValueError(f"Unknown fusion type {self.fusion_type}")
+        sample["hidden_feature"] = fused_feature
+        
+        # if self.post_fusion_projection is not None: 
+        #     sample["fused_feature"] = self.post_fusion_projection(sample["fused_feature"]) 
+        # if self.post_fusion_norm is not None: 
+        #     sample["fused_feature"] = self.post_fusion_norm(sample["fused_feature"])
+        return sample
+
+    def is_multi_modal(self):
+        modality_list = self.cfg.model.get('modality_list', None) 
+        return modality_list is not None and len(modality_list) > 1
+
     def forward(self, sample: Dict, train=False, validation=False, **kwargs: Any) -> Dict:
         """
         sample: Dict[str, torch.Tensor]
             - audio: (B, T, F)
             # - masked_audio: (B, T, F)
         """
-        input_key = "gt_emo_feature" # TODO: this needs to be redesigned
-        T = sample[input_key].shape[1]
+        # T = sample[input_key].shape[1]
+        T = sample['frame_indices'].shape[1]
         if self.max_seq_length < T: # truncate
             print("[WARNING] Truncating audio sequence from {} to {}".format(T, self.max_seq_length))
             sample = truncate_sequence_batch(sample, self.max_seq_length)
@@ -335,8 +364,13 @@ class VideoClassifierBase(pl.LightningModule):
         if self.feature_model is not None:
             sample = self.feature_model(sample, train=train, **kwargs)
             check_nan(sample)
-        else: 
+        else:
+            input_key = "gt_emo_feature" # TODO: this needs to be redesigned 
             sample["hidden_feature"] = sample[input_key]
+
+
+        if self.is_multi_modal():
+            sample = self.signal_fusion(sample, train=train, **kwargs)
 
         if self.sequence_encoder is not None:
             sample = self.sequence_encoder(sample) #, train=train, validation=validation, **kwargs)
@@ -556,7 +590,10 @@ class VideoEmotionClassifier(VideoClassifierBase):
         self.cfg = cfg
         preprocessor = None
         feature_model = feature_enc_from_cfg(cfg.model.get('feature_extractor', None))
-        feature_size = feature_model.output_feature_dim() if feature_model is not None else cfg.model.input_feature_size
+        if not self.is_multi_modal():
+            feature_size = feature_model.output_feature_dim() if feature_model is not None else cfg.model.input_feature_size
+        else: 
+            feature_size = feature_model.output_feature_dim() + cfg.model.input_feature_size
         sequence_classifier = sequence_encoder_from_cfg(cfg.model.get('sequence_encoder', None), feature_size)
         classification_head = classification_head_from_cfg(cfg.model.get('classification_head', None), 
                                                            sequence_classifier.encoder_output_dim(), 
