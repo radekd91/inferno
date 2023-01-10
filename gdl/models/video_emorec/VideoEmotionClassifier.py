@@ -244,6 +244,7 @@ class VideoClassifierBase(pl.LightningModule):
                  cfg, 
                  preprocessor: Optional[Preprocessor] = None,
                  feature_model: Optional[TemporalFeatureEncoder] = None,
+                 fusion_layer: Optional[nn.Module] = None,
                  sequence_encoder: Optional[SequenceClassificationEncoder] = None,
                  classification_head: Optional[ClassificationHead] = None,
     ) -> None:
@@ -251,6 +252,7 @@ class VideoClassifierBase(pl.LightningModule):
         self.cfg = cfg
         self.preprocessor = preprocessor
         self.feature_model = feature_model
+        self.fusion_layer = fusion_layer
         self.sequence_encoder = sequence_encoder
         self.classification_head = classification_head
 
@@ -323,6 +325,9 @@ class VideoClassifierBase(pl.LightningModule):
         modality_list = self.cfg.model.get('modality_list', None)
         modality_features = [sample[key] for key in modality_list]
 
+        if self.cfg.model.fusion_type != "tensor_low_rank": 
+            assert self.fusion_layer is None
+
         if self.cfg.model.fusion_type in ["concat", "cat", "concatenate"]:
             fused_feature = torch.cat(modality_features, dim=2) # b, t, fv + fa
         elif self.cfg.model.fusion_type in ["add", "sum"]:
@@ -331,6 +336,36 @@ class VideoClassifierBase(pl.LightningModule):
             fused_feature = fused_feature.sum(dim=0)
         elif self.cfg.model.fusion_type in ["max"]:
             fused_feature = torch.stack(modality_features, dim=0).max(dim=0)
+        elif self.cfg.model.fusion_type in ["tensor"]:
+            for fi, feat in enumerate(modality_features): 
+                modality_features[fi] = torch.cat([feat, torch.ones(*feat.shape[:-1], 1, device=feat.device)], dim=-1)
+            if len(modality_features) == 1:
+                raise ValueError(f"Unsupported fusion type {self.cfg.model.fusion_type} for {len(modality_features)}")
+            elif len(modality_features) == 2:
+                # concatenate one to each feature 
+                fused_feature = torch.einsum("bti,btj->btij", modality_features[0], modality_features[1])
+                fused_feature = fused_feature.view(fused_feature.shape[0], fused_feature.shape[1], -1)
+            elif len(modality_features) == 3: 
+                fusion_cfg = self.cfg.model.get("fusion_cfg", None) 
+                n_modal = fusion_cfg.get('num_rank', len(modality_features))
+                if n_modal == 2:
+                    # outer product along the last dimensions
+                    fused_01 = torch.einsum("bti,btj->btij", modality_features[0], modality_features[1])
+                    fused_12 = torch.einsum("bti,btj->btij", modality_features[1], modality_features[2])
+                    fused_20 = torch.einsum("bti,btj->btij", modality_features[2], modality_features[0])
+                    fused_feature = torch.stack([fused_01, fused_12, fused_20], dim=-1)
+                    fused_feature = fused_feature.view(fused_feature.shape[0], fused_feature.shape[1], -1)
+                elif n_modal == 3:
+                    # outer product along the last dimensions
+                    fused_01 = torch.einsum("bti,btj->btij", modality_features[0], modality_features[1])
+                    fused_012 = torch.einsum("btij,btk->btijk", fused_12, modality_features[2])
+                    fused_feature = fused_012.view(fused_012.shape[0], fused_012.shape[1], -1)
+                else: 
+                    raise ValueError(f"Unsupported fusion type {self.cfg.model.fusion_type} for {len(modality_features)} modalities and {n_modal} ranks")
+            else: 
+                raise ValueError(f"Unsupported fusion type {self.cfg.model.fusion_type} for {len(modality_features)} modalities")
+        elif self.cfg.model.fusion_type in ["tensor_low_rank"]:
+            fused_feature = self.fusion_layer(modality_features)
         else: 
             raise ValueError(f"Unknown fusion type {self.fusion_type}")
         sample["hidden_feature"] = fused_feature
@@ -581,6 +616,67 @@ class MostFrequentEmotionClassifier(VideoClassifierBase):
         return model
 
 
+class LowRankTensorFusion(torch.nn.Module): 
+
+    """
+    Inspired by: https://github.com/Justin1904/Low-rank-Multimodal-Fusion/blob/master/model.py
+    """
+
+    def __init__(self, rank, feature_dims, output_dim) -> None:
+        super().__init__()
+        self.rank = rank
+        self.feature_dims = feature_dims 
+        self.output_dim = output_dim
+
+        factor_list = [] 
+        for i in range(len(feature_dims)):
+            factor_list.append(nn.Parameter(torch.Tensor(self.rank, self.feature_dims[i] + 1, self.output_dim)))
+        self.factors = nn.ParameterList(factor_list)
+
+        # self.post_fusion_dropout = nn.Dropout(p=self.post_fusion_prob) 
+        self.fusion_weights = nn.Parameter(torch.Tensor(1, self.rank))
+        self.fusion_bias = nn.Parameter(torch.Tensor(1, self.output_dim))
+        
+        for param in self.factors:
+            nn.init.xavier_normal_(param)
+        nn.init.xavier_normal_(self.fusion_weights)
+        self.fusion_bias.data.fill_(0)
+
+    def output_feature_dim(self): 
+        return self.output_dim
+
+    def forward(self, modality_features): 
+        assert len(modality_features) == len(self.factors)
+        _modality_feats = []
+        _sizes = []
+        T = None
+        B = None
+        for i, feat in enumerate(modality_features): 
+            _modality_feats += [torch.cat([torch.autograd.Variable(torch.ones(*feat.shape[:-1], 1, device=feat.device), requires_grad=False), feat], dim=-1)]
+            if len(feat.shape) == 3: # batch, time, feat
+                # _sizes += [feat.shape[0:2]]
+                if T is not None: 
+                    assert T == feat.shape[1], "All modalities must have the same time dimension"
+                T = feat.shape[1]
+                if B is not None: 
+                    assert B == feat.shape[0], "All modalities must have the same batch dimension"
+                B = feat.shape[0]
+                _modality_feats[i] = _modality_feats[i].view(-1, _modality_feats[i].shape[-1])
+            assert len(_modality_feats[i].shape) == 2, "All modalities must have the same time dimension"
+
+        fusion_feats = []
+        for i, feat in enumerate(_modality_feats):
+            fusion_feats += [torch.matmul(feat, self.factors[i])]
+        
+        fusion_zy = torch.stack(fusion_feats, dim=-1)
+        fusion_zy = torch.prod(fusion_zy, dim=-1) 
+        output = torch.matmul(self.fusion_weights, fusion_zy.permute(1, 0, 2)).squeeze() + self.fusion_bias
+        if T is not None:
+            output = output.view(B, T, -1)
+        else: 
+            output = output.view(B, -1)
+        return output
+
 
 class VideoEmotionClassifier(VideoClassifierBase): 
 
@@ -590,10 +686,20 @@ class VideoEmotionClassifier(VideoClassifierBase):
         self.cfg = cfg
         preprocessor = None
         feature_model = feature_enc_from_cfg(cfg.model.get('feature_extractor', None))
+        fusion_layer = None
         if not self.is_multi_modal():
             feature_size = feature_model.output_feature_dim() if feature_model is not None else cfg.model.input_feature_size
         else: 
-            feature_size = feature_model.output_feature_dim() + cfg.model.input_feature_size
+            if self.cfg.model.fusion_type == 'tensor':
+                assert len(self.cfg.model.modality_list) == 2 
+                feature_size = ( cfg.model.input_feature_size + 1) * (feature_model.output_feature_dim() + 1) 
+            elif self.cfg.model.fusion_type == 'tensor_low_rank': 
+                assert len(self.cfg.model.modality_list) == 2 
+                fusion_cfg = self.cfg.model.fusion_cfg
+                fusion_layer = LowRankTensorFusion(fusion_cfg.rank, [cfg.model.input_feature_size, feature_model.output_feature_dim()], fusion_cfg.output_dim)
+                feature_size = fusion_layer.output_feature_dim()
+            else:
+                feature_size = feature_model.output_feature_dim() + cfg.model.input_feature_size
         sequence_classifier = sequence_encoder_from_cfg(cfg.model.get('sequence_encoder', None), feature_size)
         classification_head = classification_head_from_cfg(cfg.model.get('classification_head', None), 
                                                            sequence_classifier.encoder_output_dim(), 
@@ -602,6 +708,7 @@ class VideoEmotionClassifier(VideoClassifierBase):
         super().__init__(cfg,
             preprocessor = preprocessor,
             feature_model = feature_model,
+            fusion_layer = fusion_layer,
             sequence_encoder = sequence_classifier,  
             classification_head = classification_head,  
         )
