@@ -259,6 +259,8 @@ def create_experiment_name(cfg, version=0):
                 experiment_name += "T"
             experiment_name += "_"
 
+        experiment_name += cfg.model.get('fusion_type', "") + "_"
+
         model_name = cfg.model.sequence_encoder.type
         if model_name == "TransformerSequenceClassifier":
             model_name = "TSC"
