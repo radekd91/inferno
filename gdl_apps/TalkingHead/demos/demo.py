@@ -70,7 +70,7 @@ def main():
     parser.add_argument('--model_name', type=str, default=model_name, help='Name of the model to use')
     parser.add_argument('--mode', type=str, default='latest', help='Checkpoint to use (best vs latest)')
     parser.add_argument('--wav_path', type=str, 
-        default='/is/cluster/work/rdanecek/data/lrs3/processed2/audio/pretrain/0af00UcTOSc/00021.wav', 
+        default='/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/pretrain/0af00UcTOSc/00021.wav', 
         help='Checkpoint to use (best vs latest)')
     # parser.add_argument('--condition', type=int, default=0, help='Index of the conditioning training subject')
     parser.add_argument('--condition', type=str, default='FaceTalk_170913_03279_TA', help='Index of the conditioning training subject')

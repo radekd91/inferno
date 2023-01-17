@@ -383,11 +383,13 @@ class VideoClassifierBase(pl.LightningModule):
     def forward(self, sample: Dict, train=False, validation=False, **kwargs: Any) -> Dict:
         """
         sample: Dict[str, torch.Tensor]
-            - audio: (B, T, F)
-            # - masked_audio: (B, T, F)
+            - gt_emo_feature: (B, T, F)
         """
         # T = sample[input_key].shape[1]
-        T = sample['frame_indices'].shape[1]
+        if "gt_emo_feature" in sample:
+            T = sample['gt_emo_feature'].shape[1]
+        else: 
+            T = sample['video'].shape[1]
         if self.max_seq_length < T: # truncate
             print("[WARNING] Truncating audio sequence from {} to {}".format(T, self.max_seq_length))
             sample = truncate_sequence_batch(sample, self.max_seq_length)

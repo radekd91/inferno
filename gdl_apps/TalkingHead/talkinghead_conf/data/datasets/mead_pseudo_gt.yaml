@@ -92,4 +92,5 @@ average_shape_decode: True
 
 
 emotion_type: resnet50
-return_emotion_feature: False
+# return_emotion_feature: False
+return_emotion_feature: True

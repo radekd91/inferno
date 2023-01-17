@@ -1,7 +1,9 @@
 # @package data
 data_class: MEADPseudo3DDM
-input_dir: /is/cluster/work/rdanecek/data/mead_25fps/resampled_videos
-output_dir: /is/cluster/work/rdanecek/data/mead_25fps/
+# input_dir: /is/cluster/work/rdanecek/data/mead_25fps/resampled_videos
+# output_dir: /is/cluster/work/rdanecek/data/mead_25fps/
+input_dir: /is/cluster/fast/rdanecek/data/mead_25fps/resampled_videos
+output_dir: /is/cluster/fast/rdanecek/data/mead_25fps/
 processed_subfolder: processed
 # num_workers: 0 # debug
 num_workers: 8 # 

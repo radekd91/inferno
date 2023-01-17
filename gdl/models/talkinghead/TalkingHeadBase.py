@@ -288,7 +288,9 @@ class TalkingHeadBase(pl.LightningModule):
             if sample_shape:
                 keys_to_exchange += ["gt_shape"]
             if sample_expression:
-                keys_to_exchange += ["gt_expression"]
+                keys_to_exchange += ["gt_expression"] # per-frame pseudo-GT
+                if "gt_expression_label" in sample.keys():
+                    keys_to_exchange += ["gt_expression_label"] # per sequence emotion
             if sample_valence:
                 keys_to_exchange += ["gt_valence"]
             if sample_arousal:

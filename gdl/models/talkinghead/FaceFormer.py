@@ -8,6 +8,8 @@ from gdl.layers.losses.EmoNetLoss import create_emo_loss
 from omegaconf import open_dict
 from munch import Munch
 from gdl.layers.losses.Masked import MaskedTemporalMSELoss
+from gdl.layers.losses.VideoEmotionLoss import create_video_emotion_loss
+
 
 class FaceFormer(TalkingHeadBase):
 
@@ -59,6 +61,10 @@ class FaceFormer(TalkingHeadBase):
                 self.neural_losses.lip_reading_loss.requires_grad_(False)
             # elif loss_type == "face_recognition":
             #     self.face_recognition_loss = FaceRecognitionLoss(loss_cfg)
+            elif loss_type == "emotion_video_loss": 
+                self.neural_losses.video_emotion_loss = create_video_emotion_loss(loss_cfg)
+                self.neural_losses.video_emotion_loss.eval()
+                self.neural_losses.video_emotion_loss.requires_grad_(False)
 
     def to(self, *args, **kwargs):
         if hasattr(self, 'neural_losses'):
@@ -164,6 +170,7 @@ class FaceFormer(TalkingHeadBase):
             assert len(list(sample["predicted_video"].keys())) == 1, "More cameras are not supported yet"
             # T = sample["predicted_video"][cam_name].shape[1] 
             rest = sample["predicted_video"][cam_name].shape[2:]
+            loss_values = {}
             for cam_name in sample["predicted_video"].keys():
                 target_method = loss_cfg.get('target_method_image', None)
                 if target_method is None:
@@ -177,7 +184,8 @@ class FaceFormer(TalkingHeadBase):
                 _, emo_feat_loss_2, valence_loss, arousal_loss, expression_loss, _ = \
                     self.neural_losses.emotion_loss.compute_loss(gt_vid, pred_vid, mask=mask_)
 
-            loss_value = emo_feat_loss_2
+                loss_values[cam_name] = emo_feat_loss_2
+            loss_value = sum(loss_values.values()) / len(loss_values)
 
         elif loss_type == "emotion_loss_disentangled":
             assert B_orig != B, "No disentanglement done"
@@ -186,6 +194,7 @@ class FaceFormer(TalkingHeadBase):
             assert len(list(sample["predicted_video"].keys())) == 1, "More cameras are not supported yet"
             # T = sample["predicted_video"][cam_name].shape[1] 
             rest = sample["predicted_video"][cam_name].shape[2:]
+            loss_values = {}
             for cam_name in sample["predicted_video"].keys():
                 target_method = loss_cfg.get('target_method_image', None)
                 if target_method is None:
@@ -210,8 +219,8 @@ class FaceFormer(TalkingHeadBase):
                 mask_ = mask[:B_orig, ..., 0].view(B_orig*T)
                 _, emo_feat_loss_2, valence_loss, arousal_loss, expression_loss, _ = \
                     self.neural_losses.emotion_loss.compute_loss(gt_vid, pred_vid, mask=mask_)   
-
-            loss_value = emo_feat_loss_2
+                loss_values[cam_name] = emo_feat_loss_2
+            loss_value = sum(loss_values.values()) / len(loss_values)
 
         elif loss_type == "lip_reading_loss":
             B_eff = B if loss_cfg.get('apply_on_disentangled', True) else B_orig  ## WARNING, HERE TRUE BY DEFAULT
@@ -219,7 +228,8 @@ class FaceFormer(TalkingHeadBase):
             assert len(list(sample["predicted_mouth_video"].keys())) == 1, "More cameras are not supported yet"
             # T = sample["predicted_mouth_video"][cam_name].shape[1] 
             rest = sample["predicted_mouth_video"][cam_name][:B_eff].shape[2:]
-
+            loss_values = {}
+            mask_ = mask[:B_eff, ..., 0].view(B_eff*T)
             for cam_name in sample["predicted_mouth_video"].keys():
                 target_method = loss_cfg.get('target_method_image', None)
                 if target_method is None:
@@ -247,12 +257,13 @@ class FaceFormer(TalkingHeadBase):
                 # the new way (vectorized) 
                 gt_vid = target_dict["gt_mouth_video"][cam_name]
                 pred_vid = sample["predicted_mouth_video"][cam_name]
-                loss_value = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask)
+                loss_values[cam_name] = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask_)
                 # loss_value_ = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask)
 
                 # print("loss_value", loss_value)
                 # print("loss_value_", loss_value_)
                 # pass
+            loss_value = sum(loss_values.values()) / len(loss_values)
         
         elif loss_type == "lip_reading_loss_disentangled":
             assert B_orig != B, "No disentanglement done"
@@ -271,7 +282,8 @@ class FaceFormer(TalkingHeadBase):
 
             assert ( condition_indices_1 == condition_indices_2).sum() == 0, "Disentanglement exchange not done correctly"
             assert ( condition_indices_2 != input_indices_1[condition_indices_2]).sum() == 0, "Disentanglement exchange not done correctly"
-
+            loss_values = {}
+            mask_ = mask[:B_orig, ..., 0].view(B_orig*T)
             for cam_name in sample["predicted_mouth_video"].keys():
                 target_method = loss_cfg.get('target_method_image', None)
                 if target_method is None:
@@ -298,8 +310,78 @@ class FaceFormer(TalkingHeadBase):
 
                 gt_vid = target_dict["gt_mouth_video"][cam_name][:B_orig]
                 pred_vid = sample["predicted_mouth_video"][cam_name][B_orig + input_indices_2]
-                loss_value = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask)
+                loss_values[cam_name] = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask_)
         
+            loss_value = sum(loss_values.values()) / len(loss_values)
+
+        elif loss_type == "emotion_video_loss" : 
+            # B_eff = B if loss_cfg.get('apply_on_disentangled', True) else B_orig  ## WARNING, HERE TRUE BY DEFAULT
+            cam_name = list(sample["predicted_video"].keys())[0]
+            assert len(list(sample["predicted_video"].keys())) == 1, "More cameras are not supported yet"
+            # T = sample["predicted_video"][cam_name].shape[1] 
+            rest = sample["predicted_video"][cam_name][:B_eff].shape[2:]
+            loss_values = {}
+            for cam_name in sample["predicted_video"].keys():
+                target_method = loss_cfg.get('target_method_image', None)
+                if target_method is None:
+                    target_dict = sample
+                else: 
+                    target_dict = sample["reconstruction"][target_method]
+
+                gt_vid = target_dict["gt_video"][cam_name][:B_eff]
+                pred_vid = sample["predicted_video"][cam_name][:B_eff]
+                # loss_value = self.neural_losses.video_emotion_loss.compute_loss(
+                #     input_images=gt_vid, output_images=pred_vid,  mask=mask
+                #     )
+                gt_emo_feature = sample["gt_emo_feature"][:B_eff]
+                
+                mask_ = mask[:B_eff, ...]
+                loss_values[cam_name] = self.neural_losses.video_emotion_loss.compute_loss(
+                    input_emotion_features=gt_emo_feature, output_images=pred_vid,  mask=mask_
+                    )
+            loss_value = sum(loss_values.values()) / len(loss_values)
+
+        elif loss_type == "emotion_video_loss_disentangled" : 
+            assert B_orig != B, "No disentanglement done"
+            assert self.disentangle_type == "condition_exchange", f"Only 'condition_exchange' is supported"
+            cam_name = list(sample["predicted_video"].keys())[0]
+            assert len(list(sample["predicted_video"].keys())) == 1, "More cameras are not supported yet"
+            # T = sample["predicted_video"][cam_name].shape[1] 
+            rest = sample["predicted_video"][cam_name].shape[2:]
+            loss_values = {}
+            for cam_name in sample["predicted_video"].keys():
+                target_method = loss_cfg.get('target_method_image', None)
+                if target_method is None:
+                    target_dict = sample
+                else: 
+                    target_dict = sample["reconstruction"][target_method]
+                # gt video of the non-exchanged part of the batch -> [:B_eff]
+                gt_vid = target_dict["gt_video"][cam_name][:B_orig] #.view(B_orig*T, *rest)
+                # predicted video of the exchanged part of the batch -> [B_eff:]
+                pred_vid = sample["predicted_video"][cam_name][B_orig:] #.view(B_orig*T, *rest) 
+                
+                condition_indices_1 = sample["condition_indices"][:B_orig]
+                condition_indices_2 = sample["condition_indices"][B_orig:]
+                input_indices_1 = sample["input_indices"][:B_orig]
+                input_indices_2 = sample["input_indices"][B_orig:]
+
+                assert ( condition_indices_1 == condition_indices_2).sum() == 0,  "Disentanglement exchange not done correctly"
+                assert ( condition_indices_2 != input_indices_1[condition_indices_2]).sum() == 0, "Disentanglement exchange not done correctly"
+
+                gt_vid = target_dict["gt_video"][cam_name][:B_orig][condition_indices_1] #.view(B_orig*T, *rest)
+                pred_vid = sample["predicted_video"][cam_name][B_orig:][condition_indices_2] #.view(B_orig*T, *rest) 
+                mask_ = mask[:B_orig, ..., 0] #.view(B_orig*T)
+                gt_emo_feature = sample["gt_emo_feature"][:B_orig][condition_indices_1]
+                # loss_value = self.neural_losses.video_emotion_loss.compute_loss(
+                #     input_images=gt_vid, output_images=pred_vid,  mask=mask
+                #     )
+                mask_ = mask[:B_orig, ...]
+                loss_values[cam_name]  = self.neural_losses.video_emotion_loss.compute_loss(
+                    input_emotion_features=gt_emo_feature, output_images=pred_vid,  mask=mask_
+                    )
+
+            loss_value = sum(loss_values.values()) / len(loss_values)
+
         else: 
             raise ValueError(f"Unknown loss type: {loss_type}")
         return loss_value

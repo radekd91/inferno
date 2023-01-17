@@ -13,4 +13,6 @@ modality_list:
 fusion_type: tensor_low_rank 
 fusion_cfg: 
   rank: 16
+  # rank: 8
+  # rank: 4
   output_dim: 1024
