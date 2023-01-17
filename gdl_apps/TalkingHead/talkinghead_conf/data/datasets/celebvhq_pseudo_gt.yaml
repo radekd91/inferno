@@ -1,7 +1,8 @@
 # @package data
 data_class: CelebVHQPseudo3DDM
 input_dir: /ps/project/EmotionalFacialAnimation/data/celebvhq/auto_processed_combined_25fps
-output_dir: /is/cluster/work/rdanecek/data/celebvhq/
+# output_dir: /is/cluster/work/rdanecek/data/celebvhq/
+output_dir: /is/cluster/fast/rdanecek/data/celebvhq/
 processed_subfolder: processed_orig
 # num_workers: 0 # debug
 num_workers: 8 # 

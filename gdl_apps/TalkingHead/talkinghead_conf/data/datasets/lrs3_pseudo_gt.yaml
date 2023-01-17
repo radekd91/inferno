@@ -1,7 +1,8 @@
 # @package data
 data_class: LRS3Pseudo3DDM
 input_dir: /ps/project/EmotionalFacialAnimation/data/lrs3/extracted
-output_dir: /is/cluster/work/rdanecek/data/lrs3/
+# output_dir: /is/cluster/work/rdanecek/data/lrs3/
+output_dir: /is/cluster/fast/rdanecek/data/lrs3/
 processed_subfolder: processed2
 num_workers: 8 # debug
 # num_workers: 6 # 
