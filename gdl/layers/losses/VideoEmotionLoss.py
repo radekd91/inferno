@@ -39,6 +39,8 @@ def create_video_emotion_loss(cfg):
         # default to the affecnet trained resnet feature extractor
         feature_extractor_path = cfg.feature_extractor_path
         feature_extractor = emo_network_from_path(feature_extractor_path)
+    elif feat_extractor_cfg == "no":
+        feature_extractor = None
     else: 
         # feature_extractor_path = feat_extractor_cfg.path
         feature_extractor = None
@@ -64,6 +66,74 @@ class VideoEmotionRecognitionLoss(torch.nn.Module):
     def forward(self, input, target):
         raise NotImplementedError()
 
+    # def _forward_input(self, 
+    #     input_images=None, 
+    #     input_emotion_features=None,
+    #     mask=None,
+    #     ):
+    #     if input_images is not None:
+    #         B, T = input_images.shape[:2]
+    #     else: 
+    #         B, T = input_emotion_features.shape[:2]
+    #     # there is no need to keep gradients for input (even if we're finetuning, which we don't, it's the output image we'd wannabe finetuning on)
+    #     with torch.no_grad():
+    #         if input_emotion_features is None:
+    #             feat_extractor_sample = {"image" : input_images.view(B*T, *input_images.shape[2:])}
+    #             input_emotion_features = self.feature_extractor(feat_extractor_sample)['emo_feat_2'].view(B, T, -1)
+    #         # result_ = self.model.forward_old(images)
+    #         if mask is not None:
+    #             input_emotion_features = input_emotion_features * mask
+
+    #         video_emorec_batch_input = {
+    #             "gt_emo_feature": input_emotion_features,
+    #         }
+    #         video_emorec_batch_input = self.video_emotion_recognition(video_emorec_batch_input)
+
+    #         input_emotion_feat = video_emorec_batch_input["pooled_sequence_feature"]
+    #     return input_emotion_feat
+
+    def _forward_input(self, 
+        input_images=None, 
+        input_emotion_features=None,
+        mask=None,
+        ):
+        with torch.no_grad():
+            return self.forward(input_images, input_emotion_features, mask)
+
+    def _forward_output(self, 
+        output_images=None, 
+        output_emotion_features=None,
+        mask=None,
+        ):
+        return self.forward(output_images, output_emotion_features, mask)
+
+    def forward(self, 
+        images=None, 
+        emotion_features=None,
+        mask=None,
+        ):
+        assert images is not None or emotion_features is not None, \
+            "One and only one of input_images or input_emotion_features must be provided"
+        if images is not None:
+            B, T = images.shape[:2]
+        else: 
+            B, T = emotion_features.shape[:2]
+        if emotion_features is None:
+            feat_extractor_sample = {"image" : images.view(B*T, *images.shape[2:])}
+            emotion_features = self.feature_extractor(feat_extractor_sample)['emo_feat_2'].view(B, T, -1)
+            # result_ = self.model.forward_old(images)
+        if mask is not None:
+            emotion_features = emotion_features * mask
+
+        video_emorec_batch = {
+            "gt_emo_feature": emotion_features,
+        }
+        video_emorec_batch = self.video_emotion_recognition(video_emorec_batch)
+
+        emotion_feat = video_emorec_batch["pooled_sequence_feature"]
+        return emotion_feat
+
+
     def compute_loss(
         self, 
         input_images=None, 
@@ -72,39 +142,46 @@ class VideoEmotionRecognitionLoss(torch.nn.Module):
         output_emotion_features=None,
         mask=None
         ):
-        assert input_images is not None or input_emotion_features is not None, \
-            "One and only one of input_images or input_emotion_features must be provided"
-        assert output_images is not None or output_emotion_features is not None, \
-            "One and only one of output_images or output_emotion_features must be provided"
-        # assert mask is None, "Masked loss not implemented for video emotion recognition"
-        if input_images is not None:
-            B, T = input_images.shape[:2]
-        else: 
-            B, T = input_emotion_features.shape[:2]
+        # assert input_images is not None or input_emotion_features is not None, \
+        #     "One and only one of input_images or input_emotion_features must be provided"
+        # assert output_images is not None or output_emotion_features is not None, \
+        #     "One and only one of output_images or output_emotion_features must be provided"
+        # # assert mask is None, "Masked loss not implemented for video emotion recognition"
+        # if input_images is not None:
+        #     B, T = input_images.shape[:2]
+        # else: 
+        #     B, T = input_emotion_features.shape[:2]
 
-        if input_emotion_features is None:
-            feat_extractor_sample = {"image" : input_images.view(B*T, *input_images.shape[2:])}
-            input_emotion_features = self.feature_extractor(feat_extractor_sample)['emo_feat_2'].view(B, T, -1)
-        if output_emotion_features is None:
-            feat_extractor_sample = {"image" : output_images.view(B*T, *output_images.shape[2:])}
-            output_emotion_features = self.feature_extractor(feat_extractor_sample)['emo_feat_2'].view(B, T, -1)
+        # if input_emotion_features is None:
+        #     feat_extractor_sample = {"image" : input_images.view(B*T, *input_images.shape[2:])}
+        #     input_emotion_features = self.feature_extractor(feat_extractor_sample)['emo_feat_2'].view(B, T, -1)
+        # if output_emotion_features is None:
+        #     feat_extractor_sample = {"image" : output_images.view(B*T, *output_images.shape[2:])}
+        #     output_emotion_features = self.feature_extractor(feat_extractor_sample)['emo_feat_2'].view(B, T, -1)
 
-        if mask is not None:
-            input_emotion_features = input_emotion_features * mask
-            output_emotion_features = output_emotion_features * mask
+        # if mask is not None:
+        #     input_emotion_features = input_emotion_features * mask
+        #     output_emotion_features = output_emotion_features * mask
 
-        video_emorec_batch_input = {
-            "gt_emo_feature": input_emotion_features,
-        }
-        video_emorec_batch_input = self.video_emotion_recognition(video_emorec_batch_input)
+        # video_emorec_batch_input = {
+        #     "gt_emo_feature": input_emotion_features,
+        # }
+        # video_emorec_batch_input = self.video_emotion_recognition(video_emorec_batch_input)
 
-        video_emorec_batch_output = {
-            "gt_emo_feature": output_emotion_features,
-        }
-        video_emorec_batch_output = self.video_emotion_recognition(video_emorec_batch_output)
+        # video_emorec_batch_output = {
+        #     "gt_emo_feature": output_emotion_features,
+        # }
+        # video_emorec_batch_output = self.video_emotion_recognition(video_emorec_batch_output)
 
-        input_emotion_feat = video_emorec_batch_input["pooled_sequence_feature"]
-        output_emotion_feat = video_emorec_batch_output["pooled_sequence_feature"]
+        # input_emotion_feat = video_emorec_batch_input["pooled_sequence_feature"]
+        # output_emotion_feat = video_emorec_batch_output["pooled_sequence_feature"]
 
+        input_emotion_feat = self._forward_input(input_images, input_emotion_features, mask)
+        output_emotion_feat = self._forward_output(output_images, output_emotion_features, mask)
+
+        return self._compute_feature_loss(input_emotion_feat, output_emotion_feat)
+
+
+    def _compute_feature_loss(self, input_emotion_feat, output_emotion_feat):
         loss = self.metric(input_emotion_feat, output_emotion_feat)
         return loss

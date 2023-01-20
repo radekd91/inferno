@@ -15,7 +15,7 @@ class MaskedLoss(torch.nn.Module):
         # input: (batch_size, seq_len, ...)
         # target: (batch_size, seq_len, ...)
         # mask: (batch_size, seq_len)
-        assert input.shape == target.shape
+        assert input.shape == target.shape, f"input and target shapes must match, got {input.shape} and {target.shape}"
         if mask is None:
             return self.func(input, target, reduction=self.reduction)
         assert mask.shape[0] == input.shape[0]

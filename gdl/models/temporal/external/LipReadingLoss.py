@@ -147,6 +147,22 @@ class LipReadingLoss(torch.nn.Module):
             # lip_features_gt = lip_features_gt[mask.squeeze(-1)]
             # lip_features_pred = lip_features_pred[mask.squeeze(-1)]
         
+        return self._compute_feature_loss(lip_features_gt, lip_features_pred)
+        # if self.loss == 'cosine_similarity':
+        #     # pytorch cosine similarity
+        #     lr = 1-torch.nn.functional.cosine_similarity(lip_features_gt, lip_features_pred, dim=1).mean()
+        #     ## manual cosine similarity  take over from spectre
+        #     # lr = (lip_features_gt*lip_features_pred).sum(1)/torch.linalg.norm(lip_features_pred,dim=1)/torch.linalg.norm(lip_features_gt,dim=1)
+        #     # lr = 1 - lr.mean()
+        # elif self.loss == 'l1_loss':
+        #     lr = torch.nn.functional.l1_loss(lip_features_gt, lip_features_pred)
+        # elif self.loss == 'mse_loss':
+        #     lr = torch.nn.functional.mse_loss(lip_features_gt, lip_features_pred)
+        # else:
+        #     raise ValueError(f"Unknown loss function: {self.loss}")
+        # return lr
+
+    def _compute_feature_loss(self, lip_features_gt, lip_features_pred): 
         if self.loss == 'cosine_similarity':
             # pytorch cosine similarity
             lr = 1-torch.nn.functional.cosine_similarity(lip_features_gt, lip_features_pred, dim=1).mean()
@@ -160,4 +176,5 @@ class LipReadingLoss(torch.nn.Module):
         else:
             raise ValueError(f"Unknown loss function: {self.loss}")
         return lr
+
 
