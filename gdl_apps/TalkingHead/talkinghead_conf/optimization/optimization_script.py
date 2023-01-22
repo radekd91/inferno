@@ -11,8 +11,14 @@ from omegaconf import OmegaConf
 from gdl_apps.TalkingHead.training.train_talking_head import get_condition_string_from_config
 from gdl.models.temporal.BlockFactory import renderer_from_cfg
 from gdl.models.temporal.TemporalFLAME import FlameShapeModel
+from skvideo.io import vwrite, vread
 import torch
 from munch import Munch, munchify
+import datetime
+import numpy as np
+import wandb
+from pytorch_lightning.loggers import WandbLogger
+import copy
 
 
 def rename_inconsistencies(sample):
@@ -121,13 +127,27 @@ def detach_dict(sample):
     return sample
 
 
+def copy_dict(sample):
+    for key, value in sample.items():
+        if isinstance(value, torch.Tensor):
+            sample[key] = value.clone()
+        elif isinstance(value, dict):
+            sample[key] = copy_dict(value)
+        elif isinstance(value, list):
+            sample[key] = [copy_dict(v) for v in value]
+        else:
+            raise NotImplementedError(f"Cannot detach {type(value)}")
+    return sample
+
 class OptimizationProblem(object): 
 
-    def __init__(self, renderer, flame, losses) -> None:
+    def __init__(self, renderer, flame, losses, output_folder) -> None:
         self.renderer = renderer
         self.flame = flame
         self.losses = losses
         self.optimizer = None
+        self.output_folder = output_folder
+        self.output_folder.mkdir(parents=True, exist_ok=False)
 
     def forward(self, sample,):
         """
@@ -165,7 +185,13 @@ class OptimizationProblem(object):
     def optimize(self, init_sample, n_iter=None): 
         sample = init_sample.copy()
         n_iter = n_iter or 100
+
+        visualization_frequency = 10
         
+        best_loss = 1e10
+        best_iter = 0
+        best_sample = None
+
         for i in range(n_iter):
             
             # delete keys from old forward pass that correspond to the vertices and images 
@@ -176,17 +202,51 @@ class OptimizationProblem(object):
             del sample['predicted_landmarks3d_flame_space']
             del sample['predicted_landmarks_2d']
 
-            sample, total_loss, losses = self.optimization_step(sample)
-            
+            sample, total_loss, losses, weighted_losses = self.optimization_step(sample)
             print(f"Iteration {i} - Total loss: {total_loss.item():.4f}")
 
+            if total_loss < best_loss:
+                best_loss = total_loss
+                best_iter = i
+                best_sample = copy_dict( detach_dict( sample.copy()))
+
+            dict_to_log = {}
+            if i % visualization_frequency == 0:
+                
+                for cam in sample['predicted_video'].keys():
+                    predicted_video = (sample['predicted_video'][cam].detach().cpu().numpy()[0] * 255).astype(np.uint8).transpose(0, 2, 3, 1)
+                    # predicted_mouth_video = sample['predicted_mouth_video'].detach().cpu().numpy()
+                    # write the video at 25 fps
+                    video_fname = self.output_folder / f"{cam}_iter_{i:05d}.mp4"
+                    vwrite(video_fname, predicted_video)
+
+                    # add the video to wandb
+                    video_wandb = wandb.Video(str(video_fname), fps=25, format="mp4")
+                    dict_to_log[f"video/{cam}"] = video_wandb
+
+            dict_to_log.update({f"loss/{k}": v.item() for k, v in losses.items()})
+            dict_to_log.update({f"weighted_loss/{k}": v.item() for k, v in weighted_losses.items()})
+            dict_to_log.update({"total_loss": total_loss.item()})
+            wandb.log(dict_to_log, step=i)
+
+        print(f"Best loss: {best_loss.item():.4f} at iteration {best_iter}")
+
+
+        dict_to_log = {}
+        for cam in sample['predicted_video'].keys():
+            predicted_video = (best_sample['predicted_video'][cam].detach().cpu().numpy()[0] * 255).astype(np.uint8).transpose(0, 2, 3, 1)
+            video_fname = self.output_folder / f"best.mp4"
+            vwrite(video_fname, predicted_video)
+            video_wandb = wandb.Video(str(video_fname), fps=25, format="mp4")
+            dict_to_log[f"best_video/{cam}"] = video_wandb
+        wandb.log(dict_to_log)
         return sample
 
     def optimization_step(self, sample):
         # 0. Compute the forward pass
         sample = self.forward(sample)
         # 1. Compute the losses
-        total_loss, losses = self.compute_losses(sample)
+        total_loss, losses, weighted_losses = self.compute_losses(sample)
         # 2. Compute the gradients
         total_loss.backward()
         # 3. Update the parameters
@@ -201,10 +261,11 @@ class OptimizationProblem(object):
         self.optimizer.zero_grad()    
         
         # sample = detach_dict(sample)
-        # losses = detach_dict(losses)
-        # total_loss.detach_()
+        losses = detach_dict(losses)
+        weighted_losses = detach_dict(weighted_losses)
+        total_loss.detach_()
 
-        return sample, total_loss, losses
+        return sample, total_loss, losses, weighted_losses
 
     def compute_losses(self, sample):
         losses = {}
@@ -212,30 +273,44 @@ class OptimizationProblem(object):
             losses[loss_name] = self.losses[loss_name].object(sample)
 
         final_loss = 0 
+        weighted_losses = {}
         for loss_name in losses.keys():
-            final_loss += losses[loss_name] * self.losses[loss_name].weight
-        return final_loss, losses
+            weighted_losses[loss_name] = losses[loss_name] * self.losses[loss_name].weight
+            final_loss += weighted_losses[loss_name]
+
+        return final_loss, losses, weighted_losses
 
 
-def main(): 
-    path_to_config = Path("/is/cluster/work/rdanecek/talkinghead/trainings/2023_01_17_19-30-52_3072465630873207634_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_SemlEXS_PPE_Tff_predEJ_LVmmmLmm/cfg.yaml")
-    cfg = OmegaConf.load(path_to_config)
+def create_experiment_name(cfg): 
+    name = "Opt_"
 
+    if cfg.settings.optimize_exp: 
+        name += "E"
+    if cfg.settings.optimize_jaw_pose: 
+        name += "J"
+
+    name += cfg.data.data_class[:4]
+    name += f"-{cfg.init.geometry_type}"
+
+    name += f"_s{cfg.init.source_sample_idx}"
+    name += f"-t{cfg.init.source_sample_idx}"
+
+    name += "_L"
+    if not cfg.losses.emotion_loss.active:
+        name += "-E" + "s" if cfg.losses.emotion_loss.from_source else "t"
+    if not cfg.losses.video_emotion_loss.active:
+        name += "-EV"  + "s" if cfg.losses.video_emotion_loss.from_source else "t"
+    if not cfg.losses.lip_reading_loss.active:
+        nane += "-LR"  + "s" if cfg.losses.lip_reading_loss.from_source else "t"
+    if not cfg.losses.expression_reg.active:
+        name += "-ExR"
+    
+    return name
+
+
+def optimize(cfg): 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-
-    ## Emotion feature loss
-    emotion_feature_loss_cfg = {
-        "weight": 0.00001, # default
-        "network_path": "/is/cluster/work/rdanecek/emoca/emodeca/2021_11_09_05-15-38_-8198495972451127810_EmoCnn_resnet50_shake_samp-balanced_expr_Aug_early",
-        # emo_feat_loss: mse_loss
-        "emo_feat_loss": "masked_mse_loss",
-        "trainable": False, 
-        "normalize_features": False, 
-        "target_method_image": "emoca",
-        "mask_invalid": "mediapipe_landmarks", # frames with invalid mediapipe landmarks will be masked for loss computation
-    }
-    emotion_feature_loss_cfg = Munch(emotion_feature_loss_cfg)
+    emotion_feature_loss_cfg = cfg.losses.emotion_loss
     
     emotion_loss = create_emo_loss(device, 
                     emoloss=emotion_feature_loss_cfg.network_path,
@@ -244,29 +319,35 @@ def main():
                     normalize_features=emotion_feature_loss_cfg.normalize_features, 
                     dual=False).to(device)
 
+    # ## Video emotion loss
+    # # load the video emotion classifier loss
+    # video_emotion_loss_cfg = cfg.losses.video_emotion_loss 
+    # video_network_folder = "/is/cluster/work/rdanecek/video_emotion_recognition/trainings/"
+    
+    # video_emotion_loss_cfg.network_path = str(Path(video_network_folder) / video_emotion_loss_cfg.video_network_name)
+    # video_emotion_loss = create_video_emotion_loss( video_emotion_loss_cfg).to(device)
+    # video_emotion_loss.feature_extractor = emotion_loss.backbone
+
     ## Video emotion loss
     # load the video emotion classifier loss
-    video_emotion_loss_cfg = cfg.learning.losses.emotion_video_loss 
-    video_emotion_loss_cfg.feat_extractor_cfg = "no"
-    video_network_folder = "/is/cluster/work/rdanecek/video_emotion_recognition/trainings/"
+    video_emotion_loss_cfg = cfg.losses.video_emotion_loss 
+    # video_network_folder = "/is/cluster/work/rdanecek/video_emotion_recognition/trainings/"
     
     # TODO: experiment with different nets
-    video_network_name = "2023_01_09_12-42-15_7763968562013076567_VideoEmotionClassifier_MEADP_TSC_PE_Lnce"
-    video_emotion_loss_cfg.network_path = str(Path(video_network_folder) / video_network_name)
+    # video_network_name = "2023_01_09_12-42-15_7763968562013076567_VideoEmotionClassifier_MEADP_TSC_PE_Lnce"
+    # video_emotion_loss_cfg.network_path = str(Path(video_network_folder) / video_network_name)
     video_emotion_loss = create_video_emotion_loss( video_emotion_loss_cfg).to(device)
     video_emotion_loss.feature_extractor = emotion_loss.backbone
 
 
+
     ## Lip reading loss
     # load the lip reading loss
-    lip_reading_loss_cfg = cfg.learning.losses.lip_reading_loss
+    lip_reading_loss_cfg = cfg.losses.lip_reading_loss
     lip_reading_loss = LipReadingLoss(device, lip_reading_loss_cfg.get('metric', 'cosine_similarity')).to(device)
     
 
-    renderer = renderer_from_cfg(cfg.model.renderer).to(device)
-
-    cfg.learning.batching.sequence_length_train = 10
-    cfg.learning.batching.sequence_length_val = 10
+    renderer = renderer_from_cfg(cfg.settings.renderer).to(device)
 
 
     condition_source, condition_settings = get_condition_string_from_config(cfg)
@@ -280,12 +361,12 @@ def main():
                 face_detector_threshold=cfg.data.face_detector_threshold, 
                 image_size=cfg.data.image_size, 
                 scale=cfg.data.scale, 
-                batch_size_train=cfg.learning.batching.batch_size_train,
-                batch_size_val=cfg.learning.batching.batch_size_val, 
-                batch_size_test=cfg.learning.batching.batch_size_test, 
-                sequence_length_train=cfg.learning.batching.sequence_length_train, 
-                sequence_length_val=cfg.learning.batching.sequence_length_val, 
-                sequence_length_test=cfg.learning.batching.sequence_length_test, 
+                batch_size_train=cfg.data.batching.batch_size_train,
+                batch_size_val=cfg.data.batching.batch_size_val, 
+                batch_size_test=cfg.data.batching.batch_size_test, 
+                sequence_length_train=cfg.data.batching.sequence_length_train, 
+                sequence_length_val=cfg.data.batching.sequence_length_val, 
+                sequence_length_test=cfg.data.batching.sequence_length_test, 
                 # occlusion_settings_train = OmegaConf.to_container(cfg.data.occlusion_settings_train), 
                 # occlusion_settings_val = OmegaConf.to_container(cfg.data.occlusion_settings_val), 
                 # occlusion_settings_test = OmegaConf.to_container(cfg.data.occlusion_settings_test), 
@@ -315,41 +396,36 @@ def main():
     dm.prepare_data()
     dm.setup()
 
-    # flame_cfg = munchify({
-    #     "flame": { 
-    #         "flame_model_path": "/ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl",
-    #         "n_shape": 100 ,
-    #         # n_exp: 100,
-    #         "n_exp": 50,
-    #         "flame_lmk_embedding_path": "/ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy" ,
-    #     },
-    #     # use_texture: true
+    # # flame_cfg = munchify({
+    # #     "flame": { 
+    # #         "flame_model_path": "/ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl",
+    # #         "n_shape": 100 ,
+    # #         # n_exp: 100,
+    # #         "n_exp": 50,
+    # #         "flame_lmk_embedding_path": "/ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy" ,
+    # #     },
+    # #     # use_texture: true
 
-    #     "flame_tex": {
-    #         "tex_type": "BFM",
-    #         "tex_path": "/ps/scratch/rdanecek/data/FLAME/texture/FLAME_albedo_from_BFM.npz",
-    #         "n_tex": 50,
-    #     },
+    # #     "flame_tex": {
+    # #         "tex_type": "BFM",
+    # #         "tex_path": "/ps/scratch/rdanecek/data/FLAME/texture/FLAME_albedo_from_BFM.npz",
+    # #         "n_tex": 50,
+    # #     },
+    # # })
+
+    # flame_cfg = munchify({
+    #     "type": "flame",
+    #     "flame_model_path": "/ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl",
+    #     "n_shape": 100 ,
+    #     # n_exp: 100,
+    #     "n_exp": 50,
+    #     "flame_lmk_embedding_path": "/ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy" ,
+    #     "tex_type": "BFM",
+    #     "tex_path": "/ps/scratch/rdanecek/data/FLAME/texture/FLAME_albedo_from_BFM.npz",
+    #     "n_tex": 50,
     # })
 
-    flame_cfg = munchify({
-        # "flame": { 
-            "type": "flame",
-            "flame_model_path": "/ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl",
-            "n_shape": 100 ,
-            # n_exp: 100,
-            "n_exp": 50,
-            "flame_lmk_embedding_path": "/ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy" ,
-        # },
-        # use_texture: true
-
-        # "flame_tex": {
-            "tex_type": "BFM",
-            "tex_path": "/ps/scratch/rdanecek/data/FLAME/texture/FLAME_albedo_from_BFM.npz",
-            "n_tex": 50,
-        # },
-    })
-
+    flame_cfg = cfg.settings.flame_cfg 
 
     # instantiate FLAME model
     flame = FlameShapeModel(flame_cfg).to(device)
@@ -362,8 +438,10 @@ def main():
 
     dataset = dl.dataset
 
-    source_sample_idx = 0
-    target_sample_idx = 1
+    # source_sample_idx = 60 # 'M003/video/front/neutral/level_1/008.mp4'
+    # target_sample_idx = 58 # 'M003/video/front/happy/level_3/024.mp4'
+    source_sample_idx = cfg.init.source_sample_idx
+    target_sample_idx = cfg.init.target_sample_idx
 
     source_sample = dataset[source_sample_idx]
     target_sample = dataset[target_sample_idx]
@@ -376,31 +454,37 @@ def main():
     #     "tex": source_sample["tex"],
     # }
 
-    variable_list = {}
-    # exp_sequence = torch.autograd.Variable(source_sample['reconstruction']['emoca']['gt_exp'])
-    exp_sequence = torch.tensor(source_sample['reconstruction']['emoca']['gt_exp'], requires_grad=True, device=device)
-    variable_list['expcode'] = exp_sequence
 
-    optimize_jaw_pose = False
+    optimize_jaw_pose = cfg.settings.optimize_jaw_pose
+    optimize_exp = cfg.settings.optimize_exp
+    geometry_type = cfg.init.geometry_type
+    
+    variable_list = {}
+    # exp_sequence = torch.autograd.Variable(source_sample['reconstruction'][geometry_type]['gt_exp'])
+    if optimize_exp:
+        exp_sequence = torch.tensor(source_sample['reconstruction'][geometry_type]['gt_exp'], requires_grad=True, device=device)
+        variable_list['expcode'] = exp_sequence
+    else:
+        exp_sequence = source_sample['reconstruction'][geometry_type]['gt_exp'].to(device)
+
     # optimize_jaw_pose = True
     if optimize_jaw_pose:
-        # jaw_sequence = torch.autograd.Variable(source_sample['reconstruction']['emoca']['gt_jaw'])
-        jaw_sequence = torch.tensor(source_sample['reconstruction']['emoca']['gt_jaw'], requires_grad=True, device=device)
+        # jaw_sequence = torch.autograd.Variable(source_sample['reconstruction'][geometry_type]['gt_jaw'])
+        jaw_sequence = torch.tensor(source_sample['reconstruction'][geometry_type]['gt_jaw'], requires_grad=True, device=device)
         # variable_list.append(jaw_sequence)
         variable_list['jawpose'] = exp_sequence
     else: 
-        jaw_sequence = source_sample['reconstruction']['emoca']['gt_jaw'].to(device)
-    # source_sample['reconstruction']['emoca']['gt_shape'].keys()
+        jaw_sequence = source_sample['reconstruction'][geometry_type]['gt_jaw'].to(device)
+    # source_sample['reconstruction'][geometry_type]['gt_shape'].keys()
 
 
-    target_geometry = 'emoca'
     target_sample_ = {
-        'expcode': source_sample['reconstruction'][target_geometry]['gt_exp'],
-        'jawpose': source_sample['reconstruction'][target_geometry]['gt_jaw'],
+        'expcode': target_sample['reconstruction'][geometry_type]['gt_exp'],
+        'jawpose': target_sample['reconstruction'][geometry_type]['gt_jaw'],
         # 'pose': source_sample['reconstruction'][target_geometry]['gt_pose'],
-        'globalpose': torch.zeros_like( source_sample['reconstruction'][target_geometry]['gt_jaw']),
-        'shapecode': source_sample['reconstruction'][target_geometry]['gt_shape'][None, ...].repeat(exp_sequence.shape[0], 1).contiguous(),
-        'texcode': source_sample['reconstruction'][target_geometry]['gt_tex'].repeat(exp_sequence.shape[0], 1).contiguous(),
+        'globalpose': torch.zeros_like( source_sample['reconstruction'][geometry_type]['gt_jaw']),
+        'shapecode': target_sample['reconstruction'][geometry_type]['gt_shape'][None, ...].repeat(exp_sequence.shape[0], 1).contiguous(),
+        'texcode': target_sample['reconstruction'][geometry_type]['gt_tex'].repeat(exp_sequence.shape[0], 1).contiguous(),
     }
 
     # unsqeueze the batch dimension
@@ -413,8 +497,8 @@ def main():
         'jawpose': jaw_sequence,
         # 'pose': source_sample['reconstruction'][target_geometry]['gt_pose'],
         'globalpose': torch.zeros_like( jaw_sequence),
-        'shapecode': source_sample['reconstruction'][target_geometry]['gt_shape'][None, ...].repeat(exp_sequence.shape[0], 1).contiguous(),
-        'texcode': source_sample['reconstruction'][target_geometry]['gt_tex'].repeat(exp_sequence.shape[0], 1).contiguous(),
+        'shapecode': source_sample['reconstruction'][geometry_type]['gt_shape'][None, ...].repeat(exp_sequence.shape[0], 1).contiguous(),
+        'texcode': source_sample['reconstruction'][geometry_type]['gt_tex'].repeat(exp_sequence.shape[0], 1).contiguous(),
     }
 
     # unsqeueze the batch dimension
@@ -423,56 +507,186 @@ def main():
 
     losses = munchify({
         "expression_reg": {
-            "weight": 1.0,
+            "weight": cfg.losses.expression_reg.weight,
             "object": ExpressionRegLoss()
         }, 
         "video_emotion_loss": {
-            "weight": 1.0,
+            "weight": cfg.losses.video_emotion_loss.weight,
             "object": VideoEmotionTargetLoss(video_emotion_loss=video_emotion_loss)
         }, 
         "lip_reading_loss": {
-            "weight": 1.0,
+            "weight": cfg.losses.lip_reading_loss.weight,
             "object": LipReadingTargetLoss(lip_reading_loss=lip_reading_loss)
         },
         "emotion_loss": {
-            "weight": 1.0,
+            "weight": cfg.losses.emotion_loss.weight,
             "object": EmotionTargetLoss(emotion_loss=emotion_loss)
         }
     })
-    model = OptimizationProblem(renderer, flame, losses)
+
+    time = datetime.datetime.now().strftime("%Y_%m_%d_%H-%M-%S")
+    random_id = str(hash(time))
+    name = "Opt"
+    experiment_name = time + "_" + random_id + "_" + name
+    model = OptimizationProblem(renderer, flame, losses, Path(cfg.inout.result_root) / experiment_name)
     
+
+    wandb_logger = WandbLogger(
+        project="VideoEmotionOptimization", 
+        name=name,
+    )
+    wandb_logger.experiment
+
     with torch.no_grad():
         source_sample_ = model.forward(source_sample_)
         target_sample_ = model.forward(target_sample_)
     
+    for cam in source_sample_['predicted_video'].keys():
+        source_vid = (source_sample_['predicted_video'][cam].detach().cpu().numpy()[0] * 255).astype(np.uint8).transpose(0, 2, 3, 1)
+        target_vid = (target_sample_['predicted_video'][cam].detach().cpu().numpy()[0] * 255).astype(np.uint8).transpose(0, 2, 3, 1)
+
+        # write the video at 25 fps
+        source_vid_path = model.output_folder / f"{cam}_source.mp4" 
+        target_vid_path = model.output_folder / f"{cam}_target.mp4"
+        vwrite(source_vid_path, source_vid)
+        vwrite(target_vid_path, target_vid)
+        source_video_wandb = wandb.Video(str(source_vid_path), fps=25, format="mp4")
+        target_video_wandb = wandb.Video(str(target_vid_path), fps=25, format="mp4")
+
+        # wandb.log({f"{cam}_source": source_video_wandb, f"{cam}_target": target_video_wandb})
+        wandb.log({f"{cam}_source": source_video_wandb, f"{cam}_target": target_video_wandb})
+
 
     # image-based emotion loss
-    losses.emotion_loss.object.prepare_target(target_sample_)
+    if cfg.losses.emotion_loss.from_source:
+        losses.emotion_loss.object.prepare_target(source_sample_)
+    else:
+        losses.emotion_loss.object.prepare_target(target_sample_)
 
-    # emotion from target
+    # # emotion from target
+    # if cfg.losses.video_emotion_loss.from_source:
     losses.video_emotion_loss.object.prepare_target(target_per_frame_emotion_feature=losses.emotion_loss.object.target_features)
     
-    # lips from source
-    losses.lip_reading_loss.object.prepare_target(source_sample_)
-    # losses.lip_reading_loss.object.prepare_target(target_sample_)
+    if cfg.losses.lip_reading_loss.from_source:
+        losses.lip_reading_loss.object.prepare_target(source_sample_)
+    else:
+        losses.lip_reading_loss.object.prepare_target(target_sample_)
 
-    losses.pop('emotion_loss')
-    losses.pop('video_emotion_loss')
-    # losses.pop('lip_reading_loss')
+    if not cfg.losses.emotion_loss.active:
+        losses.pop('emotion_loss')
+    if not cfg.losses.video_emotion_loss.active:
+        losses.pop('video_emotion_loss')
+    if not cfg.losses.lip_reading_loss.active:
+        losses.pop('lip_reading_loss')
+    if not cfg.losses.expression_reg.active:
+        losses.pop('expression_reg')
+    
 
-    optim = "adam"
-    # optim = "sgd"
-    # optim = "lbfgs"
-    # lr = 1e5
-    lr = 1e-1
-    # lr = 1e-8
-    model.configure_optimizers(variable_list, optim, lr)
+    model.configure_optimizers(variable_list, cfg.optimizer.type, cfg.optimizer.lr)
 
     output_sample = model.optimize(source_sample_, n_iter=1000)
 
     print("Optimization done")
 
 
+def main(): 
 
-if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        config_file = sys.argv[1]
+        cfg = OmegaConf.load(config_file)
+    else:
+        
+        cfg = Munch()
+        path_to_config = Path("/is/cluster/work/rdanecek/talkinghead/trainings/2023_01_17_19-30-52_3072465630873207634_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_SemlEXS_PPE_Tff_predEJ_LVmmmLmm/cfg.yaml")
+        helper_config = OmegaConf.load(path_to_config)
+        cfg.data = munchify(OmegaConf.to_container( helper_config.data))
+        cfg.data.batching = Munch() 
+        cfg.data.batching.batch_size_train = 1
+        cfg.data.batching.batch_size_val = 1
+        cfg.data.batching.batch_size_test = 1 
+        cfg.data.batching.sequence_length_train = 1
+        cfg.data.batching.sequence_length_val = 1
+        cfg.data.batching.sequence_length_test = 1
+
+        cfg.data.batching.sequence_length_train = 25
+        cfg.data.batching.sequence_length_val = 25
+        cfg.data.batching.sequence_length_test = 25
+
+        cfg.losses = Munch() 
+
+        ## Emotion feature loss
+        emotion_feature_loss_cfg = {
+            "weight": 1.0,
+            "network_path": "/is/cluster/work/rdanecek/emoca/emodeca/2021_11_09_05-15-38_-8198495972451127810_EmoCnn_resnet50_shake_samp-balanced_expr_Aug_early",
+            # emo_feat_loss: mse_loss
+            "emo_feat_loss": "masked_mse_loss",
+            "trainable": False, 
+            "normalize_features": False, 
+            "target_method_image": "emoca",
+            "mask_invalid": "mediapipe_landmarks", # frames with invalid mediapipe landmarks will be masked for loss computation
+        }
+        cfg.losses.emotion_loss = Munch(emotion_feature_loss_cfg)
+        cfg.losses.emotion_loss.from_source = False
+        cfg.losses.emotion_loss.active = False
+        cfg.losses.emotion_loss.weight = 1.0
+
+        cfg.losses.video_emotion_loss = Munch()
+        # TODO: experiment with different nets
+        cfg.losses.video_emotion_loss.video_network_folder = "/is/cluster/work/rdanecek/video_emotion_recognition/trainings/"
+        cfg.losses.video_emotion_loss.video_network_name = "2023_01_09_12-42-15_7763968562013076567_VideoEmotionClassifier_MEADP_TSC_PE_Lnce"
+        cfg.losses.video_emotion_loss.network_path = str(Path(cfg.losses.video_emotion_loss.video_network_folder) / cfg.losses.video_emotion_loss.video_network_name)
+        cfg.losses.video_emotion_loss.from_source = False
+        cfg.losses.video_emotion_loss.active = True
+        cfg.losses.video_emotion_loss.feature_extractor = "no"
+        cfg.losses.video_emotion_loss.metric = "mse"
+        cfg.losses.video_emotion_loss.weight = 1.0
+        
+    # video_emotion_loss_cfg.feat_extractor_cfg = "no"
+
+        cfg.losses.lip_reading_loss = munchify(OmegaConf.to_container(helper_config.learning.losses.lip_reading_loss))
+        cfg.losses.lip_reading_loss.from_source = True
+        cfg.losses.lip_reading_loss.active = True
+
+        cfg.losses.expression_reg = Munch()
+        cfg.losses.expression_reg.weight = 1.0
+        cfg.losses.expression_reg.active = True
+
+        cfg.settings = Munch()
+        cfg.settings.optimize_exp = True
+        cfg.settings.optimize_jaw_pose = False
+
+        cfg.settings.flame_cfg = munchify({
+            "type": "flame",
+            "flame_model_path": "/ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl",
+            "n_shape": 100 ,
+            # n_exp: 100,
+            "n_exp": 50,
+            "flame_lmk_embedding_path": "/ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy" ,
+            "tex_type": "BFM",
+            "tex_path": "/ps/scratch/rdanecek/data/FLAME/texture/FLAME_albedo_from_BFM.npz",
+            "n_tex": 50,
+        })
+
+        cfg.settings.renderer = munchify(OmegaConf.to_container(helper_config.model.renderer))
+
+        cfg.optimizer = Munch()
+        cfg.optimizer.type = "adam"
+        # cfg.optimizer.type = "sgd"
+        # cfg.optimizer.type = "lbfgs"
+        cfg.optimizer.lr = 1e-1
+        cfg.optimizer.n_iter = 1000
+        
+        cfg.init = Munch()
+        cfg.init.source_sample_idx = 60 # 'M003/video/front/neutral/level_1/008.mp4'
+        cfg.init.target_sample_idx = 58 # 'M003/video/front/happy/level_3/024.mp4'
+        cfg.init.geometry_type = 'emoca'
+        # cfg.init.geometry_type = 'spectre'
+
+        cfg.inout = Munch()
+        cfg.inout.result_root = "/is/cluster/work/rdanecek/talkinghead/optimization_results"
+
+    optimize(cfg)
+
+
+if __name__ == "__main__":    
     main()

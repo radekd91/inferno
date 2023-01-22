@@ -35,11 +35,11 @@ def create_video_emotion_loss(cfg):
 
     ## see if the model has a feature extractor
     feat_extractor_cfg = model_config.model.get('feature_extractor', None) 
-    if feat_extractor_cfg is None:
+    if feat_extractor_cfg is None and hasattr(sequence_model, 'feature_extractor_path'):
         # default to the affecnet trained resnet feature extractor
         feature_extractor_path = cfg.feature_extractor_path
         feature_extractor = emo_network_from_path(feature_extractor_path)
-    elif feat_extractor_cfg == "no":
+    elif cfg.feature_extractor == "no":
         feature_extractor = None
     else: 
         # feature_extractor_path = feat_extractor_cfg.path
