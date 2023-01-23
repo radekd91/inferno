@@ -257,6 +257,19 @@ class EmoLossBase(torch.nn.Module):
 
         return emo_feat_loss_1, emo_feat_loss_2, valence_loss, arousal_loss, expression_loss, au_loss
 
+    def _compute_feature_loss(self, input_emotion_feat, output_emotion_feat, mask=None):
+        if isinstance(self.emo_feat_loss, (BarlowTwinsLossHeadless, BarlowTwinsLoss)):
+            assert mask is None, "Masked loss not supported for Barlow Twins"
+            emo_feat_loss_2 = self.emo_feat_loss(input_emotion_feat, output_emotion_feat).mean()
+        elif isinstance(self.emo_feat_loss, MaskedLoss):
+            # assert ring_size is None
+            emo_feat_loss_2 = self.emo_feat_loss(input_emotion_feat, output_emotion_feat, mask=mask)
+        else:
+            # assert mask is None, "Masked loss not supported for this loss"
+            if mask is not None: 
+                print("[WARNING] Masked loss not supported for this loss")
+            emo_feat_loss_2 = self.emo_feat_loss(input_emotion_feat, output_emotion_feat).mean()
+        return emo_feat_loss_2
 
     def _get_trainable_params(self):
         params = []
