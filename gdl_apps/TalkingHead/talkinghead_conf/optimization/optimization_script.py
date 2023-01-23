@@ -11,6 +11,7 @@ from omegaconf import OmegaConf
 from gdl_apps.TalkingHead.training.train_talking_head import get_condition_string_from_config
 from gdl.models.temporal.BlockFactory import renderer_from_cfg
 from gdl.models.temporal.TemporalFLAME import FlameShapeModel
+from gdl.models.rotation_loss import compute_rotation_loss
 from skvideo.io import vwrite, vread
 import torch
 from munch import Munch, munchify
@@ -41,6 +42,22 @@ class ExpressionRegLoss(torch.nn.Module):
         
     def forward(self, sample):
         return (sample['exp'] ** 2).mean()
+
+
+class TargetJawRegLoss(torch.nn.Module):
+
+    def __init__(self, input_space, output_space) -> None:
+        super().__init__()
+        self.jaw_pose = None
+        self.input_space = input_space 
+        self.output_space = output_space
+
+    def prepare_target(self, target_sample):
+        self.jaw_pose = target_sample['jawpose']
+        
+    def forward(self, sample):
+        return compute_rotation_loss(sample['jawpose'], self.jaw_pose, mask=None, 
+        r1_input_rep=self.input_space, r2_input_rep=self.output_space)
 
 
 class LipReadingTargetLoss(torch.nn.Module):
@@ -182,7 +199,7 @@ class OptimizationProblem(object):
         else: 
             raise ValueError("Unknown optimizer {}".format(optim))
 
-    def optimize(self, init_sample, n_iter=None): 
+    def optimize(self, init_sample, n_iter=None, patience=None): 
         sample = init_sample.copy()
         n_iter = n_iter or 100
 
@@ -191,7 +208,7 @@ class OptimizationProblem(object):
         best_loss = 1e10
         best_iter = 0
         best_sample = None
-
+        iter_since_best = 0
         for i in range(n_iter):
             
             # delete keys from old forward pass that correspond to the vertices and images 
@@ -209,6 +226,9 @@ class OptimizationProblem(object):
                 best_loss = total_loss
                 best_iter = i
                 best_sample = copy_dict( detach_dict( sample.copy()))
+                iter_since_best = 0
+            else:
+                iter_since_best += 1
 
             dict_to_log = {}
             if i % visualization_frequency == 0:
@@ -228,6 +248,10 @@ class OptimizationProblem(object):
             dict_to_log.update({f"weighted_loss/{k}": v.item() for k, v in weighted_losses.items()})
             dict_to_log.update({"total_loss": total_loss.item()})
             wandb.log(dict_to_log, step=i)
+
+            if patience is not None and iter_since_best > 100:
+                print(f"Stopping optimization after {i} iterations because the loss did not improve for {patience} iterations.")
+                break
 
         print(f"Best loss: {best_loss.item():.4f} at iteration {best_iter}")
 
@@ -524,6 +548,12 @@ def optimize(cfg):
         }
     })
 
+    if optimize_jaw_pose:
+        losses.jaw_pose_reg = munchify({
+            "weight": cfg.losses.jaw_pose_reg.weight,
+            "object": TargetJawRegLoss(cfg.losses.jaw_pose_reg.input_space, cfg.losses.jaw_pose_reg.output_space)
+        })
+
     time = datetime.datetime.now().strftime("%Y_%m_%d_%H-%M-%S")
     random_id = str(hash(time))
     name = "Opt"
@@ -572,6 +602,12 @@ def optimize(cfg):
     else:
         losses.lip_reading_loss.object.prepare_target(target_sample_)
 
+    if optimize_jaw_pose:
+        if cfg.losses.jaw_pose_reg.from_source:
+            losses.jaw_pose_reg.object.prepare_target(source_sample_)
+        else: 
+            losses.jaw_pose_reg.object.prepare_target(target_sample_)
+
     if not cfg.losses.emotion_loss.active:
         losses.pop('emotion_loss')
     if not cfg.losses.video_emotion_loss.active:
@@ -580,11 +616,13 @@ def optimize(cfg):
         losses.pop('lip_reading_loss')
     if not cfg.losses.expression_reg.active:
         losses.pop('expression_reg')
+    if optimize_jaw_pose and not cfg.losses.jaw_pose_reg.active:
+        losses.pop('jaw_pose_reg')
     
 
     model.configure_optimizers(variable_list, cfg.optimizer.type, cfg.optimizer.lr)
 
-    output_sample = model.optimize(source_sample_, n_iter=1000)
+    output_sample = model.optimize(source_sample_, n_iter=cfg.optimizer.n_iter, patience=cfg.optimizer.patience)
 
     print("Optimization done")
 
@@ -608,9 +646,13 @@ def main():
         cfg.data.batching.sequence_length_val = 1
         cfg.data.batching.sequence_length_test = 1
 
-        cfg.data.batching.sequence_length_train = 25
-        cfg.data.batching.sequence_length_val = 25
-        cfg.data.batching.sequence_length_test = 25
+        # cfg.data.batching.sequence_length_train = 25
+        # cfg.data.batching.sequence_length_val = 25
+        # cfg.data.batching.sequence_length_test = 25
+
+        cfg.data.batching.sequence_length_train = 150
+        cfg.data.batching.sequence_length_val = 150
+        cfg.data.batching.sequence_length_test = 150
 
         cfg.losses = Munch() 
 
@@ -639,21 +681,34 @@ def main():
         cfg.losses.video_emotion_loss.active = True
         cfg.losses.video_emotion_loss.feature_extractor = "no"
         cfg.losses.video_emotion_loss.metric = "mse"
-        cfg.losses.video_emotion_loss.weight = 1.0
+        # cfg.losses.video_emotion_loss.weight = 10.0
+        # cfg.losses.video_emotion_loss.weight = 5.0
+        cfg.losses.video_emotion_loss.weight = 2.5
         
-    # video_emotion_loss_cfg.feat_extractor_cfg = "no"
+        # video_emotion_loss_cfg.feat_extractor_cfg = "no"
 
         cfg.losses.lip_reading_loss = munchify(OmegaConf.to_container(helper_config.learning.losses.lip_reading_loss))
         cfg.losses.lip_reading_loss.from_source = True
         cfg.losses.lip_reading_loss.active = True
-
+        # cfg.losses.lip_reading_loss.weight = 100.00
+        cfg.losses.lip_reading_loss.weight = 0
         cfg.losses.expression_reg = Munch()
-        cfg.losses.expression_reg.weight = 1.0
+        # cfg.losses.expression_reg.weight = 1.0
+        cfg.losses.expression_reg.weight = 1e-3
         cfg.losses.expression_reg.active = True
 
         cfg.settings = Munch()
         cfg.settings.optimize_exp = True
-        cfg.settings.optimize_jaw_pose = False
+        cfg.settings.optimize_jaw_pose = True
+
+        if cfg.settings.optimize_jaw_pose:
+            cfg.losses.jaw_pose_reg = Munch()
+            cfg.losses.jaw_pose_reg.weight = 1.0
+            # cfg.losses.jaw_pose_reg.active = True
+            cfg.losses.jaw_pose_reg.active = False
+            cfg.losses.jaw_pose_reg.from_source = True
+            cfg.losses.jaw_pose_reg.input_space = 'aa'
+            cfg.losses.jaw_pose_reg.output_space = '6d'
 
         cfg.settings.flame_cfg = munchify({
             "type": "flame",
@@ -670,14 +725,18 @@ def main():
         cfg.settings.renderer = munchify(OmegaConf.to_container(helper_config.model.renderer))
 
         cfg.optimizer = Munch()
-        cfg.optimizer.type = "adam"
-        # cfg.optimizer.type = "sgd"
+        # cfg.optimizer.type = "adam"
+        cfg.optimizer.type = "sgd"
         # cfg.optimizer.type = "lbfgs"
-        cfg.optimizer.lr = 1e-1
+        # cfg.optimizer.lr = 1e-4
+        cfg.optimizer.lr = 1e-6
+        # cfg.optimizer.lr = 1e-2
+        # cfg.optimizer.lr = 1e-1
         cfg.optimizer.n_iter = 1000
+        cfg.optimizer.patience = 50
         
         cfg.init = Munch()
-        cfg.init.source_sample_idx = 60 # 'M003/video/front/neutral/level_1/008.mp4'
+        cfg.init.source_sample_idx = 61 # 'M003/video/front/neutral/level_1/008.mp4'
         cfg.init.target_sample_idx = 58 # 'M003/video/front/happy/level_3/024.mp4'
         cfg.init.geometry_type = 'emoca'
         # cfg.init.geometry_type = 'spectre'
