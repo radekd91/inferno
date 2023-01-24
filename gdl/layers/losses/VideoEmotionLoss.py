@@ -57,7 +57,7 @@ from .Masked import MaskedLoss
 
 class VideoEmotionRecognitionLoss(torch.nn.Module):
 
-    def __init__(self, video_emotion_recognition, metric, feature_extractor=None, ) -> None:
+    def __init__(self, video_emotion_recognition : VideoEmotionClassifier, metric, feature_extractor=None, ) -> None:
         super().__init__()
         self.feature_extractor = feature_extractor
         self.video_emotion_recognition = video_emotion_recognition
@@ -96,21 +96,24 @@ class VideoEmotionRecognitionLoss(torch.nn.Module):
         input_images=None, 
         input_emotion_features=None,
         mask=None,
+        return_logits=False,
         ):
         with torch.no_grad():
-            return self.forward(input_images, input_emotion_features, mask)
+            return self.forward(input_images, input_emotion_features, mask, return_logits)
 
     def _forward_output(self, 
         output_images=None, 
         output_emotion_features=None,
         mask=None,
+        return_logits=False,
         ):
-        return self.forward(output_images, output_emotion_features, mask)
+        return self.forward(output_images, output_emotion_features, mask, return_logits)
 
     def forward(self, 
         images=None, 
         emotion_features=None,
         mask=None,
+        return_logits=False,
         ):
         assert images is not None or emotion_features is not None, \
             "One and only one of input_images or input_emotion_features must be provided"
@@ -131,6 +134,10 @@ class VideoEmotionRecognitionLoss(torch.nn.Module):
         video_emorec_batch = self.video_emotion_recognition(video_emorec_batch)
 
         emotion_feat = video_emorec_batch["pooled_sequence_feature"]
+        
+        if return_logits:
+            predicted_logits = video_emorec_batch["predicted_logits"]
+            return emotion_feat, predicted_logits
         return emotion_feat
 
 
@@ -140,7 +147,8 @@ class VideoEmotionRecognitionLoss(torch.nn.Module):
         input_emotion_features=None,
         output_images=None, 
         output_emotion_features=None,
-        mask=None
+        mask=None, 
+        return_logits=False,
         ):
         # assert input_images is not None or input_emotion_features is not None, \
         #     "One and only one of input_images or input_emotion_features must be provided"
@@ -176,9 +184,13 @@ class VideoEmotionRecognitionLoss(torch.nn.Module):
         # input_emotion_feat = video_emorec_batch_input["pooled_sequence_feature"]
         # output_emotion_feat = video_emorec_batch_output["pooled_sequence_feature"]
 
+        if return_logits:
+            input_emotion_feat, in_logits = self._forward_input(input_images, input_emotion_features, mask, return_logits=return_logits)
+            output_emotion_feat, out_logits = self._forward_output(output_images, output_emotion_features, mask, return_logits=return_logits)
+            return self._compute_feature_loss(input_emotion_feat, output_emotion_feat), in_logits, out_logits
+
         input_emotion_feat = self._forward_input(input_images, input_emotion_features, mask)
         output_emotion_feat = self._forward_output(output_images, output_emotion_features, mask)
-
         return self._compute_feature_loss(input_emotion_feat, output_emotion_feat)
 
 
