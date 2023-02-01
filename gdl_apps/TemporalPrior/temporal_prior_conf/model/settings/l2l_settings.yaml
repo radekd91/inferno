@@ -1,0 +1,4 @@
+# @package model
+quant_sequence_length: 4
+sequence_length: 32 # to be passed from data
+quant_factor: 3 # number of times the sequence get halved. so the quant_sequence_length == sequence_length / (2^quant_factor)

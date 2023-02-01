@@ -1,0 +1,4 @@
+# @package model 
+type: VectorQuantizer
+codebook_size: 200
+vector_dim: 256
