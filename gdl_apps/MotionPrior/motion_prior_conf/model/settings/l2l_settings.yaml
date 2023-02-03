@@ -1,0 +1,8 @@
+# @package model
+pl_module_class: L2lVqVae
+max_epochs: 300
+
+rotation_representation: aa
+sequence_componets: 
+  exp : 50
+  jaw : rot

@@ -32,8 +32,14 @@ class FlamePreprocessor(Preprocessor):
     def test_time(self):
         return bool(self.cfg.get('test_time', True))
 
-    @torch.no_grad()
-    def forward(self, batch, input_key, *args, output_prefix="gt_", test_time=False, **kwargs):
+    def forward(self, batch, input_key, *args, output_prefix="gt_", test_time=False, with_grad=False, **kwargs):
+        if with_grad:
+            return self._forward(batch, input_key, *args, output_prefix=output_prefix, test_time=test_time, **kwargs)
+        else:
+            with torch.no_grad():
+                return self._forward(batch, input_key, *args, output_prefix=output_prefix, test_time=test_time, **kwargs)
+
+    def _forward(self, batch, input_key, *args, output_prefix="gt_", test_time=False, **kwargs):
         if test_time: # if we are at test time
             if not self.test_time: # and the preprocessor is not needed for test time 
                 # just return

@@ -3,7 +3,9 @@ import torch
 from torch import nn
 from typing import Any, Optional 
 from gdl.models.temporal.Bases import ShapeModel, Preprocessor
-
+from torch.nn.functional import mse_loss, l1_loss, cosine_similarity
+from gdl.utils.other import class_from_str
+from gdl.models.rotation_loss import compute_rotation_loss, convert_rot
 
 class MotionEncoder(torch.nn.Module): 
 
@@ -32,7 +34,6 @@ class MotionQuantizer(torch.nn.Module):
         return [p for p in self.parameters() if p.requires_grad]
 
 
-
 # def motion_encoder_from_cfg(cfg) -> MotionEncoder:
 #     if cfg.type == "L2lEncoder":
 #         return L2lEncoder(cfg)
@@ -54,26 +55,61 @@ class MotionQuantizer(torch.nn.Module):
 #         raise NotImplementedError(f"Motion decoder type '{cfg.type}' not implemented")
         
 
+def rotation_dim(rotation_representation):
+    if rotation_representation in ["quaternion", "quat"]:
+        return 4
+    elif rotation_representation == "euler":
+        return 3
+    elif rotation_representation in ["axis_angle", "aa"]:
+        return 3
+    elif rotation_representation in ["mat", "matrix"]:
+        return 9
+    elif rotation_representation in ["6d", "6dof"]:
+        return 6
+    else:
+        raise NotImplementedError(f"Rotation representation '{rotation_representation}' not implemented")
+
+
 class MotionPrior(pl.LightningModule):
 
     def __init__(self, 
+        cfg,
         motion_encoder : MotionEncoder,
         motion_decoder : MotionDecoder,
         motion_quantizer: Optional[MotionQuantizer] = None,
-        shape_model: Optional[ShapeModel] = None,
+        # shape_model: Optional[ShapeModel] = None,
         preprocessor: Optional[Preprocessor] = None,
+        postprocessor: Optional[Preprocessor] = None,
         ) -> None:
         super().__init__()
+        self.cfg = cfg
         self.motion_encoder = motion_encoder
         self.motion_decoder = motion_decoder
         self.motion_quantizer = motion_quantizer
-        self.shape_model = shape_model
+        # self.shape_model = shape_model
         self.preprocessor = preprocessor
+        self.postprocessor = postprocessor
 
+    def to(self, *args: Any, **kwargs: Any) -> "DeviceDtypeModuleMixin":
+        self.preprocessor = self.preprocessor.to(*args, **kwargs)
+        self.postprocessor = self.postprocessor.to(*args, **kwargs)
+        return super().to(*args, **kwargs)
 
     @property
     def max_seq_length(self):
         return 5000
+
+    def get_input_sequence_dim(self):
+        dim = 0
+        for key in self.cfg.model.sequence_componets.keys():
+            if self.cfg.model.sequence_componets[key] == "rot":
+                dim += rotation_dim(self.cfg.model.rotation_representation)
+            else: 
+                dim += self.cfg.model.sequence_componets[key]
+        return dim
+
+    def _rotation_representation(self):
+        return self.cfg.model.rotation_representation
 
     def get_trainable_parameters(self):
         trainable_params = []
@@ -81,8 +117,8 @@ class MotionPrior(pl.LightningModule):
         trainable_params += self.motion_decoder.get_trainable_parameters()
         if self.motion_quantizer is not None:
             trainable_params += self.motion_quantizer.get_trainable_parameters()
-        if self.shape_model is not None:
-            trainable_params += self.shape_model.get_trainable_parameters()
+        # if self.shape_model is not None:
+        #     trainable_params += self.shape_model.get_trainable_parameters()
         return trainable_params
 
     def configure_optimizers(self):
@@ -128,7 +164,27 @@ class MotionPrior(pl.LightningModule):
 
     def preprocess(self, batch):
         if self.preprocessor is not None:
-            batch = self.preprocessor(batch)
+            batch = self.preprocessor(batch, input_key=None, output_prefix="gt_", with_grad=False)
+        return batch
+
+    def compose_sequential_input(self, batch):
+        prefix = "gt_"
+        assert len(batch["reconstruction"]) == 1, "Only one type of reconstruction is supported for now."
+        reconstruction_key = list(batch["reconstruction"].keys())[0]
+        rec_dict = batch["reconstruction"][reconstruction_key]
+        # self._input_sequence_keys = [prefix + key for key in self.cfg.model.sequence_componets.keys()]
+        # self._input_feature_dims = {key: rec_dict[key].shape[2] for key in self._input_sequence_keys}
+        self._input_feature_dims = self.cfg.model.sequence_componets
+        input_sequences = [] 
+        for key in self.cfg.model.sequence_componets.keys():
+            if self.cfg.model.sequence_componets[key] == "rot":
+                rotation = rec_dict[prefix + key][..., :rotation_dim(self.cfg.model.rotation_representation)]
+                if self._rotation_representation() != "aa":
+                    rotation = convert_rot(rotation, "aa", self._rotation_representation())
+                input_sequences += [rotation]
+            else:
+                input_sequences += [rec_dict[prefix + key][..., :self.cfg.model.sequence_componets[key]]]
+        batch["input_sequence"] = torch.cat(input_sequences, dim=2)
         return batch
 
     def encode(self, batch):
@@ -142,22 +198,91 @@ class MotionPrior(pl.LightningModule):
 
     def decode(self, batch):
         batch = self.motion_decoder(batch)
+        assert batch["decoded_sequence"].shape == batch["input_sequence"].shape, \
+            "Decoded sequence shape does not match input sequence shape."
         return batch
 
-    def forward(self, batch):
+    def decompose_sequential_output(self, batch):
+        output_sequence_key = "decoded_sequence"
+        prefix = "reconstructed_"
+        start_idx = 0
+        for i, key in enumerate(self.cfg.model.sequence_componets.keys()):
+            dim = self._input_feature_dims[key]
+            if dim == "rot":
+                dim = rotation_dim(self._rotation_representation())
+            batch[prefix + key] = batch[output_sequence_key][:, :, start_idx:start_idx + dim]
+            start_idx += dim
+        return batch
+
+    def postprocess(self, batch):
+        if self.postprocessor is not None:
+            reconstruction_key = list(batch["reconstruction"].keys())[0]
+            rec_batch = batch["reconstruction"][reconstruction_key].copy() 
+            for key in self.cfg.model.sequence_componets.keys():
+                del rec_batch["gt_" + key]
+                rec_batch["gt_" + key] = batch["reconstructed_" + key].contiguous()
+            del rec_batch["gt_vertices"]
+            rec_batch = self.postprocessor(rec_batch, input_key=None, output_prefix="reconstructed_", with_grad=True)
+        batch["reconstructed_vertices"] = rec_batch["reconstructed_vertices"]
+        return batch
+
+    def forward(self, batch, train=False, validation=False):
         batch = self.preprocess(batch)
+        batch = self.compose_sequential_input(batch)
         batch = self.encode(batch)
         batch = self.quantize(batch)
         batch = self.decode(batch)
+        batch = self.decompose_sequential_output(batch)
+        batch = self.postprocess(batch)
         return batch
 
     def _compute_loss(self, sample, training, validation, loss_name, loss_cfg): 
-        raise NotImplementedError("Please implement this method in your child class")
+        if loss_name == "reconstruction": 
+            metric_from_cfg = loss_cfg.get("metric", "mse_loss")
+            metric = class_from_str(metric_from_cfg, torch.nn.functional)
+            loss = metric(sample[loss_cfg.input_key], sample[loss_cfg.output_key])
+            return loss
+        elif loss_name == "geometry_reconstruction":
+            metric_from_cfg = loss_cfg.get("metric", "mse_loss")
+            metric = class_from_str(metric_from_cfg, torch.nn.functional)
+            reconstruction_key = list(sample["reconstruction"].keys())[0]
+            rec_dict = sample["reconstruction"][reconstruction_key]
+            loss_value = metric(rec_dict[loss_cfg.input_key], sample[loss_cfg.output_key])
+            return loss_value
+        elif loss_name == "exp_loss": 
+            metric_from_cfg = loss_cfg.get("metric", "mse_loss")
+            metric = class_from_str(metric_from_cfg, torch.nn.functional)
+            reconstruction_key = list(sample["reconstruction"].keys())[0]
+            rec_dict = sample["reconstruction"][reconstruction_key]
+            loss_value = metric(rec_dict[loss_cfg.input_key], sample[loss_cfg.output_key])
+            return loss_value
+        elif loss_name in ["jawpose_loss", "jaw_loss"]:
+            # loss = class_from_str(loss_cfg["loss"])(metric=metric)
+            reconstruction_key = list(sample["reconstruction"].keys())[0]
+            rec_dict = sample["reconstruction"][reconstruction_key]
+            pred_jaw_ = sample["reconstructed_jaw"]
+            gt_jaw_ = rec_dict["gt_jaw"]
+            loss_value = compute_rotation_loss(
+                pred_jaw_, 
+                gt_jaw_,  
+                r1_input_rep=self._rotation_representation(), 
+                r2_input_rep="aa", # gt is in axis-angle
+                output_rep=loss_cfg.get('rotation_rep', 'quat'), 
+                metric=loss_cfg.get('metric', 'l2'), 
+                )
+            return loss_value
+        elif loss_name == "codebook_alignment": 
+            return sample["codebook_alignment"]
+        elif loss_name == "codebook_commitment":
+            return sample["codebook_commitment"]
+        elif loss_name == "perplexity":
+            return sample["perplexity"]
+        else: 
+            raise ValueError("Unknown loss name: {}".format(loss_name))
 
     def compute_loss(self, sample, training, validation): 
         """
         Compute the loss for the given sample. 
-
         """
         losses = {}
         # loss_weights = {}

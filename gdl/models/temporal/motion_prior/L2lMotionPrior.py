@@ -1,7 +1,8 @@
 from .MotionPrior import * 
 from .VectorQuantizer import VectorQuantizer
 from torch import nn
-
+from ..BlockFactory import preprocessor_from_cfg
+from omegaconf import open_dict
 
 class L2lVqVae(MotionPrior):
 
@@ -9,27 +10,40 @@ class L2lVqVae(MotionPrior):
         # motion_encoder = motion_decoder_from_cfg(cfg)
         # motion_decoder = motion_decoder_from_cfg(cfg)
         # motion_codebook = motion_codebook_from_cfg(cfg)
-        motion_encoder = L2lEncoder(cfg.sequence_encoder, cfg.settings)
-        motion_decoder = L2lDecoder(cfg.sequence_decoder, cfg.settings)
-        motion_quantizer = VectorQuantizer(cfg.quantizer)
-        super().__init__(motion_encoder, motion_decoder, motion_quantizer)
+        self.cfg = cfg
+        input_dim = self.get_input_sequence_dim()
+        
+        with open_dict(cfg.model.sequence_encoder):
+            cfg.model.sequence_encoder.input_dim = input_dim
 
-    def _compute_loss(self, sample, training, validation, loss_name, loss_cfg):
-        if loss_name == 'reconstruction':
-            return sample['reconstruction']
-        
-        elif loss_name == 'codebook_alignment':
-            return sample['codebook_alignment']
-            
-        elif loss_name == 'codebook_commitment':
-            return sample['codebook_commitment']
-        
-        elif loss_name == 'perplexity':
-            return sample['perplexity']
-        
+        motion_encoder = L2lEncoder(cfg.model.sequence_encoder, cfg.model.sizes)
+        motion_decoder = L2lDecoder(cfg.model.sequence_decoder, cfg.model.sizes, motion_encoder.get_input_dim())
+        motion_quantizer = VectorQuantizer(cfg.model.quantizer)
+        preprocessor = preprocessor_from_cfg(cfg.model.preprocessor)
+        super().__init__(cfg, motion_encoder, motion_decoder, motion_quantizer, preprocessor, preprocessor)
+
+    @classmethod
+    def instantiate(cls, cfg, stage, prefix, checkpoint, checkpoint_kwargs) -> 'L2lVqVae':
+        """
+        Function that instantiates the model from checkpoint or config
+        """
+        if checkpoint is None:
+            model = L2lVqVae(cfg)
         else:
-            raise NotImplementedError(f"Loss '{loss_name}' not implemented")
-        
+            checkpoint_kwargs = checkpoint_kwargs or {}
+            model = L2lVqVae.load_from_checkpoint(
+                checkpoint_path=checkpoint, 
+                cfg=cfg, 
+                strict=False, 
+                **checkpoint_kwargs
+            )
+            # if stage == 'train':
+            #     mode = True
+            # else:
+            #     mode = False
+            # model.reconfigure(cfg, prefix, downgrade_ok=True, train=mode)
+        return model
+
 
 class LearnedPositionEmbedding(nn.Module):
     """Learned Postional Embedding Layer"""
@@ -47,19 +61,19 @@ class L2lEncoder(MotionEncoder):
     Inspired by by the encoder from Learning to Listen.
     """
 
-    def __init__(self, cfg, settings): 
+    def __init__(self, cfg, sizes):
         super().__init__()
         self.config = cfg
         # size=self.config['transformer_config']['in_dim']
         size = self.config.input_dim
         # dim=self.config['transformer_config']['hidden_size']
-        dim = self.config.hidden_size
+        dim = self.config.feature_dim
         layers = [nn.Sequential(
                     nn.Conv1d(size,dim,5,stride=2,padding=2,
                                 padding_mode='replicate'),
                     nn.LeakyReLU(0.2, True),
                     nn.BatchNorm1d(dim))]
-        for _ in range(1, cfg.quant_factor):
+        for _ in range(1, sizes.quant_factor):
             layers += [nn.Sequential(
                         nn.Conv1d(dim,dim,5,stride=1,padding=2,
                                     padding_mode='replicate'),
@@ -90,16 +104,17 @@ class L2lEncoder(MotionEncoder):
         #     intermediate_size=\
         #             self.config['transformer_config']['intermediate_size'])
         self.encoder_pos_embedding = LearnedPositionEmbedding(
-            settings.quant_sequence_length,
-            self.config.hidden_size
+            sizes.quant_sequence_length,
+            self.config.feature_dim
             )
         self.encoder_linear_embedding = nn.Linear(
-            self.config.hidden_size,
-            self.config.hidden_size
+            self.config.feature_dim,
+            self.config.feature_dim
         )
 
     def get_input_dim(self):
         return self.config.input_dim
+        # return input_dim
 
     def forward(self, batch, input_key="input_sequence", output_key="encoded_features", **kwargs):
         # ## downsample into path-wise length seq before passing into transformer
@@ -131,24 +146,26 @@ class L2lEncoder(MotionEncoder):
 
 class L2lDecoder(MotionEncoder): 
 
-    def __init__(self, cfg, settings, out_dim): 
+    def __init__(self, cfg, sizes, out_dim): 
         super().__init__()
         is_audio = False
         self.cfg = cfg
-        size = self.cfg.hidden_size
-        dim = self.cfg.hidden_size
+        size = self.cfg.feature_dim
+        dim = self.cfg.feature_dim
         self.expander = nn.ModuleList()
         self.expander.append(nn.Sequential(
                     nn.ConvTranspose1d(size,dim,5,stride=2,padding=2,
                                         output_padding=1,
-                                        padding_mode='replicate'),
+                                        # padding_mode='replicate' # crashes, only zeros padding mode allowed
+                                        padding_mode='zeros' 
+                                        ),
                     nn.LeakyReLU(0.2, True),
                     nn.BatchNorm1d(dim)))
-        num_layers = settings.quant_factor + 2 \
-            if is_audio else settings.quant_factor
+        num_layers = sizes.quant_factor + 2 \
+            if is_audio else sizes.quant_factor
         # TODO: check if we need to keep the sequence length fixed
-        seq_len = settings.sequence_length*4 \
-            if is_audio else settings.sequence_length
+        seq_len = sizes.sequence_length*4 \
+            if is_audio else sizes.sequence_length
         for _ in range(1, num_layers):
             self.expander.append(nn.Sequential(
                                 nn.Conv1d(dim,dim,5,stride=1,padding=2,
@@ -167,14 +184,14 @@ class L2lDecoder(MotionEncoder):
         self.decoder_transformer = torch.nn.TransformerEncoder(decoder_layer, num_layers=cfg.num_layers)
         self.decoder_pos_embedding = LearnedPositionEmbedding(
             seq_len,
-            self.cfg.hidden_size
+            self.cfg.feature_dim
             )
         self.decoder_linear_embedding = nn.Linear(
-            self.cfg.hidden_size,
-            self.cfg.hidden_size
+            self.cfg.feature_dim,
+            self.cfg.feature_dim
             )
         self.cross_smooth_layer = nn.Conv1d(
-                cfg.hidden_size,
+                cfg.feature_dim,
                 out_dim, 5, 
                 padding=2
             )
@@ -196,3 +213,4 @@ class L2lDecoder(MotionEncoder):
         decoded_reconstruction = self.cross_smooth_layer(decoded_features.permute(0,2,1)).permute(0,2,1)
         batch[output_key] = decoded_reconstruction
         return batch
+

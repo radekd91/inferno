@@ -1,7 +1,8 @@
 # @package model 
 type: L2lDecoder
 num_layers: 12
-input_dim: 56
+# input_dim: 56
+input_dim: todo # will be set upon instantiation
 feature_dim: 256
 intermediate_size: 384
 nhead: 8
