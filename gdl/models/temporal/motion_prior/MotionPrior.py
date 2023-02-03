@@ -169,9 +169,12 @@ class MotionPrior(pl.LightningModule):
 
     def compose_sequential_input(self, batch):
         prefix = "gt_"
-        assert len(batch["reconstruction"]) == 1, "Only one type of reconstruction is supported for now."
-        reconstruction_key = list(batch["reconstruction"].keys())[0]
-        rec_dict = batch["reconstruction"][reconstruction_key]
+        if "reconstruction" in batch.keys():
+            assert len(batch["reconstruction"]) <= 1, "Only one type of reconstruction is supported for now."
+            reconstruction_key = list(batch["reconstruction"].keys())[0]
+            rec_dict = batch["reconstruction"][reconstruction_key]
+        else:
+            rec_dict = batch
         # self._input_sequence_keys = [prefix + key for key in self.cfg.model.sequence_componets.keys()]
         # self._input_feature_dims = {key: rec_dict[key].shape[2] for key in self._input_sequence_keys}
         self._input_feature_dims = self.cfg.model.sequence_componets
@@ -216,8 +219,11 @@ class MotionPrior(pl.LightningModule):
 
     def postprocess(self, batch):
         if self.postprocessor is not None:
-            reconstruction_key = list(batch["reconstruction"].keys())[0]
-            rec_batch = batch["reconstruction"][reconstruction_key].copy() 
+            if "reconstruction" in batch.keys():
+                reconstruction_key = list(batch["reconstruction"].keys())[0]
+                rec_batch = batch["reconstruction"][reconstruction_key].copy() 
+            else: 
+                rec_batch = batch.copy()
             for key in self.cfg.model.sequence_componets.keys():
                 del rec_batch["gt_" + key]
                 rec_batch["gt_" + key] = batch["reconstructed_" + key].contiguous()
@@ -237,6 +243,11 @@ class MotionPrior(pl.LightningModule):
         return batch
 
     def _compute_loss(self, sample, training, validation, loss_name, loss_cfg): 
+        if "reconstruction" in sample.keys():
+            rec_dict = sample["reconstruction"][list(sample["reconstruction"].keys())[0]]
+        else:
+            rec_dict = sample
+
         if loss_name == "reconstruction": 
             metric_from_cfg = loss_cfg.get("metric", "mse_loss")
             metric = class_from_str(metric_from_cfg, torch.nn.functional)
@@ -245,21 +256,16 @@ class MotionPrior(pl.LightningModule):
         elif loss_name == "geometry_reconstruction":
             metric_from_cfg = loss_cfg.get("metric", "mse_loss")
             metric = class_from_str(metric_from_cfg, torch.nn.functional)
-            reconstruction_key = list(sample["reconstruction"].keys())[0]
-            rec_dict = sample["reconstruction"][reconstruction_key]
             loss_value = metric(rec_dict[loss_cfg.input_key], sample[loss_cfg.output_key])
             return loss_value
         elif loss_name == "exp_loss": 
             metric_from_cfg = loss_cfg.get("metric", "mse_loss")
             metric = class_from_str(metric_from_cfg, torch.nn.functional)
-            reconstruction_key = list(sample["reconstruction"].keys())[0]
-            rec_dict = sample["reconstruction"][reconstruction_key]
-            loss_value = metric(rec_dict[loss_cfg.input_key], sample[loss_cfg.output_key])
+            d = sample[loss_cfg.output_key].shape[-1]
+            loss_value = metric(rec_dict[loss_cfg.input_key][...,:d], sample[loss_cfg.output_key])
             return loss_value
         elif loss_name in ["jawpose_loss", "jaw_loss"]:
             # loss = class_from_str(loss_cfg["loss"])(metric=metric)
-            reconstruction_key = list(sample["reconstruction"].keys())[0]
-            rec_dict = sample["reconstruction"][reconstruction_key]
             pred_jaw_ = sample["reconstructed_jaw"]
             gt_jaw_ = rec_dict["gt_jaw"]
             loss_value = compute_rotation_loss(

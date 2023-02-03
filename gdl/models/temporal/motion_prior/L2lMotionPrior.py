@@ -16,6 +16,12 @@ class L2lVqVae(MotionPrior):
         with open_dict(cfg.model.sequence_encoder):
             cfg.model.sequence_encoder.input_dim = input_dim
 
+        with open_dict(cfg.model.sizes):
+            assert cfg.learning.batching.sequence_length_train % (2 **cfg.model.sizes.quant_factor) == 0, \
+                "Sequence length must be divisible by quantization factor"
+            cfg.model.sizes.quant_sequence_length = cfg.learning.batching.sequence_length_train // (2 **cfg.model.sizes.quant_factor)
+            cfg.model.sizes.sequence_length = cfg.learning.batching.sequence_length_train  
+
         motion_encoder = L2lEncoder(cfg.model.sequence_encoder, cfg.model.sizes)
         motion_decoder = L2lDecoder(cfg.model.sequence_decoder, cfg.model.sizes, motion_encoder.get_input_dim())
         motion_quantizer = VectorQuantizer(cfg.model.quantizer)
@@ -53,7 +59,9 @@ class LearnedPositionEmbedding(nn.Module):
         self.pos_embedding = nn.Parameter(torch.zeros(seq_length, dim))
 
     def forward(self, x):
-        return x + self.pos_embedding
+        T = x.shape[1]
+        return x + self.pos_embedding[:T, :]
+        # return x + self.pos_embedding
 
 
 class L2lEncoder(MotionEncoder): 

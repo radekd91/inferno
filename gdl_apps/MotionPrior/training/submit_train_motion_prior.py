@@ -100,6 +100,7 @@ def submit_trainings():
         [], # no modifications to defaut config
     ]
 
+    # dataset = "vocaset"
     dataset = "mead_pseudo_gt"
     
     # batching = "fixed_length"
@@ -112,12 +113,14 @@ def submit_trainings():
     preprocessor = "flame"
     # preprocessor = None
 
+    split = None
+
     ### MEAD splits
     ## split = "random_70_15_15"
     ## split = "random_by_identity_random_70_15_15" 
     # split = "random_by_identity_sorted_70_15_15" 
     ## split = "random_by_identityV2_random_70_15_15" 
-    split = "random_by_identityV2_sorted_70_15_15" 
+    # split = "random_by_identityV2_sorted_70_15_15" 
     ## split = "specific_identity_random_80_20_M003"
     # split = "specific_identity_sorted_80_20_M003"
 

@@ -59,31 +59,30 @@ def get_condition_string_from_config(cfg):
     
 
 def create_single_dm(cfg, data_class):
-    # if data_class == "FaceformerVocasetDM": 
-    #     if 'augmentation' in cfg.data.keys() and len(cfg.data.augmentation) > 0:
-    #         augmentation = OmegaConf.to_container(cfg.data.augmentation)
-    #     else:
-    #         augmentation = None
-    #     dm = FaceformerVocasetDM(
-    #             cfg.data.input_dir, 
-    #             cfg.data.template_file,
-    #             cfg.data.train_subjects,
-    #             cfg.data.val_subjects,
-    #             cfg.data.test_subjects,
-    #             # cfg.data.output_dir, 
-    #             # processed_subfolder=cfg.data.processed_subfolder, 
-    #             batch_size_train=cfg.learning.batching.batch_size_train,
-    #             batch_size_val=cfg.learning.batching.batch_size_val, 
-    #             batch_size_test=cfg.learning.batching.batch_size_test, 
-    #             # sequence_length_train=cfg.learning.batching.sequence_length_train, 
-    #             # sequence_length_val=cfg.learning.batching.sequence_length_val, 
-    #             # sequence_length_test=cfg.learning.batching.sequence_length_test, 
-    #             num_workers=cfg.data.num_workers,
-    #             debug_mode= cfg.data.get('debug_mode', False),
-    #             )
-    #     dataset_name = "Vocaset"
-    # el
-    if data_class == "CelebVHQPseudo3DDM":
+    if data_class == "FaceformerVocasetDM": 
+        # if 'augmentation' in cfg.data.keys() and len(cfg.data.augmentation) > 0:
+        #     augmentation = OmegaConf.to_container(cfg.data.augmentation)
+        # else:
+        #     augmentation = None
+        dm = FaceformerVocasetDM(
+                cfg.data.input_dir, 
+                cfg.data.template_file,
+                cfg.data.train_subjects,
+                cfg.data.val_subjects,
+                cfg.data.test_subjects,
+                # cfg.data.output_dir, 
+                # processed_subfolder=cfg.data.processed_subfolder, 
+                batch_size_train=cfg.learning.batching.batch_size_train,
+                batch_size_val=cfg.learning.batching.batch_size_val, 
+                batch_size_test=cfg.learning.batching.batch_size_test, 
+                sequence_length_train=cfg.learning.batching.sequence_length_train, 
+                sequence_length_val=cfg.learning.batching.sequence_length_val, 
+                sequence_length_test=cfg.learning.batching.sequence_length_test, 
+                num_workers=cfg.data.num_workers,
+                debug_mode= cfg.data.get('debug_mode', False),
+                )
+        dataset_name = "Vocaset"
+    elif data_class == "CelebVHQPseudo3DDM":
         condition_source, condition_settings = get_condition_string_from_config(cfg)
         dm = CelebVHQPseudo3DDM(
                 cfg.data.input_dir, 

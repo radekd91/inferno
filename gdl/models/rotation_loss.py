@@ -52,7 +52,8 @@ def compute_rotation_loss(r1, r2, mask=None,
     # bt_reduction_dim = list(range(len(r1.shape)-1))
     # vec_reduction_dim = len(r1.shape) -1 
 
-    mask = mask if mask is not None else torch.ones(r1.shape[0], r1.shape[1], 1, device=r1.device)
+    # mask = mask if mask is not None else torch.ones(r1.shape[0], r1.shape[1], 1, device=r1.device)
+    mask = mask if mask is not None else torch.ones(r1.shape[0], r1.shape[1], device=r1.device)
     # mask = torch.zeros(r1.shape[0], r1.shape[1], 1, device=r1.device)
     mask_sum = mask.sum().detach()
     if mask_sum < 0.0000001: # avoid division by zero

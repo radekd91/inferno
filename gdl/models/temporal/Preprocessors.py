@@ -69,18 +69,56 @@ class FlamePreprocessor(Preprocessor):
 
             # exp = torch.zeros((B * T, self.cfg.flame.n_exp))
             # pose = torch.zeros_like((B * T, 6))
+            
+            if 'gt_shape' not in rec_dict:
+                # a little hack -> we use the template mesh (if available) to compute the shape coefficients
+                template_mesh = rec_dict['template'].reshape(B,-1,3)
+                template_v = template_mesh - self.flame.v_template[None, ...]
+                # template_v = -template_mesh + self.flame.v_template[None, ...]
+                shape_dirs = self.flame.shapedirs[:, :, :self.cfg.flame.n_shape].view(-1, self.cfg.flame.n_shape)
+                norms = shape_dirs.norm(dim=0, keepdim=True)
+                s_norm = shape_dirs / norms
+                shape_dirs_inv = s_norm.transpose(0, 1) 
+                # shape_dirs = self.flame.shapedirs[:, :, :]
+                # template_shape_coeffs = torch.einsum('bik,ijk->bj', template_v, shape_dirs.transpose(1, 2))
+                # template_shape_coeffs = torch.einsum('bik,ijk->bj', template_v.view(B, -1), shape_dirs.view(-1, 100))
+                # template_shape_coeffs2 = template_v.view(B, -1) @ shape_dirs.view(-1, 100).inv()
+                # template_shape_coeffs2 = template_v.view(B, -1).contiguous() @ shape_dirs_inv.reshape(-1, 100).contiguous() 
+                template_shape_coeffs =  (shape_dirs_inv * (1./ norms.t())) @ template_v.view(B, -1).t()
+                template_shape_coeffs = template_shape_coeffs.t()
+                rec_dict['gt_shape'] = template_shape_coeffs
+                
+                # ## sanity check
+                # shape_sanity_check_mesh = self.flame(shape_params=template_shape_coeffs, expression_params=torch.zeros((B, self.cfg.flame.n_exp), device=template_v.device, dtype=template_v.dtype), pose_params=None)[0]
+                # # rec_err = ((shape_sanity_check_mesh - template_mesh) ** 2).mean().sqrt()
+                # import pyvista as pv
+                # import numpy as np
+                # faces = self.flame.faces_tensor.cpu().numpy() 
+                # # concatenate a colums of 3s to the faces array (that's how pyvista wants it)
+                # faces = np.concatenate((np.ones((faces.shape[0], 1), dtype=np.int) * 3, faces), axis=1)
+                # # create a pyvista mesh for the template 
+                # template_mesh_pv = pv.PolyData(template_mesh.cpu().numpy()[0], faces)
+                # shape_sanity_check_mesh_pv = pv.PolyData(shape_sanity_check_mesh.cpu().numpy()[0], faces)
+                # # plot the template mesh and the mesh reconstructed from the shape coefficients
+                # p = pv.Plotter()
+                # p.add_mesh(template_mesh_pv, color='red', opacity=0.5, show_edges=True)
+                # p.add_mesh(shape_sanity_check_mesh_pv, color='blue', opacity=0.5, show_edges=True)
+                # p.show()
+
+
+
             gt_shape = rec_dict['gt_shape'] 
             # gt_shape = nested_dict_access(batch, 'gt_shape', rec_type)
 
             if gt_shape.ndim == 3:
-                template_shape = gt_shape[:, 0 :self.cfg.flame.n_shape]#.contiguous()
+                template_shape_coeffs = gt_shape[:, 0 :self.cfg.flame.n_shape]#.contiguous()
                 shape =  gt_shape[..., :self.cfg.flame.n_shape]#.contiguous()
             else: 
-                template_shape = gt_shape
+                template_shape_coeffs = gt_shape
                 ## shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).contiguous().view(B * T, -1)
                 # shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).view(B * T, -1)
                 # shape = gt_shape.view(B, -1)[:, None, ...].expand(B, T, template_shape.shape[1]).view(B * T, -1)
-                shape = gt_shape.view(B, -1)[:, None, ...].expand(B, T, template_shape.shape[1]).reshape(B * T, -1)
+                shape = gt_shape.view(B, -1)[:, None, ...].expand(B, T, template_shape_coeffs.shape[1]).reshape(B * T, -1)
 
             # shape = torch.zeros((B * T, self.cfg.flame.n_exp))
             # template_shape = torch.zeros_like(template_shape)
@@ -92,7 +130,7 @@ class FlamePreprocessor(Preprocessor):
             )
 
             template_verts, _, _ = self.flame(
-                shape_params= template_shape,
+                shape_params= template_shape_coeffs,
                 expression_params= torch.zeros((B, self.cfg.flame.n_exp), device=self.device, dtype=shape.dtype),
                 pose_params=None
             )

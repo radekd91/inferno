@@ -141,9 +141,9 @@ class FaceformerVocasetDM(pl.LightningDataModule):
                 self.test_data.append(v)
 
         
-        self.training_set = VocaSet( self.train_data, subjects_dict, "train")
-        self.validation_set = VocaSet( self.valid_data, subjects_dict, "val")
-        self.test_set = VocaSet( self.test_data, subjects_dict, "test")
+        self.training_set = VocaSet( self.train_data, subjects_dict, "train", sequence_length = self.sequence_length_train)
+        self.validation_set = VocaSet( self.valid_data, subjects_dict, "val", sequence_length = self.sequence_length_val)
+        self.test_set = VocaSet( self.test_data, subjects_dict, "test", sequence_length = self.sequence_length_test)
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(dataset=self.training_set, batch_size=self.batch_size_train, 
@@ -160,12 +160,13 @@ class FaceformerVocasetDM(pl.LightningDataModule):
 
 class VocaSet(torch.utils.data.Dataset):
     """Custom data.Dataset compatible with data.DataLoader."""
-    def __init__(self, data,subjects_dict,data_type="train"):
+    def __init__(self, data,subjects_dict,data_type="train", sequence_length=None):
         self.data = data
         self.len = len(self.data)
         self.subjects_dict = subjects_dict
         self.data_type = data_type
         self.one_hot_labels = np.eye(len(subjects_dict["train"]))
+        self.sequence_length = sequence_length or "all"
 
     def __getitem__(self, index):
         """Returns one data pair (source and target)."""
@@ -200,6 +201,16 @@ class VocaSet(torch.utils.data.Dataset):
         sample["gt_exp"] = torch.FloatTensor(exp)
         sample["gt_jaw"] = torch.FloatTensor(jaw)
         sample["one_hot"] = torch.FloatTensor(one_hot)
+
+        if self.sequence_length != "all":
+            # start at a random_index
+            random_index = np.random.randint(0, gt_vertices.shape[0] - self.sequence_length)
+
+            sample["processed_audio"] = sample["processed_audio"][random_index:random_index+self.sequence_length]
+            sample["gt_vertices"] = sample["gt_vertices"][random_index:random_index+self.sequence_length]
+            sample["gt_exp"] = sample["gt_exp"][random_index:random_index+self.sequence_length]
+            sample["gt_jaw"] = sample["gt_jaw"][random_index:random_index+self.sequence_length]
+
         return sample
 
     def __len__(self):
