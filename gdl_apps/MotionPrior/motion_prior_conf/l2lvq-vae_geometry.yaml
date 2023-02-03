@@ -1,0 +1,22 @@
+defaults:
+  - data/datasets: vocaset
+  - data/augmentations: none
+  # - model/paths : cluster
+  - model/settings : l2l_settings
+  # - model/output@model/output : basic_expressions
+  - model/sequence_encoder@model/sequence_encoder: l2l_encoder
+  - model/sequence_decoder@model/sequence_decoder: l2l_decoder
+  - model/quantizer@model/quantizer: l2l_quantizer
+  - model/sizes@model/sizes: l2l_sizes
+  # - model/feature_extractor@model/feature_extractor: none
+  ## - model/output@model/output: exp_jaw
+  # # - model/output@model/output: vertices
+  - learning/losses: l2l_vqvae_geometry
+  - learning/optimizer: adam
+  # - learning/batching@learning/batching: default
+  - learning/batching@learning/batching: fixed_length_bs32_35gb
+  # - learning/callbacks: early_stopping
+  - learning/callbacks: none
+  - learning/logging: wandb
+  # - learning/logging: none
+  - inout: cluster

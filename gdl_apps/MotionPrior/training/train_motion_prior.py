@@ -244,6 +244,8 @@ def create_experiment_name(cfg, version=0):
     experiment_name = cfg.model.pl_module_class
     # if version <= 2:
     
+    if cfg.data.data_class:
+        experiment_name += '_' + cfg.data.data_class[:5]
 
     if hasattr(cfg.learning, 'early_stopping') and cfg.learning.early_stopping: # \
         # and hasattr(cfg_detail.learning, 'early_stopping') and cfg_detail.learning.early_stopping
