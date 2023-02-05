@@ -355,4 +355,21 @@ class MotionPrior(pl.LightningModule):
 
         return total_loss
 
+    def test_step(self, batch, batch_idx, *args, **kwargs):
+        training = False 
+        # forward pass
+        sample = self.forward(batch, train=training, validation=False, **kwargs)
+        # loss 
+        total_loss, losses, metrics = self.compute_loss(sample, training=training, validation=False, **kwargs)
+
+        losses_and_metrics_to_log = {**losses, **metrics}
+        # losses_and_metrics_to_log = {"train_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
+        losses_and_metrics_to_log = {"test/" + k: v.item() if isinstance(v, (torch.Tensor)) else v if isinstance(v, float) else 0. for k, v in losses_and_metrics_to_log.items()}
+        
+        if self.logger is not None:
+            self.log_dict(losses_and_metrics_to_log, on_step=False, on_epoch=True, sync_dist=True) # log per epoch, # recommended
+            # self.log_dict(losses_and_metrics_to_log, on_step=True, on_epoch=True, sync_dist=True) # log per epoch, # recommended
+
+        return total_loss
+
 

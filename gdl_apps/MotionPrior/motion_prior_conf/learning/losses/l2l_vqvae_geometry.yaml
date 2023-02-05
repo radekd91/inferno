@@ -3,6 +3,8 @@ losses:
   
   geometry_reconstruction:
     weight: 1.
+    # weight: 1000.
+    # weight: 1000000.
     input_key: gt_vertices 
     output_key: reconstructed_vertices
     metric: mse_loss

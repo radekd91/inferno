@@ -12,7 +12,7 @@ import soundfile as sf
 
 class TalkingHeadTestRenderingCallback(pl.Callback):
 
-    def __init__(self, template_mesh_path, path_chunks_to_cat=None):
+    def __init__(self, template_mesh_path, path_chunks_to_cat=None, predicted_vertex_key=None):
         # self.talking_head = talking_head
         # self.sample_interval = sample_interval
         self.renderer = PyRenderMeshSequenceRenderer(template_mesh_path)
@@ -24,7 +24,7 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
         self.dl_names = {}
         self.framerate = 25
         self.overwrite = False
-
+        self.predicted_vertex_key = predicted_vertex_key or "predicted_vertices"
         self.path_chunks_to_cat = path_chunks_to_cat or 0
 
     def _path_chunk(self, video_name):
@@ -46,7 +46,7 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
         # and save the image to the output directory
         # print("Rendering talking head")
         logger = pl_module.logger
-        predicted_vertices = batch["predicted_vertices"]
+        predicted_vertices = batch[self.predicted_vertex_key]
         gt_vertices = batch["gt_vertices"]
         B, T = predicted_vertices.shape[:2]
 

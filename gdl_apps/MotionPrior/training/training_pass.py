@@ -24,18 +24,28 @@ from pathlib import Path
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
-from gdl.models.talkinghead.TalkingHeadBase import TalkingHeadBase
+from gdl.models.temporal.motion_prior.MotionPrior import MotionPrior
 from pytorch_lightning.loggers import WandbLogger
 import datetime
 import time as t
 # import hydra
 from omegaconf import DictConfig, OmegaConf
 import copy
-# from gdl.callbacks.TalkingHeadRenderingCallback import TalkingHeadTestRenderingCallback
+from gdl.callbacks.TalkingHeadRenderingCallback import TalkingHeadTestRenderingCallback
 # from gdl.callbacks.ImageSavingCallback import ImageSavingCallback
 
-project_name = 'VideoEmotionRecognition'
+project_name = 'MotionPrior'
 
+
+def get_rendering_callback(cfg, flame_template_path): 
+    path_chunks_to_cat = 0
+    if cfg.data.data_class == 'LRS3Pseudo3DDM':
+        path_chunks_to_cat = 1
+    if cfg.data.data_class == 'MEADPseudo3DDM':
+        path_chunks_to_cat = 4
+    if cfg.data.data_class == 'FaceformerVocasetDM':
+        path_chunks_to_cat = 0
+    return TalkingHeadTestRenderingCallback(flame_template_path, path_chunks_to_cat, predicted_vertex_key="reconstructed_vertices")
 
 
 def get_checkpoint_with_kwargs(cfg, prefix, checkpoint_mode=None):
@@ -275,15 +285,19 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
                                                 strict=True)
         callbacks += [early_stopping_callback]
 
-    # if stage == 'test':
-    #     flame_template_path = Path(cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply"
-    #     if not flame_template_path.is_file():
-    #         flame_template_path = "/ps/scratch/rdanecek/data/FLAME/geometry/FLAME_sample.ply"
-    #     if not flame_template_path.is_file():
-    #         raise RuntimeError("FLAME template not found")
+    if stage == 'test':
+        flame_template_path = Path("")
+        try:
+            flame_template_path = Path(cfg.model.preprocessor.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply"
+        except AttributeError:
+            pass
+        if not flame_template_path.is_file():
+            flame_template_path = Path("/ps/scratch/rdanecek/data/FLAME/geometry/FLAME_sample.ply")
+        if not flame_template_path.is_file():
+            raise RuntimeError("FLAME template not found")
 
-        # rendering_callback = get_rendering_callback(cfg, flame_template_path)
-        # callbacks += [rendering_callback]
+        rendering_callback = get_rendering_callback(cfg, flame_template_path)
+        callbacks += [rendering_callback]
 
     # if stage == 'train':
         # image_callback = get_image_callback(cfg)
@@ -316,7 +330,7 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
                       # num_sanity_val_steps=0
                       )
 
-    pl_module_class = TalkingHeadBase # TODO: make configurable
+    pl_module_class = MotionPrior # TODO: make configurable
 
 
     if stage == "train":

@@ -4,17 +4,17 @@
 # sequence_length_val: 128
 # sequence_length_test: 128
 
-sequence_length_train: 64
-sequence_length_val: 64
-sequence_length_test: 64
+# sequence_length_train: 64
+# sequence_length_val: 64
+# sequence_length_test: 64
 
 # sequence_length_train: 70
 # sequence_length_val: 70
 # sequence_length_test: 70
 
-# sequence_length_train: 32
-# sequence_length_val: 32
-# sequence_length_test: 32
+sequence_length_train: 32
+sequence_length_val: 32
+sequence_length_test: 32
 
 
 # sequence_length_train: 20

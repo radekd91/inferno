@@ -114,6 +114,7 @@ class FaceformerVocasetDM(pl.LightningDataModule):
                             raise NotImplementedError("Dataset not implemented")
                         idx += 1
                 if self.debug_mode and idx == 10: 
+                # if self.debug_mode and idx == 100: 
                     break
 
 
@@ -143,7 +144,9 @@ class FaceformerVocasetDM(pl.LightningDataModule):
         
         self.training_set = VocaSet( self.train_data, subjects_dict, "train", sequence_length = self.sequence_length_train)
         self.validation_set = VocaSet( self.valid_data, subjects_dict, "val", sequence_length = self.sequence_length_val)
-        self.test_set = VocaSet( self.test_data, subjects_dict, "test", sequence_length = self.sequence_length_test)
+        self.test_set_train = VocaSet( self.train_data, subjects_dict, "train", sequence_length = self.sequence_length_test, sequence_sampling="start")
+        self.test_set_val = VocaSet( self.valid_data, subjects_dict, "val", sequence_length = self.sequence_length_test, sequence_sampling="start")
+        # self.test_set_test = VocaSet( self.test_data, subjects_dict, "test", sequence_length = self.sequence_length_test, sequence_sampling="start")
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(dataset=self.training_set, batch_size=self.batch_size_train, 
@@ -154,19 +157,25 @@ class FaceformerVocasetDM(pl.LightningDataModule):
             shuffle=False, num_workers=self.num_workers)
 
     def test_dataloader(self):
-        return torch.utils.data.DataLoader(dataset=self.test_set, batch_size=self.batch_size_test, 
-            shuffle=False, num_workers=self.num_workers)
+        # return torch.utils.data.DataLoader(dataset=self.test_set, batch_size=self.batch_size_test, 
+        #     shuffle=False, num_workers=self.num_workers)
+        return [torch.utils.data.DataLoader(dataset=self.test_set_train, batch_size=self.batch_size_test, 
+                shuffle=False, num_workers=self.num_workers),
+            torch.utils.data.DataLoader(dataset=self.test_set_val, batch_size=self.batch_size_test, 
+                shuffle=False, num_workers=self.num_workers), 
+            ]
 
 
 class VocaSet(torch.utils.data.Dataset):
     """Custom data.Dataset compatible with data.DataLoader."""
-    def __init__(self, data,subjects_dict,data_type="train", sequence_length=None):
+    def __init__(self, data,subjects_dict,data_type="train", sequence_length=None, sequence_sampling="random", limit_size=None):
         self.data = data
-        self.len = len(self.data)
+        self.len = min(limit_size, len(self.data)) if limit_size is not None else len(self.data)
         self.subjects_dict = subjects_dict
         self.data_type = data_type
         self.one_hot_labels = np.eye(len(subjects_dict["train"]))
         self.sequence_length = sequence_length or "all"
+        self.sequence_sampling = sequence_sampling
 
     def __getitem__(self, index):
         """Returns one data pair (source and target)."""
@@ -174,7 +183,19 @@ class VocaSet(torch.utils.data.Dataset):
         file_name = self.data[index]["name"]
         # audio = self.data[index]["audio"]
         audio = self.data[index]["audio"]
+
+        sample_rate = 16000
+        sample_rate_ratio = sample_rate // 25
+
         gt_vertices = self.data[index]["vertice"]
+
+        T = gt_vertices.shape[0]
+        audio_cut_off_index = T * sample_rate_ratio
+        if audio.shape[0] < audio_cut_off_index:
+            audio = np.concatenate([audio, np.zeros(audio_cut_off_index - audio.shape[0])])
+        audio = audio[:audio_cut_off_index]
+        audio = audio.reshape(T, sample_rate_ratio)
+
         template = self.data[index]["template"]
         if 'exp' in self.data[index].keys():
             exp = self.data[index]["exp"] 
@@ -194,22 +215,37 @@ class VocaSet(torch.utils.data.Dataset):
             one_hot = self.one_hot_labels
         
         sample = {} 
-        # sample["raw_audio"] = torch.FloatTensor(audio)
-        sample["processed_audio"] = torch.FloatTensor(audio)
+        sample["raw_audio"] = torch.FloatTensor(audio)
+        # sample["processed_audio"] = torch.FloatTensor(audio)
         sample["gt_vertices"] = torch.FloatTensor(gt_vertices)
         sample["template"] = torch.FloatTensor(template)
         sample["gt_exp"] = torch.FloatTensor(exp)
         sample["gt_jaw"] = torch.FloatTensor(jaw)
         sample["one_hot"] = torch.FloatTensor(one_hot)
-
+        sample["filename"] = file_name
+        sample["frame_indices"] = torch.arange(gt_vertices.shape[0])
+        sample["samplerate"] = sample_rate
+        
         if self.sequence_length != "all":
             # start at a random_index
-            random_index = np.random.randint(0, gt_vertices.shape[0] - self.sequence_length)
-
-            sample["processed_audio"] = sample["processed_audio"][random_index:random_index+self.sequence_length]
-            sample["gt_vertices"] = sample["gt_vertices"][random_index:random_index+self.sequence_length]
-            sample["gt_exp"] = sample["gt_exp"][random_index:random_index+self.sequence_length]
-            sample["gt_jaw"] = sample["gt_jaw"][random_index:random_index+self.sequence_length]
+            if self.sequence_sampling == "random":
+                random_index = np.random.randint(0, gt_vertices.shape[0] - self.sequence_length)
+                # sample["processed_audio"] = sample["processed_audio"][random_index:random_index+self.sequence_length]
+                # sample["raw_audio"] = sample["raw_audio"][(random_index * sample_rate_ratio) :((random_index+self.sequence_length)*sample_rate_ratio)]
+                sample["raw_audio"] = sample["raw_audio"][ sample_rate_ratio :(random_index+self.sequence_length)]
+                sample["gt_vertices"] = sample["gt_vertices"][random_index:random_index+self.sequence_length]
+                sample["gt_exp"] = sample["gt_exp"][random_index:random_index+self.sequence_length]
+                sample["gt_jaw"] = sample["gt_jaw"][random_index:random_index+self.sequence_length]
+                sample["frame_indices"] = sample["frame_indices"][random_index:random_index+self.sequence_length]
+            elif self.sequence_sampling == "start": 
+                # sample["raw_audio"] = sample["raw_audio"][:self.sequence_length* sample_rate_ratio]
+                sample["raw_audio"] = sample["raw_audio"][:self.sequence_length]
+                sample["gt_vertices"] = sample["gt_vertices"][:self.sequence_length]
+                sample["gt_exp"] = sample["gt_exp"][:self.sequence_length]
+                sample["gt_jaw"] = sample["gt_jaw"][:self.sequence_length]
+                sample["frame_indices"] = sample["frame_indices"][:self.sequence_length]
+            else: 
+                raise ValueError("sequence_sampling must be either 'random' or 'start'")
 
         return sample
 
