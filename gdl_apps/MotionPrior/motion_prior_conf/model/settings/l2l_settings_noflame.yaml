@@ -6,5 +6,6 @@ max_epochs: 1200
 
 rotation_representation: aa
 sequence_components: 
-  exp : 50
-  jaw : rot
+  # vertices: flame_verts # num FLAME vertices * 3 = 5023 * 3 = 15069
+  vertex_offsets: flame_verts # num FLAME vertices * 3 = 5023 * 3 = 15069
+

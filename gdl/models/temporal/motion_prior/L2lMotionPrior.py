@@ -25,7 +25,10 @@ class L2lVqVae(MotionPrior):
         motion_encoder = L2lEncoder(cfg.model.sequence_encoder, cfg.model.sizes)
         motion_decoder = L2lDecoder(cfg.model.sequence_decoder, cfg.model.sizes, motion_encoder.get_input_dim())
         motion_quantizer = VectorQuantizer(cfg.model.quantizer)
-        preprocessor = preprocessor_from_cfg(cfg.model.preprocessor)
+        if cfg.model.get('preprocessor', None) is not None:
+            preprocessor = preprocessor_from_cfg(cfg.model.preprocessor)
+        else:
+            preprocessor = None
         super().__init__(cfg, motion_encoder, motion_decoder, motion_quantizer, preprocessor, preprocessor)
 
     @classmethod

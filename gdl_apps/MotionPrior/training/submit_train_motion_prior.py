@@ -94,12 +94,14 @@ def submit(cfg , bid=10):
 def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
-    conf = "l2lvq-vae"
+    # conf = "l2lvq-vae"
     # conf = "l2lvq-vae_geometry"
+    conf = "l2lvq-vae_no_flame"
 
-    # tags = ['QUANT_FACTOR']
-    # tags = ['NUM_LAYERS']
-    tags = ['ZERO_INIT']
+    tags = []
+    # tags += ['QUANT_FACTOR']
+    # tags += ['NUM_LAYERS']
+    # tags += ['ZERO_INIT']
 
     training_modes = [
         [], # no modifications to defaut config
@@ -114,9 +116,12 @@ def submit_trainings():
     batching = "fixed_length_bs32_35gb"
     # batching = "fixed_length_bs64_35gb"
 
-    # preprocessor = "emoca"
-    preprocessor = "flame"
-    # preprocessor = None
+    if conf == "l2lvq-vae_no_flame" and dataset in ["vocaset"]: 
+        preprocessor = None
+    else:
+        # preprocessor = "emoca"
+        preprocessor = "flame"
+        # preprocessor = None
 
     split = None
 
@@ -146,8 +151,8 @@ def submit_trainings():
         fixed_overrides += [f'data.split={split}']
 
     bid = 1000
-    # submit_ = False
-    submit_ = True
+    submit_ = False
+    # submit_ = True
     
     # if not submit_:
     #     fixed_overrides += [

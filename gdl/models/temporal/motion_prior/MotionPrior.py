@@ -91,8 +91,10 @@ class MotionPrior(pl.LightningModule):
         self.postprocessor = postprocessor
 
     def to(self, *args: Any, **kwargs: Any) -> "DeviceDtypeModuleMixin":
-        self.preprocessor = self.preprocessor.to(*args, **kwargs)
-        self.postprocessor = self.postprocessor.to(*args, **kwargs)
+        if self.preprocessor is not None:
+            self.preprocessor = self.preprocessor.to(*args, **kwargs)
+        if self.postprocessor is not None:
+            self.postprocessor = self.postprocessor.to(*args, **kwargs)
         return super().to(*args, **kwargs)
 
     @property
@@ -101,11 +103,14 @@ class MotionPrior(pl.LightningModule):
 
     def get_input_sequence_dim(self):
         dim = 0
-        for key in self.cfg.model.sequence_componets.keys():
-            if self.cfg.model.sequence_componets[key] == "rot":
+        for key in self.cfg.model.sequence_components.keys():
+            if self.cfg.model.sequence_components[key] == "rot":
                 dim += rotation_dim(self.cfg.model.rotation_representation)
+            elif self.cfg.model.sequence_components[key] == "flame_verts":
+                dim += 5023 * 3
             else: 
-                dim += self.cfg.model.sequence_componets[key]
+                
+                dim += self.cfg.model.sequence_components[key]
         return dim
 
     def _rotation_representation(self):
@@ -165,6 +170,8 @@ class MotionPrior(pl.LightningModule):
     def preprocess(self, batch):
         if self.preprocessor is not None:
             batch = self.preprocessor(batch, input_key=None, output_prefix="gt_", with_grad=False)
+        if "template" in batch.keys():
+            batch["gt_vertex_offsets"] = batch["gt_vertices"] - batch["template"][:,None, ...]
         return batch
 
     def compose_sequential_input(self, batch):
@@ -175,18 +182,20 @@ class MotionPrior(pl.LightningModule):
             rec_dict = batch["reconstruction"][reconstruction_key]
         else:
             rec_dict = batch
-        # self._input_sequence_keys = [prefix + key for key in self.cfg.model.sequence_componets.keys()]
+        # self._input_sequence_keys = [prefix + key for key in self.cfg.model.sequence_components.keys()]
         # self._input_feature_dims = {key: rec_dict[key].shape[2] for key in self._input_sequence_keys}
-        self._input_feature_dims = self.cfg.model.sequence_componets
+        self._input_feature_dims = self.cfg.model.sequence_components
         input_sequences = [] 
-        for key in self.cfg.model.sequence_componets.keys():
-            if self.cfg.model.sequence_componets[key] == "rot":
+        for key in self.cfg.model.sequence_components.keys():
+            if self.cfg.model.sequence_components[key] == "rot":
                 rotation = rec_dict[prefix + key][..., :rotation_dim(self.cfg.model.rotation_representation)]
                 if self._rotation_representation() != "aa":
                     rotation = convert_rot(rotation, "aa", self._rotation_representation())
                 input_sequences += [rotation]
+            elif self.cfg.model.sequence_components[key] == "flame_verts":
+                input_sequences += [rec_dict[prefix + key][..., :5023 * 3]]
             else:
-                input_sequences += [rec_dict[prefix + key][..., :self.cfg.model.sequence_componets[key]]]
+                input_sequences += [rec_dict[prefix + key][..., :self.cfg.model.sequence_components[key]]]
         batch["input_sequence"] = torch.cat(input_sequences, dim=2)
         return batch
 
@@ -209,26 +218,33 @@ class MotionPrior(pl.LightningModule):
         output_sequence_key = "decoded_sequence"
         prefix = "reconstructed_"
         start_idx = 0
-        for i, key in enumerate(self.cfg.model.sequence_componets.keys()):
+        for i, key in enumerate(self.cfg.model.sequence_components.keys()):
             dim = self._input_feature_dims[key]
             if dim == "rot":
-                dim = rotation_dim(self._rotation_representation())
+                dim = rotation_dim(self._rotation_representation()) 
+            elif dim == "flame_verts":
+                dim = 5023 * 3
             batch[prefix + key] = batch[output_sequence_key][:, :, start_idx:start_idx + dim]
             start_idx += dim
         return batch
 
     def postprocess(self, batch):
+        if "reconstruction" in batch.keys(): # is the pseudo-GT reconstruction fed to the model?
+            reconstruction_key = list(batch["reconstruction"].keys())[0]
+            rec_batch = batch["reconstruction"][reconstruction_key].copy() 
+        else: 
+            rec_batch = batch.copy()
+        for key in self.cfg.model.sequence_components.keys():
+            del rec_batch["gt_" + key]
+            rec_batch["gt_" + key] = batch["reconstructed_" + key].contiguous()
+        del rec_batch["gt_vertices"]
+
         if self.postprocessor is not None:
-            if "reconstruction" in batch.keys():
-                reconstruction_key = list(batch["reconstruction"].keys())[0]
-                rec_batch = batch["reconstruction"][reconstruction_key].copy() 
-            else: 
-                rec_batch = batch.copy()
-            for key in self.cfg.model.sequence_componets.keys():
-                del rec_batch["gt_" + key]
-                rec_batch["gt_" + key] = batch["reconstructed_" + key].contiguous()
-            del rec_batch["gt_vertices"]
             rec_batch = self.postprocessor(rec_batch, input_key=None, output_prefix="reconstructed_", with_grad=True)
+        
+        if "template" in batch.keys():
+            rec_batch["reconstructed_vertices"] = rec_batch["reconstructed_vertex_offsets"] + batch["template"][:, None, ...]
+        
         batch["reconstructed_vertices"] = rec_batch["reconstructed_vertices"]
         return batch
 
