@@ -25,6 +25,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 from gdl.models.temporal.motion_prior.MotionPrior import MotionPrior
+from gdl.models.temporal.motion_prior.L2lMotionPrior import L2lVqVae
 from pytorch_lightning.loggers import WandbLogger
 import datetime
 import time as t
@@ -33,6 +34,8 @@ from omegaconf import DictConfig, OmegaConf
 import copy
 from gdl.callbacks.TalkingHeadRenderingCallback import TalkingHeadTestRenderingCallback
 # from gdl.callbacks.ImageSavingCallback import ImageSavingCallback
+from gdl.utils.other import class_from_str
+
 
 project_name = 'MotionPrior'
 
@@ -330,7 +333,7 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
                       # num_sanity_val_steps=0
                       )
 
-    pl_module_class = MotionPrior # TODO: make configurable
+    pl_module_class = class_from_str(cfg.model.pl_module_class, sys.modules[__name__])
 
 
     if stage == "train":
@@ -340,10 +343,7 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
             if cfg.learning.checkpoint_after_training == 'best':
                 print(f"Loading the best checkpoint after training '{val_checkpoint_callback.best_model_path}'.")
                 model = pl_module_class.load_from_checkpoint(val_checkpoint_callback.best_model_path,
-                                                       model_params=cfg.model,
-                                                       learning_params=cfg.learning,
-                                                       inout_params=cfg.inout,
-                                                       stage_name=prefix
+                                                       cfg=cfg,
                                                        )
             elif cfg.learning.checkpoint_after_training == 'latest':
                 print(f"Keeping the lastest weights after training.")
@@ -372,53 +372,12 @@ def create_experiment_name(cfg_coarse, cfg_detail, sequence_name, version=1):
     return experiment_name
 
 
-
-# def configure_and_train(cfg_default, cfg_overrides):
-#     cfg_coarse = configure(cfg_default, cfg_overrides)
-#     train_model(cfg_coarse)
-
-
 def load_configs(run_path):
     with open(Path(run_path) / "cfg.yaml", "r") as f:
         conf = OmegaConf.load(f)
     cfg_coarse = conf.coarse
     cfg_detail = conf.detail
     return cfg_coarse, cfg_detail
-
-
-# def configure_and_resume(run_path,
-#                          coarse_cfg_default, coarse_overrides,
-#                          detail_cfg_default, detail_overrides,
-#                          start_at_stage):
-#     cfg_coarse, cfg_detail = configure(
-#                                        coarse_cfg_default, coarse_overrides,
-#                                        detail_cfg_default, detail_overrides)
-
-#     cfg_coarse_, cfg_detail_ = load_configs(run_path)
-
-#     if start_at_stage < 4:
-#         raise RuntimeError("Resuming before stage 2 makes no sense, that would be training from scratch")
-#     if start_at_stage == 4:
-#         cfg_coarse = cfg_coarse_
-#     elif start_at_stage == 5:
-#         raise RuntimeError("Resuming for stage 3 makes no sense, that is a testing stage")
-#     else:
-#         raise RuntimeError(f"Cannot resume at stage {start_at_stage}")
-
-#     train_model(cfg_coarse, cfg_detail,
-#                start_i=start_at_stage,
-#                resume_from_previous=True, #important, resume from previous stage's checkpoint
-#                force_new_location=True)
-
-
-
-# def resume_training(run_path, start_at_stage, resume_from_previous, force_new_location):
-#     with open(Path(run_path) / "cfg.yaml", "r") as f:
-#         conf = OmegaConf.load(f)
-#     train_model(conf, 
-#                 start_i=start_at_stage,
-#                 resume_from_previous=resume_from_previous,
-#                 force_new_location=force_new_location)
 
 
 def configure(cfg, overrides):

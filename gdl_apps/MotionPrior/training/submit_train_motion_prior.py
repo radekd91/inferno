@@ -94,8 +94,8 @@ def submit(cfg , bid=10):
 def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
-    # conf = "l2lvq-vae"
-    conf = "l2lvq-vae_geometry"
+    conf = "l2lvq-vae"
+    # conf = "l2lvq-vae_geometry"
 
     training_modes = [
         [], # no modifications to defaut config
@@ -142,8 +142,8 @@ def submit_trainings():
         fixed_overrides += [f'data.split={split}']
 
     bid = 1000
-    submit_ = False
-    # submit_ = True
+    # submit_ = False
+    submit_ = True
     
     # if not submit_:
     #     fixed_overrides += [

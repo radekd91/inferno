@@ -144,8 +144,8 @@ class FaceformerVocasetDM(pl.LightningDataModule):
         
         self.training_set = VocaSet( self.train_data, subjects_dict, "train", sequence_length = self.sequence_length_train)
         self.validation_set = VocaSet( self.valid_data, subjects_dict, "val", sequence_length = self.sequence_length_val)
-        self.test_set_train = VocaSet( self.train_data, subjects_dict, "train", sequence_length = self.sequence_length_test, sequence_sampling="start")
-        self.test_set_val = VocaSet( self.valid_data, subjects_dict, "val", sequence_length = self.sequence_length_test, sequence_sampling="start")
+        self.test_set_train = VocaSet( self.train_data, subjects_dict, "train", sequence_length = self.sequence_length_test, sequence_sampling="start", limit_size=10)
+        self.test_set_val = VocaSet( self.valid_data, subjects_dict, "val", sequence_length = self.sequence_length_test, sequence_sampling="start", limit_size=10)
         # self.test_set_test = VocaSet( self.test_data, subjects_dict, "test", sequence_length = self.sequence_length_test, sequence_sampling="start")
 
     def train_dataloader(self):
