@@ -35,5 +35,4 @@ assets/
 *.ply 
 
 # cluster submission (user-specific settings)
-gdl_apps/TalkingHead/training/submission_settings.yaml
-gdl_apps/TalkingHead/optimization/submission_settings.yaml
+*/submission_settings.yaml
