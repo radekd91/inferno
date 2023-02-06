@@ -19,7 +19,7 @@ All rights reserved.
 
 from gdl.utils.condor import execute_on_cluster
 from pathlib import Path
-import gdl_apps.TalkingHead.training.resume_talking_head_training as script
+import gdl_apps.MotionPrior.training.resume_motion_prior_training  as script
 import datetime
 from omegaconf import OmegaConf
 import time as t
