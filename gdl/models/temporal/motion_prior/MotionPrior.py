@@ -242,7 +242,7 @@ class MotionPrior(pl.LightningModule):
         if self.postprocessor is not None:
             rec_batch = self.postprocessor(rec_batch, input_key=None, output_prefix="reconstructed_", with_grad=True)
         
-        if "template" in batch.keys():
+        if "template" in batch.keys() and "reconstructed_vertex_offsets" in rec_batch.keys():
             rec_batch["reconstructed_vertices"] = rec_batch["reconstructed_vertex_offsets"] + batch["template"][:, None, ...]
         
         batch["reconstructed_vertices"] = rec_batch["reconstructed_vertices"]
