@@ -35,4 +35,4 @@ assets/
 *.ply 
 
 # cluster submission (user-specific settings)
-*/submission_settings.yaml
+*submission_settings.yaml
