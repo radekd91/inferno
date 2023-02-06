@@ -121,15 +121,15 @@ def resume_motion_prior_on_cluster():
     root = "/is/cluster/work/rdanecek/motion_prior/trainings/"
     
     model_names = []
-    model_names += ["2023_02_05_19-50-07_-5643053022395030803_L2lVqVae_Facef"]
-    # model_names += ["2023_02_05_19-47-04_-6204082330817104839_L2lVqVae_Facef"]
-    # model_names += ["2023_02_05_19-46-40_-8068289807722994107_L2lVqVae_Facef"]
-    # model_names += ["2023_02_05_19-45-15_1020392668976619472_L2lVqVae_Facef"]
-    # model_names += ["2023_02_05_19-45-15_-8493098869856430542_L2lVqVae_Facef"]
-    # model_names += ["2023_02_05_19-45-07_3708617454039099621_L2lVqVae_Facef"]
-    ## model_names += ["2023_02_05_19-44-51_4819075661105074885_L2lVqVae_Facef"]
-    # model_names += ["2023_02_05_19-44-51_-4469641301695294897_L2lVqVae_Facef"]
-    # model_names += ["2023_02_05_19-43-35_3322208019009558883_L2lVqVae_Facef"]
+    # model_names += ["2023_02_05_19-50-07_-5643053022395030803_L2lVqVae_Facef"]
+    model_names += ["2023_02_05_19-47-04_-6204082330817104839_L2lVqVae_Facef"]
+    model_names += ["2023_02_05_19-46-40_-8068289807722994107_L2lVqVae_Facef"]
+    model_names += ["2023_02_05_19-45-15_1020392668976619472_L2lVqVae_Facef"]
+    model_names += ["2023_02_05_19-45-15_-8493098869856430542_L2lVqVae_Facef"]
+    model_names += ["2023_02_05_19-45-07_3708617454039099621_L2lVqVae_Facef"]
+    # model_names += ["2023_02_05_19-44-51_4819075661105074885_L2lVqVae_Facef"]
+    model_names += ["2023_02_05_19-44-51_-4469641301695294897_L2lVqVae_Facef"]
+    model_names += ["2023_02_05_19-43-35_3322208019009558883_L2lVqVae_Facef"]
 
     bid = 1000
 

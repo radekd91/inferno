@@ -97,6 +97,10 @@ def submit_trainings():
     conf = "l2lvq-vae"
     # conf = "l2lvq-vae_geometry"
 
+    # tags = ['QUANT_FACTOR']
+    # tags = ['NUM_LAYERS']
+    tags = ['ZERO_INIT']
+
     training_modes = [
         [], # no modifications to defaut config
     ]
@@ -164,12 +168,13 @@ def submit_trainings():
         # config_pairs += [cfgs]
 
         # OmegaConf.set_struct(cfgs[0], False)
-        if not submit_:
-            with open_dict(cfg) as d:
+
+        with open_dict(cfg) as d:
+            if not submit_:
                 d.data.debug_mode = True
-                tags = ["DEBUG_FROM_WORKSTATION"]
-                if d.learning.tags is None:
-                    d.learning.tags = tags
+                tags += ["DEBUG_FROM_WORKSTATION"]
+            if d.learning.tags is None:
+                d.learning.tags = tags
       
         if submit_:
             submit(cfg, bid=bid)

@@ -1,6 +1,12 @@
 # @package model 
 type: L2lEncoder
 num_layers: 12
+# num_layers: 8
+# num_layers: 6
+# num_layers: 4
+# num_layers: 2
+# num_layers: 1
+
 # input_dim: 56
 input_dim: todo # will be set upon instantiation
 feature_dim: 256

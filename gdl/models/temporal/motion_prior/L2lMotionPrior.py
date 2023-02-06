@@ -204,6 +204,13 @@ class L2lDecoder(MotionEncoder):
                 padding=2
             )
 
+        # initialize the last layer of the decoder to zero 
+        if cfg.get('last_layer_init', None) == "zeros":
+            torch.nn.init.zeros_(self.decoder_transformer.layers[-1].linear2.weight)
+            torch.nn.init.zeros_(self.decoder_transformer.layers[-1].linear2.bias)
+        
+
+
     def forward(self, batch, input_key="encoded_features", output_key="decoded_sequence", **kwargs):
         # dummy_mask = {'max_mask': None, 'mask_index': -1, 'mask': None}
         ## upsample to the original length of the sequence before passing into transformer

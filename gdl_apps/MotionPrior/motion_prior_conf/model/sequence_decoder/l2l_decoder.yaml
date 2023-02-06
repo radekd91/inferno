@@ -1,6 +1,12 @@
 # @package model 
 type: L2lDecoder
 num_layers: 12
+# num_layers: 8
+# num_layers: 6
+# num_layers: 4
+# num_layers: 2
+# num_layers: 1
+
 # input_dim: 56
 input_dim: todo # will be set upon instantiation
 feature_dim: 256
@@ -28,3 +34,7 @@ positional_encoding:
     # "quant_sequence_length": 4,
     # "sequence_length": 32,
     # "quant_factor": 3
+
+
+# last_layer_init: False  
+last_layer_init: zeros # the Flameformer zero init trick
