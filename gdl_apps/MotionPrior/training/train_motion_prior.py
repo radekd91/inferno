@@ -242,16 +242,21 @@ def prepare_data(cfg):
 
 def create_experiment_name(cfg, version=0):
     experiment_name = cfg.model.pl_module_class
-    # if version <= 2:
+
+    if cfg.model.sequence_encoder.type == "CodeTalkerEncoder":
+        experiment_name = "CD"
     
     if cfg.data.data_class:
         experiment_name += '_' + cfg.data.data_class[:5]
+
 
     if cfg.model.get('quantizer', None) is not None:
         if cfg.model.quantizer.type == "VectorQuantizer":
             experiment_name += '_VQVAE'
         elif cfg.model.quantizer.type == "GumbelVectorQuantizer":
             experiment_name += '_dVAE'
+    else: 
+        experiment_name += '_AE'
 
     if hasattr(cfg.learning, 'early_stopping') and cfg.learning.early_stopping: # \
         # and hasattr(cfg_detail.learning, 'early_stopping') and cfg_detail.learning.early_stopping
