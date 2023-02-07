@@ -29,8 +29,8 @@ class LinearValueScheduler(ValueScheduler):
         if step >= self.end_step:
             return self.end_value
         interval = self.end_step - self.start_step
-        value = (step - self.start_step) / interval
-        return value
+        slope = (self.end_value - self.start_value) / interval
+        return self.start_value + slope * (step - self.start_step)
 
 
 def scheduler_from_dict(cfg):
