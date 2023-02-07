@@ -247,6 +247,12 @@ def create_experiment_name(cfg, version=0):
     if cfg.data.data_class:
         experiment_name += '_' + cfg.data.data_class[:5]
 
+    if cfg.model.quantizer is not None:
+        if cfg.model.quantizer.type == "VectorQuantizer":
+            experiment_name += '_VQVAE'
+        elif cfg.model.quantizer.type == "GumbelVectorQuantizer":
+            experiment_name += '_dVAE'
+
     if hasattr(cfg.learning, 'early_stopping') and cfg.learning.early_stopping: # \
         # and hasattr(cfg_detail.learning, 'early_stopping') and cfg_detail.learning.early_stopping
         experiment_name += "_early"

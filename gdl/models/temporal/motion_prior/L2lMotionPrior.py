@@ -1,8 +1,11 @@
 from .MotionPrior import * 
 from .VectorQuantizer import VectorQuantizer
+from .GumbelVectorQuantizer import GumbelVectorQuantizer
 from torch import nn
 from ..BlockFactory import preprocessor_from_cfg
 from omegaconf import open_dict
+from gdl.utils.other import class_from_str
+import sys
 
 class L2lVqVae(MotionPrior):
 
@@ -13,6 +16,8 @@ class L2lVqVae(MotionPrior):
         self.cfg = cfg
         input_dim = self.get_input_sequence_dim()
         
+        encoder_class = class_from_str(cfg.model.sequence_encoder.type, sys.modules[__name__])
+
         with open_dict(cfg.model.sequence_encoder):
             cfg.model.sequence_encoder.input_dim = input_dim
 
@@ -21,10 +26,14 @@ class L2lVqVae(MotionPrior):
                 "Sequence length must be divisible by quantization factor"
             cfg.model.sizes.quant_sequence_length = cfg.learning.batching.sequence_length_train // (2 **cfg.model.sizes.quant_factor)
             cfg.model.sizes.sequence_length = cfg.learning.batching.sequence_length_train  
+            if encoder_class == L2lEncoderWithClassificationHead:
+                cfg.model.sizes.num_classes = cfg.model.quantizer.codebook_size
 
-        motion_encoder = L2lEncoder(cfg.model.sequence_encoder, cfg.model.sizes)
+        # motion_encoder = L2lEncoder(cfg.model.sequence_encoder, cfg.model.sizes)
+        motion_encoder = encoder_class(cfg.model.sequence_encoder, cfg.model.sizes)
         motion_decoder = L2lDecoder(cfg.model.sequence_decoder, cfg.model.sizes, motion_encoder.get_input_dim())
-        motion_quantizer = VectorQuantizer(cfg.model.quantizer)
+        # motion_quantizer = VectorQuantizer(cfg.model.quantizer)
+        motion_quantizer = class_from_str(cfg.model.quantizer.type, sys.modules[__name__])(cfg.model.quantizer)
         if cfg.model.get('preprocessor', None) is not None:
             preprocessor = preprocessor_from_cfg(cfg.model.preprocessor)
         else:
@@ -141,6 +150,18 @@ class L2lEncoder(MotionEncoder):
         batch[output_key] = encoded_features
         return batch
 
+
+
+class L2lEncoderWithClassificationHead(L2lEncoder): 
+
+    def __init__(self, cfg, sizes) -> None:
+        super().__init__(cfg, sizes) 
+        self.classification_head = nn.Linear(self.config.feature_dim, sizes.num_classes)
+
+    def forward(self, batch, input_key="input_sequence", output_key="encoded_features", **kwargs):
+        batch = super().forward(batch, input_key, output_key, **kwargs)
+        batch[output_key] = self.classification_head(batch[output_key])
+        return batch
 
 
     # def forward(self, inputs):

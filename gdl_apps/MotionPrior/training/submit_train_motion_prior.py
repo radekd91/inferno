@@ -95,14 +95,16 @@ def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
     # conf = "l2lvq-vae"
-    conf = "l2lvq-vae_geometry"
+    # conf = "l2lvq-vae_geometry"
     # conf = "l2lvq-vae_no_flame"
+    conf = "l2l-dvae_geometry"
 
     tags = []
     # tags += ['QUANT_FACTOR']
     # tags += ['NUM_LAYERS']
     # tags += ['ZERO_INIT']
-    tags += ['NO_FLAME']
+    tags += ['CODEBOOK_SIZE']
+    # tags += ['NO_FLAME']
 
     training_modes = [
         [], # no modifications to defaut config

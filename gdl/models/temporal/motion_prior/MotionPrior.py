@@ -300,6 +300,8 @@ class MotionPrior(pl.LightningModule):
             return sample["codebook_commitment"]
         elif loss_name == "perplexity":
             return sample["perplexity"]
+        elif loss_name == "kl_divergence":
+            return sample["kl_divergence"]
         else: 
             raise ValueError("Unknown loss name: {}".format(loss_name))
 

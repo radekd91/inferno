@@ -1,5 +1,5 @@
 # @package model 
-type: VectorQuantizer
+type: GumbelVectorQuantizer
 codebook_size: 200 # default
 # codebook_size: 20
 # codebook_size: 50
@@ -12,3 +12,4 @@ codebook_size: 200 # default
 # codebook_size: 2000
 
 vector_dim: 256
+tau: 1
