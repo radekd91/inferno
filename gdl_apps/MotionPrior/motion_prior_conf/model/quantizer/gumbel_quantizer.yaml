@@ -12,4 +12,13 @@ codebook_size: 200 # default
 # codebook_size: 2000
 
 vector_dim: 256
-tau: 1
+# tau: 1
+
+tau: 
+  schedule_type: linear
+  start:
+    step: 0
+    value: 1.
+  end:
+    step: 1000
+    value: 0.0625

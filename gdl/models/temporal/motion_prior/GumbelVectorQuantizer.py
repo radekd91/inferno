@@ -6,7 +6,8 @@ import torch
 import torch.nn as nn
 from .MotionPrior import MotionQuantizer
 from torch.nn import functional as F
-
+from typing import Dict
+from gdl.utils.ValueScheduler import scheduler_from_dict
 
 def kl_divergence(p, q, reduction='batchmean'):
     """
@@ -45,12 +46,11 @@ class GumbelVectorQuantizer(MotionQuantizer):
         self.cfg = cfg
         self.codebook_size = cfg.codebook_size
         self.vector_dim = cfg.vector_dim
-        self.tau = cfg.tau
-
+        self.tau = scheduler_from_dict(cfg.tau)
         self.embedding = nn.Embedding(self.codebook_size, self.vector_dim)
         self.embedding.weight.data.uniform_(-1.0 / self.codebook_size, 1.0 / self.codebook_size)
 
-    def forward(self, batch, input_key="encoded_features", output_key="quantized_features"):
+    def forward(self, batch, input_key="encoded_features", output_key="quantized_features", tau=None, step=None):
         """
         Inputs the output of the encoder network z and maps it to a discrete
         one-hot vector that is the index of the closest embedding vector e_j
@@ -68,7 +68,8 @@ class GumbelVectorQuantizer(MotionQuantizer):
         z_flattened = z.view(B*T, -1)
 
         # compute the soft assignments using gumbel softmax
-        soft_assignments = F.gumbel_softmax(z_flattened, tau=self.tau, hard=False)
+        tau = tau or self.tau(step=step)
+        soft_assignments = F.gumbel_softmax(z_flattened, tau=tau, hard=False)
         
         # get the linear combination of the codebook vectors
         z_q = soft_assignments @ self.embedding.weight

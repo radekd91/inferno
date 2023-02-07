@@ -103,7 +103,7 @@ def submit_trainings():
     # tags += ['QUANT_FACTOR']
     # tags += ['NUM_LAYERS']
     # tags += ['ZERO_INIT']
-    tags += ['CODEBOOK_SIZE']
+    # tags += ['CODEBOOK_SIZE']
     # tags += ['NO_FLAME']
 
     training_modes = [

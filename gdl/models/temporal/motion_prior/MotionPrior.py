@@ -203,9 +203,14 @@ class MotionPrior(pl.LightningModule):
         batch = self.motion_encoder(batch)
         return batch
 
-    def quantize(self, batch):
+    def quantize(self, batch, training_or_validation=False):
         if self.motion_quantizer is not None:
-            batch = self.motion_quantizer(batch)
+            # if training 
+            if training_or_validation:
+                training_step = self.global_step 
+            else:
+                training_step = None
+            batch = self.motion_quantizer(batch, step=training_step)
         return batch
 
     def decode(self, batch):
@@ -253,7 +258,7 @@ class MotionPrior(pl.LightningModule):
         batch = self.preprocess(batch)
         batch = self.compose_sequential_input(batch)
         batch = self.encode(batch)
-        batch = self.quantize(batch)
+        batch = self.quantize(batch, training_or_validation=train or validation)
         batch = self.decode(batch)
         batch = self.decompose_sequential_output(batch)
         batch = self.postprocess(batch)
