@@ -94,8 +94,10 @@ def submit(cfg , bid=10):
 def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
+    # conf = "l2l-ae"
+    conf = "l2l-ae_geometry"
     # conf = "l2lvq-vae"
-    conf = "l2lvq-vae_geometry"
+    # conf = "l2lvq-vae_geometry"
     # conf = "l2lvq-vae_no_flame"
     # conf = "l2l-dvae_geometry"
 
@@ -109,17 +111,17 @@ def submit_trainings():
     training_modes = [
         # [], # no modifications to defaut config
 
-        # [
-        #    '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_zero_init',  
-        # ],
+        [
+           '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_zero_init',  
+        ],
 
         # [
         #    '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_post_proj',  
         # ],
 
-        [
-           '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_post_proj_no_conv',  
-        ],
+        # [
+        #    '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_post_proj_no_conv',  
+        # ],
     ]
 
     dataset = "vocaset"
@@ -138,6 +140,9 @@ def submit_trainings():
         # preprocessor = "emoca"
         preprocessor = "flame"
         # preprocessor = None
+
+    if dataset == "vocaset_one_person": 
+        tags += ['ONE_PERSON']
 
     split = None
 

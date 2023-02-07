@@ -214,8 +214,8 @@ class MotionPrior(pl.LightningModule):
         return batch
 
     def decode(self, batch):
-        # key = "quantized_features" if self.motion_quantizer is not None else "encoded_features"
-        batch = self.motion_decoder(batch)
+        key = "quantized_features" if self.motion_quantizer is not None else "encoded_features"
+        batch = self.motion_decoder(batch, input_key=key)
         assert batch["decoded_sequence"].shape == batch["input_sequence"].shape, \
             "Decoded sequence shape does not match input sequence shape."
         return batch
