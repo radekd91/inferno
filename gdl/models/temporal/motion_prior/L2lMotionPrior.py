@@ -214,7 +214,7 @@ class L2lDecoder(MotionEncoder):
         
 
 
-    def forward(self, batch, input_key="encoded_features", output_key="decoded_sequence", **kwargs):
+    def forward(self, batch, input_key="quantized_features", output_key="decoded_sequence", **kwargs):
         # dummy_mask = {'max_mask': None, 'mask_index': -1, 'mask': None}
         ## upsample to the original length of the sequence before passing into transformer
         inputs = batch[input_key]
