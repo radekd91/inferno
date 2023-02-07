@@ -100,7 +100,9 @@ def submit_trainings():
     # conf = "l2lvq-vae_geometry"
     # conf = "l2lvq-vae_no_flame"
     # conf = "l2l-dvae_geometry"
-    conf = "codetalker_vq-vae_geometry"
+    # conf = "codetalker_vq-vae_geometry"
+    # conf = "codetalker_vq-vae"
+    conf = "codetalker_vq-vae_no_flame"
 
     tags = []
     # tags += ['QUANT_FACTOR']
@@ -135,7 +137,7 @@ def submit_trainings():
     batching = "fixed_length_bs32_35gb"
     # batching = "fixed_length_bs64_35gb"
 
-    if conf == "l2lvq-vae_no_flame" and dataset in ["vocaset", "vocaset_one_person"]: 
+    if conf in ["l2lvq-vae_no_flame", "vae_no_flame"] and dataset in ["vocaset", "vocaset_one_person"]: 
         preprocessor = None
     else:
         # preprocessor = "emoca"
