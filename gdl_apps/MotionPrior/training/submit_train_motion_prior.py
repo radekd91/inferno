@@ -95,9 +95,9 @@ def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
     # conf = "l2lvq-vae"
-    # conf = "l2lvq-vae_geometry"
+    conf = "l2lvq-vae_geometry"
     # conf = "l2lvq-vae_no_flame"
-    conf = "l2l-dvae_geometry"
+    # conf = "l2l-dvae_geometry"
 
     tags = []
     # tags += ['QUANT_FACTOR']
@@ -107,10 +107,23 @@ def submit_trainings():
     # tags += ['NO_FLAME']
 
     training_modes = [
-        [], # no modifications to defaut config
+        # [], # no modifications to defaut config
+
+        # [
+        #    '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_zero_init',  
+        # ],
+
+        # [
+        #    '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_post_proj',  
+        # ],
+
+        [
+           '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_post_proj_no_conv',  
+        ],
     ]
 
     dataset = "vocaset"
+    # dataset = "vocaset_one_person"
     # dataset = "mead_pseudo_gt"
     
     # batching = "fixed_length"
@@ -119,7 +132,7 @@ def submit_trainings():
     batching = "fixed_length_bs32_35gb"
     # batching = "fixed_length_bs64_35gb"
 
-    if conf == "l2lvq-vae_no_flame" and dataset in ["vocaset"]: 
+    if conf == "l2lvq-vae_no_flame" and dataset in ["vocaset", "vocaset_one_person"]: 
         preprocessor = None
     else:
         # preprocessor = "emoca"

@@ -30,7 +30,7 @@ class VectorQuantizer(MotionQuantizer):
         self.embedding = nn.Embedding(self.codebook_size, self.vector_dim)
         self.embedding.weight.data.uniform_(-1.0 / self.codebook_size, 1.0 / self.codebook_size)
 
-    def forward(self, batch, input_key="encoded_features", output_key="quantized_features"):
+    def forward(self, batch, input_key="encoded_features", output_key="quantized_features", step=None):
         """
         Inputs the output of the encoder network z and maps it to a discrete
         one-hot vector that is the index of the closest embedding vector e_j

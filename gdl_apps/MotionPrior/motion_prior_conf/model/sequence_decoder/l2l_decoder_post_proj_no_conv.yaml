@@ -37,4 +37,18 @@ positional_encoding:
 
 
 last_layer_init: False  
-# last_layer_init: zeros # the Flameformer zero init trick
+# last_layer_init: zeros # the Flameformer zero init trick for the last layer of the transformer
+
+# post_transformer_proj: False
+post_transformer_proj: 
+  init: zeros
+
+
+# conv_smooth_layer: l2l_default
+conv_smooth_layer: False
+
+
+post_conv_proj: False
+# post_conv_proj: 
+#   init: zeros
+

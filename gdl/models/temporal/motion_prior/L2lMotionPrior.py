@@ -222,17 +222,48 @@ class L2lDecoder(MotionEncoder):
             self.cfg.feature_dim,
             self.cfg.feature_dim
             )
-        self.cross_smooth_layer = nn.Conv1d(
+
+        conv_smooth_layer = cfg.get('conv_smooth_layer', 'l2l_default')
+        
+        if conv_smooth_layer == 'l2l_default':
+            self.cross_smooth_layer = nn.Conv1d(
+                    cfg.feature_dim,
+                    out_dim, 5, 
+                    padding=2
+                )
+        elif conv_smooth_layer is False:
+            self.cross_smooth_layer = None
+        else:
+            raise ValueError(f'conv_smooth_layer value {conv_smooth_layer} not supported')
+
+        if cfg.get('post_transformer_proj', None):
+            lin_out_dim = cfg.feature_dim if self.cross_smooth_layer is not None else out_dim
+            self.post_transformer_linear = nn.Linear(
                 cfg.feature_dim,
-                out_dim, 5, 
-                padding=2
+                lin_out_dim,
             )
+            if cfg.post_transformer_proj.init == "zeros":
+                torch.nn.init.zeros_(self.post_transformer_linear.weight)
+                torch.nn.init.zeros_(self.post_transformer_linear.bias)
+        else:
+            self.post_transformer_linear = None
+
+        if cfg.get('post_conv_proj', None):
+            self.post_conv_proj = nn.Linear(
+                out_dim,
+                out_dim,
+            )
+            if cfg.post_conv_proj.init == "zeros":
+                torch.nn.init.zeros_(self.post_conv_proj.weight)
+                torch.nn.init.zeros_(self.post_conv_proj.bias)
+        else:
+            self.post_conv_proj = None
 
         # initialize the last layer of the decoder to zero 
         if cfg.get('last_layer_init', None) == "zeros":
             torch.nn.init.zeros_(self.decoder_transformer.layers[-1].linear2.weight)
             torch.nn.init.zeros_(self.decoder_transformer.layers[-1].linear2.bias)
-        
+
 
 
     def forward(self, batch, input_key="quantized_features", output_key="decoded_sequence", **kwargs):
@@ -249,7 +280,13 @@ class L2lDecoder(MotionEncoder):
         decoded_features = self.decoder_linear_embedding(inputs)
         decoded_features = self.decoder_pos_embedding(decoded_features)
         decoded_features = self.decoder_transformer(decoded_features, mask=None)
-        decoded_reconstruction = self.cross_smooth_layer(decoded_features.permute(0,2,1)).permute(0,2,1)
+        decoded_reconstruction = decoded_features
+        if self.post_transformer_linear is not None:
+            decoded_reconstruction = self.post_transformer_linear(decoded_reconstruction)
+        if self.cross_smooth_layer is not None:
+            decoded_reconstruction = self.cross_smooth_layer(decoded_reconstruction.permute(0,2,1)).permute(0,2,1)
+        if self.post_conv_proj is not None:
+            decoded_reconstruction = self.post_conv_proj(decoded_reconstruction)
         batch[output_key] = decoded_reconstruction
         return batch
 

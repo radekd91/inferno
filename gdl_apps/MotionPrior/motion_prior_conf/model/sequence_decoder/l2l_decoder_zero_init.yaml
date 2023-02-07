@@ -36,5 +36,5 @@ positional_encoding:
     # "quant_factor": 3
 
 
-last_layer_init: False  
-# last_layer_init: zeros # the Flameformer zero init trick
+# last_layer_init: False  
+last_layer_init: zeros # the Flameformer zero init trick
