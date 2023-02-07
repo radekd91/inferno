@@ -17,6 +17,7 @@ class L2lVqVae(MotionPrior):
         input_dim = self.get_input_sequence_dim()
         
         encoder_class = class_from_str(cfg.model.sequence_encoder.type, sys.modules[__name__])
+        decoder_class = class_from_str(cfg.model.sequence_decoder.type, sys.modules[__name__])
 
         with open_dict(cfg.model.sequence_encoder):
             cfg.model.sequence_encoder.input_dim = input_dim
@@ -25,13 +26,16 @@ class L2lVqVae(MotionPrior):
             assert cfg.learning.batching.sequence_length_train % (2 **cfg.model.sizes.quant_factor) == 0, \
                 "Sequence length must be divisible by quantization factor"
             cfg.model.sizes.quant_sequence_length = cfg.learning.batching.sequence_length_train // (2 **cfg.model.sizes.quant_factor)
-            cfg.model.sizes.sequence_length = cfg.learning.batching.sequence_length_train  
+            cfg.model.sizes.sequence_length = cfg.learning.batching.sequence_length_train 
+            cfg.model.sizes.bottleneck_feature_dim = cfg.model.quantizer.vector_dim 
             if encoder_class == L2lEncoderWithClassificationHead:
                 cfg.model.sizes.num_classes = cfg.model.quantizer.codebook_size
 
         # motion_encoder = L2lEncoder(cfg.model.sequence_encoder, cfg.model.sizes)
         motion_encoder = encoder_class(cfg.model.sequence_encoder, cfg.model.sizes)
-        motion_decoder = L2lDecoder(cfg.model.sequence_decoder, cfg.model.sizes, motion_encoder.get_input_dim())
+        
+        # motion_decoder = L2lDecoder(cfg.model.sequence_decoder, cfg.model.sizes, motion_encoder.get_input_dim())
+        motion_decoder = decoder_class(cfg.model.sequence_decoder, cfg.model.sizes, motion_encoder.get_input_dim())
         # motion_quantizer = VectorQuantizer(cfg.model.quantizer)
         if cfg.model.get('quantizer', None) is not None:
             motion_quantizer = class_from_str(cfg.model.quantizer.type, sys.modules[__name__])(cfg.model.quantizer)
@@ -292,4 +296,127 @@ class L2lDecoder(MotionEncoder):
             decoded_reconstruction = self.post_conv_proj(decoded_reconstruction)
         batch[output_key] = decoded_reconstruction
         return batch
+
+
+class CodeTalkerEncoder(MotionEncoder): 
+    """
+    Inspired by by the encoder from CodeTalker
+    """
+
+    def __init__(self, cfg, sizes):
+        super().__init__()
+        self.config = cfg
+        self.sizes = sizes
+        size = self.config.input_dim
+        dim = self.config.feature_dim
+
+        self.lin1 = nn.Linear(size, dim)
+        self.lrelu1 = nn.LeakyReLU(0.2, True)
+        self.conv1 = nn.Conv1d(dim, dim, 5, stride=1, padding=2, padding_mode='zeros')
+        self.lrelu2 = nn.LeakyReLU(0.2, True)
+        self.norm = nn.InstanceNorm1d(dim)
+        self.lin2 = nn.Linear(dim, dim)
+
+        self.encoder_pos_embedding = LearnedPositionEmbedding(
+            sizes.quant_sequence_length,
+            self.config.feature_dim
+            )
+
+        encoder_layer = torch.nn.TransformerEncoderLayer(
+                    d_model=cfg.feature_dim, # default 1024
+                    nhead=cfg.nhead, # default 8
+                    dim_feedforward=cfg.intermediate_size, # default 1536
+                    activation=cfg.activation, # L2L paper uses gelu
+                    dropout=cfg.dropout, 
+                    batch_first=True
+        )
+        self.encoder_transformer = torch.nn.TransformerEncoder(encoder_layer, 
+            num_layers=cfg.num_layers # 6 by default
+        )
+
+        self.lin3 = nn.Linear(dim, sizes.bottleneck_feature_dim)
+
+    def get_input_dim(self):
+        return self.config.input_dim
+
+    def forward(self, batch, input_key="input_sequence", output_key="encoded_features", **kwargs):
+        inputs = batch[input_key] 
+        B, T = inputs.shape[:2]
+        inputs = inputs.reshape(B * T, -1)
+        encoded_features = self.lin1(inputs)
+        encoded_features = self.lrelu1(encoded_features)
+        encoded_features = encoded_features.reshape(B, T, -1)
+        encoded_features = self.conv1(encoded_features.permute(0,2,1)).permute(0,2,1)
+        encoded_features = encoded_features.reshape(B * T, -1)
+        encoded_features = self.lrelu2(encoded_features)
+        encoded_features = self.norm(encoded_features)
+        encoded_features = self.lin2(encoded_features)
+
+        encoded_features = encoded_features.reshape(B, T, -1)
+        
+        encoded_features = self.encoder_pos_embedding(encoded_features)
+        encoded_features = self.encoder_transformer(encoded_features, mask=None)
+        encoded_features = encoded_features.reshape(B * T, -1)
+        encoded_features = self.lin3(encoded_features)
+        encoded_features = encoded_features.reshape(B, T, -1)
+        batch[output_key] = encoded_features
+        return batch
+
+
+class CodeTalkerDecoder(MotionDecoder): 
+    
+    def __init__(self, cfg, sizes, out_dim): 
+        super().__init__()
+        self.cfg = cfg
+        size = self.cfg.feature_dim
+        dim = self.cfg.feature_dim
+        is_audio = False
+
+        self.lin1 = nn.Linear(sizes.bottleneck_feature_dim, dim)
+        self.conv1 = nn.Conv1d(dim, dim, 5, stride=1, padding=2, padding_mode='zeros') 
+        self.lrelu1 = nn.LeakyReLU(0.2, True) 
+        self.norm = nn.InstanceNorm1d(dim)
+        self.lin2 = nn.Linear(dim, dim)
+        seq_len = sizes.sequence_length*4 if is_audio else sizes.sequence_length
+        self.decoder_pos_embedding = LearnedPositionEmbedding(
+            seq_len,
+            self.cfg.feature_dim
+            )
+
+        decoder_layer = torch.nn.TransformerEncoderLayer(
+                    d_model=cfg.feature_dim, # default 1024
+                    nhead=cfg.nhead, # default 8
+                    dim_feedforward=cfg.intermediate_size, # default 1536
+                    activation=cfg.activation, # L2L paper uses gelu
+                    dropout=cfg.dropout, 
+                    batch_first=True
+        )
+        self.decoder_transformer = torch.nn.TransformerEncoder(decoder_layer, 
+            num_layers=cfg.num_layers # 6 by default
+        )
+
+        self.lin3 = nn.Linear(dim, out_dim)
+
+    def forward(self, batch, input_key="quantized_features", output_key="decoded_sequence", **kwargs):
+        inputs = batch[input_key]
+        B, T = inputs.shape[:2]
+        inputs = inputs.reshape(B * T, -1)
+        decoded_features = self.lin1(inputs)
+        decoded_features = decoded_features.reshape(B, T, -1)
+        decoded_features = self.conv1(decoded_features.permute(0,2,1)).permute(0,2,1)
+        decoded_features = decoded_features.reshape(B * T, -1)
+        decoded_features = self.lrelu1(decoded_features)
+        decoded_features = self.norm(decoded_features)
+        decoded_features = self.lin2(decoded_features)
+
+        decoded_features = decoded_features.reshape(B, T, -1)
+        decoded_features = self.decoder_pos_embedding(decoded_features)
+        decoded_features = self.decoder_transformer(decoded_features, mask=None)
+        decoded_features = decoded_features.reshape(B * T, -1)
+
+        decoded_features = self.lin3(decoded_features)
+        decoded_features = decoded_features.reshape(B, T, -1)
+        batch[output_key] = decoded_features
+        return batch
+
 
