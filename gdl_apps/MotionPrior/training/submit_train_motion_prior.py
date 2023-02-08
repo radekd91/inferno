@@ -96,13 +96,15 @@ def submit_trainings():
 
     # conf = "l2l-ae"
     # conf = "l2l-ae_geometry"
+    # conf = "l2l-ae_geometry_fs"
     # conf = "l2lvq-vae"
     # conf = "l2lvq-vae_geometry"
     # conf = "l2lvq-vae_no_flame"
+    conf = "l2l-vae_geometry"
     # conf = "l2l-dvae_geometry"
     # conf = "codetalker_vq-vae_geometry"
     # conf = "codetalker_vq-vae"
-    conf = "codetalker_vq-vae_no_flame"
+    # conf = "codetalker_vq-vae_no_flame"
 
     tags = []
     # tags += ['QUANT_FACTOR']
@@ -110,17 +112,18 @@ def submit_trainings():
     # tags += ['ZERO_INIT']
     # tags += ['CODEBOOK_SIZE']
     # tags += ['NO_FLAME']
+    # tags += ['NO_CONV']
 
     training_modes = [
-        [], # no modifications to defaut config
+        # [], # no modifications to defaut config
 
         # [
         #    '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_zero_init',  
         # ],
 
-        # [
-        #    '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_post_proj',  
-        # ],
+        [
+           '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_post_proj',  
+        ],
 
         # [
         #    '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_post_proj_no_conv',  
@@ -178,10 +181,10 @@ def submit_trainings():
     submit_ = False
     # submit_ = True
     
-    # if not submit_:
-    #     fixed_overrides += [
-    #         '+learning.logging=none',
-    #     ]
+    if not submit_:
+        fixed_overrides += [
+            '+learning.logging=none',
+        ]
 
 
     # config_pairs = []
@@ -189,26 +192,45 @@ def submit_trainings():
         overrides = fixed_overrides.copy()
         overrides += fmode
 
-        cfg = script.configure(
-            conf, overrides,
-        )
+        # num_layer_list = [None] # defeault 
+        # num_layer_list = [1, 2,  4,  6,  8, 12]
+        num_layer_list = [1]
+        for num_layers in num_layer_list:
+            if num_layers is not None:
+                overrides += ['model.sequence_encoder.num_layers=' + str(num_layers)]
+                overrides += ['model.sequence_decoder.num_layers=' + str(num_layers)]
+        
 
-        GlobalHydra.instance().clear()
-        # config_pairs += [cfgs]
+            quant_factor_list = [None] # 
+            # quant_factor_list = [0, 1, 2, 3, 4, 5]
+            # quant_factor_list = [0]
 
-        # OmegaConf.set_struct(cfgs[0], False)
 
-        with open_dict(cfg) as d:
-            if not submit_:
-                d.data.debug_mode = True
-                tags += ["DEBUG_FROM_WORKSTATION"]
-            if d.learning.tags is None:
-                d.learning.tags = tags
-      
-        if submit_:
-            submit(cfg, bid=bid)
-        else:
-            script.train_model(cfg, resume_from_previous=False)
+            for quant_factor in quant_factor_list:
+                if quant_factor is not None:
+                    overrides += ['model.sizes.quant_factor=' + str(quant_factor)]
+
+
+                cfg = script.configure(
+                    conf, overrides,
+                )
+
+                GlobalHydra.instance().clear()
+                # config_pairs += [cfgs]
+
+                # OmegaConf.set_struct(cfgs[0], False)
+
+                with open_dict(cfg) as d:
+                    if not submit_:
+                        d.data.debug_mode = True
+                        tags += ["DEBUG_FROM_WORKSTATION"]
+                    if d.learning.tags is None:
+                        d.learning.tags = tags
+            
+                if submit_:
+                    submit(cfg, bid=bid)
+                else:
+                    script.train_model(cfg, resume_from_previous=False)
 
 
 

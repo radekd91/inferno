@@ -27,8 +27,8 @@ import random
 from omegaconf import DictConfig, OmegaConf, open_dict 
 import sys
 
-submit_ = False
-# submit_ = True
+# submit_ = False
+submit_ = True
 
 if submit_:
     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -133,10 +133,10 @@ def resume_motion_prior_on_cluster():
     # model_names += ["2023_02_05_19-43-35_3322208019009558883_L2lVqVae_Facef"]
 
     # post bug fix, need finetuning
-    # model_names += ["2023_02_07_20-28-53_-2021013419590325583_L2lVqVae_Facef"]
-    # model_names += ["2023_02_07_20-29-01_-2576280032826500507_L2lVqVae_Facef"]
+    model_names += ["2023_02_07_20-28-53_-2021013419590325583_L2lVqVae_Facef"]
+    model_names += ["2023_02_07_20-29-01_-2576280032826500507_L2lVqVae_Facef"]
     model_names += ["2023_02_07_20-27-54_-8292189443712743736_L2lVqVae_Facef"]
-    # model_names += ["2023_02_07_20-25-33_-8702650742274879322_L2lVqVae_Facef"]
+    model_names += ["2023_02_07_20-25-33_-8702650742274879322_L2lVqVae_Facef"]
     # model_names += ["2023_02_07_19-47-20_-8793559135758698718_L2lVqVae_Facef_VQVAE"]
     # model_names += ["2023_02_07_19-31-25_3806813112112742638_L2lVqVae_Facef_VQVAE"]
     # model_names += ["2023_02_07_19-30-36_-221751824748459707_L2lVqVae_Facef_VQVAE"]

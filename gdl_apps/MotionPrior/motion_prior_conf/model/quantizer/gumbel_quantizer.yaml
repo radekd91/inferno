@@ -20,5 +20,5 @@ tau:
     step: 0
     value: 1.
   end:
-    step: 1000
+    step: 2000
     value: 0.0625

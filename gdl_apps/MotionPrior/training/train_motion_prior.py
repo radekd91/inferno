@@ -256,7 +256,10 @@ def create_experiment_name(cfg, version=0):
         elif cfg.model.quantizer.type == "GumbelVectorQuantizer":
             experiment_name += '_dVAE'
     else: 
-        experiment_name += '_AE'
+        if cfg.model.sequence_encoder.type == "L2lEncoderWithGaussianHead":
+            experiment_name += '_VAE'
+        else:
+            experiment_name += '_AE'
 
     if hasattr(cfg.learning, 'early_stopping') and cfg.learning.early_stopping: # \
         # and hasattr(cfg_detail.learning, 'early_stopping') and cfg_detail.learning.early_stopping

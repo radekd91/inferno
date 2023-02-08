@@ -171,6 +171,48 @@ class L2lEncoderWithClassificationHead(L2lEncoder):
         batch[output_key] = self.classification_head(batch[output_key])
         return batch
 
+class L2lEncoderWithGaussianHead(L2lEncoder): 
+
+    def __init__(self, cfg, sizes) -> None:
+        super().__init__(cfg, sizes) 
+        self.mean = nn.Linear(self.config.feature_dim, self.config.feature_dim)
+        self.logvar = nn.Linear(self.config.feature_dim, self.config.feature_dim)
+        self.N = torch.distributions.Normal(0, 1)
+        self.N.loc = self.N.loc.to(self.logvar.weight.device)
+        self.N.scale = self.N.scale.to(self.logvar.weight.device)
+
+    def to(self, *args, device=None, **kwargs):
+        super().to(*args, device=None, **kwargs)
+        self.N.loc.to(device)
+        self.N.scale.to(device)
+        self.mean = self.mean.to(device)
+        self.logvar = self.logvar.to(device)
+        return self
+
+    def forward(self, batch, input_key="input_sequence", output_key="encoded_features", **kwargs):
+        if self.N.loc.device != self.logvar.weight.device:
+            self.N.loc = self.N.loc.to(self.logvar.weight.device)
+            self.N.scale = self.N.scale.to(self.logvar.weight.device)
+        batch = super().forward(batch, input_key, output_key, **kwargs)
+        encoded_feature = batch[output_key]
+        B,T = encoded_feature.shape[:2]
+        encoded_feature = encoded_feature.reshape(B*T, -1)
+        mean = self.mean(encoded_feature)
+        logvar = self.logvar(encoded_feature)
+        std = torch.exp(0.5*logvar)
+        # eps = self.N.sample(std.size())
+        z = mean + std * self.N.sample(mean.shape)
+        kld_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mean ** 2 - logvar.exp(), dim = 1), dim = 0)
+        batch["kl_divergence"] = kld_loss
+        z = z.reshape(B,T,-1)
+        batch[output_key] = z
+        batch[output_key + "_mean"] = mean.reshape(B,T,-1)
+        batch[output_key + "_logvar"] = logvar.reshape(B,T,-1)
+        batch[output_key + "_std"] = std.reshape(B,T,-1)
+        
+        return batch
+
+
 
     # def forward(self, inputs):
     #     ## downsample into path-wise length seq before passing into transformer
