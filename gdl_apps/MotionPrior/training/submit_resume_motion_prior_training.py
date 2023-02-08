@@ -27,8 +27,8 @@ import random
 from omegaconf import DictConfig, OmegaConf, open_dict 
 import sys
 
-# submit_ = False
-submit_ = True
+submit_ = False
+# submit_ = True
 
 if submit_:
     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -121,29 +121,60 @@ def resume_motion_prior_on_cluster():
     root = "/is/cluster/work/rdanecek/motion_prior/trainings/"
     
     model_names = []
-    # model_names += ["2023_02_05_19-50-07_-5643053022395030803_L2lVqVae_Facef"]
-    model_names += ["2023_02_05_19-47-04_-6204082330817104839_L2lVqVae_Facef"]
-    model_names += ["2023_02_05_19-46-40_-8068289807722994107_L2lVqVae_Facef"]
-    model_names += ["2023_02_05_19-45-15_1020392668976619472_L2lVqVae_Facef"]
-    model_names += ["2023_02_05_19-45-15_-8493098869856430542_L2lVqVae_Facef"]
-    model_names += ["2023_02_05_19-45-07_3708617454039099621_L2lVqVae_Facef"]
-    # model_names += ["2023_02_05_19-44-51_4819075661105074885_L2lVqVae_Facef"]
-    model_names += ["2023_02_05_19-44-51_-4469641301695294897_L2lVqVae_Facef"]
-    model_names += ["2023_02_05_19-43-35_3322208019009558883_L2lVqVae_Facef"]
+    # bugs
+    # # model_names += ["2023_02_05_19-50-07_-5643053022395030803_L2lVqVae_Facef"]
+    # model_names += ["2023_02_05_19-47-04_-6204082330817104839_L2lVqVae_Facef"]
+    # model_names += ["2023_02_05_19-46-40_-8068289807722994107_L2lVqVae_Facef"]
+    # model_names += ["2023_02_05_19-45-15_1020392668976619472_L2lVqVae_Facef"]
+    # model_names += ["2023_02_05_19-45-15_-8493098869856430542_L2lVqVae_Facef"]
+    # model_names += ["2023_02_05_19-45-07_3708617454039099621_L2lVqVae_Facef"]
+    # # model_names += ["2023_02_05_19-44-51_4819075661105074885_L2lVqVae_Facef"]
+    # model_names += ["2023_02_05_19-44-51_-4469641301695294897_L2lVqVae_Facef"]
+    # model_names += ["2023_02_05_19-43-35_3322208019009558883_L2lVqVae_Facef"]
+
+    # post bug fix, need finetuning
+    # model_names += ["2023_02_07_20-28-53_-2021013419590325583_L2lVqVae_Facef"]
+    # model_names += ["2023_02_07_20-29-01_-2576280032826500507_L2lVqVae_Facef"]
+    model_names += ["2023_02_07_20-27-54_-8292189443712743736_L2lVqVae_Facef"]
+    # model_names += ["2023_02_07_20-25-33_-8702650742274879322_L2lVqVae_Facef"]
+    # model_names += ["2023_02_07_19-47-20_-8793559135758698718_L2lVqVae_Facef_VQVAE"]
+    # model_names += ["2023_02_07_19-31-25_3806813112112742638_L2lVqVae_Facef_VQVAE"]
+    # model_names += ["2023_02_07_19-30-36_-221751824748459707_L2lVqVae_Facef_VQVAE"]
+    # model_names += ["2023_02_07_19-30-07_-1046633450114303061_L2lVqVae_Facef_VQVAE"]
+    # model_names += ["2023_02_07_19-28-21_-2023277178393284087_L2lVqVae_Facef_VQVAE"]
+    # model_names += ["2023_02_07_19-27-54_2042140273458874000_L2lVqVae_Facef_VQVAE"]
+    # model_names += ["2023_02_07_19-27-39_-5992224788341585803_L2lVqVae_Facef_VQVAE"]
+    # model_names += ["2023_02_07_19-26-18_7959811539499577467_L2lVqVae_Facef_VQVAE"]
+
+    # rename_video_result_folder = False
+    rename_video_result_folder = True
 
     bid = 1000
 
     # # continue training
-    # stage = 0 
-    # resume_from_previous = False
-    # force_new_location = False
-
-    # # ## test 
-    stage = 1
-    resume_from_previous = True
+    stage = 0 
+    resume_from_previous = False
     force_new_location = False
 
+    # # ## test 
+    # stage = 1
+    # resume_from_previous = True
+    # force_new_location = False
+
     for model_folder in model_names:
+        
+        if rename_video_result_folder:
+            old_folder = Path(root + model_folder) / "videos" 
+            if old_folder.exists():
+                # find a new name
+                new_folder = Path(root + model_folder) / "videos"
+                i = 0
+                while new_folder.exists():
+                    new_folder = Path(root + model_folder) / f"videos_{i:02d}"
+                    i += 1
+                old_folder.rename(new_folder) 
+                print("Renaming", old_folder, "to", new_folder)
+
         if submit_:
             submit(root + model_folder, stage, resume_from_previous, force_new_location, bid=bid)
         else: 

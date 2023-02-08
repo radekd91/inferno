@@ -27,9 +27,10 @@ class L2lVqVae(MotionPrior):
                 "Sequence length must be divisible by quantization factor"
             cfg.model.sizes.quant_sequence_length = cfg.learning.batching.sequence_length_train // (2 **cfg.model.sizes.quant_factor)
             cfg.model.sizes.sequence_length = cfg.learning.batching.sequence_length_train 
-            cfg.model.sizes.bottleneck_feature_dim = cfg.model.quantizer.vector_dim 
-            if encoder_class == L2lEncoderWithClassificationHead:
-                cfg.model.sizes.num_classes = cfg.model.quantizer.codebook_size
+            if 'quantizer' in cfg.model.keys():
+                cfg.model.sizes.bottleneck_feature_dim = cfg.model.quantizer.vector_dim 
+                if encoder_class == L2lEncoderWithClassificationHead:
+                    cfg.model.sizes.num_classes = cfg.model.quantizer.codebook_size
 
         # motion_encoder = L2lEncoder(cfg.model.sequence_encoder, cfg.model.sizes)
         motion_encoder = encoder_class(cfg.model.sequence_encoder, cfg.model.sizes)
