@@ -15,7 +15,13 @@ losses:
     metric: mse_loss
 
   kl_divergence: 
-    weight: 1.0
+    # weight: 1.0
+    # weight: 0.5
+    # weight: 0.1
+    # weight: 0.05
+    # weight: 0.01
+    # weight: 0.05
+    weight: 0.005
   
 metrics: 
   perplexity: 
@@ -40,3 +46,8 @@ metrics:
     output_key: decoded_sequence
     metric: mse_loss
     # mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+
+
+  gumble_tau:
+    weight: 1.
+  

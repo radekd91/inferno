@@ -108,6 +108,7 @@ class GumbelVectorQuantizer(MotionQuantizer):
         batch["soft_assignments"] = soft_assignments
         batch["min_encoding_indices"] = min_encoding_indices 
         batch["min_encodings"] = min_encodings
+        batch["gumble_tau"] = tau
         # batch["codebook_alignment"] = codebook_alignment
         # batch["codebook_commitment"] = codebook_commitment
         return batch

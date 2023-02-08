@@ -100,8 +100,8 @@ def submit_trainings():
     # conf = "l2lvq-vae"
     # conf = "l2lvq-vae_geometry"
     # conf = "l2lvq-vae_no_flame"
-    conf = "l2l-vae_geometry"
-    # conf = "l2l-dvae_geometry"
+    # conf = "l2l-vae_geometry"
+    conf = "l2l-dvae_geometry"
     # conf = "codetalker_vq-vae_geometry"
     # conf = "codetalker_vq-vae"
     # conf = "codetalker_vq-vae_no_flame"
@@ -110,9 +110,10 @@ def submit_trainings():
     # tags += ['QUANT_FACTOR']
     # tags += ['NUM_LAYERS']
     # tags += ['ZERO_INIT']
-    # tags += ['CODEBOOK_SIZE']
+    tags += ['CODEBOOK_SIZE']
     # tags += ['NO_FLAME']
     # tags += ['NO_CONV']
+    tags += ['CODEBOOK_LOSSES']
 
     training_modes = [
         # [], # no modifications to defaut config
@@ -211,26 +212,42 @@ def submit_trainings():
                     overrides += ['model.sizes.quant_factor=' + str(quant_factor)]
 
 
-                cfg = script.configure(
-                    conf, overrides,
-                )
+                # codebook_size_list = [None] # defeault
+                codebook_size_list = [200, 512, 1024] # defeault
 
-                GlobalHydra.instance().clear()
-                # config_pairs += [cfgs]
+                for codebook_size in codebook_size_list:
+                    if codebook_size is not None:
+                        overrides += ['model.quantizer.codebook_size=' + str(codebook_size)]
 
-                # OmegaConf.set_struct(cfgs[0], False)
+                    codebook_losses = (0.25, 1.0)
+                    codebook_loss_factors = [None]
+                    # codebook_loss_factors = [1.0, 0.5, 0.1, 0.05, 0.01, 0.005]
 
-                with open_dict(cfg) as d:
-                    if not submit_:
-                        d.data.debug_mode = True
-                        tags += ["DEBUG_FROM_WORKSTATION"]
-                    if d.learning.tags is None:
-                        d.learning.tags = tags
-            
-                if submit_:
-                    submit(cfg, bid=bid)
-                else:
-                    script.train_model(cfg, resume_from_previous=False)
+                    for ci, codebook_loss in enumerate(codebook_loss_factors):
+                        if codebook_loss is not None:
+                            overrides += ['learning.losses.codebook_alignment.weight=' + str(codebook_loss * codebook_losses[0])]
+                            overrides += ['learning.losses.codebook_commitment.weight=' + str(codebook_loss * codebook_losses[1])]
+
+                        cfg = script.configure(
+                            conf, overrides,
+                        )
+
+                        GlobalHydra.instance().clear()
+                        # config_pairs += [cfgs]
+
+                        # OmegaConf.set_struct(cfgs[0], False)
+
+                        with open_dict(cfg) as d:
+                            if not submit_:
+                                d.data.debug_mode = True
+                                tags += ["DEBUG_FROM_WORKSTATION"]
+                            if d.learning.tags is None:
+                                d.learning.tags = tags
+                    
+                        if submit_:
+                            submit(cfg, bid=bid)
+                        else:
+                            script.train_model(cfg, resume_from_previous=False)
 
 
 
