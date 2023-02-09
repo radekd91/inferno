@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from gdl.utils.MediaPipeFaceOccluder import left_eye_landmark_indices, right_eye_landmark_indices, mouth_landmark_indices
+from gdl.utils.MediaPipeLandmarkLists import left_eye_landmark_indices, right_eye_landmark_indices, mouth_landmark_indices
 
 ## 68 LANDMARK DESCRIPTIONS 
 
