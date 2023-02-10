@@ -16,7 +16,7 @@ All rights reserved.
 # For comments or questions, please email us at emoca@tue.mpg.de
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
-
+import sys
 
 from gdl.datasets.AffectNetDataModule import AffectNetDataModule
 
@@ -55,7 +55,7 @@ def main():
 
     if sid is not None:
         if sid >= dm.num_subsets: 
-            print(f"Subset index {sid} is larger than number of subsets. Terminating".)
+            print(f"Subset index {sid} is larger than number of subsets. Terminating")
             sys.exit()
         dm._detect_landmarks_and_segment_subset(dm.subset_size * sid, min((sid + 1) * dm.subset_size, len(dm.df)))
     else:
