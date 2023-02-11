@@ -179,8 +179,8 @@ def submit_trainings():
         fixed_overrides += [f'data.split={split}']
 
     bid = 1000
-    submit_ = False
-    # submit_ = True
+    # submit_ = False
+    submit_ = True
     
     if not submit_:
         fixed_overrides += [
