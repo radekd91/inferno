@@ -14,6 +14,31 @@ input image.
 <p align="center">Top row: input images. Middle row: coarse shape reconstruction. Bottom row: reconstruction with detailed displacements.<p align="center">
 
 
+## !!! UPDATE !!!
+**EMOCA v2 is now out.** 
+
+Compared to the original model it produces: 
+
+1) Much better lip and eye alignment 
+2) Much better lip articulation 
+
+This is achieved by: 
+1) Using a subset of mediapipe landmarks for mouth, eyes and eyebrows (as opposed to FAN landmarks that EMOCA v1 uses)
+2) Using absolute landmark loss in combination with the relative losses (as opposed to only relative landmark losses in EMOCA v1)
+3) Incorporating perceptual lip reading loss. Inspired by [spectre](https://filby89.github.io/spectre/). Big shout-out to these guys!
+
+There are now mutiple EMOCA models that you can use for reconstruction. You can specify their names in the demo scripts using the `--model_name <model>` flag. 
+
+The available models are: 
+1) `EMOCA` - the original `EMOCA version 
+2) `EMOCA_v2_mp` - EMOCA v2 trained with mediapiple landmarks (instead of FAN) but without the lip reading loss
+3) `EMOCA_v2_lr_cos_1.5` - EMOCA v2 trained with mediapiple landmarks and with the lip reading loss (cosine similarity on lip reading features, similarly to SPECTRE) 
+4) `EMOCA_v2_lr_mse_20` - (default) EMOCA v2 trained with mediapipe landmarks and with the lip reading loss (MSE on lip reading features)
+
+Notes: 
+The SPECTRE paper uses a cosine similarity metric on lip reading features for supervision. In practice, we found that the cosine similarity loss can sometimes be artifact prone (over-exaggerated lip motion). This is the `EMOCA_v2_lr_cos_1.5` model. We found the supervision by mean squared error metric to be more stable in this regard and hence we recommend using the `EMOCA_v2_lr_mse_20` model. If you find that even this one produces undesirable artifacts, we suggest using `EMOCA_v2_mp`, which does not use the lip reading loss but is still much better thatn the original `EMOCA` model.
+
+
 ## Installation 
 
 1) Follow the steps at the [root of this repo](../..). If for some reason the environment from there is not valid, create one using a `.yml` file from `envs`.
@@ -31,14 +56,14 @@ bash download_assets.sh
 
 Then activate your environment: 
 ```bash
-conda activate work36_cu11
+conda activate work38
 ```
 
 
 ### Single Image Reconstruction 
 If you want to run EMOCA on images, run the following
 ```python 
-python demos/test_emoca_on_images.py --input_folder <path_to_images> --output_folder <set_your_output_path> --model_name EMOCA 
+python demos/test_emoca_on_images.py --input_folder <path_to_images> --output_folder <set_your_output_path> --model_name EMOCA_v2_lr_mse_20 
 ```
 The script will detect faces in every image in the folder output the results that you specify with `--save_images`, `--save_codes`, `--save_mesh` to the output folder. 
 
@@ -52,7 +77,7 @@ See `demos/test_emoca_on_images.py` for further details.
 ### Video Reconstruction 
 If you want to be able to create a video of the reconstruction (like the teaser above), just pick your favourite emotional video and run the following:
 ```python 
-python demos/test_emoca_on_video.py --input_video <path_to_your_video> --output_folder <set_your_output_path> --model_name EMOCA 
+python demos/test_emoca_on_video.py --input_video <path_to_your_video> --output_folder <set_your_output_path> --model_name EMOCA_v2_lr_mse_20 
 ```
 The script will extract the frames from the video, run face detection on it to extract cropped out faces. Then EMOCA will be run, the reconstruction renderings saved and finally a reconstruction video sequence created. Processing long videos may take some time.
 
@@ -109,7 +134,18 @@ As EMOCA builds on top of [DECA](https://github.com/YadiraF/DECA) and uses parts
   url = {https://doi.org/10.1145/3450626.3459936} 
 }
 ```
- 
+Furthermore, if you use EMOCA v2, please also cite [SPECTRE](https://filby89.github.io/spectre/): 
+```
+@article{filntisis2022visual,
+  title = {Visual Speech-Aware Perceptual 3D Facial Expression Reconstruction from Videos},
+  author = {Filntisis, Panagiotis P. and Retsinas, George and Paraperas-Papantoniou, Foivos and Katsamanis, Athanasios and Roussos, Anastasios and Maragos, Petros},
+  journal = {arXiv preprint arXiv:2207.11094},
+  publisher = {arXiv},
+  year = {2022},
+}
+```
+
+
 ## License
 This code and model are **available for non-commercial scientific research purposes** as defined in the [LICENSE](https://emoca.is.tue.mpg.de/license.html) file. By downloading and using the code and model you agree to the terms of this license. 
 
