@@ -307,12 +307,19 @@ class EmocaPreprocessor(Preprocessor):
                 if outputs[0][k] is not None:
                     values[k] = torch.cat([o[k] for o in outputs], dim=0)
 
-        verts, landmarks2d, landmarks3d = self.model.deca.flame(
+        _flame_res = self.model.deca.flame(
             shape_params=avg_shapecode, 
             expression_params=torch.zeros(device = avg_shapecode.device, dtype = avg_shapecode.dtype, 
                 size = (avg_shapecode.shape[0], values['expcode'].shape[-1])),
             pose_params=None
         )
+
+        if len(_flame_res) == 3:
+            verts, landmarks2d, landmarks3d = _flame_res
+        elif len(_flame_res) == 4:
+            verts, landmarks2d, landmarks3d, landmarks2d_mediapipe = _flame_res
+        else:
+            raise NotImplementedError("Not implemented for len(_flame_res) = {}".format(len(_flame_res)))
 
         batch["template"] = verts.contiguous().view(B, -1)
         # batch["template"] = verts.view(B, T, -1, 3)
