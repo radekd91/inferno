@@ -100,8 +100,8 @@ def submit_trainings():
     # conf = "l2lvq-vae"
     # conf = "l2lvq-vae_geometry"
     # conf = "l2lvq-vae_no_flame"
-    # conf = "l2l-vae_geometry"
-    conf = "l2l-dvae_geometry"
+    conf = "l2l-vae_geometry"
+    # conf = "l2l-dvae_geometry"
     # conf = "codetalker_vq-vae_geometry"
     # conf = "codetalker_vq-vae"
     # conf = "codetalker_vq-vae_no_flame"
@@ -110,10 +110,10 @@ def submit_trainings():
     # tags += ['QUANT_FACTOR']
     # tags += ['NUM_LAYERS']
     # tags += ['ZERO_INIT']
-    tags += ['CODEBOOK_SIZE']
+    # tags += ['CODEBOOK_SIZE']
     # tags += ['NO_FLAME']
     # tags += ['NO_CONV']
-    tags += ['CODEBOOK_LOSSES']
+    # tags += ['CODEBOOK_LOSSES']
 
     training_modes = [
         # [], # no modifications to defaut config
@@ -131,9 +131,9 @@ def submit_trainings():
         # ],
     ]
 
-    dataset = "vocaset"
+    # dataset = "vocaset"
     # dataset = "vocaset_one_person"
-    # dataset = "mead_pseudo_gt"
+    dataset = "mead_pseudo_gt"
     
     # batching = "fixed_length"
     # batching = "fixed_length_bs16_35gb"
@@ -153,14 +153,15 @@ def submit_trainings():
 
     split = None
 
-    ### MEAD splits
-    ## split = "random_70_15_15"
-    ## split = "random_by_identity_random_70_15_15" 
-    # split = "random_by_identity_sorted_70_15_15" 
-    ## split = "random_by_identityV2_random_70_15_15" 
-    # split = "random_by_identityV2_sorted_70_15_15" 
-    ## split = "specific_identity_random_80_20_M003"
-    # split = "specific_identity_sorted_80_20_M003"
+    if dataset == "mead_pseudo_gt":
+        ### MEAD splits
+        ## split = "random_70_15_15"
+        ## split = "random_by_identity_random_70_15_15" 
+        split = "random_by_identity_sorted_70_15_15" 
+        ## split = "random_by_identityV2_random_70_15_15" 
+        # split = "random_by_identityV2_sorted_70_15_15" 
+        ## split = "specific_identity_random_80_20_M003"
+        # split = "specific_identity_sorted_80_20_M003"
 
     fixed_overrides = [
         # '+model.sequence_decoder.style_embedding=none',
@@ -193,9 +194,9 @@ def submit_trainings():
         overrides = fixed_overrides.copy()
         overrides += fmode
 
-        # num_layer_list = [None] # defeault 
+        num_layer_list = [None] # defeault 
         # num_layer_list = [1, 2,  4,  6,  8, 12]
-        num_layer_list = [1]
+        # num_layer_list = [4]
         for num_layers in num_layer_list:
             if num_layers is not None:
                 overrides += ['model.sequence_encoder.num_layers=' + str(num_layers)]
@@ -212,8 +213,8 @@ def submit_trainings():
                     overrides += ['model.sizes.quant_factor=' + str(quant_factor)]
 
 
-                # codebook_size_list = [None] # defeault
-                codebook_size_list = [200, 512, 1024] # defeault
+                codebook_size_list = [None] # defeault
+                # codebook_size_list = [ 512, 1024] 
 
                 for codebook_size in codebook_size_list:
                     if codebook_size is not None:
@@ -222,6 +223,7 @@ def submit_trainings():
                     codebook_losses = (0.25, 1.0)
                     codebook_loss_factors = [None]
                     # codebook_loss_factors = [1.0, 0.5, 0.1, 0.05, 0.01, 0.005]
+                    # codebook_loss_factors = [5.0, 10.0, 50.0, 100.0,]
 
                     for ci, codebook_loss in enumerate(codebook_loss_factors):
                         if codebook_loss is not None:
