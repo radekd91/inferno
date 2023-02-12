@@ -184,7 +184,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         for rec_type in self.reconstruction_type:
             if rec_type == "spectre": 
                 max_cutoff = max(max_cutoff, 2 )
-            elif rec_type in ["emoca", "deca"]: 
+            elif rec_type in ["emoca", "deca"] or "emoca" in rec_type.lower(): 
                 max_cutoff = max(max_cutoff, 0 )
             else:
                 raise ValueError(f"Invalid reconstruction type: '{rec_type}'")

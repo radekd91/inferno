@@ -48,7 +48,7 @@ def get_rendering_callback(cfg, flame_template_path):
 
 def get_image_callback(cfg): 
     # if model has a renderer 
-    if cfg.model.renderer is not None: 
+    if cfg.model.get('renderer', None) is not None: 
         rec_types = cfg.data.reconstruction_type 
         if isinstance(rec_types, str):
             rec_types = [rec_types]
