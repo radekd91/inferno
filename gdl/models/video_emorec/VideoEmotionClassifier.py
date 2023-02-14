@@ -1,7 +1,9 @@
 import pytorch_lightning as pl 
 from typing import Any, Optional, Dict
 from gdl.models.temporal.Bases import TemporalFeatureEncoder, SequenceClassificationEncoder, Preprocessor, ClassificationHead
-from gdl.models.talkinghead.FaceFormerDecoder import PositionalEncoding, init_biased_mask_future, init_biased_mask, init_mask
+from gdl.models.temporal.PositionalEncodings import PositionalEncoding 
+from gdl.models.temporal.TransformerMasking import  (init_alibi_biased_mask, init_alibi_biased_mask_future, init_mask, init_mask_future, init_faceformer_biased_mask, 
+    init_faceformer_biased_mask_future, init_faceformer_biased_mask_future)
 from gdl.models.temporal.AudioEncoders import Wav2Vec2Encoder
 import torch
 import torch.nn as nn
@@ -84,14 +86,18 @@ class TransformerEncoder(torch.nn.Module):
         # self.decoder = nn.Linear(dim_factor*self.input_dim, self.decoder_output_dim())
         
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'none')
-        if self.temporal_bias_type == 'faceformer':
-            self.biased_mask = init_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+        if self.temporal_bias_type == 'alibi':
+            self.biased_mask = init_alibi_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        elif self.temporal_bias_type == 'alibi_future':
+            self.biased_mask = init_alibi_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        elif self.temporal_bias_type == 'faceformer':
+            self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
         elif self.temporal_bias_type == 'faceformer_future':
-            self.biased_mask = init_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+            self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
         elif self.temporal_bias_type == 'classic':
             self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
         elif self.temporal_bias_type == 'classic_future':
-            self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+            self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
         elif self.temporal_bias_type == 'none':
             self.biased_mask = None
         else:

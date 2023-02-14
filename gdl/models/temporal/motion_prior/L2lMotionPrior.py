@@ -6,6 +6,10 @@ from ..BlockFactory import preprocessor_from_cfg
 from omegaconf import open_dict
 from gdl.utils.other import class_from_str
 import sys
+from gdl.models.temporal.PositionalEncodings import positional_encoding_from_cfg
+from gdl.models.temporal.TransformerMasking import biased_mask_from_cfg
+from munch import Munch, munchify
+from omegaconf import OmegaConf
 
 class L2lVqVae(MotionPrior):
 
@@ -71,19 +75,6 @@ class L2lVqVae(MotionPrior):
         return model
 
 
-class LearnedPositionEmbedding(nn.Module):
-    """Learned Postional Embedding Layer"""
-
-    def __init__(self, seq_length, dim):
-        super().__init__()
-        self.pos_embedding = nn.Parameter(torch.zeros(seq_length, dim))
-
-    def forward(self, x):
-        T = x.shape[1]
-        return x + self.pos_embedding[:T, :]
-        # return x + self.pos_embedding
-
-
 class L2lEncoder(MotionEncoder): 
     """
     Inspired by by the encoder from Learning to Listen.
@@ -131,10 +122,19 @@ class L2lEncoder(MotionEncoder):
         #             self.config['transformer_config']['num_attention_heads'],
         #     intermediate_size=\
         #             self.config['transformer_config']['intermediate_size'])
-        self.encoder_pos_embedding = LearnedPositionEmbedding(
-            sizes.quant_sequence_length,
-            self.config.feature_dim
-            )
+        
+        pos_enc_cfg = munchify(OmegaConf.to_container(cfg.positional_encoding))
+        pos_enc_cfg.max_seq_len = sizes.quant_sequence_length
+        self.encoder_pos_embedding = positional_encoding_from_cfg(pos_enc_cfg, self.config.feature_dim)
+
+        attention_mask_cfg = cfg.get('temporal_bias', None)
+        if attention_mask_cfg is not None:
+            attention_mask_cfg = munchify(OmegaConf.to_container(attention_mask_cfg))
+            attention_mask_cfg.nhead = cfg.nhead 
+            self.attention_mask = biased_mask_from_cfg(attention_mask_cfg)
+        else:
+            self.attention_mask = None
+
         self.encoder_linear_embedding = nn.Linear(
             self.config.feature_dim,
             self.config.feature_dim
@@ -153,11 +153,29 @@ class L2lEncoder(MotionEncoder):
         inputs = self.squasher(inputs.permute(0,2,1)).permute(0,2,1)
         
         encoded_features = self.encoder_linear_embedding(inputs)
-        encoded_features = self.encoder_pos_embedding(encoded_features)
-        encoded_features = self.encoder_transformer(encoded_features, mask=None)
+        
+        # add positional encoding
+        if self.encoder_pos_embedding is not None:
+            encoded_features = self.encoder_pos_embedding(encoded_features)
+        
+        # add attention mask (if any)
+        B, T = encoded_features.shape[:2]
+        mask = None
+        if self.attention_mask is not None:
+            mask = self.attention_mask[:, :T, :T].clone() \
+                .detach().to(device=encoded_features.device)
+            if mask.ndim == 3: # the mask's first dimension needs to be num_head * batch_size
+                mask = mask.repeat(B, 1, 1)
+    
+        encoded_features = self.encoder_transformer(encoded_features, mask=mask)
         batch[output_key] = encoded_features
         return batch
 
+    def bottleneck_dim(self):
+        return self.config.feature_dim
+    
+    def latent_temporal_factor(self): 
+        return 2 ** self.config.quant_factor
 
 
 class L2lEncoderWithClassificationHead(L2lEncoder): 
@@ -170,6 +188,7 @@ class L2lEncoderWithClassificationHead(L2lEncoder):
         batch = super().forward(batch, input_key, output_key, **kwargs)
         batch[output_key] = self.classification_head(batch[output_key])
         return batch
+
 
 class L2lEncoderWithGaussianHead(L2lEncoder): 
 
@@ -213,19 +232,6 @@ class L2lEncoderWithGaussianHead(L2lEncoder):
         return batch
 
 
-
-    # def forward(self, inputs):
-    #     ## downsample into path-wise length seq before passing into transformer
-    #     dummy_mask = {'max_mask': None, 'mask_index': -1, 'mask': None}
-    #     inputs = self.squasher(inputs.permute(0,2,1)).permute(0,2,1)
-        
-    #     encoder_features = self.encoder_linear_embedding(inputs)
-    #     encoder_features = self.encoder_pos_embedding(encoder_features)
-    #     encoder_features = self.encoder_transformer((encoder_features, dummy_mask))
-    #     return encoder_features
-
-
-
 class L2lDecoder(MotionEncoder): 
 
     def __init__(self, cfg, sizes, out_dim): 
@@ -264,10 +270,21 @@ class L2lDecoder(MotionEncoder):
                     batch_first=True
         )
         self.decoder_transformer = torch.nn.TransformerEncoder(decoder_layer, num_layers=cfg.num_layers)
-        self.decoder_pos_embedding = LearnedPositionEmbedding(
-            seq_len,
-            self.cfg.feature_dim
-            )
+
+        
+        pos_enc_cfg = munchify(OmegaConf.to_container(cfg.positional_encoding))
+        pos_enc_cfg.max_seq_len = seq_len
+        self.decoder_pos_embedding = positional_encoding_from_cfg(pos_enc_cfg, self.cfg.feature_dim)
+
+        attention_mask_cfg = cfg.get('temporal_bias', None)
+        if attention_mask_cfg is not None:
+            attention_mask_cfg = munchify(OmegaConf.to_container(attention_mask_cfg))
+            attention_mask_cfg.nhead = cfg.nhead 
+            self.attention_mask = biased_mask_from_cfg(attention_mask_cfg)
+        else:
+            self.attention_mask = None
+
+
         self.decoder_linear_embedding = nn.Linear(
             self.cfg.feature_dim,
             self.cfg.feature_dim
@@ -314,8 +331,6 @@ class L2lDecoder(MotionEncoder):
             torch.nn.init.zeros_(self.decoder_transformer.layers[-1].linear2.weight)
             torch.nn.init.zeros_(self.decoder_transformer.layers[-1].linear2.bias)
 
-
-
     def forward(self, batch, input_key="quantized_features", output_key="decoded_sequence", **kwargs):
         # dummy_mask = {'max_mask': None, 'mask_index': -1, 'mask': None}
         ## upsample to the original length of the sequence before passing into transformer
@@ -328,8 +343,21 @@ class L2lDecoder(MotionEncoder):
                 inputs = inputs.repeat_interleave(2, dim=1)
         
         decoded_features = self.decoder_linear_embedding(inputs)
-        decoded_features = self.decoder_pos_embedding(decoded_features)
-        decoded_features = self.decoder_transformer(decoded_features, mask=None)
+        
+        # add positional encoding
+        if self.decoder_pos_embedding is not None:
+            decoded_features = self.decoder_pos_embedding(decoded_features)
+        
+        # add attention mask bias (if any)
+        B,T = decoded_features.shape[:2]
+        mask = None
+        if self.attention_mask is not None:
+            mask = self.attention_mask[:, :T, :T].clone() \
+                .detach().to(device=decoded_features.device)
+            if mask.ndim == 3: # the mask's first dimension needs to be num_head * batch_size
+                mask = mask.repeat(B, 1, 1)
+
+        decoded_features = self.decoder_transformer(decoded_features, mask=mask)
         decoded_reconstruction = decoded_features
         if self.post_transformer_linear is not None:
             decoded_reconstruction = self.post_transformer_linear(decoded_reconstruction)
@@ -360,10 +388,16 @@ class CodeTalkerEncoder(MotionEncoder):
         self.norm = nn.InstanceNorm1d(dim)
         self.lin2 = nn.Linear(dim, dim)
 
-        self.encoder_pos_embedding = LearnedPositionEmbedding(
-            sizes.quant_sequence_length,
-            self.config.feature_dim
-            )
+                
+        pos_enc_cfg = munchify(OmegaConf.to_container(cfg.positional_encoding))
+        pos_enc_cfg.max_seq_len = sizes.quant_sequence_length
+        self.encoder_pos_embedding = positional_encoding_from_cfg(pos_enc_cfg, self.config.feature_dim)
+
+        attention_mask_cfg = cfg.get('temporal_bias_type', None)
+        if attention_mask_cfg is not None:
+            self.attention_mask = biased_mask_from_cfg(munchify(OmegaConf.to_container(attention_mask_cfg)))
+        else:
+            self.attention_mask = None
 
         encoder_layer = torch.nn.TransformerEncoderLayer(
                     d_model=cfg.feature_dim, # default 1024
@@ -397,8 +431,20 @@ class CodeTalkerEncoder(MotionEncoder):
 
         encoded_features = encoded_features.reshape(B, T, -1)
         
-        encoded_features = self.encoder_pos_embedding(encoded_features)
-        encoded_features = self.encoder_transformer(encoded_features, mask=None)
+        # add positional encoding
+        if self.encoder_pos_embedding is not None:
+            encoded_features = self.encoder_pos_embedding(encoded_features)
+        
+        # add attention mask bias (if any)
+        mask = None
+        B, T = encoded_features.shape[:2]
+        if self.attention_mask is not None:
+            mask = self.attention_mask[:, :T, :T].clone() \
+                .detach().to(device=encoded_features.device)
+            if mask.ndim == 3: # the mask's first dimension needs to be num_head * batch_size
+                mask = mask.repeat(B, 1, 1)
+    
+        encoded_features = self.encoder_transformer(encoded_features, mask=mask)
         encoded_features = encoded_features.reshape(B * T, -1)
         encoded_features = self.lin3(encoded_features)
         encoded_features = encoded_features.reshape(B, T, -1)
@@ -421,10 +467,16 @@ class CodeTalkerDecoder(MotionDecoder):
         self.norm = nn.InstanceNorm1d(dim)
         self.lin2 = nn.Linear(dim, dim)
         seq_len = sizes.sequence_length*4 if is_audio else sizes.sequence_length
-        self.decoder_pos_embedding = LearnedPositionEmbedding(
-            seq_len,
-            self.cfg.feature_dim
-            )
+
+        attention_mask_cfg = cfg.get('temporal_bias_type', None)
+        if attention_mask_cfg is not None:
+            self.attention_mask = biased_mask_from_cfg(munchify(OmegaConf.to_container(attention_mask_cfg)))
+        else:
+            self.attention_mask = None
+                
+        pos_enc_cfg = munchify(OmegaConf.to_container(cfg.positional_encoding))
+        pos_enc_cfg.max_seq_len = seq_len
+        self.decoder_pos_embedding = positional_encoding_from_cfg(pos_enc_cfg, self.cfg.feature_dim)
 
         decoder_layer = torch.nn.TransformerEncoderLayer(
                     d_model=cfg.feature_dim, # default 1024
@@ -453,8 +505,21 @@ class CodeTalkerDecoder(MotionDecoder):
         decoded_features = self.lin2(decoded_features)
 
         decoded_features = decoded_features.reshape(B, T, -1)
-        decoded_features = self.decoder_pos_embedding(decoded_features)
-        decoded_features = self.decoder_transformer(decoded_features, mask=None)
+
+        # add positional encoding (if any)
+        if self.decoder_pos_embedding is not None:
+            decoded_features = self.decoder_pos_embedding(decoded_features)
+        
+        # add attention mask (if any)
+        mask = None
+        if self.attention_mask is not None:
+            mask = self.attention_mask[:, :T, :T].clone() \
+                .detach().to(device=decoded_features.device)
+            if mask.ndim == 3: # the mask's first dimension needs to be num_head * batch_size
+                mask = mask.repeat(B, 1, 1)
+    
+    
+        decoded_features = self.decoder_transformer(decoded_features, mask=mask)
         decoded_features = decoded_features.reshape(B * T, -1)
 
         decoded_features = self.lin3(decoded_features)

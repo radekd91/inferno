@@ -5,6 +5,8 @@ from gdl.models.rotation_loss import convert_rot
 from gdl.models.MLP import MLP
 from pytorch3d.transforms import rotation_6d_to_matrix, matrix_to_rotation_6d
 from omegaconf import DictConfig, OmegaConf, open_dict
+from gdl.models.temporal.PositionalEncodings import positional_encoding_from_cfg
+from gdl.models.temporal.TransformerMasking import init_mask_future, init_mask, init_faceformer_biased_mask, init_faceformer_biased_mask_future
 
 
 class AutoRegressiveDecoder(nn.Module):
@@ -49,20 +51,6 @@ class AutoRegressiveDecoder(nn.Module):
         Adds the template vertices to the predicted offsets
         """
         raise NotImplementedError("")
-
-
-def positional_encoding_from_cfg(cfg, feature_dim= None):
-    if feature_dim is None:
-        feature_dim = cfg.feature_dim 
-    if cfg.positional_encoding.type == 'PeriodicPositionalEncoding': 
-        # return PeriodicPositionalEncoding(cfg.feature_dim, **cfg.positional_encoding)
-        return PeriodicPositionalEncoding(feature_dim, **cfg.positional_encoding)
-    elif cfg.positional_encoding.type == 'PositionalEncoding':
-        # return PositionalEncoding(cfg.feature_dim, **cfg.positional_encoding)
-        return PositionalEncoding(feature_dim, **cfg.positional_encoding)
-    elif not cfg.positional_encoding.type or str(cfg.positional_encoding.type).lower() == 'none':
-        return None
-    raise ValueError("Unsupported positional encoding")
 
 
 def style_from_cfg(cfg):
@@ -177,18 +165,18 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
         self.cfg = cfg
         # periodic positional encoding 
         # self.PPE = PeriodicPositionalEncoding(cfg.feature_dim, period = cfg.period)
-        self.PE = positional_encoding_from_cfg(cfg)
+        self.PE = positional_encoding_from_cfg(cfg.positional_encoding, cfg.feature_dim )
         self.max_len = cfg.max_len
         # temporal bias
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'faceformer')
         if self.temporal_bias_type == 'faceformer':
-            self.biased_mask = init_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+            self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
         elif self.temporal_bias_type == 'faceformer_future':
-            self.biased_mask = init_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+            self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
         elif self.temporal_bias_type == 'classic':
             self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
         elif self.temporal_bias_type == 'classic_future':
-            self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+            self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
         elif self.temporal_bias_type == 'none':
             self.biased_mask = None
         else:
@@ -327,99 +315,6 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
         raise NotImplementedError()
 
 
-class PeriodicPositionalEncoding(nn.Module):
-    
-    def __init__(self, d_model, dropout=0.1, period=25, max_seq_len=600, op: str = 'add',  batch_first=True, **kwargs):
-        super(PeriodicPositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)        
-        self.op = op
-        
-        pe = torch.zeros(period, d_model)
-        position = torch.arange(0, period, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0) # (1, period, d_model)
-        repeat_num = (max_seq_len//period) + 1
-        pe = pe.repeat(1, repeat_num, 1)
-        self.batch_first = batch_first
-        if not self.batch_first:
-            pe = pe.transpose(0,1).contiguous()
-        self.register_buffer('pe', pe)
-
-
-    def forward(self, x):
-        """
-        Args:
-            x: Tensor, shape [seq_len, batch_size, embedding_dim]
-        """
-        if self.batch_first:
-            T = x.size(1)
-            pe = self.pe[:, :T, :]
-        else:
-            T = x.size(0)
-            pe = self.pe[:T, :]
-        if self.op in ['add', 'sum']:
-            x = x + pe
-        elif self.op in ['concat', 'cat', 'concatenate']:
-            x = torch.cat([x, pe.repeat(1,x.shape[1],1)], dim=2)
-        else: 
-            raise ValueError('how must be either add or concat')
-        return self.dropout(x)
-
-    def output_size_factor(self): 
-        if self.op in ['add', 'sum']:
-            return 1
-        elif self.op in ['concat', 'cat', 'concatenate']:
-            return 2
-        else:
-            raise ValueError('how must be either add or concat')
-
-
-class PositionalEncoding(torch.nn.Module):
-
-    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 600, op: str = 'add',  batch_first=True, **kwargs):
-        super().__init__()
-        self.dropout = torch.nn.Dropout(p=dropout)
-        self.op = op
-
-        position = torch.arange(max_len).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
-        pe = torch.zeros(max_len, 1, d_model)
-        pe[:, 0, 0::2] = torch.sin(position * div_term)
-        pe[:, 0, 1::2] = torch.cos(position * div_term)
-        self.batch_first = batch_first
-        if self.batch_first:
-            pe = pe.transpose(0,1).contiguous()
-        self.register_buffer('pe', pe)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            x: Tensor, shape [batch_size, seq_len, embedding_dim] if batch_first=True else [seq_len, batch_size, embedding_dim]
-        """
-        if self.batch_first:
-            T = x.size(1)
-            pe = self.pe[:, :T, :]
-        else:
-            T = x.size(0)
-            pe = self.pe[:T, :]
-        if self.op in ['add', 'sum']:
-            x = x + pe
-        elif self.op in ['concat', 'cat', 'concatenate']:
-            x = torch.cat([x, pe.repeat(1,x.shape[1],1)], dim=2)
-        else: 
-            raise ValueError('how must be either add or concat')
-        return self.dropout(x)
-
-    def output_size_factor(self): 
-        if self.op in ['add', 'sum']:
-            return 1
-        elif self.op in ['concat', 'cat', 'concatenate']:
-            return 2
-        else:
-            raise ValueError('how must be either add or concat')
-
 
 class FaceFormerDecoder(FaceFormerDecoderBase):
 
@@ -555,54 +450,6 @@ class FlameFormerDecoder(FaceFormerDecoderBase):
         return vertices_out
 
 
-def get_slopes(n):
-    def get_slopes_power_of_2(n):
-        start = (2**(-2**-(math.log2(n)-3)))
-        ratio = start
-        return [start*ratio**i for i in range(n)]
-    if math.log2(n).is_integer():
-        return get_slopes_power_of_2(n)                   
-    else:                                                 
-        closest_power_of_2 = 2**math.floor(math.log2(n)) 
-        return get_slopes_power_of_2(closest_power_of_2) + get_slopes(2*closest_power_of_2)[0::2][:n-closest_power_of_2]
-
-# Temporal Bias, inspired by ALiBi: https://github.com/ofirpress/attention_with_linear_biases
-def init_biased_mask(num_heads, max_seq_len, period):
-    slopes = torch.Tensor(get_slopes(num_heads))
-    bias = torch.arange(start=0, end=max_seq_len, step=period).unsqueeze(1).repeat(1,period).view(-1)//(period)
-    bias = - torch.flip(bias,dims=[0])
-    alibi = torch.zeros(max_seq_len, max_seq_len)
-    for i in range(max_seq_len):
-        alibi[i, :i+1] = bias[-(i+1):]
-    alibi = slopes.unsqueeze(1).unsqueeze(1) * alibi.unsqueeze(0)
-    mask = (torch.triu(torch.ones(max_seq_len, max_seq_len)) == 1).transpose(0, 1)
-    mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-    mask = mask.unsqueeze(0) + alibi
-    return mask
-
-def init_biased_mask_future(num_heads, max_seq_len, period):
-    slopes = torch.Tensor(get_slopes(num_heads))
-    bias = torch.arange(start=0, end=max_seq_len, step=period).unsqueeze(1).repeat(1,period).view(-1)//(period)
-    bias = - torch.flip(bias,dims=[0])
-    alibi = torch.zeros(max_seq_len, max_seq_len)
-    for i in range(max_seq_len):
-        alibi[i, :i+1] = bias[-(i+1):]
-    alibi = slopes.unsqueeze(1).unsqueeze(1) * alibi.unsqueeze(0)
-    # mask = alibi - torch.flip(alibi, [1, 2])
-    mask = alibi + torch.flip(alibi, [1, 2])
-    return mask
-
-def init_mask(num_heads, max_seq_len):
-    mask = (torch.triu(torch.ones(max_seq_len, max_seq_len)) == 1).transpose(0, 1)
-    mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-    return mask.unsqueeze(0).repeat(num_heads,1,1)
-
-def init_mask_future(num_heads, max_seq_len):
-    return torch.ones(num_heads, max_seq_len, max_seq_len)
-
-
-
-
 # Alignment Bias
 def enc_dec_mask(device, T, S, dataset="vocaset"):
     mask = torch.ones(T, S)
@@ -626,7 +473,7 @@ class FeedForwardDecoder(nn.Module):
         self.style_type = cfg.get('style_embedding', 'onehot_linear')
         self.obj_vector = style_from_cfg(cfg)
         self.style_op = cfg.get('style_op', 'add')
-        self.PE = positional_encoding_from_cfg(cfg)
+        self.PE = positional_encoding_from_cfg(cfg.positional_encoding, cfg.feature_dim )
         self.cfg = cfg
 
     def forward(self, sample, train=False, teacher_forcing=True): 
@@ -758,13 +605,13 @@ class BertDecoder(FeedForwardDecoder):
         
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'none')
         if self.temporal_bias_type == 'faceformer':
-            self.biased_mask = init_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+            self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
         elif self.temporal_bias_type == 'faceformer_future':
-            self.biased_mask = init_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+            self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
         elif self.temporal_bias_type == 'classic':
             self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
         elif self.temporal_bias_type == 'classic_future':
-            self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+            self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
         elif self.temporal_bias_type == 'none':
             self.biased_mask = None
         else:

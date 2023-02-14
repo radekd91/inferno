@@ -132,11 +132,11 @@ def resume_motion_prior_on_cluster():
     # model_names += ["2023_02_05_19-44-51_-4469641301695294897_L2lVqVae_Facef"]
     # model_names += ["2023_02_05_19-43-35_3322208019009558883_L2lVqVae_Facef"]
 
-    # post bug fix, need finetuning
-    model_names += ["2023_02_07_20-28-53_-2021013419590325583_L2lVqVae_Facef"]
-    model_names += ["2023_02_07_20-29-01_-2576280032826500507_L2lVqVae_Facef"]
-    model_names += ["2023_02_07_20-27-54_-8292189443712743736_L2lVqVae_Facef"]
-    model_names += ["2023_02_07_20-25-33_-8702650742274879322_L2lVqVae_Facef"]
+    # # post bug fix, need finetuning
+    # model_names += ["2023_02_07_20-28-53_-2021013419590325583_L2lVqVae_Facef"]
+    # model_names += ["2023_02_07_20-29-01_-2576280032826500507_L2lVqVae_Facef"]
+    # model_names += ["2023_02_07_20-27-54_-8292189443712743736_L2lVqVae_Facef"]
+    # model_names += ["2023_02_07_20-25-33_-8702650742274879322_L2lVqVae_Facef"]
     # model_names += ["2023_02_07_19-47-20_-8793559135758698718_L2lVqVae_Facef_VQVAE"]
     # model_names += ["2023_02_07_19-31-25_3806813112112742638_L2lVqVae_Facef_VQVAE"]
     # model_names += ["2023_02_07_19-30-36_-221751824748459707_L2lVqVae_Facef_VQVAE"]
@@ -145,6 +145,16 @@ def resume_motion_prior_on_cluster():
     # model_names += ["2023_02_07_19-27-54_2042140273458874000_L2lVqVae_Facef_VQVAE"]
     # model_names += ["2023_02_07_19-27-39_-5992224788341585803_L2lVqVae_Facef_VQVAE"]
     # model_names += ["2023_02_07_19-26-18_7959811539499577467_L2lVqVae_Facef_VQVAE"]
+
+    # # jobs that crashed mid training for no reason.
+    # model_names += ['2023_02_13_09-50-47_588315614196140873_L2lVqVae_Facef_dVAE']
+
+    # needs a bit more finetuning, interesting results on vocaset for VQ VAE 
+    model_names += ['2023_02_08_23-53-45_-7897278066327257130_L2lVqVae_Facef_VQVAE']
+    model_names += ['2023_02_11_17-29-21_7975012759683643004_L2lVqVae_Facef_VQVAE']
+    model_names += ['2023_02_11_17-27-50_-7642823735391707989_L2lVqVae_Facef_VQVAE']
+    # first AEs on MEAD: 
+    # model_names += ["2023_02_12_20-01-17_-4462360882556841344_L2lVqVae_MEADP_AE"]
 
     # rename_video_result_folder = False
     rename_video_result_folder = True

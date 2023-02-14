@@ -95,12 +95,12 @@ def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
     # conf = "l2l-ae"
-    # conf = "l2l-ae_geometry"
+    conf = "l2l-ae_geometry"
     # conf = "l2l-ae_geometry_fs"
     # conf = "l2lvq-vae"
     # conf = "l2lvq-vae_geometry"
     # conf = "l2lvq-vae_no_flame"
-    conf = "l2l-vae_geometry"
+    # conf = "l2l-vae_geometry"
     # conf = "l2l-dvae_geometry"
     # conf = "codetalker_vq-vae_geometry"
     # conf = "codetalker_vq-vae"
@@ -114,6 +114,7 @@ def submit_trainings():
     # tags += ['NO_FLAME']
     # tags += ['NO_CONV']
     # tags += ['CODEBOOK_LOSSES']
+    # tags += ['KL']
 
     training_modes = [
         # [], # no modifications to defaut config
@@ -157,9 +158,9 @@ def submit_trainings():
         ### MEAD splits
         ## split = "random_70_15_15"
         ## split = "random_by_identity_random_70_15_15" 
-        split = "random_by_identity_sorted_70_15_15" 
+        # split = "random_by_identity_sorted_70_15_15" 
         ## split = "random_by_identityV2_random_70_15_15" 
-        # split = "random_by_identityV2_sorted_70_15_15" 
+        split = "random_by_identityV2_sorted_70_15_15" 
         ## split = "specific_identity_random_80_20_M003"
         # split = "specific_identity_sorted_80_20_M003"
 
@@ -180,8 +181,8 @@ def submit_trainings():
         fixed_overrides += [f'data.split={split}']
 
     bid = 1000
-    # submit_ = False
-    submit_ = True
+    submit_ = False
+    # submit_ = True
     
     if not submit_:
         fixed_overrides += [
@@ -194,9 +195,11 @@ def submit_trainings():
         overrides = fixed_overrides.copy()
         overrides += fmode
 
-        num_layer_list = [None] # defeault 
+        # num_layer_list = [None] # defeault 
         # num_layer_list = [1, 2,  4,  6,  8, 12]
+        # num_layer_list = [1, 2,  4,  6,  8]
         # num_layer_list = [4]
+        num_layer_list = [1]
         for num_layers in num_layer_list:
             if num_layers is not None:
                 overrides += ['model.sequence_encoder.num_layers=' + str(num_layers)]
@@ -230,26 +233,33 @@ def submit_trainings():
                             overrides += ['learning.losses.codebook_alignment.weight=' + str(codebook_loss * codebook_losses[0])]
                             overrides += ['learning.losses.codebook_commitment.weight=' + str(codebook_loss * codebook_losses[1])]
 
-                        cfg = script.configure(
-                            conf, overrides,
-                        )
+                        kl_weights = [None]
+                        # kl_weights = [0.001, 0.005, 0.01, 0.05, 0.1, 0,5]
+                        # kl_weights = [ 0.1, 0,5]
+                        for kl_weight in kl_weights:
+                            if kl_weight is not None:
+                                overrides += ['learning.losses.kl_divergence.weight=' + str(kl_weight)]
 
-                        GlobalHydra.instance().clear()
-                        # config_pairs += [cfgs]
+                            cfg = script.configure(
+                                conf, overrides,
+                            )
 
-                        # OmegaConf.set_struct(cfgs[0], False)
+                            GlobalHydra.instance().clear()
+                            # config_pairs += [cfgs]
 
-                        with open_dict(cfg) as d:
-                            if not submit_:
-                                d.data.debug_mode = True
-                                tags += ["DEBUG_FROM_WORKSTATION"]
-                            if d.learning.tags is None:
-                                d.learning.tags = tags
-                    
-                        if submit_:
-                            submit(cfg, bid=bid)
-                        else:
-                            script.train_model(cfg, resume_from_previous=False)
+                            # OmegaConf.set_struct(cfgs[0], False)
+
+                            with open_dict(cfg) as d:
+                                if not submit_:
+                                    d.data.debug_mode = True
+                                    tags += ["DEBUG_FROM_WORKSTATION"]
+                                if d.learning.tags is None:
+                                    d.learning.tags = tags
+                        
+                            if submit_:
+                                submit(cfg, bid=bid)
+                            else:
+                                script.train_model(cfg, resume_from_previous=False)
 
 
 

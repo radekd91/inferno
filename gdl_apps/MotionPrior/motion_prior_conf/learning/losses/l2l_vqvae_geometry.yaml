@@ -14,24 +14,30 @@ losses:
     output_key: reconstructed_vertices
     metric: mse_loss
 
-  codebook_alignment: 
-    weight: 0.25 # this is the beta in l2l VQ-VAE formulation
+  codebook_alignment: # this is the beta in l2l VQ-VAE formulation
+    # weight: 2.5 # interesting values
+    weight: 1.25 # interesting values
+    # weight: 0.25 # interesting values
     # weight: 0.125 
     # weight: 0.025 
     # weight: 0.0125 
     # weight: 0.0025 
     # weight: 0.00125 
     # weight: 0.00025 
-    # weight: 0.000125 
+    # weight: 0.000125     
+    
 
-  codebook_commitment: 
-    weight: 1.0
+  codebook_commitment:   
+    # weight: 10  # interesting values
+    weight: 5.0 # interesting values
+    # weight: 1.0 # interesting values
     # weight: 0.5
     # weight: 0.1
     # weight: 0.05
     # weight: 0.01
     # weight: 0.005
     # weight: 0.001
+
   
 metrics: 
   perplexity: 

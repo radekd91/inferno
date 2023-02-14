@@ -24,11 +24,11 @@ losses:
     # weight: 0.005
     # weight: 0.001
     # weight: 0.0005
-    # weight: 0.0001
+    weight: 0.0001
     # weight: 0.00005
     # weight: 0.00001
     # weight: 0.000005
-    weight: 0.000001
+    # weight: 0.000001
   
 metrics: 
   perplexity: 
