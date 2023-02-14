@@ -6,7 +6,8 @@ input_dir: /is/cluster/fast/rdanecek/data/mead_25fps/resampled_videos
 output_dir: /is/cluster/fast/rdanecek/data/mead_25fps/
 processed_subfolder: processed
 # num_workers: 0 # debug
-num_workers: 1 # debug
+# num_workers: 1 # debug
+num_workers: 4
 # num_workers: 8 # 
 
 image_size: 224
