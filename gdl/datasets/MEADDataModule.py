@@ -77,6 +77,7 @@ class MEADDataModule(FaceVideoDataModule):
             segmentation_source=None,
             viewing_angles=None,
             read_video=True,
+            read_audio=True,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, 
@@ -95,6 +96,7 @@ class MEADDataModule(FaceVideoDataModule):
             preload_videos=preload_videos,
             inflate_by_video_size=inflate_by_video_size,
             read_video=read_video,
+            read_audio=read_audio,
             )
         # self.detect_landmarks_on_restored_images = landmarks_from
         self.batch_size_train = batch_size_train
@@ -309,7 +311,7 @@ class MEADDataModule(FaceVideoDataModule):
             # rec_methods = ['EMOCA_v2_lr_cos_1.5_with_bfmtex', 'EMOCA_v2_lr_mse_15_with_bfmtex', 
             #     'EMOCA_v2_lr_mse_20_with_bfmtex', 'EMOCA_v2_mp_with_bfmtex']
             rec_methods = ['EMOCA_v2_lr_cos_1.5_with_bfmtex', 
-                            'EMOCA_v2_lr_mse_20_with_bfmtex']
+                'EMOCA_v2_lr_mse_20_with_bfmtex']
             # for rec_method in rec_methods:
             #     self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
             #                         save_obj=False, save_mat=True, save_vis=False, save_images=False,
@@ -650,6 +652,7 @@ class MEADDataModule(FaceVideoDataModule):
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
                 read_video=self.read_video,
+                read_audio=self.read_audio,
               )
                     
         self.validation_set = MEADDataset(self.root_dir, self.output_dir, 
@@ -668,6 +671,7 @@ class MEADDataModule(FaceVideoDataModule):
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
                 read_video=self.read_video,
+                read_audio=self.read_audio,
             )
 
         self.test_set = MEADDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
@@ -685,6 +689,7 @@ class MEADDataModule(FaceVideoDataModule):
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
                 read_video=self.read_video,
+                read_audio=self.read_audio,
                 )
 
     def train_sampler(self):
@@ -768,6 +773,7 @@ class MEADDataset(VideoDatasetBase):
             inflate_by_video_size=False,
             include_filename=False, # if True includes the filename of the video in the sample
             read_video=True,
+            read_audio=True,
             reconstruction_type=None,
             return_global_pose = False,
             return_appearance = False,
@@ -809,6 +815,7 @@ class MEADDataset(VideoDatasetBase):
             inflate_by_video_size=inflate_by_video_size,
             include_filename=include_filename,
             read_video=read_video,
+            read_audio=read_audio,
             reconstruction_type=reconstruction_type,
             return_global_pose = return_global_pose,
             return_appearance = return_appearance,

@@ -45,6 +45,7 @@ class MEADPseudo3DDM(MEADDataModule):
 
                 preload_videos=False,
                 read_video=True,
+                read_audio=True,
                 reconstruction_type=None, 
                 return_global_pose= False,
                 return_appearance= False,
@@ -79,6 +80,7 @@ class MEADPseudo3DDM(MEADDataModule):
             landmark_sources=landmark_sources,
             segmentation_source=segmentation_source,
             read_video=read_video,
+            read_audio=read_audio,
             )
         self.test_condition_source = test_condition_source or "original"
         self.test_condition_settings = test_condition_settings
@@ -135,7 +137,7 @@ class MEADPseudo3DDM(MEADDataModule):
         # training_augmenter = create_image_augmenter(self.image_size, self.augmentation)
         training_augmenter = None
         self.training_set = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
-                train, 
+                train[:700], 
                 self.audio_metas, self.sequence_length_train, image_size=self.image_size, 
                 transforms=training_augmenter,
                 **self.occlusion_settings_train,
@@ -152,6 +154,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
                 read_video=self.read_video,
+                read_audio=self.read_audio,
                 reconstruction_type=self.reconstruction_type,
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
@@ -162,7 +165,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     
         self.validation_set = MEADPseudo3dDataset(self.root_dir, self.output_dir, 
                 self.video_list, self.video_metas, 
-                val, 
+                val[:700], 
                 self.audio_metas, 
                 self.sequence_length_val, image_size=self.image_size,  
                 **self.occlusion_settings_val,
@@ -178,6 +181,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
                 read_video=self.read_video,
+                read_audio=self.read_audio,
                 reconstruction_type=self.reconstruction_type,
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
@@ -251,6 +255,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 inflate_by_video_size=False,
                 include_filename=True,
                 read_video=self.read_video,
+                read_audio=self.read_audio,
                 reconstruction_type=self.reconstruction_type,
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
@@ -292,6 +297,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 inflate_by_video_size=False,
                 include_filename=True,
                 read_video=self.read_video,
+                read_audio=self.read_audio,
                 reconstruction_type=self.reconstruction_type,
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
@@ -370,6 +376,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     inflate_by_video_size=False,
                     include_filename=True,
                     read_video=self.read_video,
+                    read_audio=self.read_audio,
                     reconstruction_type=self.reconstruction_type,
                     return_global_pose=self.return_global_pose,
                     return_appearance=self.return_appearance,
@@ -408,6 +415,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     inflate_by_video_size=False,
                     include_filename=True,
                     read_video=self.read_video,
+                    read_audio=self.read_audio,
                     reconstruction_type=self.reconstruction_type,
                     return_global_pose=self.return_global_pose,
                     return_appearance=self.return_appearance,
@@ -544,6 +552,7 @@ class MEADPseudo3dDataset(MEADDataset):
             inflate_by_video_size=False, 
             include_filename=False, # if True includes the filename of the video in the sample
             read_video=True,
+            read_audio=True,
             reconstruction_type=None,
             return_global_pose = False,
             return_appearance = False,
@@ -575,6 +584,7 @@ class MEADPseudo3dDataset(MEADDataset):
             include_processed_audio=include_processed_audio,
             include_raw_audio=include_raw_audio,
             read_video=read_video,
+            read_audio=read_audio,
             reconstruction_type=reconstruction_type,
             return_global_pose = return_global_pose,
             return_appearance = return_appearance,

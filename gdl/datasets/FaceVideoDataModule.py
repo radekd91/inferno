@@ -86,6 +86,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                  preload_videos = False,
                  inflate_by_video_size = False,
                  read_video=True,
+                 read_audio=True,
                  ):
         super().__init__(root_dir, output_dir,
                          processed_subfolder=processed_subfolder,
@@ -130,6 +131,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
         self._must_include_audio = False
         self.read_video=read_video
+        self.read_audio=read_audio
 
     @property
     def metadata_path(self):

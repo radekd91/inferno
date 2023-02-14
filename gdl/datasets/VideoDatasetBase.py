@@ -73,6 +73,7 @@ class VideoDatasetBase(AbstractVideoDataset):
             emotion_type = None,
             return_emotion_feature=False,
             read_video=True,
+            read_audio=True,
         ) -> None:
         super().__init__()
         self.root_path = root_path
@@ -147,6 +148,7 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         # self.read_video = True
         self.read_video = read_video
+        self.read_audio = read_audio
 
         self.reconstruction_type = reconstruction_type 
         if self.reconstruction_type is not None: 
@@ -161,6 +163,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         self.return_emotion_feature = return_emotion_feature
 
         self.video_cache = {}
+        self.audio_cache = {}
         self.seg_cache = {}
         self.lmk_cache = {}
         self.rec_cache = {}
@@ -221,6 +224,9 @@ class VideoDatasetBase(AbstractVideoDataset):
                 if video_path not in self.video_cache:
                     self.video_cache[video_path] = vread(video_path)
                     self.seg_cache[video_path] = self._read_segmentations(i) 
+            if self.read_audio:
+                if video_path not in self.audio_cache:
+                    self.audio_cache[i] = self._read_audio(i)
             for lmk_type, lmk_source in zip(self.landmark_types, self.landmark_source):
                 if i not in self.lmk_cache:
                     self.lmk_cache[i] = {}
@@ -289,50 +295,63 @@ class VideoDatasetBase(AbstractVideoDataset):
         raise RuntimeError("Failed to retrieve sample after {} attempts".format(max_attempts))
 
     def _getitem(self, index):
+        # import timeit
+        # start_time = timeit.default_timer()
         if self.hack_length: 
             index = index % self._true_len()
 
         # 1) VIDEO
-        # load the video 
+        # load the video         
         sample, start_frame, num_read_frames, video_fps, num_frames, num_available_frames = self._get_video(index)
+        # video_read_time = timeit.default_timer() - start_time
 
         # 2) AUDIO
-        sample = self._get_audio(index, start_frame, num_read_frames, video_fps, num_frames, sample)
+        if self.read_audio:
+            sample = self._get_audio(index, start_frame, num_read_frames, video_fps, num_frames, sample)
+        # audio_read_time = timeit.default_timer() - start_time - video_read_time
 
         # 3) LANDMARKS 
         sample = self._get_landmarks(index, start_frame, num_read_frames, video_fps, num_frames, sample)
+        # lmk_read_time = timeit.default_timer() - start_time - video_read_time - audio_read_time
 
         # 4) SEGMENTATIONS
         if self.read_video:
             sample = self._get_segmentations(index, start_frame, num_read_frames, video_fps, num_frames, sample)
+        # seg_read_time = timeit.default_timer() - start_time - video_read_time - audio_read_time - lmk_read_time
 
         # 5) FACE ALIGNMENT IF ANY
         if self.read_video:
             sample = self._align_faces(index, sample)
+        # face_align_time = timeit.default_timer() - start_time - video_read_time - audio_read_time - lmk_read_time - seg_read_time
 
         # 6) GEOMETRY 
         if self.reconstruction_type is not None:
             sample = self._get_reconstructions(index, start_frame, num_read_frames, video_fps, num_frames, sample)
+        # geom_read_time = timeit.default_timer() - start_time - video_read_time - audio_read_time - lmk_read_time - seg_read_time - face_align_time
 
         # 7) EMOTION 
         if self.emotion_type is not None:
             sample = self._get_emotions(index, start_frame, num_read_frames, video_fps, num_frames, sample)
+        # emo_read_time = timeit.default_timer() - start_time - video_read_time - audio_read_time - lmk_read_time - seg_read_time - face_align_time - geom_read_time
 
         # 8) AUGMENTATION
         if self.read_video:
             sample = self._augment_sequence_sample(index, sample)
+        # aug_time = timeit.default_timer() - start_time - video_read_time - audio_read_time - lmk_read_time - seg_read_time - face_align_time - geom_read_time - emo_read_time
 
         # TO TORCH
         sample = to_torch(sample)
 
 
         # AUDIO NORMALIZATION (if any)
-        if self.include_processed_audio:
-            if self.audio_normalization is not None:
-                if self.audio_normalization == "layer_norm":
-                    sample["audio"] = F.layer_norm(sample["audio"], sample["audio"].shape[1:])
-                else: 
-                    raise ValueError(f"Unsupported audio normalization {self.audio_normalization}")
+        if self.read_audio:
+            if self.include_processed_audio:
+                if self.audio_normalization is not None:
+                    if self.audio_normalization == "layer_norm":
+                        sample["audio"] = F.layer_norm(sample["audio"], sample["audio"].shape[1:])
+                    else: 
+                        raise ValueError(f"Unsupported audio normalization {self.audio_normalization}")
+        # audio_process_time = timeit.default_timer() - start_time - video_read_time - audio_read_time - lmk_read_time - seg_read_time - face_align_time - geom_read_time - emo_read_time - aug_time
 
         if self.read_video:
             # T,H,W,C to T,C,H,W
@@ -357,6 +376,16 @@ class VideoDatasetBase(AbstractVideoDataset):
         #     for key in sample["landmarks"].keys():
         #         sample["landmarks"][key] = self.landmark_normalizer(sample["landmarks"][key])
 
+        # print(f"Video read time: {video_read_time:.2f} s")
+        # print(f"Audio read time: {audio_read_time:.2f} s")
+        # print(f"Landmark read time: {lmk_read_time:.2f} s")
+        # print(f"Segmentation read time: {seg_read_time:.2f} s")
+        # print(f"Face alignment time: {face_align_time:.2f} s")
+        # print(f"Geometry read time: {geom_read_time:.2f} s")
+        # print(f"Emotion read time: {emo_read_time:.2f} s")
+        # print(f"Augmentation time: {aug_time:.2f} s")
+        # print(f"Audio process time: {audio_process_time:.2f} s")
+        # print(f"Total read time: {timeit.default_timer() - start_time:.2f} s")
         return sample
 
     def _get_video_path(self, index):
@@ -513,12 +542,11 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         return sample, start_frame, num_read_frames, video_fps, num_frames, num_available_frames
 
-    def _get_audio(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
+    def _read_audio(self, index):
         # audio_path = (Path(self.output_dir) / "audio" / self.video_list[self.video_indices[index]]).with_suffix(".wav")
         audio_path = self._get_audio_path(index)
         # audio_meta = self.audio_metas[self.video_indices[index]]
             
-        sequence_length = self._get_sample_length(index)
         # load the audio 
         # if self.include_raw_audio:
         import librosa
@@ -528,6 +556,14 @@ class VideoDatasetBase(AbstractVideoDataset):
         if wavdata.ndim > 1:
             wavdata = librosa.to_mono(wavdata)
         wavdata = (wavdata.astype(np.float64) * 32768.0).astype(np.int16)
+        return wavdata, sampling_rate
+
+    def _get_audio(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
+        if self.preload_videos:
+            wavdata, sampling_rate = self.audio_cache[index]
+        else:
+            wavdata, sampling_rate = self._read_audio(index)
+            sequence_length = self._get_sample_length(index)
 
         # audio augmentation
         if np.random.rand() < self.audio_noise_prob:

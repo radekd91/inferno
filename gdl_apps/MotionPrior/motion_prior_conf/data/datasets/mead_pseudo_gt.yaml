@@ -6,7 +6,8 @@ input_dir: /is/cluster/fast/rdanecek/data/mead_25fps/resampled_videos
 output_dir: /is/cluster/fast/rdanecek/data/mead_25fps/
 processed_subfolder: processed
 # num_workers: 0 # debug
-num_workers: 8 # 
+num_workers: 1 # debug
+# num_workers: 8 # 
 
 image_size: 224
 scale: 1.25
@@ -80,6 +81,7 @@ test_subjects: []
 
 read_video: False
 # read_video: True
+read_audio: False
 # reconstruction_type: spectre
 # reconstruction_type: emoca
 # reconstruction_type: [spectre, emoca] # if more, the first one is primary

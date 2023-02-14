@@ -94,17 +94,17 @@ def submit(cfg , bid=10):
 def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
-    conf = "l2l-ae"
-    # conf = "l2l-ae_geometry"
+    ##conf = "l2l-ae"
+    conf = "l2l-ae_geometry"
     # conf = "l2l-ae_geometry_fs"
-    # conf = "l2lvq-vae"
+    ## conf = "l2lvq-vae"
     # conf = "l2lvq-vae_geometry"
-    # conf = "l2lvq-vae_no_flame"
+    ## conf = "l2lvq-vae_no_flame"
     # conf = "l2l-vae_geometry"
     # conf = "l2l-dvae_geometry"
     # conf = "codetalker_vq-vae_geometry"
-    # conf = "codetalker_vq-vae"
-    # conf = "codetalker_vq-vae_no_flame"
+    ## conf = "codetalker_vq-vae"
+    ## conf = "codetalker_vq-vae_no_flame"
 
     tags = []
     # tags += ['QUANT_FACTOR']
