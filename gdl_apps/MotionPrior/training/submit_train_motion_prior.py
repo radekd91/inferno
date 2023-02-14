@@ -94,8 +94,8 @@ def submit(cfg , bid=10):
 def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
-    # conf = "l2l-ae"
-    conf = "l2l-ae_geometry"
+    conf = "l2l-ae"
+    # conf = "l2l-ae_geometry"
     # conf = "l2l-ae_geometry_fs"
     # conf = "l2lvq-vae"
     # conf = "l2lvq-vae_geometry"

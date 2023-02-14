@@ -20,8 +20,12 @@ losses:
     # weight: 0.1
     # weight: 0.05
     # weight: 0.01 #ok reconstructions on vocaset
-    # weight: 0.005 #ok reconstructions on vocaset
-    weight: 0.001 #ok reconstructions on vocaset
+    weight: 0.005 #ok reconstructions on vocaset
+    # weight: 0.001 #ok reconstructions on vocaset
+    # weight: 0.0005 #ok reconstructions on vocaset
+    # weight: 0.0001 #ok reconstructions on vocaset
+    # weight: 0.00005 #ok reconstructions on vocaset
+    # weight: 0.00001 #ok reconstructions on vocaset
   
 metrics: 
 
