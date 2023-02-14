@@ -137,7 +137,7 @@ class MEADPseudo3DDM(MEADDataModule):
         # training_augmenter = create_image_augmenter(self.image_size, self.augmentation)
         training_augmenter = None
         self.training_set = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
-                train[:700], 
+                train, 
                 self.audio_metas, self.sequence_length_train, image_size=self.image_size, 
                 transforms=training_augmenter,
                 **self.occlusion_settings_train,
@@ -165,7 +165,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     
         self.validation_set = MEADPseudo3dDataset(self.root_dir, self.output_dir, 
                 self.video_list, self.video_metas, 
-                val[:700], 
+                val, 
                 self.audio_metas, 
                 self.sequence_length_val, image_size=self.image_size,  
                 **self.occlusion_settings_val,
