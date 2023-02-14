@@ -728,6 +728,7 @@ class LRS3Dataset(VideoDatasetBase):
             inflate_by_video_size=False,
             include_filename=False, # if True includes the filename of the video in the sample
             read_video=True,
+            read_audio=True,
             reconstruction_type=None,
             return_global_pose = False,
             return_appearance = False,
@@ -769,6 +770,7 @@ class LRS3Dataset(VideoDatasetBase):
             inflate_by_video_size=inflate_by_video_size,
             include_filename=include_filename, 
             read_video = read_video,
+            read_audio = read_audio,
             reconstruction_type = reconstruction_type,
             return_global_pose = return_global_pose,
             return_appearance = return_appearance,

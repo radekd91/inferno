@@ -39,6 +39,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 inflate_by_video_size=False,
                 preload_videos=False,
                 read_video=True,
+                read_audio=True,
                 reconstruction_type=None, 
                 return_global_pose= False,
                 return_appearance= False,
@@ -62,6 +63,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
         self.test_condition_source = test_condition_source or "original"
         self.test_condition_settings = test_condition_settings
         self.read_video = read_video
+        self.read_audio = read_audio
 
         self.reconstruction_type = reconstruction_type
         if self.reconstruction_type is not None: 
@@ -99,6 +101,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
                 read_video=self.read_video,
+                read_audio=self.read_audio,
                 reconstruction_type=self.reconstruction_type,
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
@@ -123,6 +126,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
                 read_video=self.read_video,
+                read_audio=self.read_audio,
                 reconstruction_type=self.reconstruction_type,
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
@@ -152,6 +156,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                     inflate_by_video_size=False,
                     include_filename=True,
                     read_video=self.read_video,
+                    read_audio=self.read_audio,
                     reconstruction_type=self.reconstruction_type,
                     return_global_pose=self.return_global_pose,
                     return_appearance=self.return_appearance,
@@ -188,6 +193,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 inflate_by_video_size=False,
                 include_filename=True,
                 read_video=self.read_video,
+                read_audio=self.read_audio,
                 reconstruction_type=self.reconstruction_type,
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
@@ -223,6 +229,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                 inflate_by_video_size=False,
                 include_filename=True,
                 read_video=self.read_video,
+                read_audio=self.read_audio,
                 reconstruction_type=self.reconstruction_type,
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
@@ -262,6 +269,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                         inflate_by_video_size=False,
                         include_filename=True,
                         read_video=self.read_video,
+                        read_audio=self.read_audio,
                         reconstruction_type=self.reconstruction_type,
                         return_global_pose=self.return_global_pose,
                         return_appearance=self.return_appearance,
@@ -300,6 +308,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                     inflate_by_video_size=False,
                     include_filename=True,
                     read_video=self.read_video,
+                    read_audio=self.read_audio,
                     reconstruction_type=self.reconstruction_type,
                     return_global_pose=self.return_global_pose,
                     return_appearance=self.return_appearance,
@@ -337,6 +346,7 @@ class LRS3Pseudo3DDM(LRS3DataModule):
                     inflate_by_video_size=False,
                     include_filename=True,
                     read_video=self.read_video,
+                    read_audio=self.read_audio,
                     reconstruction_type=self.reconstruction_type,
                     return_global_pose=self.return_global_pose,
                     return_appearance=self.return_appearance,
@@ -457,6 +467,7 @@ class LRS3Pseudo3dDataset(LRS3Dataset):
             inflate_by_video_size=False, 
             include_filename=False, # if True includes the filename of the video in the sample
             read_video=True,
+            read_audio=True,
             reconstruction_type=None,
             return_global_pose = False,
             return_appearance = False,
@@ -488,6 +499,7 @@ class LRS3Pseudo3dDataset(LRS3Dataset):
             include_processed_audio=include_processed_audio,
             include_raw_audio=include_raw_audio,
             read_video = read_video,
+            read_audio = read_audio,
             reconstruction_type = reconstruction_type,
             return_global_pose = return_global_pose,
             return_appearance = return_appearance,

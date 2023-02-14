@@ -43,6 +43,7 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
             test_condition_source=None, 
             test_condition_settings=None,
             read_video=True,
+            read_audio=True,
             reconstruction_type=None, 
             return_global_pose= False,
             return_appearance= False,
@@ -59,6 +60,7 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
             split, 
             num_workers, device, augmentation, drop_last, include_processed_audio, include_raw_audio, preload_videos, inflate_by_video_size, training_sampler, landmark_types, landmark_sources, segmentation_source,
             read_video = read_video,
+            read_audio = read_audio,
             )
 
         self.test_condition_source = test_condition_source or "original"
@@ -103,6 +105,7 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
 
                 read_video=self.read_video,
+                read_audio=self.read_audio,
                 reconstruction_type=self.reconstruction_type,
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
@@ -128,6 +131,7 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
 
                 read_video=self.read_video,
+                read_audio=self.read_audio,
                 reconstruction_type=self.reconstruction_type,
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
@@ -160,6 +164,7 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                 include_filename=True,
 
                 read_video=self.read_video,
+                read_audio=self.read_audio,
                 reconstruction_type=self.reconstruction_type,
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
@@ -200,6 +205,7 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                 include_filename=True,
 
                 read_video=self.read_video,
+                read_audio=self.read_audio,
                 reconstruction_type=self.reconstruction_type,
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
@@ -239,6 +245,7 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                 include_filename=True,
 
                 read_video=self.read_video,
+                read_audio=self.read_audio,
                 reconstruction_type=self.reconstruction_type,
                 return_global_pose=self.return_global_pose,
                 return_appearance=self.return_appearance,
@@ -280,6 +287,7 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                     include_filename=True,
 
                     read_video=self.read_video,
+                    read_audio=self.read_audio,
                     reconstruction_type=self.reconstruction_type,
                     return_global_pose=self.return_global_pose,
                     return_appearance=self.return_appearance,
@@ -320,6 +328,7 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                     include_filename=True,
 
                     read_video=self.read_video,
+                    read_audio=self.read_audio,
                     reconstruction_type=self.reconstruction_type,
                     return_global_pose=self.return_global_pose,
                     return_appearance=self.return_appearance,
@@ -359,6 +368,7 @@ class CelebVHQPseudo3DDM(CelebVHQDataModule):
                     include_filename=True,
 
                     read_video=self.read_video,
+                    read_audio=self.read_audio,
                     reconstruction_type=self.reconstruction_type,
                     return_global_pose=self.return_global_pose,
                     return_appearance=self.return_appearance,
@@ -460,6 +470,7 @@ class CelebVHQPseudo3dDataset(CelebVHQDataset):
             include_filename=False, # if True includes the filename of the video in the sample
 
             read_video=True,
+            read_audio=True,
             reconstruction_type=None,
             return_global_pose=False,
             return_appearance=False,
@@ -492,6 +503,7 @@ class CelebVHQPseudo3dDataset(CelebVHQDataset):
             )
             
         self.read_video = read_video
+        self.read_audio = read_audio
 
         self.reconstruction_type = reconstruction_type
         if self.reconstruction_type is not None:

@@ -54,7 +54,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
             landmark_sources=None,
             segmentation_source=None,
             read_video = True,
-
+            read_audio = True,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, 
@@ -73,6 +73,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
             preload_videos=preload_videos,
             inflate_by_video_size=inflate_by_video_size,
             read_video = read_video,
+            read_audio = read_audio,
             )
         # self.detect_landmarks_on_restored_images = landmarks_from
         self.batch_size_train = batch_size_train
