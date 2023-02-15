@@ -184,7 +184,7 @@ class MotionPrior(pl.LightningModule):
             rec_dict = batch
         # self._input_sequence_keys = [prefix + key for key in self.cfg.model.sequence_components.keys()]
         # self._input_feature_dims = {key: rec_dict[key].shape[2] for key in self._input_sequence_keys}
-        self._input_feature_dims = self.cfg.model.sequence_components
+        # self._input_feature_dims = self.cfg.model.sequence_components
         input_sequences = [] 
         for key in self.cfg.model.sequence_components.keys():
             if self.cfg.model.sequence_components[key] == "rot":
@@ -213,11 +213,12 @@ class MotionPrior(pl.LightningModule):
             batch = self.motion_quantizer(batch, step=training_step)
         return batch
 
-    def decode(self, batch):
+    def decode(self, batch, assert_size=False):
         key = "quantized_features" if self.motion_quantizer is not None else "encoded_features"
         batch = self.motion_decoder(batch, input_key=key)
-        assert batch["decoded_sequence"].shape == batch["input_sequence"].shape, \
-            "Decoded sequence shape does not match input sequence shape."
+        if assert_size:
+            assert batch["decoded_sequence"].shape == batch["input_sequence"].shape, \
+                "Decoded sequence shape does not match input sequence shape."
         return batch
 
     def decompose_sequential_output(self, batch):
@@ -225,7 +226,8 @@ class MotionPrior(pl.LightningModule):
         prefix = "reconstructed_"
         start_idx = 0
         for i, key in enumerate(self.cfg.model.sequence_components.keys()):
-            dim = self._input_feature_dims[key]
+            # dim = self._input_feature_dims[key]
+            dim = self.cfg.model.sequence_components[key]
             if dim == "rot":
                 dim = rotation_dim(self._rotation_representation()) 
             elif dim == "flame_verts":
@@ -259,7 +261,7 @@ class MotionPrior(pl.LightningModule):
         batch = self.compose_sequential_input(batch)
         batch = self.encode(batch)
         batch = self.quantize(batch, training_or_validation=train or validation)
-        batch = self.decode(batch)
+        batch = self.decode(batch, assert_size=True)
         batch = self.decompose_sequential_output(batch)
         batch = self.postprocess(batch)
         return batch

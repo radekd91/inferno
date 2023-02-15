@@ -52,6 +52,15 @@ class L2lVqVae(MotionPrior):
             preprocessor = None
         super().__init__(cfg, motion_encoder, motion_decoder, motion_quantizer, preprocessor, preprocessor)
 
+    def get_bottleneck_dim(self):
+        return self.motion_encoder.bottleneck_dim()
+
+    def get_codebook_size(self): 
+        if self.motion_quantizer is None:
+            return None
+        else:
+            return self.motion_quantizer.codebook_size
+
     @classmethod
     def instantiate(cls, cfg, stage, prefix, checkpoint, checkpoint_kwargs) -> 'L2lVqVae':
         """
