@@ -54,7 +54,7 @@ def concatenate_videos(video_list, output_path, horizontal=True, with_audio=True
     video_list_path = Path(output_path).with_suffix(".txt")
     with open(video_list_path, "w") as f:
         f.write("\n".join([str(video_path) for video_path in video_list]))
-    print("Done")
+    # print("Done")
     # stack the videos and keep the audio from the first file 
     video_list_str = "-i " + " -i ".join([str(video_path) for video_path in video_list])
     filter_str = [f"[{n}:v]" for n in range(len(video_list))]
@@ -81,6 +81,21 @@ def rename_inconsistencies(sample):
     sample['shape'] = sample['shapecode']
 
     # del sample['verts']
+    return sample
+
+
+def temporal_trim_dict(sample, start_frame, end_frame, is_batched=False):
+    for key in sample.keys():
+        if isinstance(sample[key], np.ndarray):
+            if len(sample[key].shape) >= 2 + int(is_batched):
+                sample[key] = sample[key][start_frame:end_frame]
+        elif isinstance(sample[key], torch.Tensor):
+            if len(sample[key].shape) >= 2 + int(is_batched):
+                sample[key] = sample[key][start_frame:end_frame]
+        elif isinstance(sample[key], list):
+            sample[key] = sample[key][start_frame:end_frame]
+        elif isinstance(sample[key], dict):
+            sample[key] = temporal_trim_dict(sample[key], start_frame, end_frame)
     return sample
 
 
@@ -728,7 +743,10 @@ def optimize(cfg):
     dm, _ = prepare_data(model_config)
     if hasattr(dm, 'debug_mode'):
         dm.debug_mode = True
-
+    # override sequence length
+    dm.sequence_length_train = cfg.data.batching.sequence_length_train 
+    dm.sequence_length_val = cfg.data.batching.sequence_length_val
+    dm.sequence_length_test = cfg.data.batching.sequence_length_test 
 
     dm.prepare_data()
     dm.setup()
@@ -769,13 +787,23 @@ def optimize(cfg):
 
     if 'reconstruction' in source_sample.keys():
         source_rec_dict = source_sample['reconstruction'][geometry_type]
+        T_outs = source_sample['gt_vertices'].shape[0]
     else: 
         source_rec_dict = source_sample
+        T_outs = source_rec_dict['gt_vertices'].shape[0]
 
+    T_out = min(T_out, T_outs)
     T_latent = T_out // (2** motion_prior_net.cfg.model.sizes.quant_factor)
+    T_out = T_latent * (2** motion_prior_net.cfg.model.sizes.quant_factor)
     latent_dim = motion_prior_net.get_bottleneck_dim()
     codebook_size = motion_prior_net.get_codebook_size()
     is_quanitized = codebook_size is not None
+
+    # trim the source and target to the same length
+    target_rec_dict = temporal_trim_dict(target_rec_dict, start_frame=0, end_frame=T_out)
+    target_sample = temporal_trim_dict(target_sample, start_frame=0, end_frame=T_out)
+    source_rec_dict = temporal_trim_dict(source_rec_dict, start_frame=0, end_frame=T_out)
+    source_sample = temporal_trim_dict(source_sample, start_frame=0, end_frame=T_out)
 
     if is_quanitized:
         latent_seq_shape = (T_latent, latent_dim, codebook_size)
@@ -1058,16 +1086,16 @@ def main():
         cfg.data.batching.batch_size_train = 1
         cfg.data.batching.batch_size_val = 1
         cfg.data.batching.batch_size_test = 1 
-        cfg.data.batching.sequence_length_train = 1
-        cfg.data.batching.sequence_length_val = 1
-        cfg.data.batching.sequence_length_test = 1
+        # cfg.data.batching.sequence_length_train = 1
+        # cfg.data.batching.sequence_length_val = 1
+        # cfg.data.batching.sequence_length_test = 1
 
         # cfg.data.batching.sequence_length_train = 25
         # cfg.data.batching.sequence_length_val = 25
         # cfg.data.batching.sequence_length_test = 25
-        cfg.data.batching.sequence_length_train = 12
-        cfg.data.batching.sequence_length_val = 12
-        cfg.data.batching.sequence_length_test = 12
+        cfg.data.batching.sequence_length_train = "all"
+        cfg.data.batching.sequence_length_val = "all"
+        cfg.data.batching.sequence_length_test = "all"
 
         # cfg.data.batching.sequence_length_train = 150
         # cfg.data.batching.sequence_length_val = 150
