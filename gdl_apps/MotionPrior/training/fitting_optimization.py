@@ -28,7 +28,13 @@ import yaml
 from gdl.datasets.AffectNetDataModule import AffectNetExpressions
 from gdl.utils.other import class_from_str
 from gdl_apps.MotionPrior.training.train_motion_prior import prepare_data
+from gdl_apps.MotionPrior.training.training_pass import get_rendering_callback
 from typing import Dict, List, Tuple, Union
+from gdl.callbacks.TalkingHeadRenderingCallback import TalkingHeadTestRenderingCallback
+from skimage.io import imsave
+from gdl.utils.PyRenderMeshSequenceRenderer import PyRenderMeshSequenceRenderer
+import subprocess
+
 
 def np_matrix_to_plotly(data):
     # create a plotly figure from a numpy matrix
@@ -61,9 +67,10 @@ def concatenate_videos(video_list, output_path, horizontal=True, with_audio=True
         audio = "-map 1:a"
     else: 
         audio = ""
-    cmd = f'ffmpeg -n {video_list_str} -filter_complex "{filter_str}{keyword}=inputs={len(video_list)}[v]" -map "[v]" {audio} {output_path}'
-    print(cmd)
-    os.system(cmd)
+    cmd = f'ffmpeg -hide_banner -loglevel error -n {video_list_str} -filter_complex "{filter_str}{keyword}=inputs={len(video_list)}[v]" -map "[v]" {audio} {output_path}'
+    # print(cmd)
+    # os.system(cmd)
+    res = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     # os.system(f"ffmpeg {video_list_str} -filter_complex hstack=inputs={2} -map 1:a {output_path}")
 
 
@@ -308,7 +315,7 @@ def create_visualization_to_log(sample, prefix, output_folder, with_video=True):
 
 class OptimizationProblem(object): 
 
-    def __init__(self, renderer, flame, motion_prior : MotionPrior, losses, output_folder) -> None:
+    def __init__(self, renderer, flame, motion_prior : MotionPrior, losses, output_folder, visualization_renderer) -> None:
         self.renderer = renderer
         self.flame = flame
         self.motion_prior = motion_prior
@@ -316,6 +323,9 @@ class OptimizationProblem(object):
         self.optimizer = None
         self.output_folder = output_folder
         self.output_folder.mkdir(parents=True, exist_ok=False)
+        self.visualization_renderer = visualization_renderer
+        # self.vis_rendering_frequency = 20 
+        self.vis_rendering_iters = [0, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000]
 
     def forward(self, sample,):
         """
@@ -367,12 +377,16 @@ class OptimizationProblem(object):
         sample = init_sample.copy()
         n_iter = n_iter or 100
 
-        vid_visualization_frequency = 10
+        # vid_visualization_frequency = 10
+        vid_visualization_frequency = 1
         
         best_loss = 1e10
         best_iter = 0
         best_sample = None
         iter_since_best = 0
+
+        result_video_paths = []
+
         for i in range(n_iter):
             
             # # delete keys from old forward pass that correspond to the vertices and images 
@@ -386,8 +400,6 @@ class OptimizationProblem(object):
             sample, total_loss, losses, weighted_losses = self.optimization_step(sample)
             print(f"Iteration {i} - Total loss: {total_loss.item():.4f}")
 
-
-
             if total_loss < best_loss:
                 best_loss = total_loss
                 best_iter = i
@@ -396,8 +408,24 @@ class OptimizationProblem(object):
             else:
                 iter_since_best += 1
 
-            # dict_to_log = {}
+
             # if i % vid_visualization_frequency == 0:
+            if i in self.vis_rendering_iters:
+                if self.visualization_renderer is not None:
+                    self.render_sequence(sample, self.output_folder / f"visualization_{i:06d}", label=f"iter {i:06d}")
+
+                    # concatenate videos
+                    concatenated_video_path = self.output_folder / f"visualization_{i:06d}/video_concat.mp4"
+                    concatenate_videos(
+                        [self.output_folder / f"visualization_{i:06d}/video.mp4", 
+                        self.output_folder / f"visualization_target/video.mp4"],
+                        output_path=concatenated_video_path, 
+                        with_audio=False, 
+                        horizontal=False
+                    )
+                    result_video_paths.append(concatenated_video_path)
+
+            # dict_to_log = {}
                 
             #     for cam in sample['predicted_video'].keys():
             #         predicted_video = (sample['predicted_video'][cam].detach().cpu().numpy()[0] * 255).astype(np.uint8).transpose(0, 2, 3, 1)
@@ -424,16 +452,30 @@ class OptimizationProblem(object):
 
             # dict_to_log = create_visualization_to_log(sample, "predicted", self.output_folder, i % vid_visualization_frequency == 0)
             dict_to_log = {}
+            if i in self.vis_rendering_iters:
+                video_wandb = wandb.Video(str(concatenated_video_path), fps=25, format="mp4")
+                dict_to_log[f"video"] = video_wandb
             dict_to_log.update({f"loss/{k}": v.item() for k, v in losses.items()})
             dict_to_log.update({f"weighted_loss/{k}": v.item() for k, v in weighted_losses.items()})
             dict_to_log.update({"total_loss": total_loss.item()})
-            # wandb.log(dict_to_log, step=i)
+            wandb.log(dict_to_log, step=i)
 
             if patience is not None and iter_since_best > 100:
                 print(f"Stopping optimization after {i} iterations because the loss did not improve for {patience} iterations.")
                 break
 
         print(f"Best loss: {best_loss.item():.4f} at iteration {best_iter}")
+
+        if self.visualization_renderer is not None:
+            self.render_sequence(sample, self.output_folder / f"visualization_best", label=f"best")
+            best_concatenated_video_path = self.output_folder / f"visualization_best/video_concat.mp4"
+            concatenate_videos(
+                    [self.output_folder / f"visualization_best/video.mp4", 
+                    self.output_folder / f"visualization_target/video.mp4"],
+                    output_path=best_concatenated_video_path, 
+                    with_audio=False, 
+                    horizontal=False
+                )
 
         # dict_to_log = {}
         # for cam in sample['predicted_video'].keys():
@@ -454,7 +496,21 @@ class OptimizationProblem(object):
         #     #         dict_to_log[f"best_video_attention/head_{h}"] = predicted_attention[h].detach().cpu().numpy()
 
         # best_dict_to_log = create_visualization_to_log(best_sample, "best", self.output_folder)
-        # wandb.log(best_dict_to_log)
+            best_dict_to_log = {}
+            video_wandb = wandb.Video(str(best_concatenated_video_path), fps=25, format="mp4")
+            best_dict_to_log[f"video_best"] = video_wandb
+            wandb.log(best_dict_to_log)
+
+        # gather all the videos, concatenate them 
+        concatenate_videos(
+            [self.output_folder / "visualization_init/video_concat.mp4"] + \
+            result_video_paths + \
+            [self.output_folder / f"visualization_best/video_concat.mp4"], 
+            output_path=self.output_folder / "complete_visualization.mp4",
+            with_audio=False, 
+            horizontal=True
+        )
+
         return sample
 
     def optimization_step(self, sample):
@@ -497,6 +553,7 @@ class OptimizationProblem(object):
         weighted_losses = detach_dict(weighted_losses)
         total_loss.detach_()
 
+
         return sample, total_loss, losses, weighted_losses
 
     
@@ -520,6 +577,61 @@ class OptimizationProblem(object):
 
         return final_loss, losses, weighted_losses
 
+
+    def render_sequence(self, sample, output_folder, key="reconstructed_vertices", label=None):
+        if self.visualization_renderer is None:
+            return 
+        output_folder.mkdir(parents=True, exist_ok=True)
+        T = sample[key].shape[1]
+        vertices = sample[key]
+        rendering_fnames = []
+        for t in range(T):
+            verts = vertices[0, t].detach().cpu().view(-1,3).numpy()
+            pred_image = self.visualization_renderer.render(verts)
+            
+            from PIL import Image, ImageFont, ImageDraw
+            font = ImageFont.truetype("/usr/share/fonts/dejavu/DejaVuSans.ttf", 25)
+            # Pil image from numpy array
+            img = Image.fromarray(pred_image)
+            draw = ImageDraw.Draw(img)
+            # draw.text((0,0), "This is a test", (255,255,0), font=font)
+            
+            # write frame number to the lower left corner
+            draw.text((0, pred_image.shape[0]-30), f"t={t:4d}", (255,255,2550), font=font)
+            # write label to the lower right corner
+            if label is not None:
+                draw.text((pred_image.shape[1]-200, pred_image.shape[0]-30), f"{label}", (255,255,255), font=font)
+
+            filename = output_folder / f"{t:06d}.png"
+            # imsave(filename, img) 
+            img.save(filename)
+            rendering_fnames += [filename]
+
+        # compose all
+        video_filename = output_folder / "video.mp4"
+        framerate = 25
+        start_number = 0
+        image_format = "%06d"
+        audio_path = None
+        if audio_path is not None:
+            ffmpeg_cmd = f"ffmpeg -hide_banner -loglevel error -y -framerate {framerate} -start_number {start_number} -i {str(output_folder)}/" + image_format + ".png"\
+                    f" -i {str(audio_path)} -c:v libx264 -c:a aac -strict experimental -b:a 192k -pix_fmt yuv420p {str(video_filename)}"
+        else:
+            ffmpeg_cmd = f"ffmpeg -hide_banner -loglevel error -y -framerate {framerate} -start_number {start_number} -i {str(output_folder)}/" + image_format + ".png"\
+                    f" -c:v libx264 -pix_fmt yuv420p {str(video_filename)}"
+        # os.system(ffmpeg_cmd)
+        res = subprocess.run(ffmpeg_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        # check if the video was created
+        if not video_filename.exists():
+            print(f"Video {video_filename} was not created. The renderings are in {video_filename}")
+            return
+        
+        # print(f"Video {video_filename} was created. Deleting renderings.")
+        for rendering in rendering_fnames:
+            os.remove(rendering)
+        
+                
 
 def create_experiment_name(cfg): 
     name = "Opt_"
@@ -791,6 +903,8 @@ def optimize(cfg):
 
     })
 
+    
+
     # if optimize_jaw_pose:
     #     losses.jaw_pose_reg = munchify({
     #         "weight": cfg.losses.jaw_pose_reg.weight,
@@ -803,7 +917,18 @@ def optimize(cfg):
     experiment_name = time + "_" + random_id + "_" + name
     renderer = None 
     flame = None
-    model = OptimizationProblem(renderer, flame, motion_prior_net, losses, Path(cfg.inout.result_root) / experiment_name)
+
+    flame_template_path = Path("/ps/scratch/rdanecek/data/FLAME/geometry/FLAME_sample.ply")
+    # rendering_callback = get_rendering_callback(model_config, flame_template_path)
+
+    vis_renderer = PyRenderMeshSequenceRenderer(
+        flame_template_path, 
+        height=600., 
+        width=600.,
+    )
+
+    model = OptimizationProblem(renderer, flame, motion_prior_net, losses, 
+        Path(cfg.inout.result_root) / experiment_name, vis_renderer)
     model.configure_optimizers(variable_list, cfg.optimizer.type, cfg.optimizer.lr)
     cfg.inout.experiment_name = experiment_name
     cfg.inout.result_dir = str(Path(cfg.inout.result_root) / experiment_name)
@@ -813,13 +938,13 @@ def optimize(cfg):
     with open(Path(cfg.inout.result_dir) / 'config.yaml', 'w') as f:
         yaml.safe_dump(cfg, f, default_flow_style=False)
 
-    # wandb_logger = WandbLogger(
-    #     project="FittingMotionPrior", 
-    #     name=name,
-    #     config=cfg,
-    #     tags=cfg.inout.get('tags', None) 
-    # )
-    # wandb_logger.experiment # make sure it's initialized
+    wandb_logger = WandbLogger(
+        project="FittingMotionPrior", 
+        name=name,
+        config=cfg,
+        tags=cfg.inout.get('tags', None) 
+    )
+    wandb_logger.experiment # make sure it's initialized
     
     # with torch.no_grad():
     #     source_sample_ = model.forward(source_sample_)
@@ -874,15 +999,29 @@ def optimize(cfg):
     # _, _, _ = model.compute_losses(source_sample_, allow_failure=True)
     # _, _, _ = model.compute_losses(target_sample_, allow_failure=True)
     
-    source_sample_ = detach_dict(source_sample_)
-    target_sample_ = detach_dict(target_sample_)
+    source_sample_ = detach_dict(model.forward(source_sample_))
+    # target_sample_ = detach_dict(model.forward(target_sample_))
 
     # source_sample_visdict = create_visualization_to_log(source_sample_, "source", model.output_folder)
     # target_sample_visdict = create_visualization_to_log(target_sample_, "target", model.output_folder)
     # dict_to_log = {**source_sample_visdict, **target_sample_visdict}
     # wandb.log(dict_to_log)
 
+    model.render_sequence(source_sample_,  model.output_folder / f"visualization_init", label="init")
+    model.render_sequence(target_sample_,  model.output_folder / f"visualization_target", key="gt_vertices", label="target")
+    concatenated_init_video_path = model.output_folder / f"visualization_init/video_concat.mp4"
+    concatenate_videos(
+            [model.output_folder / f"visualization_init/video.mp4", 
+            model.output_folder / f"visualization_target/video.mp4"],
+            output_path=concatenated_init_video_path, 
+            with_audio=False, 
+            horizontal=False,
+        )
+    dict_to_log = {}
+    dict_to_log['video_init'] = wandb.Video(str(concatenated_init_video_path), fps=25, format="mp4")
+    wandb.log(dict_to_log)
     output_sample = model.optimize(source_sample_, n_iter=cfg.optimizer.n_iter, patience=cfg.optimizer.patience)
+
 
     # # gather all the videos 
     # for cam in output_sample['predicted_video'].keys():
@@ -911,7 +1050,8 @@ def main():
         
         cfg = Munch()
         # path_to_config = Path("/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_08_14-51-54_6121455154279531419_L2lVqVae_Facef_AE/cfg.yaml")
-        path_to_config = Path("/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_12-49-15_-845824944828324001_L2lVqVae_Facef_VAE/cfg.yaml")
+        # path_to_config = Path("/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_12-49-15_-845824944828324001_L2lVqVae_Facef_VAE/cfg.yaml")
+        path_to_config = Path("/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_12-49-31_-5593838506145801374_L2lVqVae_Facef_VAE/cfg.yaml")
         helper_config = OmegaConf.load(path_to_config)
         cfg.data = munchify(OmegaConf.to_container( helper_config.data))
         cfg.data.batching = Munch() 
@@ -1036,7 +1176,10 @@ def main():
         # cfg.optimizer.lr = 1e-2
         # cfg.optimizer.lr = 1e-1
         cfg.optimizer.lr = 1.
-        cfg.optimizer.n_iter = 10000
+        if cfg.optimizer.type == "lbfgs":
+            cfg.optimizer.n_iter = 1000
+        else:
+            cfg.optimizer.n_iter = 10000
         # cfg.optimizer.n_iter = 100
         cfg.optimizer.patience = 50
         
