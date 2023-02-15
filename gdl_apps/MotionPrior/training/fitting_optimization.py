@@ -743,6 +743,8 @@ def optimize(cfg):
     dm, _ = prepare_data(model_config)
     if hasattr(dm, 'debug_mode'):
         dm.debug_mode = True
+    if hasattr(dm, 'preload_videos'):
+        dm.preload_videos = False
     # override sequence length
     dm.sequence_length_train = cfg.data.batching.sequence_length_train 
     dm.sequence_length_val = cfg.data.batching.sequence_length_val
@@ -787,7 +789,7 @@ def optimize(cfg):
 
     if 'reconstruction' in source_sample.keys():
         source_rec_dict = source_sample['reconstruction'][geometry_type]
-        T_outs = source_sample['gt_vertices'].shape[0]
+        T_outs = source_rec_dict['gt_exp'].shape[0]
     else: 
         source_rec_dict = source_sample
         T_outs = source_rec_dict['gt_vertices'].shape[0]
@@ -858,13 +860,14 @@ def optimize(cfg):
 
 
     if 'gt_shape' in target_rec_dict.keys(): 
-        target_sample_['gt_shape'] = target_rec_dict['gt_shape'][None, ...].repeat(Tt, 1).contiguous()
+        target_sample_['gt_shape'] = target_rec_dict['gt_shape'] #.repeat(Tt, 1).contiguous()
 
     # unsqeueze the batch dimension
     for k in target_sample_:
         target_sample_[k] = target_sample_[k].unsqueeze(0).to(device)
 
-    if 'gt_shape' not in target_rec_dict.keys(): 
+    # if 'gt_shape' not in target_rec_dict.keys(): 
+    if 'gt_vertices' not in target_rec_dict.keys(): 
             # feed it through the flame preprocessor 
         assert isinstance(motion_prior_net.preprocessor, FlamePreprocessor)
         target_sample_ = motion_prior_net.preprocessor(target_sample_, input_key="", output_prefix="gt_")
@@ -886,7 +889,7 @@ def optimize(cfg):
     
     if cfg.init.shape_from_source: 
         if 'gt_shape' in source_rec_dict.keys(): 
-            source_sample_['gt_shape'] = source_rec_dict['gt_shape'][None, ...].repeat(Ts, 1).contiguous()
+            source_sample_['gt_shape'] = source_rec_dict['gt_shape'] #.repeat(Ts, 1).contiguous()
     else:
         if 'gt_shape' in source_rec_dict.keys(): 
             source_sample_['gt_shape'] = target_sample_['gt_shape'].detach().clone()
@@ -897,7 +900,8 @@ def optimize(cfg):
         source_sample_[k] = source_sample_[k].unsqueeze(0).to(device)
 
     if cfg.init.shape_from_source:
-        if 'gt_shape' not in source_rec_dict.keys(): 
+        # if 'gt_shape' not in source_rec_dict.keys():  
+        if 'gt_vertices' not in source_rec_dict.keys():  
             # feed it through the flame preprocessor 
             assert isinstance(motion_prior_net.preprocessor, FlamePreprocessor)
             source_sample_ = motion_prior_net.preprocessor(source_sample_, input_key="", output_prefix="gt_")
@@ -1077,9 +1081,15 @@ def main():
     else:
         
         cfg = Munch()
+        ## vocaset-trained
         # path_to_config = Path("/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_08_14-51-54_6121455154279531419_L2lVqVae_Facef_AE/cfg.yaml")
         # path_to_config = Path("/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_12-49-15_-845824944828324001_L2lVqVae_Facef_VAE/cfg.yaml")
-        path_to_config = Path("/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_12-49-31_-5593838506145801374_L2lVqVae_Facef_VAE/cfg.yaml")
+        # path_to_config = Path("/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_12-49-31_-5593838506145801374_L2lVqVae_Facef_VAE/cfg.yaml")
+        
+        ## mead trained 
+        # ae trained and validated on disjoint identities # still converging
+        path_to_config = Path("/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-16-46_-2546611371074170025_L2lVqVae_MEADP_AE/cfg.yaml")
+        
         helper_config = OmegaConf.load(path_to_config)
         cfg.data = munchify(OmegaConf.to_container( helper_config.data))
         cfg.data.batching = Munch() 
@@ -1212,11 +1222,11 @@ def main():
         cfg.optimizer.patience = 50
         
         cfg.init = Munch()
-        # cfg.init.source_sample_idx = 61 #
-        # cfg.init.target_sample_idx = 58 #
-        cfg.init.source_sample_idx = 0 # 
-        cfg.init.target_sample_idx = 1 #
-        cfg.init.geometry_type = 'emoca'
+        cfg.init.source_sample_idx = 61 #
+        cfg.init.target_sample_idx = 58 #
+        # cfg.init.source_sample_idx = 0 # 
+        # cfg.init.target_sample_idx = 1 #
+        cfg.init.geometry_type = 'EMOCA_v2_lr_mse_15_with_bfmtex'
         # cfg.init.geometry_type = 'spectre'
         # cfg.init.init = 'random'
         # cfg.init.init = 'source'
