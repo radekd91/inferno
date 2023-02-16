@@ -741,8 +741,9 @@ def optimize(cfg, debug_mode=False):
     # condition_source, condition_settings = get_condition_string_from_config(cfg)
     # instantiate a data module 
     dm, _ = prepare_data(model_config)
-    if hasattr(dm, 'debug_mode'):
-        dm.debug_mode = True
+    if debug_mode:
+        if hasattr(dm, 'debug_mode'):
+            dm.debug_mode = True
     if hasattr(dm, 'preload_videos'):
         dm.preload_videos = False
     # override sequence length
