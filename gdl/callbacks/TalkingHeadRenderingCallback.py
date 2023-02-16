@@ -47,7 +47,13 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
         # print("Rendering talking head")
         logger = pl_module.logger
         predicted_vertices = batch[self.predicted_vertex_key]
-        gt_vertices = batch["gt_vertices"]
+        if "gt_vertices" in batch.keys():
+            gt_vertices = batch["gt_vertices"]  
+        else: 
+            rec_type = list(batch["reconstruction"].keys())[0]
+            if len(batch["reconstruction"]) > 1:
+                print("[WARNING]: More than one reconstruction type in batch. Using first one.")
+            gt_vertices = batch["reconstruction"][rec_type]["gt_vertices"]
         B, T = predicted_vertices.shape[:2]
 
         for b in range(B):
@@ -77,7 +83,8 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
             else:
                 self.video_framerates_to_process[path] = self.framerate
 
-            self.audio_samplerates_to_process[path] = batch["samplerate"][b]
+            if 'raw_audio' in batch.keys():
+                self.audio_samplerates_to_process[path] = batch["samplerate"][b]
             
             if (path / "output.mp4").is_file() and not self.overwrite:
                 print(f"Skipping {path}. Video already exists.")
@@ -107,10 +114,11 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
 
                 imsave(image_path, image)
 
-                raw_audio_chunk = batch["raw_audio"][b,t].detach().cpu().numpy()
-                audio_chunk_path = path / (self.image_format % frame_index + ".pkl")
-                with open(audio_chunk_path, "wb") as f:
-                    pkl.dump(raw_audio_chunk, f)
+                if 'raw_audio' in batch.keys():
+                    raw_audio_chunk = batch["raw_audio"][b,t].detach().cpu().numpy()
+                    audio_chunk_path = path / (self.image_format % frame_index + ".pkl")
+                    with open(audio_chunk_path, "wb") as f:
+                        pkl.dump(raw_audio_chunk, f)
 
             # self._create_video(path, logger, trainer.global_step)
 
@@ -151,15 +159,21 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
 
             # create audio 
             audio_chunks_files = sorted([f for f in subfolder.iterdir() if f.is_file() and f.suffix == ".pkl"])
-            audio_chunks = [pkl.load(open(f, "rb")) for f in audio_chunks_files]
-            audio_chunks = np.concatenate(audio_chunks, axis=0)
-            audio_path = subfolder / "audio.wav"
-            sf.write(audio_path, audio_chunks, samplerate)
-
+            if len(audio_chunks_files) > 0:
+                audio_chunks = [pkl.load(open(f, "rb")) for f in audio_chunks_files]
+                audio_chunks = np.concatenate(audio_chunks, axis=0)
+                audio_path = subfolder / "audio.wav"
+                sf.write(audio_path, audio_chunks, samplerate)
+            else:
+                audio_path = None
 
             # create video with audio
-            ffmpeg_cmd = f"ffmpeg -y -framerate {framerate} -start_number {renderings[0].stem} -i {str(subfolder)}/" + self.image_format + ".png"\
-                f" -i {str(audio_path)} -c:v libx264 -c:a aac -strict experimental -b:a 192k -pix_fmt yuv420p {str(video_path)}"
+            if audio_path is not None:
+                ffmpeg_cmd = f"ffmpeg -y -framerate {framerate} -start_number {renderings[0].stem} -i {str(subfolder)}/" + self.image_format + ".png"\
+                    f" -i {str(audio_path)} -c:v libx264 -c:a aac -strict experimental -b:a 192k -pix_fmt yuv420p {str(video_path)}"
+            else:
+                ffmpeg_cmd = f"ffmpeg -y -framerate {framerate} -start_number {renderings[0].stem} -i {str(subfolder)}/" + self.image_format + ".png"\
+                    f" -c:v libx264 -pix_fmt yuv420p {str(video_path)}"
             # ffmpeg_cmd = f"ffmpeg -y -framerate {framerate}  -start_number {renderings[0].stem} -i {str(subfolder)}/*.png"\
             #     f" -i {str(audio_path)} -c:v libx264 -c:a aac -strict experimental -b:a 192k -pix_fmt yuv420p {str(video_path)}"
             # ffmpeg_cmd = f"ffmpeg -framerate 30 -i {str(subfolder)}/" + self.image_format + f".png -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p {str(video_path)}"
