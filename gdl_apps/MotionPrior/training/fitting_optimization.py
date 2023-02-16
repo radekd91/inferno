@@ -868,7 +868,9 @@ def optimize(cfg, debug_mode=False):
         target_sample_[k] = target_sample_[k].unsqueeze(0).to(device)
 
     # if 'gt_shape' not in target_rec_dict.keys(): 
-    if 'gt_vertices' not in target_rec_dict.keys(): 
+    # if 'gt_vertices' not in target_rec_dict.keys(): 
+    if 'gt_vertices' not in target_rec_dict.keys() or \
+       'gt_shape' not in target_rec_dict.keys(): 
             # feed it through the flame preprocessor 
         assert isinstance(motion_prior_net.preprocessor, FlamePreprocessor)
         target_sample_ = motion_prior_net.preprocessor(target_sample_, input_key="", output_prefix="gt_")
@@ -902,7 +904,9 @@ def optimize(cfg, debug_mode=False):
 
     if cfg.init.shape_from_source:
         # if 'gt_shape' not in source_rec_dict.keys():  
-        if 'gt_vertices' not in source_rec_dict.keys():  
+        # if 'gt_vertices' not in source_rec_dict.keys():  
+        if 'gt_vertices' not in source_rec_dict.keys() or \
+           'gt_shape' not in source_rec_dict.keys():  
             # feed it through the flame preprocessor 
             assert isinstance(motion_prior_net.preprocessor, FlamePreprocessor)
             source_sample_ = motion_prior_net.preprocessor(source_sample_, input_key="", output_prefix="gt_")
@@ -1224,10 +1228,10 @@ def main():
         cfg.optimizer.patience = 50
         
         cfg.init = Munch()
-        cfg.init.source_sample_idx = 61 #
-        cfg.init.target_sample_idx = 58 #
-        # cfg.init.source_sample_idx = 0 # 
-        # cfg.init.target_sample_idx = 1 #
+        # cfg.init.source_sample_idx = 61 #
+        # cfg.init.target_sample_idx = 58 #
+        cfg.init.source_sample_idx = 0 # 
+        cfg.init.target_sample_idx = 1 #
         cfg.init.geometry_type = 'EMOCA_v2_lr_mse_15_with_bfmtex'
         # cfg.init.geometry_type = 'spectre'
         # cfg.init.init = 'random'
