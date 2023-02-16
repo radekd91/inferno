@@ -6,6 +6,7 @@ from gdl.models.temporal.Bases import ShapeModel, Preprocessor
 from torch.nn.functional import mse_loss, l1_loss, cosine_similarity
 from gdl.utils.other import class_from_str
 from gdl.models.rotation_loss import compute_rotation_loss, convert_rot
+import numpy as np
 
 class MotionEncoder(torch.nn.Module): 
 
@@ -54,6 +55,32 @@ class MotionQuantizer(torch.nn.Module):
 #     else:
 #         raise NotImplementedError(f"Motion decoder type '{cfg.type}' not implemented")
         
+
+
+def temporal_trim_dict(sample, start_frame, end_frame, is_batched=False):
+    for key in sample.keys():
+        if isinstance(sample[key], (np.ndarray, torch.Tensor)):
+            if key in ["gt_expression", "gt_exp", "gt_vertices"]:
+                print(key)
+            if len(sample[key].shape) >= 2 + int(is_batched):
+                if is_batched:
+                    sample[key] = sample[key][:, start_frame:end_frame]
+                else:
+                    sample[key] = sample[key][start_frame:end_frame]
+        # elif isinstance(sample[key], str):
+        #     pass
+        elif isinstance(sample[key], list):
+            if not isinstance(sample[key][0], (str)):
+                if is_batched:
+                    sample[key] = [s[:, start_frame:end_frame] for s in sample[key]]
+                else:
+                    sample[key] = sample[key][start_frame:end_frame]
+        elif isinstance(sample[key], dict):
+            sample[key] = temporal_trim_dict(sample[key], start_frame, end_frame, is_batched=is_batched)
+        else:
+            raise NotImplementedError(f"Type {type(sample[key])} not implemented")
+    return sample
+
 
 def rotation_dim(rotation_representation):
     if rotation_representation in ["quaternion", "quat"]:
@@ -256,7 +283,20 @@ class MotionPrior(pl.LightningModule):
         batch["reconstructed_vertices"] = rec_batch["reconstructed_vertices"]
         return batch
 
+    def temporal_trim_batch(self, batch):
+        """ Trim batch to a compatible length for the model. 
+        The sequence lenghts must be divisible by the 2 ** model's quant size """
+        quant_factor = self.cfg.model.sizes.quant_factor 
+        factor = 2 ** quant_factor
+        T = batch["gt_expression"].shape[1] if "gt_expression" in batch.keys() else batch["gt_vertices"].shape[1]
+        T_trim = (T // factor) * factor
+        batch = temporal_trim_dict(batch, start_frame=0, end_frame=T_trim, is_batched=True)
+        return batch
+
     def forward(self, batch, train=False, validation=False):
+        if train is False and validation is False: 
+            # this should only be neccesry in testing (when batch size is 1, and sequence length is arbitraty)
+            batch = self.temporal_trim_batch(batch)
         batch = self.preprocess(batch)
         batch = self.compose_sequential_input(batch)
         batch = self.encode(batch)

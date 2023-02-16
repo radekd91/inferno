@@ -23,6 +23,7 @@ import datetime
 from omegaconf import DictConfig, OmegaConf, open_dict
 import time as t
 import copy
+import random
 
 
 def submit(cfg , bid=10):
@@ -32,7 +33,7 @@ def submit(cfg , bid=10):
     submission_dir_cluster_side = "/is/cluster/work/rdanecek/motion_prior/submission"
 
     time = datetime.datetime.now().strftime("%Y_%m_%d_%H-%M-%S")
-    submission_folder_name = time + "_" + str(hash(time)) + "_" + "submission"
+    submission_folder_name = time + "_" + str(hash(time) + random.randint(-10000, 10000)) + "_" + "submission"
     submission_folder_local = Path(submission_dir_local_mount) / submission_folder_name
     submission_folder_cluster = Path(submission_dir_cluster_side) / submission_folder_name
 
@@ -61,7 +62,8 @@ def submit(cfg , bid=10):
     max_price = 10000
     job_name = "train_motion_prior"
     cuda_capability_requirement = 7
-    mem_gb = 40
+    # mem_gb = 40
+    mem_gb = 45
 
     # args = f"{coarse_file.name} {detail_file.name}"
     args = f"{config_file.name}"
@@ -95,26 +97,27 @@ def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
     ##conf = "l2l-ae"
-    conf = "l2l-ae_geometry"
-    # conf = "l2l-ae_geometry_fs"
+    # conf = "l2l-ae_geometry"
+    ## conf = "l2l-ae_geometry_fs"
     ## conf = "l2lvq-vae"
     # conf = "l2lvq-vae_geometry"
     ## conf = "l2lvq-vae_no_flame"
-    # conf = "l2l-vae_geometry"
+    conf = "l2l-vae_geometry"
     # conf = "l2l-dvae_geometry"
     # conf = "codetalker_vq-vae_geometry"
     ## conf = "codetalker_vq-vae"
     ## conf = "codetalker_vq-vae_no_flame"
 
     tags = []
-    # tags += ['QUANT_FACTOR']
-    # tags += ['NUM_LAYERS']
+    tags += ['QUANT_FACTOR']
+    tags += ['NUM_LAYERS']
     # tags += ['ZERO_INIT']
     # tags += ['CODEBOOK_SIZE']
     # tags += ['NO_FLAME']
     # tags += ['NO_CONV']
     # tags += ['CODEBOOK_LOSSES']
     # tags += ['KL']
+    tags += ['LATENT_SIZE']
 
     training_modes = [
         # [], # no modifications to defaut config
@@ -132,9 +135,9 @@ def submit_trainings():
         # ],
     ]
 
-    # dataset = "vocaset"
+    dataset = "vocaset"
     # dataset = "vocaset_one_person"
-    dataset = "mead_pseudo_gt"
+    # dataset = "mead_pseudo_gt"
     
     # batching = "fixed_length"
     # batching = "fixed_length_bs16_35gb"
@@ -181,8 +184,8 @@ def submit_trainings():
         fixed_overrides += [f'data.split={split}']
 
     bid = 1000
-    submit_ = False
-    # submit_ = True
+    # submit_ = False
+    submit_ = True
     
     if not submit_:
         fixed_overrides += [
@@ -198,68 +201,77 @@ def submit_trainings():
         # num_layer_list = [None] # defeault 
         # num_layer_list = [1, 2,  4,  6,  8, 12]
         # num_layer_list = [1, 2,  4,  6,  8]
+        num_layer_list = [1, 2, 4]
         # num_layer_list = [4]
-        num_layer_list = [1]
+        # num_layer_list = [1]
         for num_layers in num_layer_list:
             if num_layers is not None:
                 overrides += ['model.sequence_encoder.num_layers=' + str(num_layers)]
                 overrides += ['model.sequence_decoder.num_layers=' + str(num_layers)]
         
 
-            quant_factor_list = [None] # 
-            # quant_factor_list = [0, 1, 2, 3, 4, 5]
+            # quant_factor_list = [None] # 
+            # quant_factor_list = [1, 2, 3, 4, 5]
+            quant_factor_list = [2, 3, 4]
             # quant_factor_list = [0]
 
+            feature_dims = [None] # default
+            feature_dims = [16, 32, 64, 128]
+            # feature_dims = [16, 64, 128]
+            for feature_dim in feature_dims:
+                overrides += ['model.sequence_encoder.feature_dim=' + str(feature_dim)]
+                overrides += ['model.sequence_decoder.feature_dim=' + str(feature_dim)]
 
-            for quant_factor in quant_factor_list:
-                if quant_factor is not None:
-                    overrides += ['model.sizes.quant_factor=' + str(quant_factor)]
+
+                for quant_factor in quant_factor_list:
+                    if quant_factor is not None:
+                        overrides += ['model.sizes.quant_factor=' + str(quant_factor)]
 
 
-                codebook_size_list = [None] # defeault
-                # codebook_size_list = [ 512, 1024] 
+                    codebook_size_list = [None] # defeault
+                    # codebook_size_list = [ 512, 1024] 
 
-                for codebook_size in codebook_size_list:
-                    if codebook_size is not None:
-                        overrides += ['model.quantizer.codebook_size=' + str(codebook_size)]
+                    for codebook_size in codebook_size_list:
+                        if codebook_size is not None:
+                            overrides += ['model.quantizer.codebook_size=' + str(codebook_size)]
 
-                    codebook_losses = (0.25, 1.0)
-                    codebook_loss_factors = [None]
-                    # codebook_loss_factors = [1.0, 0.5, 0.1, 0.05, 0.01, 0.005]
-                    # codebook_loss_factors = [5.0, 10.0, 50.0, 100.0,]
+                        codebook_losses = (0.25, 1.0)
+                        codebook_loss_factors = [None]
+                        # codebook_loss_factors = [1.0, 0.5, 0.1, 0.05, 0.01, 0.005]
+                        # codebook_loss_factors = [5.0, 10.0, 50.0, 100.0,]
 
-                    for ci, codebook_loss in enumerate(codebook_loss_factors):
-                        if codebook_loss is not None:
-                            overrides += ['learning.losses.codebook_alignment.weight=' + str(codebook_loss * codebook_losses[0])]
-                            overrides += ['learning.losses.codebook_commitment.weight=' + str(codebook_loss * codebook_losses[1])]
+                        for ci, codebook_loss in enumerate(codebook_loss_factors):
+                            if codebook_loss is not None:
+                                overrides += ['learning.losses.codebook_alignment.weight=' + str(codebook_loss * codebook_losses[0])]
+                                overrides += ['learning.losses.codebook_commitment.weight=' + str(codebook_loss * codebook_losses[1])]
 
-                        kl_weights = [None]
-                        # kl_weights = [0.001, 0.005, 0.01, 0.05, 0.1, 0,5]
-                        # kl_weights = [ 0.1, 0,5]
-                        for kl_weight in kl_weights:
-                            if kl_weight is not None:
-                                overrides += ['learning.losses.kl_divergence.weight=' + str(kl_weight)]
+                            kl_weights = [None]
+                            # kl_weights = [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05]
+                            # kl_weights = [ 0,5]
+                            for kl_weight in kl_weights:
+                                if kl_weight is not None:
+                                    overrides += ['learning.losses.kl_divergence.weight=' + str(kl_weight)]
 
-                            cfg = script.configure(
-                                conf, overrides,
-                            )
+                                cfg = script.configure(
+                                    conf, overrides,
+                                )
 
-                            GlobalHydra.instance().clear()
-                            # config_pairs += [cfgs]
+                                GlobalHydra.instance().clear()
+                                # config_pairs += [cfgs]
 
-                            # OmegaConf.set_struct(cfgs[0], False)
+                                # OmegaConf.set_struct(cfgs[0], False)
 
-                            with open_dict(cfg) as d:
-                                if not submit_:
-                                    d.data.debug_mode = True
-                                    tags += ["DEBUG_FROM_WORKSTATION"]
-                                if d.learning.tags is None:
-                                    d.learning.tags = tags
-                        
-                            if submit_:
-                                submit(cfg, bid=bid)
-                            else:
-                                script.train_model(cfg, resume_from_previous=False)
+                                with open_dict(cfg) as d:
+                                    if not submit_:
+                                        d.data.debug_mode = True
+                                        tags += ["DEBUG_FROM_WORKSTATION"]
+                                    if d.learning.tags is None:
+                                        d.learning.tags = tags
+                            
+                                if submit_:
+                                    submit(cfg, bid=bid)
+                                else:
+                                    script.train_model(cfg, resume_from_previous=False)
 
 
 

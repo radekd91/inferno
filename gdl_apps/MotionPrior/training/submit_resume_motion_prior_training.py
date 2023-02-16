@@ -27,8 +27,8 @@ import random
 from omegaconf import DictConfig, OmegaConf, open_dict 
 import sys
 
-# submit_ = False
-submit_ = True
+submit_ = False
+# submit_ = True
 
 if submit_:
     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -149,27 +149,53 @@ def resume_motion_prior_on_cluster():
     # # jobs that crashed mid training for no reason.
     # model_names += ['2023_02_13_09-50-47_588315614196140873_L2lVqVae_Facef_dVAE']
 
-    # needs a bit more finetuning, interesting results on vocaset for VQ VAE 
-    model_names += ['2023_02_08_23-53-45_-7897278066327257130_L2lVqVae_Facef_VQVAE']
-    model_names += ['2023_02_11_17-29-21_7975012759683643004_L2lVqVae_Facef_VQVAE']
-    model_names += ['2023_02_11_17-27-50_-7642823735391707989_L2lVqVae_Facef_VQVAE']
+    # # needs a bit more finetuning, interesting results on vocaset for VQ VAE 
+    # model_names += ['2023_02_08_23-53-45_-7897278066327257130_L2lVqVae_Facef_VQVAE']
+    # model_names += ['2023_02_11_17-29-21_7975012759683643004_L2lVqVae_Facef_VQVAE']
+    # model_names += ['2023_02_11_17-27-50_-7642823735391707989_L2lVqVae_Facef_VQVAE']
     # first AEs on MEAD: 
     # model_names += ["2023_02_12_20-01-17_-4462360882556841344_L2lVqVae_MEADP_AE"]
 
-    # rename_video_result_folder = False
-    rename_video_result_folder = True
+    # models on mead that have converged and need testing
+    model_names += ["2023_02_14_21-37-22_-4437007122232758841_L2lVqVae_MEADP_VAE"]
+    model_names += ["2023_02_14_21-36-30_-6645345463044072351_L2lVqVae_MEADP_VAE"]
+    model_names += ["2023_02_14_21-36-04_-6167662386280290661_L2lVqVae_MEADP_VAE"]
+
+    model_names += ["2023_02_14_21-36-06_3736766602660741736_L2lVqVae_MEADP_VAE"]
+    model_names += ["2023_02_14_21-37-42_-5906849939056023298_L2lVqVae_MEADP_VAE"]
+    model_names += ["2023_02_14_21-35-48_-8091441205341210773_L2lVqVae_MEADP_VAE"]
+    model_names += ["2023_02_14_21-16-46_7403691266508414587_L2lVqVae_MEADP_AE"]
+    
+    model_names += ["2023_02_14_21-36-04_-2594523615553095319_L2lVqVae_MEADP_VAE"]
+    model_names += ["2023_02_14_21-37-57_3688715351484736532_L2lVqVae_MEADP_VAE"]
+
+    
+
+    # models on mead that need more finetuning 
+    # model_names += ["2023_02_14_21-16-46_-2546611371074170025_L2lVqVae_MEADP_AE"]
+    # model_names += ["2023_02_14_21-38-17_-3365277498953081436_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_02_14_21-38-16_3819249676676666576_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_02_14_21-37-53_-8805504103833644898_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_02_14_21-37-21_4936645424129419426_L2lVqVae_MEADP_VAE"]
+
+    # model_names += [""]
+    # model_names += [""]
+    # model_names += [""]
+
+    rename_video_result_folder = False
+    # rename_video_result_folder = True
 
     bid = 1000
 
     # # continue training
-    stage = 0 
-    resume_from_previous = False
-    force_new_location = False
+    # stage = 0 
+    # resume_from_previous = False
+    # force_new_location = False
 
     # # ## test 
-    # stage = 1
-    # resume_from_previous = True
-    # force_new_location = False
+    stage = 1
+    resume_from_previous = True
+    force_new_location = False
 
     for model_folder in model_names:
         

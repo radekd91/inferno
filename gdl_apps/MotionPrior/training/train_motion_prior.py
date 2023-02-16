@@ -366,6 +366,12 @@ def train_model(cfg, start_i=-1,
 
         model_class = class_from_str(cfg.model.pl_module_class, sys.modules[__name__])
 
+
+        if "test" in stages[i]:
+            # don't preload the dataset for testing 
+            if hasattr(cfg.data, 'preload_videos'):
+                cfg.data.preload_videos = False
+
         model = single_stage_training_pass(model, cfg, stages[i], stages_prefixes[i], dm=None, logger=wandb_logger,
                                       data_preparation_function=prepare_data,
                                       checkpoint=checkpoint, checkpoint_kwargs=checkpoint_kwargs, 
