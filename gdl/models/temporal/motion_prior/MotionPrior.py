@@ -293,6 +293,19 @@ class MotionPrior(pl.LightningModule):
         batch = temporal_trim_dict(batch, start_frame=0, end_frame=T_trim, is_batched=True)
         return batch
 
+    def encoding_step(self, batch, train=False, validation=False): 
+        batch = self.preprocess(batch)
+        batch = self.compose_sequential_input(batch)
+        batch = self.encode(batch)
+        batch = self.quantize(batch, training_or_validation=train or validation)
+        return batch
+
+    def decoding_step(self, batch, train=False, validation=False):
+        batch = self.decode(batch, assert_size=True)
+        batch = self.decompose_sequential_output(batch)
+        batch = self.postprocess(batch)
+        return batch
+
     def forward(self, batch, train=False, validation=False):
         if train is False and validation is False: 
             # this should only be neccesry in testing (when batch size is 1, and sequence length is arbitraty)
