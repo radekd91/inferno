@@ -678,7 +678,7 @@ def create_experiment_name(cfg):
     return name
 
 
-def optimize(cfg): 
+def optimize(cfg, debug_mode=False): 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
 
@@ -1078,6 +1078,7 @@ def main():
         config_file = sys.argv[1]
         cfg = OmegaConf.load(config_file)
         cfg = munchify(OmegaConf.to_container(cfg))
+        debug_mode = False
     else:
         
         cfg = Munch()
@@ -1236,8 +1237,9 @@ def main():
 
         cfg.inout = Munch()
         cfg.inout.result_root = "/is/cluster/work/rdanecek/talkinghead/motion_prior_fitting"
+        debug_mode = True
 
-    optimize(cfg)
+    optimize(cfg, debug_mode=debug_mode)
 
 
 if __name__ == "__main__":    
