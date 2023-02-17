@@ -149,7 +149,7 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
         # find audio
         # audio = self.video_names_to_process[subfolder]
         framerate = self.video_framerates_to_process[subfolder]
-        samplerate = self.audio_samplerates_to_process[subfolder]
+        samplerate = self.audio_samplerates_to_process[subfolder] if subfolder in self.audio_samplerates_to_process else 16000
         video_path = subfolder / ("output.mp4")
 
         if not video_path.is_file():

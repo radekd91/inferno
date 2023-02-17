@@ -136,7 +136,7 @@ class PyRenderMeshSequenceRenderer(object):
             color, _ = r.render(self.scene, flags=self.flags)
         except:
             print('pyrender: Failed rendering frame')
-            color = np.zeros((self.frustum['height'], self.frustum['width'], 3), dtype='uint8')
+            color = np.zeros((int(self.frustum['height']), int(self.frustum['width']), 3), dtype='uint8')
         
         self.scene.remove_node(self.mesh_node)
 
