@@ -193,7 +193,9 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
             # delete the audio chungs 
             for audio_chunk in audio_chunks_files:
                 os.remove(audio_chunk)
-            os.remove(audio_path)
+
+            if audio_path is not None:
+                os.remove(audio_path)
 
         # log the video
         self._log_video(video_path, logger, epoch)
