@@ -186,7 +186,8 @@ def audio_model_from_cfg(cfg):
             raise ValueError("This AVHubert model does not support audio")
         encoder = AvHubertAudioEncoder(models[0], cfg.trainable)
     elif cfg.type == "wav2vec2": 
-        encoder = Wav2Vec2Encoder(cfg.model_specifier, cfg.trainable, cfg.get('with_processor', True), 
+        encoder = Wav2Vec2Encoder(cfg.model_specifier, cfg.trainable, 
+            with_processor=cfg.get('with_processor', True), 
             expected_fps=cfg.get('model_expected_fps', 50), # 50 fps is the default for wav2vec2 (but not sure if this holds universally)
             target_fps=cfg.get('target_fps', 25), # 25 fps is the default since we use 25 fps for the videos 
             freeze_feature_extractor=cfg.get('freeze_feature_extractor', True),

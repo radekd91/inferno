@@ -25,7 +25,7 @@ positional_encoding:
 #   n_exp: 100
 #   flame_lmk_embedding_path: /ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy 
 
-motion_prior_net: 
+motion_prior: 
   path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_12_20-01-17_-4462360882556841344_L2lVqVae_MEADP_AE"
 
 

@@ -97,7 +97,9 @@ class TalkingHeadBase(pl.LightningModule):
         return trainable_params
 
     def _choose_primary_3D_rec_method(self, batch): 
-        method = self.cfg.data.reconstruction_type
+        method = self.cfg.data.get('reconstruction_type', None)
+        if method is None:
+            return batch
         if isinstance(method, (list, omegaconf.listconfig.ListConfig)):
             # method = random.choice(method)
             method = method[0]
@@ -351,7 +353,8 @@ class TalkingHeadBase(pl.LightningModule):
             - audio: (B, T, F)
             # - masked_audio: (B, T, F)
         """
-        T = sample["raw_audio"].shape[1]
+        # T = sample["raw_audio"].shape[1]
+        T = sample["processed_audio"].shape[1]
         if self.max_seq_length < T: # truncate
             print("[WARNING] Truncating audio sequence from {} to {}".format(T, self.max_seq_length))
             sample = truncate_sequence_batch(sample, self.max_seq_length)

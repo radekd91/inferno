@@ -114,6 +114,7 @@ class FaceformerVocasetDM(pl.LightningDataModule):
                             raise NotImplementedError("Dataset not implemented")
                         idx += 1
                 if self.debug_mode and idx == 10: 
+                # if self.debug_mode and idx == 50: 
                 # if self.debug_mode and idx == 100: 
                     break
 
@@ -215,8 +216,8 @@ class VocaSet(torch.utils.data.Dataset):
             one_hot = self.one_hot_labels
         
         sample = {} 
-        sample["raw_audio"] = torch.FloatTensor(audio)
-        # sample["processed_audio"] = torch.FloatTensor(audio)
+        # sample["raw_audio"] = torch.FloatTensor(audio)
+        sample["processed_audio"] = torch.FloatTensor(audio) # "processed_audio" because it has been run through the "processor" of w2v
         sample["gt_vertices"] = torch.FloatTensor(gt_vertices)
         sample["template"] = torch.FloatTensor(template)
         sample["gt_exp"] = torch.FloatTensor(exp)
@@ -232,14 +233,16 @@ class VocaSet(torch.utils.data.Dataset):
                 random_index = np.random.randint(0, gt_vertices.shape[0] - self.sequence_length)
                 # sample["processed_audio"] = sample["processed_audio"][random_index:random_index+self.sequence_length]
                 # sample["raw_audio"] = sample["raw_audio"][(random_index * sample_rate_ratio) :((random_index+self.sequence_length)*sample_rate_ratio)]
-                sample["raw_audio"] = sample["raw_audio"][ sample_rate_ratio :(random_index+self.sequence_length)]
+                # sample["raw_audio"] = sample["raw_audio"][ sample_rate_ratio :(random_index+self.sequence_length)]
+                sample["processed_audio"] = sample["raw_audio"][ sample_rate_ratio :(random_index+self.sequence_length)]
                 sample["gt_vertices"] = sample["gt_vertices"][random_index:random_index+self.sequence_length]
                 sample["gt_exp"] = sample["gt_exp"][random_index:random_index+self.sequence_length]
                 sample["gt_jaw"] = sample["gt_jaw"][random_index:random_index+self.sequence_length]
                 sample["frame_indices"] = sample["frame_indices"][random_index:random_index+self.sequence_length]
             elif self.sequence_sampling == "start": 
                 # sample["raw_audio"] = sample["raw_audio"][:self.sequence_length* sample_rate_ratio]
-                sample["raw_audio"] = sample["raw_audio"][:self.sequence_length]
+                # sample["raw_audio"] = sample["raw_audio"][:self.sequence_length]
+                sample["processed_audio"] = sample["processed_audio"][:self.sequence_length]
                 sample["gt_vertices"] = sample["gt_vertices"][:self.sequence_length]
                 sample["gt_exp"] = sample["gt_exp"][:self.sequence_length]
                 sample["gt_jaw"] = sample["gt_jaw"][:self.sequence_length]

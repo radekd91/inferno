@@ -306,9 +306,11 @@ class MotionPrior(pl.LightningModule):
         else: 
             rec_batch = batch.copy()
         for key in self.cfg.model.sequence_components.keys():
-            del rec_batch["gt_" + key]
+            if "gt_" + key in rec_batch.keys():
+                del rec_batch["gt_" + key]
             rec_batch["gt_" + key] = batch["reconstructed_" + key].contiguous()
-        del rec_batch["gt_vertices"]
+        if "gt_vertices" in rec_batch.keys():
+            del rec_batch["gt_vertices"]
 
         if self.postprocessor is not None:
             rec_batch = self.postprocessor(rec_batch, input_key=None, output_prefix="reconstructed_", with_grad=True)
@@ -343,7 +345,7 @@ class MotionPrior(pl.LightningModule):
         return "decoded_sequence"
 
     def decoding_step(self, batch, train=False, validation=False):
-        batch = self.decode(batch, assert_size=True)
+        batch = self.decode(batch, assert_size=False)
         batch = self.decompose_sequential_output(batch)
         batch = self.postprocess(batch)
         return batch

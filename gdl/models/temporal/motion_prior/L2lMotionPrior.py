@@ -111,6 +111,7 @@ class L2lEncoder(MotionEncoder):
         super().__init__()
         self.config = cfg
         # size=self.config['transformer_config']['in_dim']
+        self.sizes = sizes
         size = self.config.input_dim
         # dim=self.config['transformer_config']['hidden_size']
         dim = self.config.feature_dim
@@ -203,10 +204,10 @@ class L2lEncoder(MotionEncoder):
         return self.config.feature_dim
     
     def latent_temporal_factor(self): 
-        return 2 ** self.config.quant_factor
+        return 2 ** self.sizes.quant_factor
 
     def quant_factor(self): 
-        return self.config.quant_factor
+        return self.sizes.quant_factor
 
 
 class L2lEncoderWithClassificationHead(L2lEncoder): 

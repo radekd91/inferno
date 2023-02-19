@@ -70,6 +70,7 @@ class FaceFormer(TalkingHeadBase):
         if hasattr(self, 'neural_losses'):
             for key, module in self.neural_losses.items():
                 self.neural_losses[key] = module.to(*args, **kwargs)
+        self.sequence_decoder.to(*args, **kwargs)
         return super().to(*args, **kwargs)
 
     @property

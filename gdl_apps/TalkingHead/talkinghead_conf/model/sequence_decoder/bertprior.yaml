@@ -25,10 +25,8 @@ positional_encoding:
 #   n_exp: 100
 #   flame_lmk_embedding_path: /ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy 
 
-motion_prior_net: 
-  path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_08_14-51-54_6121455154279531419_L2lVqVae_Facef_AE"  
-  # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_12-49-15_-845824944828324001_L2lVqVae_Facef_VAE"
-  # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_12-49-31_-5593838506145801374_L2lVqVae_Facef_VAE"
+motion_prior: 
+  path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_12-41-05_3297804622617422148_L2lVqVae_Facef_AE"  
         
 flame_space_loss: False 
 rotation_loss_space: 6d 

@@ -228,7 +228,7 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
             B = sample["processed_audio"].shape[0]
             # T = sample["processed_audio"].shape[1]
             T = None
-            input = sample["processed_audio"]
+            input = sample["processed_audio"].view( B, -1)
         if isinstance(self.model, Wav2Vec2ModelResampled):
             desired_output_length = desired_output_length or T
             feats_ = self.model(input, desired_output_length=desired_output_length)

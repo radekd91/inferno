@@ -7,6 +7,11 @@ from pytorch3d.transforms import rotation_6d_to_matrix, matrix_to_rotation_6d
 from omegaconf import DictConfig, OmegaConf, open_dict
 from gdl.models.temporal.PositionalEncodings import positional_encoding_from_cfg
 from gdl.models.temporal.TransformerMasking import init_mask_future, init_mask, init_faceformer_biased_mask, init_faceformer_biased_mask_future
+from gdl.models.temporal.motion_prior.MotionPrior import MotionPrior
+from gdl.models.temporal.motion_prior.L2lMotionPrior import L2lVqVae, create_squasher
+    
+from gdl.utils.other import class_from_str
+from gdl.models.IO import get_checkpoint_with_kwargs
 import sys
 
 
@@ -736,14 +741,8 @@ class FlameBertDecoder(BertDecoder):
 
 
 def load_motion_prior_net(path):
-    from gdl.models.temporal.motion_prior.MotionPrior import MotionPrior
-    from gdl.models.temporal.motion_prior.L2lMotionPrior import L2lVqVae
-        
-    from gdl.utils.other import class_from_str
-    from gdl.models.IO import get_checkpoint_with_kwargs
-    cfg = OmegaConf.load(path / "cfg.yaml")
-    model_config_path =  cfg.model.path_to_config
-    with open(model_config_path, 'r') as f:
+
+    with open(path + "/cfg.yaml", 'r') as f:
         model_config = OmegaConf.load(f)
     checkpoint_mode = 'best' # resuming in the same stage, we want to pick up where we left of
     
@@ -754,7 +753,7 @@ def load_motion_prior_net(path):
         )
 
 
-    motion_prior_net_class = class_from_str(cfg.model.pl_module_class, sys.modules[__name__])
+    motion_prior_net_class = class_from_str(model_config.model.pl_module_class, sys.modules[__name__])
     motion_prior_net = motion_prior_net_class.instantiate(model_config, "", "", checkpoint, checkpoint_kwargs)
     motion_prior_net.eval()
     # freeze model
@@ -776,7 +775,6 @@ class BertPriorDecoder(FeedForwardDecoder):
                     dropout=cfg.dropout, batch_first=True
         )        
         self.bert_decoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=cfg.num_layers)
-        self.decoder = nn.Linear(dim_factor*cfg.feature_dim, self.decoder_output_dim())
         
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'none')
         if self.temporal_bias_type == 'faceformer':
@@ -792,16 +790,31 @@ class BertPriorDecoder(FeedForwardDecoder):
         else:
             raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
 
-        self.motion_prior = load_motion_prior_net(cfg.motion_prior.path)
-        self.motion_prior.discard_encoder()
-
+        self.motion_prior : MotionPrior = load_motion_prior_net(cfg.motion_prior.path)
         self.latent_frame_size = self.motion_prior.latent_frame_size()
         quant_factor = self.motion_prior.quant_factor()
         bottleneck_dim = self.motion_prior.bottleneck_dim()
+        self.motion_prior.discard_encoder()
 
-        from gdl.models.temporal.motion_prior.L2lMotionPrior import create_squasher
-        self.squasher = create_squasher(cfg.feature_dim * dim_factor, bottleneck_dim, quant_factor)
+
+        # temporal downsampling (if need be) to match the motion prior network latent frame rate
+        self.squasher = create_squasher(cfg.feature_dim * dim_factor, cfg.feature_dim * dim_factor, quant_factor)
         
+        self.decoder = nn.Linear(dim_factor*cfg.feature_dim, bottleneck_dim)
+        # self.bottleneck_proj = nn.Linear(cfg.feature_dim * dim_factor, bottleneck_dim)
+
+    def to(self, device):
+        super().to(device)
+        self.bert_decoder.to(device)
+        self.motion_prior.to(device)
+        self.squasher.to(device)
+        self.decoder.to(device)
+        # self.bottleneck_proj.to(device
+        return self
+
+    def _rotation_representation(self):
+        return self.motion_prior._rotation_representation()
+
     def forward(self, sample, train=False, teacher_forcing=True): 
         sample = super().forward(sample, train=train, teacher_forcing=teacher_forcing)
         return sample
@@ -821,23 +834,47 @@ class BertPriorDecoder(FeedForwardDecoder):
 
     def _apply_motion_prior(self, sample):
         decoded_offsets = sample["predicted_vertices"]
-        # B,T = decoded_offsets.shape[:2]
+        B,T = decoded_offsets.shape[:2]
         batch = {}
-        batch[self.motion_prior.input_key_for_decoding_step()] = decoded_offsets
+        batch[self.motion_prior.input_key_for_decoding_step()] = decoded_offsets 
+        T_real = sample["gt_vertices"].shape[1] if "gt_vertices" in sample.keys() else sample["processed_audio"].shape[1]
+
+        T_motion_prior = (T_real // self.latent_frame_size) * self.latent_frame_size
+        if T_motion_prior < T_real:
+            T_padded = int(math.ceil(T_real / self.latent_frame_size) * self.latent_frame_size)
+
+            # pad to the nearest multiple of the motion prior latent frame size along the temporal dimension T
+            # B, T, C -> B, T_padded, C 
+            padding_size = T_padded // self.latent_frame_size - T_real // self.latent_frame_size
+            batch[self.motion_prior.input_key_for_decoding_step()] = torch.nn.functional.pad(
+                decoded_offsets, (0,0, 0, padding_size), mode='constant', value=0
+            )
+
         if "gt_shape" in sample:
             batch["gt_shape"] = sample["gt_shape"]
         if "template" in sample:
             batch["template"] = sample["template"]
+        
         batch = self.motion_prior.decoding_step(batch)
 
-        for i, key in enumerate(self.cfg.model.sequence_components.keys()):
-            sample["predicted" + key] = batch["reconstructed_" + key]
+        # if T_real < T:
+        # remove the padding
+        for i, key in enumerate(self.motion_prior.cfg.model.sequence_components.keys()):
+            batch["reconstructed_" + key] = batch["reconstructed_" + key][:,:T_real]
+        batch["reconstructed_vertices"] = batch["reconstructed_vertices"][:,:T_real]
+        
+        for i, key in enumerate(self.motion_prior.cfg.model.sequence_components.keys()):
+            sample["predicted_" + key] = batch["reconstructed_" + key]
+        sample["predicted_vertices"] = batch["reconstructed_vertices"]
         return sample
 
-
     def _decode(self, sample, styled_hidden_states):
+        B, T, F = styled_hidden_states.shape
+        # BTF to BFT (for 1d conv)
+        styled_hidden_states = styled_hidden_states.transpose(1, 2)
         styled_hidden_states = self.squasher(styled_hidden_states)
-
+        # back to BTF
+        styled_hidden_states = styled_hidden_states.transpose(1, 2)
 
         if self.biased_mask is not None: 
             mask = self.biased_mask[:, :styled_hidden_states.shape[1], :styled_hidden_states.shape[1]].clone() \
