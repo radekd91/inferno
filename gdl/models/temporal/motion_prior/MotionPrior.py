@@ -124,6 +124,42 @@ class MotionPrior(pl.LightningModule):
             self.postprocessor = self.postprocessor.to(*args, **kwargs)
         return super().to(*args, **kwargs)
 
+    def discard_encoder(self):
+        """
+        Deletes the encoder from the model. Useful for saving memory when only using the decoder in downstream tasks.
+        """
+        self.motion_encoder = None
+
+    def discard_decoder(self):
+        """
+        Deletes the decoder from the model. Useful for saving memory when only using the encoder in downstream tasks.
+        """
+        self.motion_decoder = None
+
+    def discard_quantizer(self):
+        """
+        Deletes the quantizer from the model. Useful for saving memory when only using the encoder in downstream tasks.
+        """
+        self.motion_quantizer = None
+
+    def latent_frame_size(self):
+        """
+        How many real temporal frames are encoded in a single latent frame.
+        """
+        return self.motion_encoder.latent_temporal_factor()
+
+    def quant_factor(self):
+        """
+        Number of times a latent frame is doubled in size by to produce a real frame.
+        """
+        return self.motion_encoder.quant_factor()
+
+    def bottleneck_dim(self):
+        return self.motion_encoder.bottleneck_dim()
+
+    def quant_factor(self): 
+        return self.motion_encoder.quant_factor()
+
     @property
     def max_seq_length(self):
         return 5000
@@ -299,6 +335,12 @@ class MotionPrior(pl.LightningModule):
         batch = self.encode(batch)
         batch = self.quantize(batch, training_or_validation=train or validation)
         return batch
+
+    def input_key_for_decoding_step(self):
+        return "encoded_features"
+
+    def output_key_for_decoding_step(self):
+        return "decoded_sequence"
 
     def decoding_step(self, batch, train=False, validation=False):
         batch = self.decode(batch, assert_size=True)

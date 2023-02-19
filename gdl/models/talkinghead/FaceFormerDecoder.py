@@ -7,6 +7,7 @@ from pytorch3d.transforms import rotation_6d_to_matrix, matrix_to_rotation_6d
 from omegaconf import DictConfig, OmegaConf, open_dict
 from gdl.models.temporal.PositionalEncodings import positional_encoding_from_cfg
 from gdl.models.temporal.TransformerMasking import init_mask_future, init_mask, init_faceformer_biased_mask, init_faceformer_biased_mask_future
+import sys
 
 
 class AutoRegressiveDecoder(nn.Module):
@@ -732,6 +733,125 @@ class FlameBertDecoder(BertDecoder):
         vertex_offsets = vertices_out - vertices_neutral # compute the offset that is then added to the template shape
         vertex_offsets = vertex_offsets.view(B, T, -1)
         return vertex_offsets
+
+
+def load_motion_prior_net(path):
+    from gdl.models.temporal.motion_prior.MotionPrior import MotionPrior
+    from gdl.models.temporal.motion_prior.L2lMotionPrior import L2lVqVae
+        
+    from gdl.utils.other import class_from_str
+    from gdl.models.IO import get_checkpoint_with_kwargs
+    cfg = OmegaConf.load(path / "cfg.yaml")
+    model_config_path =  cfg.model.path_to_config
+    with open(model_config_path, 'r') as f:
+        model_config = OmegaConf.load(f)
+    checkpoint_mode = 'best' # resuming in the same stage, we want to pick up where we left of
+    
+    checkpoint, checkpoint_kwargs = get_checkpoint_with_kwargs(
+        model_config, "", 
+        checkpoint_mode=checkpoint_mode,
+        pattern="val"
+        )
+
+
+    motion_prior_net_class = class_from_str(cfg.model.pl_module_class, sys.modules[__name__])
+    motion_prior_net = motion_prior_net_class.instantiate(model_config, "", "", checkpoint, checkpoint_kwargs)
+    motion_prior_net.eval()
+    # freeze model
+    for p in motion_prior_net.parameters():
+        p.requires_grad = False
+    return motion_prior_net
+
+
+class BertPriorDecoder(FeedForwardDecoder):
+
+    def __init__(self, cfg) -> None:
+        super().__init__(cfg)
+        dim_factor = self._total_dim_factor()
+
+        encoder_layer = torch.nn.TransformerEncoderLayer(
+                    d_model=cfg.feature_dim * dim_factor, 
+                    nhead=cfg.nhead, dim_feedforward=dim_factor*cfg.feature_dim, 
+                    activation=cfg.activation,
+                    dropout=cfg.dropout, batch_first=True
+        )        
+        self.bert_decoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=cfg.num_layers)
+        self.decoder = nn.Linear(dim_factor*cfg.feature_dim, self.decoder_output_dim())
+        
+        self.temporal_bias_type = cfg.get('temporal_bias_type', 'none')
+        if self.temporal_bias_type == 'faceformer':
+            self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+        elif self.temporal_bias_type == 'faceformer_future':
+            self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+        elif self.temporal_bias_type == 'classic':
+            self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        elif self.temporal_bias_type == 'classic_future':
+            self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        elif self.temporal_bias_type == 'none':
+            self.biased_mask = None
+        else:
+            raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
+
+        self.motion_prior = load_motion_prior_net(cfg.motion_prior.path)
+        self.motion_prior.discard_encoder()
+
+        self.latent_frame_size = self.motion_prior.latent_frame_size()
+        quant_factor = self.motion_prior.quant_factor()
+        bottleneck_dim = self.motion_prior.bottleneck_dim()
+
+        from gdl.models.temporal.motion_prior.L2lMotionPrior import create_squasher
+        self.squasher = create_squasher(cfg.feature_dim * dim_factor, bottleneck_dim, quant_factor)
+        
+    def forward(self, sample, train=False, teacher_forcing=True): 
+        sample = super().forward(sample, train=train, teacher_forcing=teacher_forcing)
+        return sample
+
+    def get_shape_model(self):
+        return None
+
+    def decoder_output_dim(self):
+        return self.cfg.vertices_dim
+
+    def _post_prediction(self, sample):
+        """
+        Overrides the base class method to apply the motion prior network. 
+        """
+        sample = self._apply_motion_prior(sample)
+        return sample
+
+    def _apply_motion_prior(self, sample):
+        decoded_offsets = sample["predicted_vertices"]
+        # B,T = decoded_offsets.shape[:2]
+        batch = {}
+        batch[self.motion_prior.input_key_for_decoding_step()] = decoded_offsets
+        if "gt_shape" in sample:
+            batch["gt_shape"] = sample["gt_shape"]
+        if "template" in sample:
+            batch["template"] = sample["template"]
+        batch = self.motion_prior.decoding_step(batch)
+
+        for i, key in enumerate(self.cfg.model.sequence_components.keys()):
+            sample["predicted" + key] = batch["reconstructed_" + key]
+        return sample
+
+
+    def _decode(self, sample, styled_hidden_states):
+        styled_hidden_states = self.squasher(styled_hidden_states)
+
+
+        if self.biased_mask is not None: 
+            mask = self.biased_mask[:, :styled_hidden_states.shape[1], :styled_hidden_states.shape[1]].clone() \
+                .detach().to(device=styled_hidden_states.device)
+            if mask.ndim == 3: # the mask's first dimension needs to be num_head * batch_size
+                mask = mask.repeat(styled_hidden_states.shape[0], 1, 1)
+        else: 
+            mask = None
+        decoded_offsets = self.bert_decoder(styled_hidden_states, mask=mask)
+        B, T = decoded_offsets.shape[:2]
+        decoded_offsets = decoded_offsets.view(B*T, -1)
+        decoded_offsets = self.decoder(styled_hidden_states)
+        decoded_offsets = decoded_offsets.view(B, T, -1) 
+        return decoded_offsets
 
 
 class LinearAutoRegDecoder(AutoRegressiveDecoder):

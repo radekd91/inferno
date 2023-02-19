@@ -84,6 +84,24 @@ class L2lVqVae(MotionPrior):
         return model
 
 
+def create_squasher(input_dim, hideen_dim, quant_factor):
+    layers = [nn.Sequential(
+            nn.Conv1d(input_dim, hideen_dim,5,stride=2,padding=2,
+                        padding_mode='replicate'),
+            nn.LeakyReLU(0.2, True),
+            nn.BatchNorm1d(hideen_dim))]
+    for _ in range(1, quant_factor):
+        layers += [nn.Sequential(
+                    nn.Conv1d(hideen_dim,hideen_dim,5,stride=1,padding=2,
+                                padding_mode='replicate'),
+                    nn.LeakyReLU(0.2, True),
+                    nn.BatchNorm1d(hideen_dim),
+                    nn.MaxPool1d(2)
+                    )]
+    squasher = nn.Sequential(*layers)
+    return squasher
+
+
 class L2lEncoder(MotionEncoder): 
     """
     Inspired by by the encoder from Learning to Listen.
@@ -96,20 +114,21 @@ class L2lEncoder(MotionEncoder):
         size = self.config.input_dim
         # dim=self.config['transformer_config']['hidden_size']
         dim = self.config.feature_dim
-        layers = [nn.Sequential(
-                    nn.Conv1d(size,dim,5,stride=2,padding=2,
-                                padding_mode='replicate'),
-                    nn.LeakyReLU(0.2, True),
-                    nn.BatchNorm1d(dim))]
-        for _ in range(1, sizes.quant_factor):
-            layers += [nn.Sequential(
-                        nn.Conv1d(dim,dim,5,stride=1,padding=2,
-                                    padding_mode='replicate'),
-                        nn.LeakyReLU(0.2, True),
-                        nn.BatchNorm1d(dim),
-                        nn.MaxPool1d(2)
-                        )]
-        self.squasher = nn.Sequential(*layers) 
+        # layers = [nn.Sequential(
+        #             nn.Conv1d(size,dim,5,stride=2,padding=2,
+        #                         padding_mode='replicate'),
+        #             nn.LeakyReLU(0.2, True),
+        #             nn.BatchNorm1d(dim))]
+        # for _ in range(1, sizes.quant_factor):
+        #     layers += [nn.Sequential(
+        #                 nn.Conv1d(dim,dim,5,stride=1,padding=2,
+        #                             padding_mode='replicate'),
+        #                 nn.LeakyReLU(0.2, True),
+        #                 nn.BatchNorm1d(dim),
+        #                 nn.MaxPool1d(2)
+        #                 )]
+        # self.squasher = nn.Sequential(*layers) 
+        self.squasher = create_squasher(size, dim, sizes.quant_factor)
         # the purpose of the squasher is to reduce the FPS of the input sequence
 
         encoder_layer = torch.nn.TransformerEncoderLayer(
@@ -185,6 +204,9 @@ class L2lEncoder(MotionEncoder):
     
     def latent_temporal_factor(self): 
         return 2 ** self.config.quant_factor
+
+    def quant_factor(self): 
+        return self.config.quant_factor
 
 
 class L2lEncoderWithClassificationHead(L2lEncoder): 
