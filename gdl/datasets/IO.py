@@ -26,8 +26,18 @@ import numpy as np
 from timeit import default_timer as timer
 
 
+def _load_hickle_file(filename):
+    try:
+        # no idea why but sometimes it fails to load the file just using the path but opening explicitly then works
+        data = hkl.load(filename)
+    except OSError as e:
+        with open(filename, "rb") as f:
+            data = hkl.load(f)
+    return data
+
+
 def load_reconstruction_list(filename):
-    reconstructions = hkl.load(filename)
+    reconstructions = _load_hickle_file(filename)
     return reconstructions
 
 
@@ -36,7 +46,7 @@ def save_reconstruction_list(filename, reconstructions):
 
 
 def load_emotion_list(filename):
-    emotions = hkl.load(filename)
+    emotions = _load_hickle_file(filename)
     return emotions
 
 
