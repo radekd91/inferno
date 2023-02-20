@@ -97,27 +97,29 @@ def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
     ##conf = "l2l-ae"
-    # conf = "l2l-ae_geometry"
+    conf = "l2l-ae_geometry"
     ## conf = "l2l-ae_geometry_fs"
     ## conf = "l2lvq-vae"
     # conf = "l2lvq-vae_geometry"
     ## conf = "l2lvq-vae_no_flame"
-    conf = "l2l-vae_geometry"
+    # conf = "l2l-vae_geometry"
     # conf = "l2l-dvae_geometry"
     # conf = "codetalker_vq-vae_geometry"
     ## conf = "codetalker_vq-vae"
     ## conf = "codetalker_vq-vae_no_flame"
 
     tags = []
-    tags += ['QUANT_FACTOR']
-    tags += ['NUM_LAYERS']
+    # tags += ['QUANT_FACTOR']
+    # tags += ['NUM_LAYERS']
     # tags += ['ZERO_INIT']
     # tags += ['CODEBOOK_SIZE']
     # tags += ['NO_FLAME']
     # tags += ['NO_CONV']
     # tags += ['CODEBOOK_LOSSES']
     # tags += ['KL']
-    tags += ['LATENT_SIZE']
+    # tags += ['LATENT_SIZE']
+    # tags += ['COMPRESSION']
+    tags += ['REC_TYPES']
 
     training_modes = [
         # [], # no modifications to defaut config
@@ -135,9 +137,9 @@ def submit_trainings():
         # ],
     ]
 
-    dataset = "vocaset"
+    # dataset = "vocaset"
     # dataset = "vocaset_one_person"
-    # dataset = "mead_pseudo_gt"
+    dataset = "mead_pseudo_gt"
     
     # batching = "fixed_length"
     # batching = "fixed_length_bs16_35gb"
@@ -201,22 +203,22 @@ def submit_trainings():
         # num_layer_list = [None] # defeault 
         # num_layer_list = [1, 2,  4,  6,  8, 12]
         # num_layer_list = [1, 2,  4,  6,  8]
-        num_layer_list = [1, 2, 4]
+        # num_layer_list = [1, 2, 4]
         # num_layer_list = [4]
-        # num_layer_list = [1]
+        num_layer_list = [1]
         for num_layers in num_layer_list:
             if num_layers is not None:
                 overrides += ['model.sequence_encoder.num_layers=' + str(num_layers)]
                 overrides += ['model.sequence_decoder.num_layers=' + str(num_layers)]
         
 
-            # quant_factor_list = [None] # 
+            quant_factor_list = [None] # 
             # quant_factor_list = [1, 2, 3, 4, 5]
-            quant_factor_list = [2, 3, 4]
+            # quant_factor_list = [2, 3, 4]
             # quant_factor_list = [0]
 
             feature_dims = [None] # default
-            feature_dims = [16, 32, 64, 128]
+            # feature_dims = [16, 32, 64, 128]
             # feature_dims = [16, 64, 128]
             for feature_dim in feature_dims:
                 overrides += ['model.sequence_encoder.feature_dim=' + str(feature_dim)]

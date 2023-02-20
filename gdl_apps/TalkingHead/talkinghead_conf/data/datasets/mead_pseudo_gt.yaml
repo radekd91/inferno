@@ -85,9 +85,9 @@ read_video: False
 # reconstruction_type: [spectre, emoca] # if more, the first one is primary
 # reconstruction_type: [emoca, spectre]
 # reconstruction_type: [EMOCA_v2_lr_mse_20_with_bfmtex, spectre]
-## reconstruction_type: [EMOCA_v2_lr_mse_15_with_bfmtex, spectre]
-reconstruction_type: [EMOCA_v2_lr_cos_1.5_with_bfmtex, spectre]
-## reconstruction_type: [EMOCA_v2_mp_with_bfmtex, spectre]
+reconstruction_type: [EMOCA_v2_lr_mse_15_with_bfmtex, spectre]
+# reconstruction_type: [EMOCA_v2_lr_cos_1.5_with_bfmtex, spectre]
+# reconstruction_type: [EMOCA_v2_mp_with_bfmtex, spectre]
 
 return_global_pose: False
 # return_appearance: False

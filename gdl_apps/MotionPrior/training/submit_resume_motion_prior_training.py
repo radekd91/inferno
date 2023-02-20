@@ -27,8 +27,8 @@ import random
 from omegaconf import DictConfig, OmegaConf, open_dict 
 import sys
 
-submit_ = False
-# submit_ = True
+# submit_ = False
+submit_ = True
 
 if submit_:
     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -88,7 +88,7 @@ def submit(resume_folder,
     job_name = "train_motion_prior"
     cuda_capability_requirement = 7
     # mem_gb = 16
-    mem_gb = 30
+    mem_gb = 45
     args = f"{str(config_file.parent)}"
 
     args += f" {stage} {int(resume_from_previous)} {int(force_new_location)}"
@@ -156,27 +156,27 @@ def resume_motion_prior_on_cluster():
     # first AEs on MEAD: 
     # model_names += ["2023_02_12_20-01-17_-4462360882556841344_L2lVqVae_MEADP_AE"]
 
-    # models on mead that have converged and need testing
-    model_names += ["2023_02_14_21-37-22_-4437007122232758841_L2lVqVae_MEADP_VAE"]
-    model_names += ["2023_02_14_21-36-30_-6645345463044072351_L2lVqVae_MEADP_VAE"]
-    model_names += ["2023_02_14_21-36-04_-6167662386280290661_L2lVqVae_MEADP_VAE"]
+    # # models on mead that have converged and need testing
+    # model_names += ["2023_02_14_21-37-22_-4437007122232758841_L2lVqVae_MEADP_VAE"]
+    # # model_names += ["2023_02_14_21-36-30_-6645345463044072351_L2lVqVae_MEADP_VAE"]
+    # # model_names += ["2023_02_14_21-36-04_-6167662386280290661_L2lVqVae_MEADP_VAE"]
 
-    model_names += ["2023_02_14_21-36-06_3736766602660741736_L2lVqVae_MEADP_VAE"]
-    model_names += ["2023_02_14_21-37-42_-5906849939056023298_L2lVqVae_MEADP_VAE"]
-    model_names += ["2023_02_14_21-35-48_-8091441205341210773_L2lVqVae_MEADP_VAE"]
-    model_names += ["2023_02_14_21-16-46_7403691266508414587_L2lVqVae_MEADP_AE"]
+    # # model_names += ["2023_02_14_21-36-06_3736766602660741736_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_02_14_21-37-42_-5906849939056023298_L2lVqVae_MEADP_VAE"]
+    # # model_names += ["2023_02_14_21-35-48_-8091441205341210773_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_02_14_21-16-46_7403691266508414587_L2lVqVae_MEADP_AE"]
     
-    model_names += ["2023_02_14_21-36-04_-2594523615553095319_L2lVqVae_MEADP_VAE"]
-    model_names += ["2023_02_14_21-37-57_3688715351484736532_L2lVqVae_MEADP_VAE"]
+    # # model_names += ["2023_02_14_21-36-04_-2594523615553095319_L2lVqVae_MEADP_VAE"]
+    # # model_names += ["2023_02_14_21-37-57_3688715351484736532_L2lVqVae_MEADP_VAE"]
 
     
 
-    # models on mead that need more finetuning 
-    # model_names += ["2023_02_14_21-16-46_-2546611371074170025_L2lVqVae_MEADP_AE"]
-    # model_names += ["2023_02_14_21-38-17_-3365277498953081436_L2lVqVae_MEADP_VAE"]
+    # # # # models on mead that need more finetuning 
+    # # model_names += ["2023_02_14_21-16-46_-2546611371074170025_L2lVqVae_MEADP_AE"]
+    # # model_names += ["2023_02_14_21-38-17_-3365277498953081436_L2lVqVae_MEADP_VAE"]
     # model_names += ["2023_02_14_21-38-16_3819249676676666576_L2lVqVae_MEADP_VAE"]
     # model_names += ["2023_02_14_21-37-53_-8805504103833644898_L2lVqVae_MEADP_VAE"]
-    # model_names += ["2023_02_14_21-37-21_4936645424129419426_L2lVqVae_MEADP_VAE"]
+    # # model_names += ["2023_02_14_21-37-21_4936645424129419426_L2lVqVae_MEADP_VAE"]
 
     # model_names += [""]
     # model_names += [""]
