@@ -22,8 +22,8 @@ defaults:
   - learning/optimizer: adam
   # - learning/batching@learning/batching: default
   - learning/batching@learning/batching: fixed_length
-  # - learning/callbacks: early_stopping
-  - learning/callbacks: none
+  # - learning/callbacks: none
+  - learning/callbacks: early_stopping
   - learning/logging: wandb
   # - learning/logging: none
   - inout: cluster
