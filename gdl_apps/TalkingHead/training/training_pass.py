@@ -305,9 +305,12 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
         callbacks += [early_stopping_callback]
 
     if stage == 'test':
-        flame_template_path = Path(cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply"
-        if not flame_template_path.is_file():
-            flame_template_path = "/ps/scratch/rdanecek/data/FLAME/geometry/FLAME_sample.ply"
+        try:
+            flame_template_path = Path(cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply"
+        except AttributeError: 
+            flame_template_path = None
+        if flame_template_path is None or not flame_template_path.is_file():
+            flame_template_path = Path("/ps/scratch/rdanecek/data/FLAME/geometry/FLAME_sample.ply")
         if not flame_template_path.is_file():
             raise RuntimeError("FLAME template not found")
 
