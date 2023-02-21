@@ -234,7 +234,7 @@ class VocaSet(torch.utils.data.Dataset):
                 # sample["processed_audio"] = sample["processed_audio"][random_index:random_index+self.sequence_length]
                 # sample["raw_audio"] = sample["raw_audio"][(random_index * sample_rate_ratio) :((random_index+self.sequence_length)*sample_rate_ratio)]
                 # sample["raw_audio"] = sample["raw_audio"][ sample_rate_ratio :(random_index+self.sequence_length)]
-                sample["processed_audio"] = sample["raw_audio"][ sample_rate_ratio :(random_index+self.sequence_length)]
+                sample["processed_audio"] = sample["processed_audio"][ sample_rate_ratio :(random_index+self.sequence_length)]
                 sample["gt_vertices"] = sample["gt_vertices"][random_index:random_index+self.sequence_length]
                 sample["gt_exp"] = sample["gt_exp"][random_index:random_index+self.sequence_length]
                 sample["gt_jaw"] = sample["gt_jaw"][random_index:random_index+self.sequence_length]
