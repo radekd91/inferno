@@ -1,0 +1,8 @@
+# @package model 
+type: DeepPhaseEncoder
+input_dim: todo # will be set upon instantiation
+# feature_dim: 8
+feature_dim: 16
+# feature_dim: 32
+# feature_dim: 256
+

@@ -26,6 +26,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 from gdl.models.temporal.motion_prior.MotionPrior import MotionPrior
 from gdl.models.temporal.motion_prior.L2lMotionPrior import L2lVqVae
+from gdl.models.temporal.motion_prior.DeepPhase import DeepPhase
 from pytorch_lightning.loggers import WandbLogger
 import datetime
 import time as t

@@ -84,18 +84,18 @@ class L2lVqVae(MotionPrior):
         return model
 
 
-def create_squasher(input_dim, hideen_dim, quant_factor):
+def create_squasher(input_dim, hidden_dim, quant_factor):
     layers = [nn.Sequential(
-            nn.Conv1d(input_dim, hideen_dim,5,stride=2,padding=2,
+            nn.Conv1d(input_dim, hidden_dim,5,stride=2,padding=2,
                         padding_mode='replicate'),
             nn.LeakyReLU(0.2, True),
-            nn.BatchNorm1d(hideen_dim))]
+            nn.BatchNorm1d(hidden_dim))]
     for _ in range(1, quant_factor):
         layers += [nn.Sequential(
-                    nn.Conv1d(hideen_dim,hideen_dim,5,stride=1,padding=2,
+                    nn.Conv1d(hidden_dim,hidden_dim,5,stride=1,padding=2,
                                 padding_mode='replicate'),
                     nn.LeakyReLU(0.2, True),
-                    nn.BatchNorm1d(hideen_dim),
+                    nn.BatchNorm1d(hidden_dim),
                     nn.MaxPool1d(2)
                     )]
     squasher = nn.Sequential(*layers)
@@ -263,6 +263,124 @@ class L2lEncoderWithGaussianHead(L2lEncoder):
         
         return batch
 
+    
+
+class L2lEncoderWithDeepPhaseHead(L2lEncoder): 
+    """
+    Heavily inspired by: https://github.com/sebastianstarke/AI4Animation/blob/master/AI4Animation/SIGGRAPH_2022/PyTorch/PAE/PAE.py
+    """
+
+    def __init__(self, cfg, sizes) -> None:
+        super().__init__(cfg, sizes) 
+        self.input_channels = self.config.input_dim
+        self.embedding_channels = self.config.feature_dim
+        self.latent_time_range = 2 ** self.sizes.quant_factor # how many frames are encoded in a latent frame
+        self.with_dc_frequency = self.config.get("with_dc_frequency", False)
+        assert self.with_dc_frequency == False, "with_dc_frequency is not supported yet"
+        try:
+            fps = self.config.data.get("fps", 25)
+        except AttributeError: 
+            fps = 25
+            print("[WARNING] fps not found in config, using default value of 25")
+        self.window = self.latent_time_range / fps
+        # frames = int(window * fps) + 1
+        # input_channels = 3*joints #number of channels along time in the input data (here 3*J as XYZ-component of each joint)
+        # phase_channels = 5 #
+        # not trainable params
+        self.tpi = nn.Parameter(torch.from_numpy(np.array([2.0*np.pi], dtype=np.float32)), requires_grad=False)
+        self.args = nn.Parameter(torch.from_numpy(np.linspace(-self.window/2, self.window/2, self.latent_time_range, dtype=np.float32)), requires_grad=False)       
+        # TODO: why remove the DC frequency
+        if self.with_dc_frequency:
+            self.freqs = nn.Parameter(torch.fft.rfftfreq(self.latent_time_range) * self.latent_time_range / self.window, requires_grad=False) #Remove DC frequency
+        else:
+            self.freqs = nn.Parameter(torch.fft.rfftfreq(self.latent_time_range)[1:] * self.latent_time_range / self.window, requires_grad=False) #Remove DC frequency
+        
+
+        # trainable params
+        self.fc = torch.nn.ModuleList()
+        for i in range(self.embedding_channels):
+            self.fc.append(nn.Linear(self.latent_time_range, 2))
+        
+
+    #Returns the frequency for a function over a time window in s
+    def FFT(self, function, dim):
+        T = function.shape[dim]
+        rfft = torch.fft.rfft(function, n=T, dim=dim)
+        magnitudes = rfft.abs()
+        if self.with_dc_frequency:
+            spectrum = magnitudes
+        else:
+            if dim == 1:
+                spectrum = magnitudes[:,1:]
+            elif dim == 2:
+                spectrum = magnitudes[:,:,1:] #Spectrum without DC component
+            else:
+                raise ValueError("dim must be 1 or 2")
+        power = spectrum**2
+
+        #Frequency
+        freq = torch.sum(self.freqs * power, dim=dim) / torch.sum(power, dim=dim)
+
+        #Amplitude
+        amp = 2 * torch.sqrt(torch.sum(power, dim=dim)) / self.latent_time_range
+
+        #Offset
+        offset = rfft.real[:,:,0] / self.latent_time_range #DC component
+
+        return freq, amp, offset
+
+    def forward(self, batch, input_key="input_sequence", output_key="encoded_features", **kwargs):
+        batch = super().forward(batch, input_key, output_key, **kwargs)
+        y =  batch[output_key]
+
+        #Signal Embedding
+        # y = y.reshape(y.shape[0], self.input_channels, self.time_range)
+
+        #Frequency, Amplitude, Offset
+        # B, T, F -> B, F, T
+        y = y.permute(0, 2, 1)
+        time_dim = 2
+        f, a, b = self.FFT(y, dim=time_dim)
+        y = y.permute(0, 2, 1)
+
+        #Phase
+        p = torch.empty((y.shape[0], self.embedding_channels), dtype=torch.float32, device=y.device)
+        for i in range(self.embedding_channels):
+            v = self.fc[i](y[:,i,:])
+            p[:,i] = torch.atan2(v[:,1], v[:,0]) / self.tpi
+
+        #Parameters    
+        p = p.unsqueeze(2)
+        f = f.unsqueeze(2)
+        a = a.unsqueeze(2)
+        b = b.unsqueeze(2)
+        # params = [p, f, a, b] #Save parameters for returning
+
+        batch["encoded_frequencies"] = f
+        batch["encoded_amplitudes"] = a
+        batch["encoded_offsets"] = b
+        batch["encoded_phases"] = p
+
+        # #Latent Reconstruction - this should go in into the decoder
+        # y = a * torch.sin(self.tpi * (f * self.args + p)) + b
+
+        # signal = y #Save signal for returning
+
+
+        # # we don't need the up convolutions here
+        # #Signal Reconstruction
+        # y = self.deconv1(y)
+        # y = self.denorm1(y)
+        # y = torch.nn.functional.elu(y)
+        # y = self.deconv2(y)
+
+        # y = y.reshape(y.shape[0], self.input_channels*self.time_range)
+
+        return batch
+
+
+
+
 
 class L2lDecoder(MotionEncoder): 
 
@@ -398,6 +516,37 @@ class L2lDecoder(MotionEncoder):
         if self.post_conv_proj is not None:
             decoded_reconstruction = self.post_conv_proj(decoded_reconstruction)
         batch[output_key] = decoded_reconstruction
+        return batch
+
+class L2lDecoderWithDeepPhase(L2lDecoder): 
+
+    def __init__(self, cfg, sizes, out_dim): 
+        super().__init__(cfg, sizes, out_dim)
+        self.input_channels = self.config.input_dim
+        self.embedding_channels = self.config.feature_dim
+        self.latent_time_range = 2 ** self.sizes.quant_factor # how many frames are encoded in a latent frame
+        try:
+            fps = self.config.data.get("fps", 25)
+        except AttributeError: 
+            fps = 25
+            print("[WARNING] fps not found in config, using default value of 25")
+        self.window = self.latent_time_range / fps
+        # not trainable constant params
+        self.tpi = nn.Parameter(torch.from_numpy(np.array([2.0*np.pi], dtype=np.float32)), requires_grad=False)
+        self.args = nn.Parameter(torch.from_numpy(np.linspace(-self.window/2, self.window/2, self.latent_time_range, dtype=np.float32)), requires_grad=False)
+
+    def forward(self, batch, input_key="quantized_features", output_key="decoded_sequence", **kwargs):
+        f = batch["encoded_frequencies"]
+        a = batch["encoded_amplitudes"]
+        b = batch["encoded_offsets"]
+        p = batch["encoded_phases"]
+
+        #Latent Reconstruction 
+        y = a * torch.sin(self.tpi * (f * self.args + p)) + b
+        batch["reconstructed_latent"] = y
+
+        # now pass it through the decoder
+        batch = super().forward(batch, input_key="reconstructed_latent", output_key=output_key, **kwargs)
         return batch
 
 

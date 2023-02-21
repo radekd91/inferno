@@ -24,6 +24,7 @@ from gdl_apps.MotionPrior.training.training_pass import( single_stage_training_p
             get_checkpoint_with_kwargs, create_logger, configure) #, configure_and_train)
 # from gdl.datasets.DecaDataModule import DecaDataModule
 from gdl.models.temporal.motion_prior.L2lMotionPrior import L2lVqVae
+from gdl.models.temporal.motion_prior.DeepPhase import DeepPhase
 from gdl.datasets.FaceformerVocasetDM import FaceformerVocasetDM
 from gdl.datasets.CelebVHQPseudo3DDM import CelebVHQPseudo3DDM
 from gdl.datasets.MEADPseudo3DDM import MEADPseudo3DDM
@@ -259,6 +260,8 @@ def create_experiment_name(cfg, version=0):
     else: 
         if cfg.model.sequence_encoder.type == "L2lEncoderWithGaussianHead":
             experiment_name += '_VAE'
+        elif cfg.model.sequence_encoder.type == "L2lEncoderWithDeepPhaseHead":
+            experiment_name += '_DPAE'
         else:
             experiment_name += '_AE'
 

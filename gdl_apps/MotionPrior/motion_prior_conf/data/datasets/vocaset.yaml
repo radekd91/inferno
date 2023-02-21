@@ -3,8 +3,8 @@ data_class: FaceformerVocasetDM
 input_dir: /is/cluster/rdanecek/workspace/repos/FaceFormer/vocaset
 # output_dir: 
 # processed_subfolder: 
-# num_workers: 0 # debug
-num_workers: 1 # 
+num_workers: 0 # debug
+# num_workers: 1 # 
 
 train_subjects: 
   - FaceTalk_170728_03272_TA 

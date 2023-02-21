@@ -97,7 +97,7 @@ def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
     ##conf = "l2l-ae"
-    conf = "l2l-ae_geometry"
+    # conf = "l2l-ae_geometry"
     ## conf = "l2l-ae_geometry_fs"
     ## conf = "l2lvq-vae"
     # conf = "l2lvq-vae_geometry"
@@ -107,6 +107,8 @@ def submit_trainings():
     # conf = "codetalker_vq-vae_geometry"
     ## conf = "codetalker_vq-vae"
     ## conf = "codetalker_vq-vae_no_flame"
+    ## conf = "l2l-ae_deepphase_geometry"
+    conf = "deepphase-ae_geometry"
 
     tags = []
     # tags += ['QUANT_FACTOR']
@@ -121,25 +123,30 @@ def submit_trainings():
     # tags += ['COMPRESSION']
     tags += ['REC_TYPES']
 
-    training_modes = [
-        # [], # no modifications to defaut config
+    if "l2l" in conf:
+        training_modes = [
+            # [], # no modifications to defaut config
 
-        # [
-        #    '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_zero_init',  
-        # ],
+            # [
+            #    '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_zero_init',  
+            # ],
 
-        [
-           '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_post_proj',  
-        ],
+            [
+            '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_post_proj',  
+            ],
 
-        # [
-        #    '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_post_proj_no_conv',  
-        # ],
-    ]
+            # [
+            #    '+model/sequence_decoder@model.sequence_decoder=l2l_decoder_post_proj_no_conv',  
+            # ],
+        ]
+    else: 
+        training_modes = [
+            [], # no modifications to defaut config
+        ]
 
-    # dataset = "vocaset"
+    dataset = "vocaset"
     # dataset = "vocaset_one_person"
-    dataset = "mead_pseudo_gt"
+    # dataset = "mead_pseudo_gt"
     
     # batching = "fixed_length"
     # batching = "fixed_length_bs16_35gb"
@@ -186,8 +193,8 @@ def submit_trainings():
         fixed_overrides += [f'data.split={split}']
 
     bid = 1000
-    # submit_ = False
-    submit_ = True
+    submit_ = False
+    # submit_ = True
     
     if not submit_:
         fixed_overrides += [
@@ -200,12 +207,12 @@ def submit_trainings():
         overrides = fixed_overrides.copy()
         overrides += fmode
 
-        # num_layer_list = [None] # defeault 
+        num_layer_list = [None] # defeault 
         # num_layer_list = [1, 2,  4,  6,  8, 12]
         # num_layer_list = [1, 2,  4,  6,  8]
         # num_layer_list = [1, 2, 4]
         # num_layer_list = [4]
-        num_layer_list = [1]
+        # num_layer_list = [1]
         for num_layers in num_layer_list:
             if num_layers is not None:
                 overrides += ['model.sequence_encoder.num_layers=' + str(num_layers)]
@@ -216,13 +223,16 @@ def submit_trainings():
             # quant_factor_list = [1, 2, 3, 4, 5]
             # quant_factor_list = [2, 3, 4]
             # quant_factor_list = [0]
+            # quant_factor_list = [5]
 
             feature_dims = [None] # default
+            # feature_dims = [16, 32, 64, 128, 256]
             # feature_dims = [16, 32, 64, 128]
             # feature_dims = [16, 64, 128]
             for feature_dim in feature_dims:
-                overrides += ['model.sequence_encoder.feature_dim=' + str(feature_dim)]
-                overrides += ['model.sequence_decoder.feature_dim=' + str(feature_dim)]
+                if feature_dim is not None:
+                    overrides += ['model.sequence_encoder.feature_dim=' + str(feature_dim)]
+                    overrides += ['model.sequence_decoder.feature_dim=' + str(feature_dim)]
 
 
                 for quant_factor in quant_factor_list:
