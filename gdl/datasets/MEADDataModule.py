@@ -494,7 +494,10 @@ class MEADDataModule(FaceVideoDataModule):
             assert len(rest) == 0, f"Unexpected identities: {rest}"
 
             if random_or_sorted == "random":
-                rand.shuffle(identities)
+                seed = 4
+                # # get the list of identities
+                rand.Random(seed).shuffle(identities)
+                # rand.shuffle(identities)
 
             # training_ids = identities[:int(len(identities) * train_)]
             # validation_ids = identities[int(len(identities) * train_):int(len(identities) * (train_ + val_))]
@@ -530,8 +533,7 @@ class MEADDataModule(FaceVideoDataModule):
             # SO ALL IDENTITIES ARE IN BOTH TRAIN AND VAL (BUT THE TRAIN AND VAL VIDEOS DON'T OVERLAP)
             # pretrain_02d_02d, such as pretrain_80_20 
             res = set_type.split("_")
-            # random_or_sorted = res[3] 
-            random_or_sorted = res[0] 
+            random_or_sorted = res[3] 
             assert random_or_sorted in ["random", "sorted"], f"Unknown random_or_sorted value: '{random_or_sorted}'"
             train = float(res[-3])
             val = float(res[-2])
@@ -567,7 +569,9 @@ class MEADDataModule(FaceVideoDataModule):
                 if random_or_sorted == "sorted":
                     idxs = sorted(idxs)
                 elif random_or_sorted == "random":
-                    rand.shuffle(idxs)
+                    seed = 4
+                    rand.Random(seed).shuffle(idxs)
+                    # rand.shuffle(idxs)
                 else:
                     raise ValueError(f"Unknown random_or_sorted value: '{random_or_sorted}'")
                 num_train = int(len(idxs) * train_)
