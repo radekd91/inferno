@@ -169,8 +169,8 @@ def submit_trainings():
     if dataset == "mead_pseudo_gt":
         ### MEAD splits
         ## split = "random_70_15_15"
-        ## split = "random_by_identity_random_70_15_15" 
-        # split = "random_by_identity_sorted_70_15_15" 
+        ## split = "random_by_sequence_random_70_15_15" 
+        # split = "random_by_sequence_sorted_70_15_15" 
         ## split = "random_by_identityV2_random_70_15_15" 
         split = "random_by_identityV2_sorted_70_15_15" 
         ## split = "specific_identity_random_80_20_M003"
@@ -193,8 +193,8 @@ def submit_trainings():
         fixed_overrides += [f'data.split={split}']
 
     bid = 1000
-    submit_ = False
-    # submit_ = True
+    # submit_ = False
+    submit_ = True
     
     if not submit_:
         fixed_overrides += [

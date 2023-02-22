@@ -528,10 +528,10 @@ class MEADDataModule(FaceVideoDataModule):
             testing.sort()
             return training, validation, testing
 
-        elif "random_by_identity" in set_type:
+        elif ("random_by_sequence" in set_type) or ("random_by_identity" in set_type):
             # WARNING: THIS NAME IS NOT ACCURATE, IT IS NOT RANDOM BY IDENTITY BUT RANDOM BY EXPRESSION AND INTENSITY
             # SO ALL IDENTITIES ARE IN BOTH TRAIN AND VAL (BUT THE TRAIN AND VAL VIDEOS DON'T OVERLAP)
-            # pretrain_02d_02d, such as pretrain_80_20 
+            # The new name is "random_by_sequence"
             res = set_type.split("_")
             random_or_sorted = res[3] 
             assert random_or_sorted in ["random", "sorted"], f"Unknown random_or_sorted value: '{random_or_sorted}'"
