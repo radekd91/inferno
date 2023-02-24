@@ -927,7 +927,11 @@ class BertPriorDecoder(FeedForwardDecoder):
             batch[self.motion_prior.input_key_for_decoding_step()] = torch.nn.functional.pad(
                 decoded_offsets, (0,0, 0, padding_size), mode='constant', value=0
             )
-            assert batch[self.motion_prior.input_key_for_decoding_step()].shape[1] == T_padded
+
+            if self.squasher is not None:
+                assert batch[self.motion_prior.input_key_for_decoding_step()].shape[1] == T_padded // self.latent_frame_size
+            elif self.squasher_2 is not None:
+                assert batch[self.motion_prior.input_key_for_decoding_step()].shape[1] == T_padded
 
         if self.squasher_2 is not None:
             batch[self.motion_prior.input_key_for_decoding_step()] = self.squasher_2(batch[self.motion_prior.input_key_for_decoding_step()])
