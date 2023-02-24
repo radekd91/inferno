@@ -778,10 +778,10 @@ def load_motion_prior_net(path, trainable=False):
     return motion_prior_net
 
 
-class ConvSquahser(nn.Module): 
+class ConvSquasher(nn.Module): 
 
     def __init__(self, input_dim, quant_factor, output_dim) -> None:
-        super().__init__(self)
+        super().__init__()
         self.squasher = create_squasher(input_dim, output_dim, quant_factor)
 
     def forward(self, x):
@@ -859,7 +859,7 @@ class BertPriorDecoder(FeedForwardDecoder):
 
     def _create_squasher(self, type, input_dim, output_dim, quant_factor): 
         if type == "conv": 
-            return ConvSquahser(input_dim, quant_factor, output_dim)
+            return ConvSquasher(input_dim, quant_factor, output_dim)
         elif type == "stack_linear": 
             return StackLinearSquash(input_dim, self.latent_frame_size, output_dim)
         else: 
