@@ -734,7 +734,7 @@ class FlameBertDecoder(BertDecoder):
         #     vertices_neutral = vertices_neutral.contiguous().view(vertices_neutral.shape[0], -1)[:, None, ...]
 
         vertices_neutral = self._neutral_shape(B, expression_params.shape[1], shape_params)
-        vertices_neutral = vertices_neutral.expand(B, T, -1, -1)
+        # vertices_neutral = vertices_neutral.expand(B, T, -1, -1)
 
         shape_params = shape_params.view(B * T, -1)
         vertices_out, _, _ = self.flame(shape_params, expression_params, pose_params)
