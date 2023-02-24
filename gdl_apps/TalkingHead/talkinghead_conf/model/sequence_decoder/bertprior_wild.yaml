@@ -10,10 +10,14 @@ max_len: 600
 period: 30
 vertices_dim: 15069
 
-squash_before: False
+# squash_before: False
+squash_before: True
+
 squash_after: True
-# squash_type: conv
-squash_type: stack_linear
+# squash_after: False
+
+squash_type: conv
+# squash_type: stack_linear
 
 positional_encoding: 
   type: none
@@ -32,9 +36,31 @@ flame:
   flame_lmk_embedding_path: /ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy 
 
 motion_prior: 
-  path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-16-46_-2546611371074170025_L2lVqVae_MEADP_AE" # per sequence split
-  # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-16-46_7403691266508414587_L2lVqVae_MEADP_AE" # per person split
-  trainable: False
+  
+  # ## ae 
+  # # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-16-46_-2546611371074170025_L2lVqVae_MEADP_AE" # per sequence split
+  # # # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-16-46_7403691266508414587_L2lVqVae_MEADP_AE" # per person split
+  
+  # ## vae kl 0.05, bugged sequence split
+  # # path: /is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-37-22_-4437007122232758841_L2lVqVae_MEADP_VAE # kl 0.05
+  
+  # ## vae kl 0.01, bugged sequence split
+  # # path: /is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-37-53_-8805504103833644898_L2lVqVae_MEADP_VAE # kl 0.01
+  
+  # # vae kl 0.05, person split, 256d
+  # path: /is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-36-30_-6645345463044072351_L2lVqVae_MEADP_VAE
+
+  # vae kl 0.01, person split, 256d
+  path: /is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-37-57_3688715351484736532_L2lVqVae_MEADP_VAE
+
+  # # vae kl 0.005, person split, 256d
+  # path: /is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-36-04_-2594523615553095319_L2lVqVae_MEADP_VAE
+
+  # # vae kl 0.001, person split, 256d
+  # path: /is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-36-04_-6167662386280290661_L2lVqVae_MEADP_VAE
+
+  # trainable: False
+  trainable: True
 
 # predict_exp: True 
 # predict_jaw: True 

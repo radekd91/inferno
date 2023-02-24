@@ -102,13 +102,13 @@ def submit_trainings():
     ## conf = "l2lvq-vae"
     # conf = "l2lvq-vae_geometry"
     ## conf = "l2lvq-vae_no_flame"
-    # conf = "l2l-vae_geometry"
+    conf = "l2l-vae_geometry"
     # conf = "l2l-dvae_geometry"
     # conf = "codetalker_vq-vae_geometry"
     ## conf = "codetalker_vq-vae"
     ## conf = "codetalker_vq-vae_no_flame"
     ## conf = "l2l-ae_deepphase_geometry"
-    conf = "deepphase-ae_geometry"
+    # conf = "deepphase-ae_geometry"
 
     tags = []
     # tags += ['QUANT_FACTOR']
@@ -207,12 +207,12 @@ def submit_trainings():
         overrides = fixed_overrides.copy()
         overrides += fmode
 
-        num_layer_list = [None] # defeault 
+        # num_layer_list = [None] # defeault 
         # num_layer_list = [1, 2,  4,  6,  8, 12]
         # num_layer_list = [1, 2,  4,  6,  8]
         # num_layer_list = [1, 2, 4]
         # num_layer_list = [4]
-        # num_layer_list = [1]
+        num_layer_list = [1]
         for num_layers in num_layer_list:
             if num_layers is not None:
                 overrides += ['model.sequence_encoder.num_layers=' + str(num_layers)]
@@ -225,9 +225,9 @@ def submit_trainings():
             # quant_factor_list = [0]
             # quant_factor_list = [5]
 
-            feature_dims = [None] # default
+            # feature_dims = [None] # default
             # feature_dims = [16, 32, 64, 128, 256]
-            # feature_dims = [16, 32, 64, 128]
+            feature_dims = [16, 32, 64, 128]
             # feature_dims = [16, 64, 128]
             for feature_dim in feature_dims:
                 if feature_dim is not None:
@@ -257,8 +257,9 @@ def submit_trainings():
                                 overrides += ['learning.losses.codebook_alignment.weight=' + str(codebook_loss * codebook_losses[0])]
                                 overrides += ['learning.losses.codebook_commitment.weight=' + str(codebook_loss * codebook_losses[1])]
 
-                            kl_weights = [None]
+                            # kl_weights = [None]
                             # kl_weights = [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05]
+                            kl_weights = [0.001, 0.005, 0.01, 0.05]
                             # kl_weights = [ 0,5]
                             for kl_weight in kl_weights:
                                 if kl_weight is not None:

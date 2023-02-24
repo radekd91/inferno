@@ -10,9 +10,12 @@ max_len: 600
 period: 30
 vertices_dim: 15069
 squash_before: False
+# squash_before: True
 squash_after: True
-# squash_type: conv
-squash_type: stack_linear
+# squash_after: False
+
+squash_type: conv
+# squash_type: stack_linear
 positional_encoding: 
   type: none
   # # type: PositionalEncoding
@@ -40,14 +43,15 @@ motion_prior:
   # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_16_02-21-23_-5452483093065417657_L2lVqVae_Facef_VAE"
 
   # # vae, latent frame size 8, latent dim 64, kl 0.005
-  # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_16_02-21-23_8934882131247866579_L2lVqVae_Facef_VAE"
+  path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_16_02-21-23_8934882131247866579_L2lVqVae_Facef_VAE"
 
   # # vae, latent frame size 8, latent dim 32, kl 0.005
   # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_16_02-12-18_-8663630374053631856_L2lVqVae_Facef_VAE"
 
-  # vae, latent frame size 8, latent dim 16, kl 0.005
-  path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_16_01-54-57_1005062065405368989_L2lVqVae_Facef_VAE"
-  trainable: False
+  # # vae, latent frame size 8, latent dim 16, kl 0.005
+  # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_16_01-54-57_1005062065405368989_L2lVqVae_Facef_VAE"
+  # trainable: False
+  trainable: True
 
 
 flame_space_loss: False 

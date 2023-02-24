@@ -167,9 +167,7 @@ def resume_motion_prior_on_cluster():
     # model_names += ["2023_02_14_21-16-46_7403691266508414587_L2lVqVae_MEADP_AE"]
     
     # # model_names += ["2023_02_14_21-36-04_-2594523615553095319_L2lVqVae_MEADP_VAE"]
-    # # model_names += ["2023_02_14_21-37-57_3688715351484736532_L2lVqVae_MEADP_VAE"]
-
-    
+    # # model_names += ["2023_02_14_21-37-57_3688715351484736532_L2lVqVae_MEADP_VAE"]    
 
     # # # # models on mead that need more finetuning 
     # # model_names += ["2023_02_14_21-16-46_-2546611371074170025_L2lVqVae_MEADP_AE"]
@@ -181,6 +179,8 @@ def resume_motion_prior_on_cluster():
     # model_names += [""]
     # model_names += [""]
     # model_names += [""]
+    
+
 
     rename_video_result_folder = False
     # rename_video_result_folder = True
