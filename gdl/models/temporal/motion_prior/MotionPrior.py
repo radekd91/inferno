@@ -160,6 +160,12 @@ class MotionPrior(pl.LightningModule):
     def quant_factor(self): 
         return self.motion_encoder.quant_factor()
 
+    def get_flame(self):
+        # from gdl.models.temporal.Preprocessors import FlamePreprocessor
+        # if isinstance(self.preprocessor, FlamePreprocessor):
+        if "FlamePreprocessor" in self.preprocessor.__class__.__name__:
+            return self.preprocessor.flame
+        
     @property
     def max_seq_length(self):
         return 5000

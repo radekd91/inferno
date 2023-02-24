@@ -724,13 +724,17 @@ class FlameBertDecoder(BertDecoder):
         flame_jaw_pose = convert_rot(jaw_pose, self.rotation_representation, self.flame_rotation_rep)
         pose_params = self.flame.eye_pose.expand(B*T, -1)
         pose_params = torch.cat([ pose_params[..., :3], flame_jaw_pose], dim=-1)
-        with torch.no_grad():
-            # vertice_neutral, _, _ = self.flame.forward(shape_params[0:1, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
-                        # vertice_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
-            zero_exp = torch.zeros((B, expression_params.shape[1]), dtype=shape_params.dtype, device=shape_params.device)
-            # compute neutral shape for each batch (but not each frame, unnecessary)
-            vertices_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], zero_exp) # compute neutral shape
-            vertices_neutral = vertices_neutral.contiguous().view(vertices_neutral.shape[0], -1)[:, None, ...]
+
+        # with torch.no_grad():
+        #     # vertice_neutral, _, _ = self.flame.forward(shape_params[0:1, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
+        #                 # vertice_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
+        #     zero_exp = torch.zeros((B, expression_params.shape[1]), dtype=shape_params.dtype, device=shape_params.device)
+        #     # compute neutral shape for each batch (but not each frame, unnecessary)
+        #     vertices_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], zero_exp) # compute neutral shape
+        #     vertices_neutral = vertices_neutral.contiguous().view(vertices_neutral.shape[0], -1)[:, None, ...]
+
+        vertices_neutral = self._neutral_shape(B, expression_params.shape[1], shape_params)
+        vertices_neutral = vertices_neutral.expand(B, T, -1, -1)
 
         shape_params = shape_params.view(B * T, -1)
         vertices_out, _, _ = self.flame(shape_params, expression_params, pose_params)
@@ -740,7 +744,19 @@ class FlameBertDecoder(BertDecoder):
         return vertex_offsets
 
 
-def load_motion_prior_net(path):
+    def _neutral_shape(self, B, exp_dim, shape_params): 
+        with torch.no_grad():
+            # vertice_neutral, _, _ = self.flame.forward(shape_params[0:1, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
+                        # vertice_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
+            zero_exp = torch.zeros((B, exp_dim), dtype=shape_params.dtype, device=shape_params.device)
+            # compute neutral shape for each batch (but not each frame, unnecessary)
+            vertices_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], zero_exp) # compute neutral shape
+            vertices_neutral = vertices_neutral.contiguous().view(vertices_neutral.shape[0], -1)[:, None, ...]
+        return vertices_neutral
+
+
+
+def load_motion_prior_net(path, trainable=False):
 
     with open(path + "/cfg.yaml", 'r') as f:
         model_config = OmegaConf.load(f)
@@ -761,6 +777,36 @@ def load_motion_prior_net(path):
         p.requires_grad = False
     return motion_prior_net
 
+
+class ConvSquahser(nn.Module): 
+
+    def __init__(self, input_dim, quant_factor, output_dim) -> None:
+        super().__init__(self)
+        self.squasher = create_squasher(input_dim, output_dim, quant_factor)
+
+    def forward(self, x):
+        # BTF -> BFT 
+        x = x.transpose(1, 2)
+        x = self.squasher(x)
+        # BFT -> BTF
+        x = x.transpose(1, 2)
+        return x
+
+class StackLinearSquash(nn.Module): 
+    def __init__(self, input_dim, latent_frame_size, output_dim): 
+        super().__init__()
+        self.input_dim = input_dim
+        self.latent_frame_size = latent_frame_size
+        self.output_dim = output_dim
+        self.linear = nn.Linear(input_dim * latent_frame_size, output_dim)
+        
+    def forward(self, x):
+        B, T, F = x.shape
+        # input B, T, F -> B, T // latent_frame_size, F * latent_frame_size
+        assert T % self.latent_frame_size == 0, "T must be divisible by latent_frame_size"
+        x = x.reshape(B, T // self.latent_frame_size, F * self.latent_frame_size)
+        x = self.linear(x)
+        return x
 
 class BertPriorDecoder(FeedForwardDecoder):
 
@@ -790,24 +836,51 @@ class BertPriorDecoder(FeedForwardDecoder):
         else:
             raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
 
-        self.motion_prior : MotionPrior = load_motion_prior_net(cfg.motion_prior.path)
+        self.motion_prior : MotionPrior = load_motion_prior_net(cfg.motion_prior.path, cfg.motion_prior.get('trainable', False))
         self.latent_frame_size = self.motion_prior.latent_frame_size()
         quant_factor = self.motion_prior.quant_factor()
         bottleneck_dim = self.motion_prior.bottleneck_dim()
         self.motion_prior.discard_encoder()
-
+        self.flame = self.motion_prior.get_flame()
 
         # temporal downsampling (if need be) to match the motion prior network latent frame rate
-        self.squasher = create_squasher(cfg.feature_dim * dim_factor, cfg.feature_dim * dim_factor, quant_factor)
-        
+        if cfg.get('squash_before', True):
+            self.squasher = self._create_squasher(cfg.get('squash_type', 'conv'), cfg.feature_dim * dim_factor, cfg.feature_dim * dim_factor, quant_factor)
+        else:
+            self.squasher = None
+
         self.decoder = nn.Linear(dim_factor*cfg.feature_dim, bottleneck_dim)
         # self.bottleneck_proj = nn.Linear(cfg.feature_dim * dim_factor, bottleneck_dim)
+
+        if cfg.get('squash_after', False):
+            self.squasher_2 = self._create_squasher(cfg.get('squash_type', 'conv'), bottleneck_dim, bottleneck_dim, quant_factor)
+        else:
+            self.squasher_2 = None
+
+    def _create_squasher(self, type, input_dim, output_dim, quant_factor): 
+        if type == "conv": 
+            return ConvSquahser(input_dim, quant_factor, output_dim)
+        elif type == "stack_linear": 
+            return StackLinearSquash(input_dim, self.latent_frame_size, output_dim)
+        else: 
+            raise ValueError("Unknown squasher type")
+
+    def train(self, mode: bool = True) -> "BertPriorDecoder":
+        super().train(mode)
+        if self.cfg.motion_prior.get('trainable', False):
+            self.motion_prior.train(mode)
+        else: 
+            self.motion_prior.eval()
+        return self
 
     def to(self, device):
         super().to(device)
         self.bert_decoder.to(device)
         self.motion_prior.to(device)
-        self.squasher.to(device)
+        if self.squasher is not None:
+            self.squasher.to(device)
+        if self.squasher_2 is not None:
+            self.squasher_2.to(device)
         self.decoder.to(device)
         # self.bottleneck_proj.to(device
         return self
@@ -845,10 +918,19 @@ class BertPriorDecoder(FeedForwardDecoder):
 
             # pad to the nearest multiple of the motion prior latent frame size along the temporal dimension T
             # B, T, C -> B, T_padded, C 
-            padding_size = T_padded // self.latent_frame_size - T_real // self.latent_frame_size
+            if self.squasher is not None:
+                # we're already working on the latent framize size, the data has already been squashed
+                padding_size = T_padded // self.latent_frame_size - T_real // self.latent_frame_size
+            elif self.squasher_2 is not None:
+                # we're working on the original frame size, the data has not been squashed yet
+                padding_size = T_padded - T_real 
             batch[self.motion_prior.input_key_for_decoding_step()] = torch.nn.functional.pad(
                 decoded_offsets, (0,0, 0, padding_size), mode='constant', value=0
             )
+            assert batch[self.motion_prior.input_key_for_decoding_step()].shape[1] == T_padded
+
+        if self.squasher_2 is not None:
+            batch[self.motion_prior.input_key_for_decoding_step()] = self.squasher_2(batch[self.motion_prior.input_key_for_decoding_step()])
 
         if "gt_shape" in sample:
             batch["gt_shape"] = sample["gt_shape"]
@@ -866,15 +948,48 @@ class BertPriorDecoder(FeedForwardDecoder):
         for i, key in enumerate(self.motion_prior.cfg.model.sequence_components.keys()):
             sample["predicted_" + key] = batch["reconstructed_" + key]
         sample["predicted_vertices"] = batch["reconstructed_vertices"]
+
+        # compute the offsets from neutral, that's how the output of "predicted_vertices" is expected to be
+        if "gt_shape" not in sample.keys():
+            template = sample["template"]
+            assert B == 1, "Batch size must be 1 if we want to change the template inside FLAME"
+            flame_template = self.flame.v_template
+            self.flame.v_template = template.squeeze(1).view(-1, 3)
+            shape_params = torch.zeros((B,T_real, self.flame.cfg.n_shape), device=sample["predicted_vertices"].device)
+        else: 
+            flame_template = None
+            # sample["gt_shape"].shape = (B, n_shape) -> add T dimension and repeat
+            if len(sample["gt_shape"].shape) == 2:
+                shape_params = sample["gt_shape"][:, None, ...].repeat(1, T_real, 1)
+            elif len(sample["gt_shape"].shape) == 3:
+                shape_params = sample["gt_shape"]
+
+        B = sample["predicted_vertices"].shape[0]
+        vertices_neutral = self._neutral_shape(B, sample["predicted_exp"].shape[-1], shape_params=shape_params)
+        # vertices_neutral = vertices_neutral.expand(B, T_real, -1, -1)
+        vertex_offsets = sample["predicted_vertices"] - vertices_neutral # compute the offset that is then added to the template shape
+        sample["predicted_vertices"] = vertex_offsets
+
+        if flame_template is not None:  # correct the flame template back if need be
+            self.flame.v_template = flame_template
         return sample
+
+    def _neutral_shape(self, B, exp_dim, shape_params): 
+        with torch.no_grad():
+            # vertice_neutral, _, _ = self.flame.forward(shape_params[0:1, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
+                        # vertice_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], torch.zeros_like(expression_params[0:1, ...])) # compute neutral shape
+            zero_exp = torch.zeros((B, exp_dim), dtype=shape_params.dtype, device=shape_params.device)
+            # compute neutral shape for each batch (but not each frame, unnecessary)
+            vertices_neutral, _, _ = self.flame.forward(shape_params[:, 0, ...], zero_exp) # compute neutral shape
+            vertices_neutral = vertices_neutral.contiguous().view(vertices_neutral.shape[0], -1)[:, None, ...]
+        return vertices_neutral
 
     def _decode(self, sample, styled_hidden_states):
         B, T, F = styled_hidden_states.shape
-        # BTF to BFT (for 1d conv)
-        styled_hidden_states = styled_hidden_states.transpose(1, 2)
-        styled_hidden_states = self.squasher(styled_hidden_states)
-        # back to BTF
-        styled_hidden_states = styled_hidden_states.transpose(1, 2)
+        # # BTF to BFT (for 1d conv)
+        # if self.cfg.get('squash_before', True):
+        if self.squasher is not None:
+            styled_hidden_states = self.squasher(styled_hidden_states)
 
         if self.biased_mask is not None: 
             mask = self.biased_mask[:, :styled_hidden_states.shape[1], :styled_hidden_states.shape[1]].clone() \
@@ -888,6 +1003,13 @@ class BertPriorDecoder(FeedForwardDecoder):
         decoded_offsets = decoded_offsets.view(B*T, -1)
         decoded_offsets = self.decoder(styled_hidden_states)
         decoded_offsets = decoded_offsets.view(B, T, -1) 
+
+        # BTF to BFT (for 1d conv)
+        # if self.cfg.get('squash_after', False):
+        # if self.squasher_2 is not None:
+        #     decoded_offsets = self.squasher_2(decoded_offsets)
+            # back to BTF
+
         return decoded_offsets
 
 

@@ -9,6 +9,12 @@ activation: gelu
 max_len: 600 
 period: 30
 vertices_dim: 15069
+
+squash_before: False
+squash_after: True
+# squash_type: conv
+squash_type: stack_linear
+
 positional_encoding: 
   type: none
   # # type: PositionalEncoding
@@ -28,6 +34,7 @@ flame:
 motion_prior: 
   path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-16-46_-2546611371074170025_L2lVqVae_MEADP_AE" # per sequence split
   # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-16-46_7403691266508414587_L2lVqVae_MEADP_AE" # per person split
+  trainable: False
 
 # predict_exp: True 
 # predict_jaw: True 

@@ -9,6 +9,10 @@ activation: gelu
 max_len: 600 
 period: 30
 vertices_dim: 15069
+squash_before: False
+squash_after: True
+# squash_type: conv
+squash_type: stack_linear
 positional_encoding: 
   type: none
   # # type: PositionalEncoding
@@ -43,7 +47,7 @@ motion_prior:
 
   # vae, latent frame size 8, latent dim 16, kl 0.005
   path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_16_01-54-57_1005062065405368989_L2lVqVae_Facef_VAE"
-
+  trainable: False
 
 
 flame_space_loss: False 
