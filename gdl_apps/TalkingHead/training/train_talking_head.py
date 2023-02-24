@@ -257,6 +257,10 @@ def create_experiment_name(cfg, version=0):
 
         sequence_decoder_name = cfg.model.sequence_decoder.type
         experiment_name += "_D" + sequence_decoder_name
+        if hasattr(cfg.model.sequence_decoder, 'motion_prior') \
+            and hasattr (cfg.model.sequence_decoder.motion_prior, 'trainable') \
+            and cfg.model.sequence_decoder.motion_prior.trainable:
+            experiment_name += "T"
 
         nl = cfg.model.sequence_decoder.get('num_layers ', None)
         if nl is not None: 
