@@ -563,7 +563,7 @@ class VideoDatasetBase(AbstractVideoDataset):
             wavdata, sampling_rate = self.audio_cache[index]
         else:
             wavdata, sampling_rate = self._read_audio(index)
-            sequence_length = self._get_sample_length(index)
+        sequence_length = self._get_sample_length(index)
 
         # audio augmentation
         if np.random.rand() < self.audio_noise_prob:
