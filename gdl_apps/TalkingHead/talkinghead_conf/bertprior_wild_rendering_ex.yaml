@@ -22,7 +22,7 @@ defaults:
   # - model/output@model/output: vertices
   # - learning/losses: vertices
   # - learning/losses: vertices_masked
-  - learning/losses: vertices_emo_lip_masked_exchange
+  - learning/losses: vertices_emo_lip_masked_exchange_motion_prior
   # - learning/losses: vertices_emovid_lip_masked_exchange
   - learning/optimizer: adam
   # - learning/batching@learning/batching: default

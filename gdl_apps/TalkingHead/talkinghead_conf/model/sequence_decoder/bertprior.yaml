@@ -51,8 +51,8 @@ motion_prior:
 
   # # vae, latent frame size 8, latent dim 16, kl 0.005
   # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_16_01-54-57_1005062065405368989_L2lVqVae_Facef_VAE"
-  # trainable: False
-  trainable: True
+  trainable: False
+  # trainable: True
 
 
 flame_space_loss: False 

@@ -964,6 +964,8 @@ class BertPriorDecoder(FeedForwardDecoder):
         
         batch = self.motion_prior.decoding_step(batch)
 
+        sample["prior_input_sequence"] = batch[self.motion_prior.input_key_for_decoding_step()]
+
         # if T_real < T:
         # remove the padding
         for i, key in enumerate(self.motion_prior.cfg.model.sequence_components.keys()):
@@ -973,6 +975,7 @@ class BertPriorDecoder(FeedForwardDecoder):
         for i, key in enumerate(self.motion_prior.cfg.model.sequence_components.keys()):
             sample["predicted_" + key] = batch["reconstructed_" + key]
         sample["predicted_vertices"] = batch["reconstructed_vertices"]
+        
 
         # compute the offsets from neutral, that's how the output of "predicted_vertices" is expected to be
         if "gt_shape" not in sample.keys():
