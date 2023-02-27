@@ -862,6 +862,11 @@ class BertPriorDecoder(FeedForwardDecoder):
             self.squasher = None
 
         self.decoder = nn.Linear(dim_factor*cfg.feature_dim, bottleneck_dim)
+
+        # trying init to prevent the loss from exploding in the beginning
+        nn.init.constant_(self.decoder.weight, 0)
+        nn.init.constant_(self.decoder.bias, 0)
+
         # self.bottleneck_proj = nn.Linear(cfg.feature_dim * dim_factor, bottleneck_dim)
 
         if cfg.get('squash_after', False):
