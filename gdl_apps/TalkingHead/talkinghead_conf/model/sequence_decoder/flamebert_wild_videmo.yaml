@@ -54,38 +54,16 @@ rotation_representation: aa
 # #   num_features: 2048 
 #   use_bias: true
 
-# ## video expression
-# style_embedding: 
-
-#   # use_shape: false
-#   use_shape: true
-
-#   type: emotion_linear 
-#   use_video_expression: true
-#   # use_expression: true
-#   use_expression: false
-#   n_expression: 8 # affectnet 
-#   # n_expression: 8 # ravdess
-#   # n_expression: 4 # iemocap
-# #   use_valence: true
-# #   use_arousal: true
-#   use_valence: false
-#   use_arousal: false
-#   use_emotion_feature: false
-# #   num_features: 2048 
-#   use_bias: true
-
-
-## expression
+## video expression
 style_embedding: 
 
   # use_shape: false
   use_shape: true
 
   type: emotion_linear 
-  use_expression: true
-  use_video_expression: false
-  # use_expression: false
+  use_video_expression: true
+  # use_expression: true
+  use_expression: false
   n_expression: 8 # affectnet 
   # n_expression: 8 # ravdess
   # n_expression: 4 # iemocap
@@ -98,12 +76,32 @@ style_embedding:
   use_bias: true
 
 
+# ## expression
+# style_embedding: 
+
+#   # use_shape: false
+#   use_shape: true
+
+#   type: emotion_linear 
+#   use_expression: true
+#   # use_expression: false
+#   n_expression: 8 # affectnet 
+#   # n_expression: 8 # ravdess
+#   # n_expression: 4 # iemocap
+# #   use_valence: true
+# #   use_arousal: true
+#   use_valence: false
+#   use_arousal: false
+#   use_emotion_feature: false
+# #   num_features: 2048 
+#   use_bias: true
+
+
 # ## valence-arousal
 # style_embedding: 
 #   type: emotion_linear 
 #   # use_expression: true
 #   use_expression: false
-#   use_video_expression: false
 #   n_expression: 8
 
 #   use_valence: true
@@ -124,7 +122,6 @@ style_embedding:
 # style_embedding: 
 #   type: emotion_linear 
 #   use_expression: true
-#   use_video_expression: false
 #   # use_expression: false
 #   n_expression: 8
 
@@ -148,7 +145,6 @@ style_embedding:
 #   type: emotion_linear 
 #   # use_expression: true
 #   use_expression: false
-#   use_video_expression: false
 #   n_expression: 8
 
 #   use_valence: true
