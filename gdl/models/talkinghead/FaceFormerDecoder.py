@@ -771,10 +771,7 @@ def load_motion_prior_net(path, trainable=False):
 
     motion_prior_net_class = class_from_str(model_config.model.pl_module_class, sys.modules[__name__])
     motion_prior_net = motion_prior_net_class.instantiate(model_config, "", "", checkpoint, checkpoint_kwargs)
-    motion_prior_net.eval()
-    # freeze model
-    for p in motion_prior_net.parameters():
-        p.requires_grad = False
+        # freeze model
     return motion_prior_net
 
 
