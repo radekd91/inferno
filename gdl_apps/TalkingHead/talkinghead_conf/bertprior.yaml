@@ -18,7 +18,8 @@ defaults:
   # - model/sequence_decoder@model/sequence_decoder: flamebert_npe
   - model/sequence_decoder@model/sequence_decoder: bertprior
   - model/output@model/output: exp_jaw
-  - learning/losses: vertices
+  - learning/losses: vertices_motion_prior
+  # - learning/losses: vertices_masked_motion_prior
   - learning/optimizer: adam
   - learning/batching@learning/batching: default
   # - learning/callbacks: early_stopping

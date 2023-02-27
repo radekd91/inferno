@@ -823,8 +823,12 @@ class StackLinearSquash(nn.Module):
         B, T, F = x.shape
         # input B, T, F -> B, T // latent_frame_size, F * latent_frame_size
         assert T % self.latent_frame_size == 0, "T must be divisible by latent_frame_size"
-        x = x.reshape(B, T // self.latent_frame_size, F * self.latent_frame_size)
+        T_latent = T // self.latent_frame_size
+        F_stack = F * self.latent_frame_size
+        x = x.reshape(B, T_latent, F_stack)
+        x = x.view(B * T_latent, F_stack)
         x = self.linear(x)
+        x = x.view(B, T_latent, -1)
         return x
 
 class BertPriorDecoder(FeedForwardDecoder):
@@ -935,6 +939,7 @@ class BertPriorDecoder(FeedForwardDecoder):
         Overrides the base class method to apply the motion prior network. 
         """
         sample = self._apply_motion_prior(sample)
+        super()._post_prediction(sample)
         return sample
 
     def _apply_motion_prior(self, sample):
@@ -975,9 +980,9 @@ class BertPriorDecoder(FeedForwardDecoder):
         if "gt_tex" in sample:
             batch["gt_tex"] = sample["gt_tex"]
         
-        batch = self.motion_prior.decoding_step(batch)
-
         sample["prior_input_sequence"] = batch[self.motion_prior.input_key_for_decoding_step()]
+
+        batch = self.motion_prior.decoding_step(batch)
 
         # if T_real < T:
         # remove the padding
