@@ -132,7 +132,7 @@ class EmotionCondition(StyleConditioning):
 
     def _gather_condition(self, sample):
         condition = []
-        if self.cfg.use_video_expression:
+        if self.cfg.get('use_video_expression', False):
             assert len(sample["gt_emotion_video_logits"]) == 1, "Only one video expression supported" 
             cam = list(sample["gt_emotion_video_logits"].keys())[0]
             video_classification = torch.nn.functional.softmax(sample["gt_emotion_video_logits"][cam], dim=-1)

@@ -231,7 +231,7 @@ class TalkingHeadBase(pl.LightningModule):
 
         sample_shape = self.cfg.model.sequence_decoder.style_embedding.use_shape
         num_shape = self.cfg.model.sequence_decoder.flame.n_shape
-        sample_video_expression = self.cfg.model.sequence_decoder.style_embedding.use_video_expression
+        sample_video_expression = self.cfg.model.sequence_decoder.style_embedding.get('use_video_expression', False)
         sample_expression = self.cfg.model.sequence_decoder.style_embedding.use_expression
         num_expressions = self.cfg.model.sequence_decoder.style_embedding.n_expression
         sample_valence = self.cfg.model.sequence_decoder.style_embedding.use_valence
