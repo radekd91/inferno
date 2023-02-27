@@ -166,6 +166,10 @@ class MotionPrior(pl.LightningModule):
         if "FlamePreprocessor" in self.preprocessor.__class__.__name__:
             return self.preprocessor.flame
         
+    def set_flame_tex(self, flame_tex):
+        if "FlamePreprocessor" in self.preprocessor.__class__.__name__:
+            self.preprocessor.flame_tex = flame_tex
+
     @property
     def max_seq_length(self):
         return 5000

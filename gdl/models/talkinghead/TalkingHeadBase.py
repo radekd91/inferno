@@ -33,6 +33,11 @@ class TalkingHeadBase(pl.LightningModule):
             self.renderer.set_shape_model(shape_model)
         elif renderer is not None and self.sequence_decoder is not None:
             self.renderer.set_shape_model(self.sequence_decoder.get_shape_model())
+            if hasattr(self.sequence_decoder, 'motion_prior'):
+                ## ugly hack. motion priors have been trained with flame without texture 
+                ## because the texture is not necessary. But we need it for talking head so we
+                ## set it here.
+                self.sequence_decoder.motion_prior.set_flame_tex(self.preprocessor.get_flametex())
         if self.sequence_decoder is None: 
             self.code_vec_input_name = "seq_encoder_output"
         else:
@@ -226,6 +231,7 @@ class TalkingHeadBase(pl.LightningModule):
 
         sample_shape = self.cfg.model.sequence_decoder.style_embedding.use_shape
         num_shape = self.cfg.model.sequence_decoder.flame.n_shape
+        sample_video_expression = self.cfg.model.sequence_decoder.style_embedding.use_video_expression
         sample_expression = self.cfg.model.sequence_decoder.style_embedding.use_expression
         num_expressions = self.cfg.model.sequence_decoder.style_embedding.n_expression
         sample_valence = self.cfg.model.sequence_decoder.style_embedding.use_valence
@@ -242,6 +248,17 @@ class TalkingHeadBase(pl.LightningModule):
                     self._shape_distribution =torch.distributions.Normal(loc=torch.zeros(num_shape, device=self.device), scale=torch.ones(num_shape, device=self.device))
                 shape_cond = self._shape_distribution.sample((B,))
                 conditions["gt_shape"] = shape_cond
+
+            if sample_video_expression:
+                if not hasattr(self, "_video_expression_distribution"):
+                    self._video_expression_distribution = torch.distributions.Uniform(
+                        low=torch.zeros(num_expressions, device=self.device), 
+                        high=torch.ones(num_expressions, device=self.device))
+                    # self._video_expression_distribution = torch.distributions.categorical.Categorical(probs=torch.ones(num_expressions) / num_expressions)
+                video_expression_cond = self._video_expression_distribution.sample((B,))
+                # normalize 
+                video_expression_cond = video_expression_cond / video_expression_cond.sum(dim=1, keepdim=True)
+                conditions["gt_emotion_video_logits"] = video_expression_cond.unsqueeze(1).expand(B, T, num_expressions)
 
             if sample_expression: 
                 if not hasattr(self, "_expression_distribution"):
@@ -289,6 +306,10 @@ class TalkingHeadBase(pl.LightningModule):
             keys_to_exchange = [] 
             if sample_shape:
                 keys_to_exchange += ["gt_shape"]
+            if sample_video_expression: 
+                keys_to_exchange += ["gt_emotion_video_logits"]
+                keys_to_exchange += ["gt_emotion_video_features"]
+
             if sample_expression:
                 keys_to_exchange += ["gt_expression"] # per-frame pseudo-GT
                 if "gt_expression_label" in sample.keys():
@@ -337,6 +358,35 @@ class TalkingHeadBase(pl.LightningModule):
         sample = self.renderer(sample, train=train, input_key_prefix='predicted_', output_prefix='predicted_', **kwargs)
         return sample
 
+    def render_gt_sequence(self, sample: Dict, train=False, **kwargs): 
+        if self.renderer is None:
+            return sample 
+        with torch.no_grad():
+            if "reconstruction" in sample.keys():
+                for method in self.cfg.data.reconstruction_type:
+                    sample["reconstruction"][method] = self.renderer(sample["reconstruction"][method], train=train, input_key_prefix='gt_', output_prefix='gt_', **kwargs)
+            else:
+                sample = self.renderer(sample, train=train, input_key_prefix='gt_', output_prefix='gt_', **kwargs)
+        return sample
+
+    def render_predicted_sequence(self, sample: Dict, train=False, **kwargs):
+        if self.renderer is None:
+            return sample 
+        sample = self.renderer(sample, train=train, input_key_prefix='predicted_', output_prefix='predicted_', **kwargs)
+        return sample
+
+    def extract_gt_features(self, sample: Dict, train=False, **kwargs): 
+        if 'video_emotion_loss' in self.neural_losses.keys():
+            if "gt_emotion_video_features" not in sample.keys():
+                for method in self.cfg.data.reconstruction_type:
+                    sample["reconstruction"][method]["gt_emotion_video_features"] = {}
+                    sample["reconstruction"][method]["gt_emotion_video_logits"] = {}
+                    for cam_name in sample["reconstruction"][method]["gt_video"].keys():
+                            sample["reconstruction"][method]["gt_emotion_video_features"][cam_name], \
+                            sample["reconstruction"][method]["gt_emotion_video_logits"][cam_name] = \
+                            self.neural_losses['video_emotion_loss']._forward_input(sample["reconstruction"][method]["gt_video"][cam_name], \
+                                                                                    return_logits=True)
+        return sample
 
     @torch.no_grad()
     def preprocess_input(self, sample: Dict, train=False, **kwargs: Any) -> Dict:
@@ -362,9 +412,14 @@ class TalkingHeadBase(pl.LightningModule):
         # preprocess input (for instance get 3D pseudo-GT )
         sample = self.preprocess_input(sample, train=train, **kwargs)
         check_nan(sample)
+        
+        ## render the GT (useful if we want to run perceptual features on GT and condition on them) 
+        sample = self.render_gt_sequence(sample, train=train, **kwargs)
+
+        sample = self.extract_gt_features(sample, train=train, **kwargs)
 
         sample = self._choose_primary_3D_rec_method(sample)
-        
+
         teacher_forcing = kwargs.pop("teacher_forcing", False)
         desired_output_length = sample["gt_vertices"].shape[1] if "gt_vertices" in sample.keys() else None
         sample = self.forward_audio(sample, train=train, desired_output_length=desired_output_length, **kwargs)
@@ -382,8 +437,11 @@ class TalkingHeadBase(pl.LightningModule):
         sample = self.decode_sequence(sample, train=train, teacher_forcing=teacher_forcing, **kwargs)
         check_nan(sample)
 
-        # render the sequence
-        sample = self.render_sequence(sample, train=train, **kwargs)
+        ## render the sequence
+        ## sample = self.render_sequence(sample, train=train, **kwargs)
+        # render only the predicted sequence (the GT is already rendered)
+        sample = self.render_predicted_sequence(sample, train=train, **kwargs)
+
         check_nan(sample)
         return sample
 

@@ -168,6 +168,8 @@ class Preprocessor(object):
     def test_time(self):
         raise NotImplementedError("Subclasses must implement this method")
 
+    def get_flametex(self):
+        raise NotImplementedError("Subclasses must implement this method")
 
 class Renderer(torch.nn.Module):
 

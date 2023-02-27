@@ -337,9 +337,15 @@ class FaceFormer(TalkingHeadBase):
                 gt_emo_feature = sample["gt_emo_feature"][:B_eff]
                 
                 mask_ = mask[:B_eff, ...]
-                loss_values[cam_name] = self.neural_losses.video_emotion_loss.compute_loss(
-                    input_emotion_features=gt_emo_feature, output_images=pred_vid,  mask=mask_
-                    )
+                if "gt_emotion_video_features" in sample.keys():
+                    gt_emo_feature = sample["gt_emotion_video_features"][cam_name][:B_eff]
+                    predicted_emo_feature = self.neural_losses.video_emotion_loss._forward_output(pred_vid, mask=mask_)
+                    loss_values[cam_name] = self.neural_losses.video_emotion_loss._compute_feature_loss(gt_emo_feature, predicted_emo_feature)
+                
+                else:
+                    loss_values[cam_name] = self.neural_losses.video_emotion_loss.compute_loss(
+                        input_emotion_features=gt_emo_feature, output_images=pred_vid,  mask=mask_
+                        )
             loss_value = sum(loss_values.values()) / len(loss_values)
 
         elif loss_type == "emotion_video_loss_disentangled" : 
@@ -377,9 +383,16 @@ class FaceFormer(TalkingHeadBase):
                 #     input_images=gt_vid, output_images=pred_vid,  mask=mask
                 #     )
                 mask_ = mask[:B_orig, ...]
-                loss_values[cam_name]  = self.neural_losses.video_emotion_loss.compute_loss(
-                    input_emotion_features=gt_emo_feature, output_images=pred_vid,  mask=mask_
-                    )
+                
+                if "gt_emotion_video_features" in sample.keys():
+                    gt_emo_feature = sample["gt_emotion_video_features"][cam_name][:B_orig]
+                    predicted_emo_feature = self.neural_losses.video_emotion_loss._forward_output(pred_vid,  mask=mask_)
+                    loss_values[cam_name] = self.neural_losses.video_emotion_loss._compute_feature_loss(gt_emo_feature, predicted_emo_feature)
+
+                else:
+                    loss_values[cam_name]  = self.neural_losses.video_emotion_loss.compute_loss(
+                        input_emotion_features=gt_emo_feature, output_images=pred_vid,  mask=mask_
+                        )
 
             loss_value = sum(loss_values.values()) / len(loss_values)
 

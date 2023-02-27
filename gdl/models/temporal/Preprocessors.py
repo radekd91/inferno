@@ -165,6 +165,9 @@ class FlamePreprocessor(Preprocessor):
                 
         return batch
 
+    def get_flametex(self):
+        return self.flame_tex
+
 
 def nested_dict_access(dictionary, first_key, key):
     if first_key is not None: 

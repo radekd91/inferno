@@ -163,8 +163,8 @@ class FixedViewFlameRenderer(FlameRenderer):
         # else: 
         #     rec_types += sample["reconstruction"].keys()
 
-        # albedo = sample["gt_albedo"]
-        albedo = sample[input_key_prefix+"albedo"]
+        albedo = sample["gt_albedo"]
+        # albedo = sample[input_key_prefix+"albedo"]
         if albedo.ndim == 4: 
             # add temporal dimension
             # albedo = albedo.unsqueeze(1).repeat(1, T, 1, 1, 1)

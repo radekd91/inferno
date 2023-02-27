@@ -34,8 +34,13 @@ def create_video_emotion_loss(cfg):
     sequence_model = class_.instantiate(model_config, None, None, checkpoint, checkpoint_kwargs)
 
     ## see if the model has a feature extractor
-    feat_extractor_cfg = model_config.model.get('feature_extractor', None) 
-    if feat_extractor_cfg is None and hasattr(sequence_model, 'feature_extractor_path'):
+    feat_extractor_cfg = model_config.model.get('feature_extractor', None)
+
+    # video_emotion_loss_cfg.network_path = str(Path(video_network_folder) / video_emotion_loss_cfg.video_network_name)
+    # video_emotion_loss = create_video_emotion_loss( video_emotion_loss_cfg).to(device)
+     
+    # if feat_extractor_cfg is None and hasattr(sequence_model, 'feature_extractor_path'):
+    if (feat_extractor_cfg is None or feat_extractor_cfg.type is False) and hasattr(cfg, 'feature_extractor_path'):
         # default to the affecnet trained resnet feature extractor
         feature_extractor_path = cfg.feature_extractor_path
         feature_extractor = emo_network_from_path(feature_extractor_path)

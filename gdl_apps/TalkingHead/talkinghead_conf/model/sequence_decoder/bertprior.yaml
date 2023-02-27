@@ -9,6 +9,7 @@ activation: gelu
 max_len: 600 
 period: 30
 vertices_dim: 15069
+
 squash_before: False
 # squash_before: True
 squash_after: True

@@ -65,7 +65,7 @@ def style_from_cfg(cfg):
         # new preferred way
         style_cfg = style_type
         style_type = style_cfg.type 
-        if style_type == 'emotion_linear':
+        if style_type == 'emotion_linear' or style_type == 'video_emotion_linear':
             if style_cfg.use_shape: 
                 with open_dict(style_cfg) as c:
                     c.shape_dim = cfg.flame.n_shape
@@ -112,6 +112,9 @@ class EmotionCondition(StyleConditioning):
         self.cfg = cfg
         self.condition_dim = 0
 
+        if self.cfg.get('use_video_expression', False):
+            self.condition_dim += self.cfg.n_expression
+
         if self.cfg.use_expression:
             self.condition_dim += self.cfg.n_expression
 
@@ -129,6 +132,14 @@ class EmotionCondition(StyleConditioning):
 
     def _gather_condition(self, sample):
         condition = []
+        if self.cfg.use_video_expression:
+            assert len(sample["gt_emotion_video_logits"]) == 1, "Only one video expression supported" 
+            cam = list(sample["gt_emotion_video_logits"].keys())[0]
+            video_classification = torch.nn.functional.softmax(sample["gt_emotion_video_logits"][cam], dim=-1)
+            # expand to match the sequence length
+            T = sample["gt_vertices"].shape[1]
+            video_classification = video_classification.unsqueeze(1).expand(-1, T, -1)
+            condition += [video_classification]
         if self.cfg.use_expression:
             condition += [sample["gt_expression"]]
         if self.cfg.use_valence:
@@ -771,7 +782,11 @@ def load_motion_prior_net(path, trainable=False):
 
     motion_prior_net_class = class_from_str(model_config.model.pl_module_class, sys.modules[__name__])
     motion_prior_net = motion_prior_net_class.instantiate(model_config, "", "", checkpoint, checkpoint_kwargs)
+    if not trainable:
+        motion_prior_net.eval()
         # freeze model
+        for p in motion_prior_net.parameters():
+            p.requires_grad = False
     return motion_prior_net
 
 
@@ -854,6 +869,8 @@ class BertPriorDecoder(FeedForwardDecoder):
         else:
             self.squasher_2 = None
 
+        assert not (self.squasher is not None and self.squasher_2 is not None), "Cannot have two squashers"
+
     def _create_squasher(self, type, input_dim, output_dim, quant_factor): 
         if type == "conv": 
             return ConvSquasher(input_dim, quant_factor, output_dim)
@@ -890,7 +907,7 @@ class BertPriorDecoder(FeedForwardDecoder):
         return sample
 
     def get_shape_model(self):
-        return None
+        return self.motion_prior.get_flame() 
 
     def decoder_output_dim(self):
         return self.cfg.vertices_dim
@@ -937,6 +954,8 @@ class BertPriorDecoder(FeedForwardDecoder):
             batch["gt_shape"] = sample["gt_shape"]
         if "template" in sample:
             batch["template"] = sample["template"]
+        if "gt_tex" in sample:
+            batch["gt_tex"] = sample["gt_tex"]
         
         batch = self.motion_prior.decoding_step(batch)
 

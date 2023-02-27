@@ -22,7 +22,12 @@ losses:
     emo_feat_loss: masked_mse_loss
     trainable: false 
     normalize_features: false 
-    target_method_image: emoca # trying to make emotion behave as emoca
+    # target_method_image: emoca # trying to make emotion behave as emoca
+    # target_method_image: EMOCA_v2_lr_mse_20_with_bfmtex 
+    target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex 
+    # target_method_image: EMOCA_v2_lr_cos_1.5_with_bfmtex 
+
+
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
   
   emotion_loss_disentangled:
@@ -42,7 +47,10 @@ losses:
     emo_feat_loss: masked_mse_loss
     trainable: false 
     normalize_features: false 
-    target_method_image: emoca # trying to make emotion behave as emoca
+    # target_method_image: emoca # trying to make emotion behave as emoca
+    # target_method_image: EMOCA_v2_lr_mse_20_with_bfmtex 
+    target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex 
+    # target_method_image: EMOCA_v2_lr_cos_1.5_with_bfmtex 
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
     apply_on_disentangled: True
 
@@ -62,7 +70,10 @@ losses:
     # emo_feat_loss: mse_loss
     trainable: false 
     normalize_features: false 
-    target_method_image: spectre # trying to make lips behave as spectre
+    # target_method_image: spectre # trying to make lips behave as spectre
+    # target_method_image: EMOCA_v2_lr_mse_20_with_bfmtex 
+    target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex 
+    # target_method_image: EMOCA_v2_lr_cos_1.5_with_bfmtex 
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
 
   lip_reading_loss_disentangled:
@@ -78,7 +89,10 @@ losses:
     # emo_feat_loss: mse_loss
     trainable: false 
     normalize_features: false 
-    target_method_image: spectre # trying to make lips behave as spectre
+    # target_method_image: spectre # trying to make lips behave as spectre
+    # target_method_image: EMOCA_v2_lr_mse_20_with_bfmtex 
+    target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex 
+    # target_method_image: EMOCA_v2_lr_cos_1.5_with_bfmtex 
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
     apply_on_disentangled: True
 
