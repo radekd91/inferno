@@ -245,7 +245,7 @@ class VideoDatasetBase(AbstractVideoDataset):
                     self.rec_cache[i][rec_type]["shape_pose_cam"] = shape_pose_cam
                     self.rec_cache[i][rec_type]["appearance"] = appearance
             if self.emotion_type is not None: 
-                emotions, features = self._load_emotions(i)
+                emotions, features = self._load_emotions(i, features=self.return_emotion_feature)
                 if i not in self.emo_cache:
                     self.emo_cache[i] = {}
                 self.emo_cache[i]["emotions"] = emotions 
