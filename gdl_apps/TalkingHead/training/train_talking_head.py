@@ -44,11 +44,14 @@ def get_condition_string_from_config(cfg):
     try: 
         if cfg.model.sequence_decoder.style_embedding == "none" or \
             (not cfg.model.sequence_decoder.style_embedding.use_expression) and \
+            (not cfg.model.sequence_decoder.style_embedding.get('use_video_expression', False)) and \
             (not cfg.model.sequence_decoder.style_embedding.use_valence) and \
             (not cfg.model.sequence_decoder.style_embedding.use_arousal):
             return "original", None
         # if cfg.model.sequence_decoder.style_embedding.use_shape: 
         #     return "original", None # return original, we do not have conditioned testing for identity change
+        if cfg.model.sequence_decoder.style_embedding.get('use_video_expression', False):
+            return "expression", None
         if cfg.model.sequence_decoder.style_embedding.use_expression:
             return "expression", None 
         if cfg.model.sequence_decoder.style_embedding.use_valence and cfg.model.sequence_decoder.style_embedding.use_arousal:
@@ -280,11 +283,14 @@ def create_experiment_name(cfg, version=0):
                 experiment_name += 'VA'
             elif cond[0] == 'expression':
                 experiment_name += 'EX'
+                if cfg.model.sequence_decoder.style_embedding.get('use_video_expression', False):
+                    experiment_name += 'v'
             try:
                 if cfg.model.sequence_decoder.style_embedding.use_shape: 
                     experiment_name += 'S'
             except AttributeError:
                 pass
+
 
 
         pos_enc = cfg.model.sequence_decoder.get('positional_encoding', False)
