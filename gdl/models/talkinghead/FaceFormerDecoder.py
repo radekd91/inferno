@@ -619,7 +619,7 @@ class BertDecoder(FeedForwardDecoder):
         )        
         self.bert_decoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=cfg.num_layers)
         self.decoder = nn.Linear(dim_factor*cfg.feature_dim, self.decoder_output_dim())
-        
+        self.post_bug_fix = cfg.get('post_bug_fix', False)
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'none')
         if self.temporal_bias_type == 'faceformer':
             self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
@@ -655,7 +655,14 @@ class BertDecoder(FeedForwardDecoder):
         decoded_offsets = self.bert_decoder(styled_hidden_states, mask=mask)
         B, T = decoded_offsets.shape[:2]
         decoded_offsets = decoded_offsets.view(B*T, -1)
-        decoded_offsets = self.decoder(styled_hidden_states)
+        ## INSANE BUG WARNING (passing styled_hidden_states instead of decoded_offsets)
+        if not self.post_bug_fix:
+            decoded_offsets = self.decoder(styled_hidden_states)
+        ## END INSANE BUG WARNING
+        ## BUG FIX
+        else:
+            decoded_offsets = self.decoder(decoded_offsets)
+        ## END BUG FIX
         decoded_offsets = decoded_offsets.view(B, T, -1)
         return decoded_offsets
 
@@ -826,14 +833,19 @@ class BertPriorDecoder(FeedForwardDecoder):
         super().__init__(cfg)
         dim_factor = self._total_dim_factor()
 
-        encoder_layer = torch.nn.TransformerEncoderLayer(
-                    d_model=cfg.feature_dim * dim_factor, 
-                    nhead=cfg.nhead, dim_feedforward=dim_factor*cfg.feature_dim, 
-                    activation=cfg.activation,
-                    dropout=cfg.dropout, batch_first=True
-        )        
-        self.bert_decoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=cfg.num_layers)
+        if cfg.num_layers > 0:
+            encoder_layer = torch.nn.TransformerEncoderLayer(
+                        d_model=cfg.feature_dim * dim_factor, 
+                        nhead=cfg.nhead, dim_feedforward=dim_factor*cfg.feature_dim, 
+                        activation=cfg.activation,
+                        dropout=cfg.dropout, batch_first=True
+            )        
+            self.bert_decoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=cfg.num_layers)
+        else:
+            self.bert_decoder = None
         
+        self.post_bug_fix = cfg.get('post_bug_fix', False)
+
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'none')
         if self.temporal_bias_type == 'faceformer':
             self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
@@ -894,7 +906,8 @@ class BertPriorDecoder(FeedForwardDecoder):
 
     def to(self, device):
         super().to(device)
-        self.bert_decoder.to(device)
+        if self.bert_decoder is not None:
+            self.bert_decoder.to(device)
         self.motion_prior.to(device)
         if self.squasher is not None:
             self.squasher.to(device)
@@ -1019,25 +1032,29 @@ class BertPriorDecoder(FeedForwardDecoder):
         if self.squasher is not None:
             styled_hidden_states = self.squasher(styled_hidden_states)
 
-        if self.biased_mask is not None: 
-            mask = self.biased_mask[:, :styled_hidden_states.shape[1], :styled_hidden_states.shape[1]].clone() \
-                .detach().to(device=styled_hidden_states.device)
-            if mask.ndim == 3: # the mask's first dimension needs to be num_head * batch_size
-                mask = mask.repeat(styled_hidden_states.shape[0], 1, 1)
+        if self.bert_decoder is not None:
+            if self.biased_mask is not None: 
+                mask = self.biased_mask[:, :styled_hidden_states.shape[1], :styled_hidden_states.shape[1]].clone() \
+                    .detach().to(device=styled_hidden_states.device)
+                if mask.ndim == 3: # the mask's first dimension needs to be num_head * batch_size
+                    mask = mask.repeat(styled_hidden_states.shape[0], 1, 1)
+            else: 
+                mask = None
+            decoded_offsets = self.bert_decoder(styled_hidden_states, mask=mask)
         else: 
-            mask = None
-        decoded_offsets = self.bert_decoder(styled_hidden_states, mask=mask)
+            decoded_offsets = styled_hidden_states
+
         B, T = decoded_offsets.shape[:2]
         decoded_offsets = decoded_offsets.view(B*T, -1)
-        decoded_offsets = self.decoder(styled_hidden_states)
+        ## INSANE BUG WARNING (passing in styled_hidden_states instead of decoded_offsets)
+        if self.post_bug_fix:
+            decoded_offsets = self.decoder(styled_hidden_states)
+        ## END INSANE BUG WARNING
+        ## BUG FIX
+        else:
+            decoded_offsets = self.decoder(decoded_offsets)
+        ## END BUG FIX
         decoded_offsets = decoded_offsets.view(B, T, -1) 
-
-        # BTF to BFT (for 1d conv)
-        # if self.cfg.get('squash_after', False):
-        # if self.squasher_2 is not None:
-        #     decoded_offsets = self.squasher_2(decoded_offsets)
-            # back to BTF
-
         return decoded_offsets
 
 

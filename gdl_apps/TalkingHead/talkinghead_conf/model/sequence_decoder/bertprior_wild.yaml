@@ -37,16 +37,18 @@ flame:
 
 motion_prior: 
   
-  # ## ae 
-  # # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-16-46_-2546611371074170025_L2lVqVae_MEADP_AE" # per sequence split
-  # # # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-16-46_7403691266508414587_L2lVqVae_MEADP_AE" # per person split
+  # ae, 256d bugged sequence split
+  # # # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-16-46_7403691266508414587_L2lVqVae_MEADP_AE" # per sequence split
   
   # ## vae kl 0.05, bugged sequence split
   # # path: /is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-37-22_-4437007122232758841_L2lVqVae_MEADP_VAE # kl 0.05
   
   # ## vae kl 0.01, bugged sequence split
   # # path: /is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-37-53_-8805504103833644898_L2lVqVae_MEADP_VAE # kl 0.01
-  
+
+  # ## ae, 256d, person split
+  # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-16-46_-2546611371074170025_L2lVqVae_MEADP_AE" # per person split 
+
   # # vae kl 0.05, person split, 256d
   # path: /is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_21-36-30_-6645345463044072351_L2lVqVae_MEADP_VAE
 
@@ -68,6 +70,8 @@ motion_prior:
 flame_space_loss: False 
 rotation_loss_space: 6d 
 rotation_representation: aa
+
+post_bug_fix: True
 
 # style_embedding: none
 

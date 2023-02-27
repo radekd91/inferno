@@ -15,6 +15,8 @@ squash_before: False
 squash_after: True
 # squash_after: False
 
+post_bug_fix: True
+
 squash_type: conv
 # squash_type: stack_linear
 positional_encoding: 

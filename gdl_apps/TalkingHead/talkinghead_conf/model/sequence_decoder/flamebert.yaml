@@ -31,3 +31,5 @@ flame:
 flame_space_loss: False 
 rotation_loss_space: 6d 
 rotation_representation: aa
+
+post_bug_fix: True
