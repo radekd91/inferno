@@ -6,8 +6,8 @@ input_dir: /is/cluster/fast/rdanecek/data/mead_25fps/resampled_videos
 output_dir: /is/cluster/fast/rdanecek/data/mead_25fps/
 processed_subfolder: processed
 # num_workers: 0 # debug
-# num_workers: 8 # if nto preloading 
-num_workers: 4 # if preloading 
+num_workers: 8 # if nto preloading 
+# num_workers: 4 # if preloading 
 
 image_size: 224
 scale: 1.25
@@ -17,8 +17,8 @@ face_detector_threshold: 0.05
 
 include_processed_audio: False
 include_raw_audio: True
-# preload_videos: False
-preload_videos: True
+preload_videos: False
+# preload_videos: True
 inflate_by_video_size: False
 
 ring_type: none

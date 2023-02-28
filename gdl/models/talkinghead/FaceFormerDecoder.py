@@ -966,9 +966,11 @@ class BertPriorDecoder(FeedForwardDecoder):
             )
 
             if self.squasher is not None:
-                assert batch[self.motion_prior.input_key_for_decoding_step()].shape[1] == T_padded // self.latent_frame_size
+                assert batch[self.motion_prior.input_key_for_decoding_step()].shape[1] == T_padded // self.latent_frame_size, \
+                    f"{batch[self.motion_prior.input_key_for_decoding_step()].shape[1]} != {T_padded // self.latent_frame_size}"
             elif self.squasher_2 is not None:
-                assert batch[self.motion_prior.input_key_for_decoding_step()].shape[1] == T_padded
+                assert batch[self.motion_prior.input_key_for_decoding_step()].shape[1] == T_padded, \
+                    f"{batch[self.motion_prior.input_key_for_decoding_step()].shape[1]} != {T_padded}"
 
         if self.squasher_2 is not None:
             batch[self.motion_prior.input_key_for_decoding_step()] = self.squasher_2(batch[self.motion_prior.input_key_for_decoding_step()])
