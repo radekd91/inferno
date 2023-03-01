@@ -15,20 +15,14 @@ defaults:
   # - model/face@model/face: flame
   # - model/face@model/face: full_space
   # - model/settings: faceformer
-  - model/settings: condition_exchange
+  - model/settings: faceformer
   - model/sequence_encoder@model/sequence_encoder: linear
   - model/sequence_decoder@model/sequence_decoder: bertprior_wild
   - model/renderer@model/renderer: fixed_view_mouth
   - model/output@model/output: exp_jaw
-  # - model/output@model/output: vertices
-  # - learning/losses: vertices
-  # - learning/losses: vertices_masked
-  # - learning/losses: vertices_emo_lip_masked_exchange
-  - learning/losses: vertices_emovid_lip_masked_exchange_motion_prior
+  - learning/losses: vertices_lip_masked_motion_prior
   - learning/optimizer: adam
-  # - learning/batching@learning/batching: default
   - learning/batching@learning/batching: fixed_length
-  # - learning/callbacks: early_stopping
   - learning/callbacks: none
   - learning/logging: wandb
   # - learning/logging: none

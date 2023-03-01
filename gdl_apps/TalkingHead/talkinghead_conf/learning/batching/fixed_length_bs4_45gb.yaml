@@ -4,9 +4,13 @@
 # sequence_length_val: 100
 # sequence_length_test: 100
 
-sequence_length_train: 70
-sequence_length_val: 70
-sequence_length_test: 70
+# sequence_length_train: 70
+# sequence_length_val: 70
+# sequence_length_test: 70
+
+sequence_length_train: 64
+sequence_length_val: 64
+sequence_length_test: 64
 
 # sequence_length_train: 20
 # sequence_length_val: 20

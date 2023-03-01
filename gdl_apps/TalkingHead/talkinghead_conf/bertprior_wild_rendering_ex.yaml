@@ -8,6 +8,7 @@ defaults:
   # - model/flame_tex: bfm_desktop
   # - model/audio@model/audio: avhubert
   # - model/audio@model/audio: wav2vec2
+  - model/preprocessor@model.preprocessor : flame_tex
   - model/audio@model/audio: wav2vec2_resampled_trainable_wild 
   # - model/audio@model/audio: wav2vec2_resampled_nontrainable_wild
   # - model/audio@model/audio: hubert
