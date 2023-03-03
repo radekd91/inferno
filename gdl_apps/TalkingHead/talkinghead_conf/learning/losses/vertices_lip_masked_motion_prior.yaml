@@ -13,11 +13,11 @@ losses:
     # weight: 10.0 
     # weight: 1.0
     # weight: 0.1
-    # weight: 0.01
-    # weight: 0.001
-    # weight: 0.0001
-    # weight: 0.00001
-    weight: 0.000001 
+    # weight: 0.01 # too strong
+    # weight: 0.001 # candidate, about one order of magnitude stronger (for MSE metric)
+    # weight: 0.0001 # candidate about the same order of magnitude as vertex loss (for MSE metric)
+    # weight: 0.00001 # about one order of magnitude weaker (for MSE metric)
+    weight: 0.000001 # too weak
     # weight: 0.0000001 
     # emo_feat_loss: mse_loss
     trainable: false 

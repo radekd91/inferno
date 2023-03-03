@@ -144,9 +144,9 @@ def submit_trainings():
             [], # no modifications to defaut config
         ]
 
-    dataset = "vocaset"
+    # dataset = "vocaset"
     # dataset = "vocaset_one_person"
-    # dataset = "mead_pseudo_gt"
+    dataset = "mead_pseudo_gt"
     
     # batching = "fixed_length"
     # batching = "fixed_length_bs16_35gb"

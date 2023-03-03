@@ -13,7 +13,7 @@ losses:
     emo_feat_loss: masked_mse_loss
     trainable: false 
     normalize_features: false 
-    target_method_image: emoca # trying to make emotion behave as emoca
+    target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex # trying to make emotion behave as emoca
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
 
   lip_reading_loss:

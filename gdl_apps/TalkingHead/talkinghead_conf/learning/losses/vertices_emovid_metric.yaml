@@ -7,9 +7,6 @@ losses:
 
 metrics: 
 
-  motion_prior_gaussian_reg: 
-    weight: 1.
-
   exp_loss: 
     weight: 1.
     metric: l2

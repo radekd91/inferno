@@ -13,9 +13,9 @@ losses:
     # weight: 0.01
     # weight: 0.001
     # weight: 0.0001
-    # weight: 0.00001
-    weight: 0.000001
-    # weight: 0.0000001
+    # weight: 0.00001 # candidate but maybe a little too high
+    weight: 0.000001 # candidate 
+    # weight: 0.0000001 # candidate but maybe a little too low
     # weight: 0.00000001
     # weight: 0.000000001
 

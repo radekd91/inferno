@@ -11,11 +11,11 @@ losses:
     # weight: 0.1
     # weight: 0.01
     # weight: 0.001
-    # weight: 0.0001
-    weight: 0.00001 # default
-    # weight: 0.000001 #
-    # weight: 0.0000001
-    # weight: 0.00000001
+    # weight: 0.0001 # probably too strong
+    weight: 0.00001 # candidate but maybe too strong
+    # weight: 0.000001 # candidate
+    # weight: 0.0000001 # candidate but maybe too weak
+    # weight: 0.00000001 # probably too weak
     # weight: 0.000000001
     # weight: 0.0000000001
     # weight: 0.0
@@ -24,14 +24,14 @@ losses:
     emo_feat_loss: masked_mse_loss
     trainable: false 
     normalize_features: false 
-    target_method_image: emoca
+    target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
 
+
+metrics: 
   expression_reg: 
     # weight: 0.0001 # too strong 
     weight: 1.e-9
-
-metrics: 
 
   motion_prior_gaussian_reg: 
     weight: 1.
@@ -47,7 +47,7 @@ metrics:
     # emo_feat_loss: mse_loss
     trainable: false 
     normalize_features: false 
-    target_method_image: spectre # trying to make lips behave as spectre
+    target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex # trying to make lips behave as spectre
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
 
   exp_loss: 
