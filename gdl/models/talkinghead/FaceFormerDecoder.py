@@ -115,6 +115,12 @@ class EmotionCondition(StyleConditioning):
         if self.cfg.get('use_video_expression', False):
             self.condition_dim += self.cfg.n_expression
 
+        if self.cfg.get('gt_expression_label', False):
+            self.condition_dim += self.cfg.n_expression
+        
+        if self.cfg.get('gt_expression_intensity', False):
+            self.condition_dim += self.cfg.n_intensities
+
         if self.cfg.use_expression:
             self.condition_dim += self.cfg.n_expression
 
@@ -140,8 +146,19 @@ class EmotionCondition(StyleConditioning):
             T = sample["gt_vertices"].shape[1]
             video_classification = video_classification.unsqueeze(1).expand(-1, T, -1)
             condition += [video_classification]
-        if self.cfg.use_expression:
-            condition += [sample["gt_expression"]]
+        if self.cfg.get('gt_expression_label', False): # mead GT expression label
+            T = sample["gt_vertices"].shape[1]
+            expressions = torch.nn.functional.one_hot(sample["gt_expression_label"], num_classes=self.cfg.n_expression).to(device=sample["gt_expression_label"].device)
+            expressions = expressions.unsqueeze(1).expand(-1, T, -1)
+            condition += [expressions]
+        if self.cfg.get('gt_expression_intensity', False): # mead GT expression intensity
+            T = sample["gt_vertices"].shape[1]
+            intensities = torch.nn.functional.one_hot(sample["gt_expression_intensity"], 
+                num_classes=self.cfg.n_intensities).to(device=sample["gt_expression_intensity"].device)
+            intensities = intensities.unsqueeze(1).expand(-1, T, -1)
+            condition += [intensities]
+        if self.cfg.use_expression: # pseudo GT  label (from Resnet AffectNet)
+            condition += [sample["gt_expression"]] 
         if self.cfg.use_valence:
             condition += [sample["gt_valence"]]
         if self.cfg.use_arousal:

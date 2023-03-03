@@ -30,6 +30,17 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
                         raise ValueError(f"Invalid basic expression {cond}")
             assert isinstance(self.condition_settings, list), "Condition_settings must be a list of integers"
 
+        elif self.condition_source in ["gt_expression", "gt_expression_intensity"]:
+            if self.condition_settings is None: 
+                self.condition_settings = list(range(8)) 
+            
+            for i, cond in enumerate(self.condition_settings):
+                if isinstance(cond, str):
+                    self.condition_settings[i] = AffectNetExpressions[cond]
+                    if self.condition_settings[i] is None or self.condition_settings[i] > 7:
+                        raise ValueError(f"Invalid basic expression {cond}")
+            assert isinstance(self.condition_settings, list), "Condition_settings must be a list of integers"
+
         elif self.condition_source == "valence_arousal":
             if isinstance(self.condition_settings, list):
                 self.valence = np.array([self.condition_settings[0]])
@@ -62,6 +73,8 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
     def __len__(self):
         if self.condition_source == "expression":
             return len(self.dataset) * len(self.condition_settings)
+        if self.condition_source in ["gt_expression", "gt_expression_intensity"]:
+            return len(self.dataset) * len(self.condition_settings)
         elif self.condition_source == "valence_arousal":
             return len(self.dataset) * len(self.valence) * len(self.arousal)
         elif self.condition_source == "original":
@@ -72,7 +85,6 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
         elif self.condition_source == 'iemocap_expression': # superb/wav2vec2-base-superb-er
             # {0: 'neu', 1: 'hap', 2: 'ang', 3: 'sad'} 
             return len(self.dataset) * 4
-
         raise NotImplementedError(f"Condition source {self.condition_source} not implemented")
 
     def __getitem__(self, index):
@@ -82,6 +94,17 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             sample = self.dataset[video_index]
             sample[self.condition_prefix + "expression"] = torch.nn.functional.one_hot(torch.tensor(expression_index), len(self.condition_settings)).to(torch.float32)
             sample["condition_name"] = AffectNetExpressions(expression_index).name
+        elif self.condition_source in ["gt_expression", "gt_expression_intensity"]:
+            video_index = index // len(self.condition_settings)
+            expression_index = index % len(self.condition_settings)
+            sample = self.dataset[video_index]
+            sample[self.condition_prefix + "gt_expression_label"] = torch.nn.functional.one_hot(torch.tensor(expression_index), len(self.condition_settings)).to(torch.float32)
+            if self.condition_source == "gt_expression_intensity":
+                intensity = 2
+                sample[self.condition_prefix + "gt_expression_intensity"] = torch.nn.functional.one_hot(intensity, 3).to(torch.float32)
+            sample["condition_name"] = AffectNetExpressions(expression_index).name
+            if self.condition_source == "gt_expression_intensity":
+                sample["condition_name"] += f"_int_{intensity}"
         elif self.condition_source == "valence_arousal":
             video_index = index // (len(self.valence) * len(self.arousal))
             va_index = index % (len(self.valence) * len(self.arousal))

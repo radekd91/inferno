@@ -118,6 +118,34 @@ style_embedding:
 #   use_bias: true
 
 
+# ## MEAD video expression
+# style_embedding: 
+
+#   # use_shape: false
+#   use_shape: true
+
+#   type: emotion_linear 
+#   use_video_expression: false 
+
+#   gt_expression_label: True
+#   gt_expression_intensity: True
+#   # gt_expression_intensity: False
+#   n_intensities: 3
+
+#   # use_expression: true
+#   use_expression: false
+#   n_expression: 8 # affectnet 
+#   # n_expression: 8 # ravdess
+#   # n_expression: 4 # iemocap
+# #   use_valence: true
+# #   use_arousal: true
+#   use_valence: false
+#   use_arousal: false
+#   use_emotion_feature: false
+# #   num_features: 2048 
+#   use_bias: true
+
+
 # ## expression
 # style_embedding: 
 
