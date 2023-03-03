@@ -45,6 +45,8 @@ def get_condition_string_from_config(cfg):
         if cfg.model.sequence_decoder.style_embedding == "none" or \
             (not cfg.model.sequence_decoder.style_embedding.use_expression) and \
             (not cfg.model.sequence_decoder.style_embedding.get('use_video_expression', False)) and \
+            (not cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False)) and \
+            (not cfg.model.sequence_decoder.style_embedding.get('gt_expression_intensity', False)) and \
             (not cfg.model.sequence_decoder.style_embedding.use_valence) and \
             (not cfg.model.sequence_decoder.style_embedding.use_arousal):
             return "original", None
@@ -52,6 +54,11 @@ def get_condition_string_from_config(cfg):
         #     return "original", None # return original, we do not have conditioned testing for identity change
         if cfg.model.sequence_decoder.style_embedding.get('use_video_expression', False):
             return "expression", None
+        if cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False) and \
+             cfg.model.sequence_decoder.style_embedding.get('gt_expression_intensity', True):
+            return "gt_expression_intensity", None
+        if cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False):
+            return "gt_expression", None
         if cfg.model.sequence_decoder.style_embedding.use_expression:
             return "expression", None 
         if cfg.model.sequence_decoder.style_embedding.use_valence and cfg.model.sequence_decoder.style_embedding.use_arousal:
@@ -285,6 +292,12 @@ def create_experiment_name(cfg, version=0):
                 experiment_name += 'EX'
                 if cfg.model.sequence_decoder.style_embedding.get('use_video_expression', False):
                     experiment_name += 'v'
+                if cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False):
+                    experiment_name += 'gt'
+            elif cond[0] == 'expression_intensity':
+                 assert cfg.model.sequence_decoder.style_embedding.get('gt_expression_intensity', False) and \
+                        cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False)
+                 experiment_name += 'gt'
             try:
                 if cfg.model.sequence_decoder.style_embedding.use_shape: 
                     experiment_name += 'S'
