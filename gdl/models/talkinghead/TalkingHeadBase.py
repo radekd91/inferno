@@ -232,6 +232,8 @@ class TalkingHeadBase(pl.LightningModule):
         sample_shape = self.cfg.model.sequence_decoder.style_embedding.use_shape
         num_shape = self.cfg.model.sequence_decoder.flame.n_shape
         sample_video_expression = self.cfg.model.sequence_decoder.style_embedding.get('use_video_expression', False)
+        sample_gt_video_expression = self.cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False)
+        sample_gt_video_intensity = self.cfg.model.sequence_decoder.style_embedding.get('gt_expression_intensity', False)
         sample_expression = self.cfg.model.sequence_decoder.style_embedding.use_expression
         num_expressions = self.cfg.model.sequence_decoder.style_embedding.n_expression
         sample_valence = self.cfg.model.sequence_decoder.style_embedding.use_valence
@@ -309,6 +311,10 @@ class TalkingHeadBase(pl.LightningModule):
             if sample_video_expression: 
                 keys_to_exchange += ["gt_emotion_video_logits"]
                 keys_to_exchange += ["gt_emotion_video_features"]
+            if sample_gt_video_expression:
+                keys_to_exchange += ["gt_expression_label"]
+            if sample_gt_video_intensity:
+                keys_to_exchange += ["gt_expression_intensity"]
 
             if sample_expression:
                 keys_to_exchange += ["gt_expression"] # per-frame pseudo-GT
