@@ -292,12 +292,14 @@ def create_experiment_name(cfg, version=0):
                 experiment_name += 'EX'
                 if cfg.model.sequence_decoder.style_embedding.get('use_video_expression', False):
                     experiment_name += 'v'
-                if cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False):
-                    experiment_name += 'gt'
-            elif cond[0] == 'expression_intensity':
-                 assert cfg.model.sequence_decoder.style_embedding.get('gt_expression_intensity', False) and \
+                # if cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False):
+                    # experiment_name += 'gt'
+            elif cond[0] in ['gt_expression_intensity', 'gt_expression']:
+                assert cfg.model.sequence_decoder.style_embedding.get('gt_expression_intensity', False) and \
                         cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False)
-                 experiment_name += 'gt'
+                experiment_name += 'EXgt' 
+                if cond[0] == 'gt_expression_intensity':
+                    experiment_name += 'I'
             try:
                 if cfg.model.sequence_decoder.style_embedding.use_shape: 
                     experiment_name += 'S'
