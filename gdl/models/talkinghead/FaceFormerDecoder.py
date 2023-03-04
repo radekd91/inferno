@@ -148,14 +148,15 @@ class EmotionCondition(StyleConditioning):
             condition += [video_classification]
         if self.cfg.get('gt_expression_label', False): # mead GT expression label
             T = sample["gt_vertices"].shape[1]
-            expressions = torch.nn.functional.one_hot(sample["gt_expression_label"], num_classes=self.cfg.n_expression).to(device=sample["gt_expression_label"].device)
-            expressions = expressions.unsqueeze(1).expand(-1, T, -1)
+            expressions = torch.nn.functional.one_hot(sample["gt_expression_label"], 
+                                                      num_classes=self.cfg.n_expression).to(device=sample["gt_expression_label"].device)
+            expressions = expressions.to(dtype=torch.float32).unsqueeze(1).expand(-1, T, -1)
             condition += [expressions]
         if self.cfg.get('gt_expression_intensity', False): # mead GT expression intensity
             T = sample["gt_vertices"].shape[1]
-            intensities = torch.nn.functional.one_hot(sample["gt_expression_intensity"], 
+            intensities = torch.nn.functional.one_hot(sample["gt_expression_intensity"] -1, 
                 num_classes=self.cfg.n_intensities).to(device=sample["gt_expression_intensity"].device)
-            intensities = intensities.unsqueeze(1).expand(-1, T, -1)
+            intensities = intensities.to(dtype=torch.float32).unsqueeze(1).expand(-1, T, -1)
             condition += [intensities]
         if self.cfg.use_expression: # pseudo GT  label (from Resnet AffectNet)
             condition += [sample["gt_expression"]] 
@@ -228,6 +229,11 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
         self.obj_vector = style_from_cfg(cfg)
 
         self.use_alignment_bias = cfg.get('use_alignment_bias', True)
+
+    def to(self, *args, **kwargs):
+        super().to(*args, **kwargs)
+        if self.biased_mask is not None:
+            self.biased_mask = self.biased_mask.to(*args, **kwargs)
 
     def get_shape_model(self):
         return None
@@ -655,6 +661,12 @@ class BertDecoder(FeedForwardDecoder):
         nn.init.constant_(self.decoder.weight, 0)
         nn.init.constant_(self.decoder.bias, 0)
 
+    def to(self, *args, **kwargs):
+        super().to(*args, **kwargs)
+        if self.biased_mask is not None:
+            self.biased_mask = self.biased_mask.to(*args, **kwargs)
+        return self
+
     def get_shape_model(self):
         return None
 
@@ -927,6 +939,8 @@ class BertPriorDecoder(FeedForwardDecoder):
 
     def to(self, device):
         super().to(device)
+        if self.biased_mask is not None:
+            self.biased_mask = self.biased_mask.to(device)
         if self.bert_decoder is not None:
             self.bert_decoder.to(device)
         self.motion_prior.to(device)
