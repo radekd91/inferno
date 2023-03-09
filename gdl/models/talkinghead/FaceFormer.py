@@ -225,7 +225,8 @@ class FaceFormer(TalkingHeadBase):
             loss_value = sum(loss_values.values()) / len(loss_values)
 
         elif loss_type == "lip_reading_loss":
-            B_eff = B if loss_cfg.get('apply_on_disentangled', True) else B_orig  ## WARNING, HERE TRUE BY DEFAULT
+            # B_eff = B if loss_cfg.get('apply_on_disentangled', True) else B_orig  ## WARNING, HERE TRUE BY DEFAULT
+            B_eff = B if loss_cfg.get('apply_on_disentangled', False) else B_orig  ## WARNING, HERE TRUE BY DEFAULT
             cam_name = list(sample["predicted_mouth_video"].keys())[0]
             assert len(list(sample["predicted_mouth_video"].keys())) == 1, "More cameras are not supported yet"
             # T = sample["predicted_mouth_video"][cam_name].shape[1] 
@@ -257,8 +258,8 @@ class FaceFormer(TalkingHeadBase):
                 # loss_value = torch.stack(loss_values).mean()
 
                 # the new way (vectorized) 
-                gt_vid = target_dict["gt_mouth_video"][cam_name]
-                pred_vid = sample["predicted_mouth_video"][cam_name]
+                gt_vid = target_dict["gt_mouth_video"][cam_name][:B_eff]
+                pred_vid = sample["predicted_mouth_video"][cam_name][:B_eff]
                 loss_values[cam_name] = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask_)
                 # loss_value_ = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask)
 

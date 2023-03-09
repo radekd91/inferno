@@ -329,20 +329,24 @@ class TalkingHeadBase(pl.LightningModule):
             sample["condition_indices"] = torch.arange(B, dtype=torch.int64, device=self.device)
 
             keys_to_exchange += ["condition_indices"]
-            
+            if B == 2:
+                indexation = 'reverse'
+                indices_permuted = None
+            else:
+                indexation = 'permute'
+                indices = torch.arange(B, device=self.device, dtype=torch.int64)
+                indices_permuted = create_unique_permutation(indices)
+
             for key in sample.keys(): 
                 sample_value = sample[key] 
                 if key not in keys_to_exchange:
-                    sample[key] = expand_sequence_batch(sample_value, 2, 'cat')
+                    sample[key] = expand_sequence_batch(sample_value, 2, 'cat', indices_permuted)
                     continue
                 else:
                     # sample_value_exchanged = sample_value[[1, 0]]
                     # sample[key] = torch.cat([sample_value, sample_value_exchanged], dim=0)
-                    if B == 2:
-                        indexation = 'reverse'
-                    else:
-                        indexation = 'permute'
-                    sample[key] = expand_sequence_batch(sample_value, 2, indexation)
+
+                    sample[key] = expand_sequence_batch(sample_value, 2, indexation, indices_permuted)
                     continue
 
             return sample
@@ -508,7 +512,18 @@ def truncate_sequence_batch(sample: Dict, max_seq_length: int) -> Dict:
     return sample
 
 
-def expand_sequence_batch(sample, factor=2, how='cat') -> Dict:
+def create_unique_permutation(indices):
+    B = indices.shape[0]
+    while True:
+        indices_permuted = indices[torch.randperm(B, device=indices.device)]
+        if (indices == indices_permuted).sum() == 0:
+            break
+    return indices_permuted
+
+
+def expand_sequence_batch(sample, factor=2, how='cat', indices_permuted=None) -> Dict:
+    if indices_permuted is not None:
+        assert how == 'permute', "indices_permuted can only be used with how=='permute'"
     if isinstance(sample, torch.Tensor):
         B = sample.shape[0]
         # sample = sample.unsqueeze(1)
@@ -520,10 +535,12 @@ def expand_sequence_batch(sample, factor=2, how='cat') -> Dict:
         elif how == 'reverse':
             indices = torch.cat([indices, indices.flip(0)], dim=0)
         elif how == 'permute':
-            while True:
-                indices_permuted = indices[torch.randperm(B, device=sample.device)]
-                if (indices == indices_permuted).sum() == 0:
-                    break
+            if indices_permuted is None:
+                # while True:
+                #     indices_permuted = indices[torch.randperm(B, device=sample.device)]
+                #     if (indices == indices_permuted).sum() == 0:
+                #         break
+                indices_permuted = create_unique_permutation(indices)
             indices = torch.cat([indices, indices_permuted], dim=0)
         else:
             raise ValueError(f"Invalid value '{how}' for argument 'how'")
