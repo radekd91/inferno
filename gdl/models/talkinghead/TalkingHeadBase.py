@@ -340,7 +340,7 @@ class TalkingHeadBase(pl.LightningModule):
             for key in sample.keys(): 
                 sample_value = sample[key] 
                 if key not in keys_to_exchange:
-                    sample[key] = expand_sequence_batch(sample_value, 2, 'cat', indices_permuted)
+                    sample[key] = expand_sequence_batch(sample_value, 2, 'cat')
                     continue
                 else:
                     # sample_value_exchanged = sample_value[[1, 0]]

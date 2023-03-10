@@ -121,13 +121,15 @@ losses:
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
     apply_on_disentangled: True
 
-  expression_reg: 
-    weight: 0.0001
-
 metrics: 
 
   motion_prior_gaussian_reg: 
     weight: 1.
+
+  
+  expression_reg: 
+    weight: 0.0001
+
 
   exp_loss: 
     weight: 1.
