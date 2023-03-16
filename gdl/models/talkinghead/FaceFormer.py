@@ -97,6 +97,10 @@ class FaceFormer(TalkingHeadBase):
 
         # mask = torch.zeros_like(mask)
 
+        if "disentangled" in loss_type and not validation and not training:
+            # disentangled losses are only computed during training
+            return 0.
+
         B = sample["predicted_vertices"].shape[0] # total batch size
         T = sample["predicted_vertices"].shape[1] # sequence size
         B_orig = B // self.disentangle_expansion_factor(training, validation) # original batch size before disentanglement expansion
