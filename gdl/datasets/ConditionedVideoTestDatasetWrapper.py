@@ -154,6 +154,12 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
                     sample[self.condition_prefix + "valence"] = sample[self.condition_prefix + "valence"][None, ...].repeat(T, 1)
                 if self.condition_prefix +   "arousal" in sample:
                     sample[self.condition_prefix + "arousal"] = sample[self.condition_prefix + "arousal"][None, ...].repeat(T, 1)
+            # TODO: expression intensity 
+            elif self.condition_source == "gt_expression_intensity":
+                if self.condition_prefix + "gt_expression_label" in sample:
+                    sample[self.condition_prefix + "gt_expression_label"] = sample[self.condition_prefix + "gt_expression_label"][None, ...].repeat(T, 1)
+                if self.condition_prefix + "gt_expression_intensity" in sample:
+                    sample[self.condition_prefix + "gt_expression_intensity"] = sample[self.condition_prefix + "gt_expression_intensity"][None, ...].repeat(T, 1)
             else:
                 raise NotImplementedError(f"Condition source '{self.condition_source}' not implemented")
             sample["condition_name"] =  [sample["condition_name"] ] * T
