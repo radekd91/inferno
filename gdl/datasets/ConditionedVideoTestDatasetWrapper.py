@@ -101,7 +101,7 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             sample[self.condition_prefix + "gt_expression_label"] = torch.nn.functional.one_hot(torch.tensor(expression_index), len(self.condition_settings)).to(torch.float32)
             if self.condition_source == "gt_expression_intensity":
                 intensity = 2
-                sample[self.condition_prefix + "gt_expression_intensity"] = torch.nn.functional.one_hot(intensity, 3).to(torch.float32)
+                sample[self.condition_prefix + "gt_expression_intensity"] = torch.nn.functional.one_hot(torch.tensor(intensity), 3).to(torch.float32)
             sample["condition_name"] = AffectNetExpressions(expression_index).name
             if self.condition_source == "gt_expression_intensity":
                 sample["condition_name"] += f"_int_{intensity}"
