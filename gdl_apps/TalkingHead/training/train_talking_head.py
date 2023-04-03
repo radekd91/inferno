@@ -295,8 +295,9 @@ def create_experiment_name(cfg, version=0):
                 # if cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False):
                     # experiment_name += 'gt'
             elif cond[0] in ['gt_expression_intensity', 'gt_expression']:
-                assert cfg.model.sequence_decoder.style_embedding.get('gt_expression_intensity', False) and \
-                        cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False)
+                assert cfg.model.sequence_decoder.style_embedding.get('gt_expression_intensity', False) or \
+                    cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False) 
+                        
                 experiment_name += 'EXgt' 
                 if cond[0] == 'gt_expression_intensity':
                     experiment_name += 'I'
