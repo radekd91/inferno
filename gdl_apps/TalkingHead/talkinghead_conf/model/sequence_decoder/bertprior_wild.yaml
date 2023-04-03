@@ -96,7 +96,7 @@ post_bug_fix: True
 #   use_bias: true
 
 
-## video expression
+# video expression
 style_embedding: 
 
   # use_shape: false
