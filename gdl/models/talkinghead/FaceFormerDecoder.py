@@ -115,6 +115,9 @@ class EmotionCondition(StyleConditioning):
         if self.cfg.get('use_video_expression', False):
             self.condition_dim += self.cfg.n_expression
 
+        if self.cfg.get('use_video_feature', False):
+            self.condition_dim += self.cfg.n_vid_expression_feature
+
         if self.cfg.get('gt_expression_label', False):
             self.condition_dim += self.cfg.n_expression
         
@@ -146,6 +149,15 @@ class EmotionCondition(StyleConditioning):
             T = sample["gt_vertices"].shape[1]
             video_classification = video_classification.unsqueeze(1).expand(-1, T, -1)
             condition += [video_classification]
+        if self.cfg.get('use_video_feature', False): 
+            assert len(sample["gt_emotion_video_features"]) == 1, "Only one video expression supported" 
+            cam = list(sample["gt_emotion_video_features"].keys())[0]
+            video_feats = torch.nn.functional.softmax(sample["gt_emotion_video_features"][cam], dim=-1)
+            # expand to match the sequence length
+            assert self.cfg.n_vid_expression_feature == video_feats.shape[-1], "Number of video features does not match"
+            T = sample["gt_vertices"].shape[1]
+            video_feats = video_feats.unsqueeze(1).expand(-1, T, -1)
+            condition += [video_feats]
         if self.cfg.get('gt_expression_label', False): # mead GT expression label
             T = sample["gt_vertices"].shape[1]
             expressions = torch.nn.functional.one_hot(sample["gt_expression_label"], 

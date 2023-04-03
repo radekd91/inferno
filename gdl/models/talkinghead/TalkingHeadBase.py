@@ -231,13 +231,14 @@ class TalkingHeadBase(pl.LightningModule):
 
         sample_shape = self.cfg.model.sequence_decoder.style_embedding.use_shape
         num_shape = self.cfg.model.sequence_decoder.flame.n_shape
-        sample_video_expression = self.cfg.model.sequence_decoder.style_embedding.get('use_video_expression', False)
-        sample_gt_video_expression = self.cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False)
-        sample_gt_video_intensity = self.cfg.model.sequence_decoder.style_embedding.get('gt_expression_intensity', False)
-        sample_expression = self.cfg.model.sequence_decoder.style_embedding.use_expression
+        condition_video_expression = self.cfg.model.sequence_decoder.style_embedding.get('use_video_expression', False)
+        condition_gt_video_feature = self.cfg.model.sequence_decoder.style_embedding.get('use_video_feature', False)
+        condition_gt_video_expression = self.cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False)
+        condition_gt_video_intensity = self.cfg.model.sequence_decoder.style_embedding.get('gt_expression_intensity', False)
+        condition_expression = self.cfg.model.sequence_decoder.style_embedding.use_expression
         num_expressions = self.cfg.model.sequence_decoder.style_embedding.n_expression
-        sample_valence = self.cfg.model.sequence_decoder.style_embedding.use_valence
-        sample_arousal = self.cfg.model.sequence_decoder.style_embedding.use_arousal
+        condition_valence = self.cfg.model.sequence_decoder.style_embedding.use_valence
+        condition_arousal = self.cfg.model.sequence_decoder.style_embedding.use_arousal
             
         if disentangle_type == "sample_condition":
 
@@ -251,7 +252,7 @@ class TalkingHeadBase(pl.LightningModule):
                 shape_cond = self._shape_distribution.sample((B,))
                 conditions["gt_shape"] = shape_cond
 
-            if sample_video_expression:
+            if condition_video_expression:
                 if not hasattr(self, "_video_expression_distribution"):
                     self._video_expression_distribution = torch.distributions.Uniform(
                         low=torch.zeros(num_expressions, device=self.device), 
@@ -262,7 +263,13 @@ class TalkingHeadBase(pl.LightningModule):
                 video_expression_cond = video_expression_cond / video_expression_cond.sum(dim=1, keepdim=True)
                 conditions["gt_emotion_video_logits"] = video_expression_cond.unsqueeze(1).expand(B, T, num_expressions)
 
-            if sample_expression: 
+            if condition_gt_video_feature:
+                if not hasattr(self, "_video_feature_distribution"):
+                    self._video_feature_distribution = torch.distributions.Normal(loc=torch.zeros(1, device=self.device), scale=torch.ones(1, device=self.device))
+                video_feature_cond = self._video_feature_distribution.sample((B, T, 1))
+                conditions["gt_emotion_video_features"] = video_feature_cond
+
+            if condition_expression: 
                 if not hasattr(self, "_expression_distribution"):
                     self._expression_distribution = torch.distributions.Uniform(
                         low=torch.zeros(num_expressions, device=self.device), 
@@ -273,13 +280,13 @@ class TalkingHeadBase(pl.LightningModule):
                 expression_cond = expression_cond / expression_cond.sum(dim=1, keepdim=True)
                 conditions["gt_expression"] = expression_cond.unsqueeze(1).expand(B, T, num_expressions)
 
-            if sample_valence:
+            if condition_valence:
                 if not hasattr(self, "_valence_distribution"):
                     self._valence_distribution = torch.distributions.Uniform(low=torch.ones(1,1) * -1, high=torch.ones(1,1))
                 valence_cond = self._valence_distribution.sample((B,))
                 conditions["gt_valence"] = valence_cond.expand(B, T, 1)
 
-            if sample_arousal:
+            if condition_arousal:
                 if not hasattr(self, "_arousal_distribution"):
                     self._arousal_distribution = torch.distributions.Uniform(low=torch.ones(1,1) * -1, high=torch.ones(1,1))
                 arousal_cond = self._arousal_distribution.sample((B,))
@@ -308,21 +315,25 @@ class TalkingHeadBase(pl.LightningModule):
             keys_to_exchange = [] 
             if sample_shape:
                 keys_to_exchange += ["gt_shape"]
-            if sample_video_expression: 
+            if condition_video_expression: 
                 keys_to_exchange += ["gt_emotion_video_logits"]
-                keys_to_exchange += ["gt_emotion_video_features"]
-            if sample_gt_video_expression:
+                if "gt_emotion_video_features" not in keys_to_exchange:
+                    keys_to_exchange += ["gt_emotion_video_features"]
+            if condition_gt_video_feature:
+                if "gt_emotion_video_features" not in keys_to_exchange:
+                    keys_to_exchange += ["gt_emotion_video_features"]
+            if condition_gt_video_expression:
                 keys_to_exchange += ["gt_expression_label"]
-            if sample_gt_video_intensity:
+            if condition_gt_video_intensity:
                 keys_to_exchange += ["gt_expression_intensity"]
 
-            if sample_expression:
+            if condition_expression:
                 keys_to_exchange += ["gt_expression"] # per-frame pseudo-GT
                 if "gt_expression_label" in sample.keys():
                     keys_to_exchange += ["gt_expression_label"] # per sequence emotion
-            if sample_valence:
+            if condition_valence:
                 keys_to_exchange += ["gt_valence"]
-            if sample_arousal:
+            if condition_arousal:
                 keys_to_exchange += ["gt_arousal"]
 
             sample["input_indices"] = torch.arange(B, dtype=torch.int64, device=self.device)
