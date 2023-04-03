@@ -368,10 +368,10 @@ class FaceFormer(TalkingHeadBase):
                     target_dict = sample
                 else: 
                     target_dict = sample["reconstruction"][target_method]
-                # gt video of the non-exchanged part of the batch -> [:B_eff]
-                gt_vid = target_dict["gt_video"][cam_name][:B_orig] #.view(B_orig*T, *rest)
-                # predicted video of the exchanged part of the batch -> [B_eff:]
-                pred_vid = sample["predicted_video"][cam_name][B_orig:] #.view(B_orig*T, *rest) 
+                # # gt video of the non-exchanged part of the batch -> [:B_orig]
+                # gt_vid = target_dict["gt_video"][cam_name][:B_orig] #.view(B_orig*T, *rest)
+                # # predicted video of the exchanged part of the batch -> [B_orig:]
+                # pred_vid = sample["predicted_video"][cam_name][B_orig:] #.view(B_orig*T, *rest) 
                 
                 condition_indices_1 = sample["condition_indices"][:B_orig]
                 condition_indices_2 = sample["condition_indices"][B_orig:]
@@ -381,9 +381,12 @@ class FaceFormer(TalkingHeadBase):
                 assert ( condition_indices_1 == condition_indices_2).sum() == 0,  "Disentanglement exchange not done correctly"
                 assert ( condition_indices_2 != input_indices_1[condition_indices_2]).sum() == 0, "Disentanglement exchange not done correctly"
 
+                # gt video of the original part of the batch -> [:B_orig]
                 gt_vid = target_dict["gt_video"][cam_name][:B_orig][condition_indices_1] #.view(B_orig*T, *rest)
+                # predicted video of the exchanged part of the batch -> [B_orig:]
                 pred_vid = sample["predicted_video"][cam_name][B_orig:][condition_indices_2] #.view(B_orig*T, *rest) 
                 mask_ = mask[:B_orig, ..., 0] #.view(B_orig*T)
+                # emotion feature of the original part of the batch -> [:B_orig]
                 gt_emo_feature = sample["gt_emo_feature"][:B_orig][condition_indices_1]
                 # loss_value = self.neural_losses.video_emotion_loss.compute_loss(
                 #     input_images=gt_vid, output_images=pred_vid,  mask=mask

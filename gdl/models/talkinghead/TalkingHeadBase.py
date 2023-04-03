@@ -387,6 +387,8 @@ class TalkingHeadBase(pl.LightningModule):
 
     def extract_gt_features(self, sample: Dict, train=False, **kwargs): 
         if 'video_emotion_loss' in self.neural_losses.keys():
+            if "gt_emotion_video_logits" in sample.keys(): # this means it was passed as condition and therefore we should not extrac it
+                return sample 
             if "gt_emotion_video_features" not in sample.keys():
                 for method in self.cfg.data.reconstruction_type:
                     sample["reconstruction"][method]["gt_emotion_video_features"] = {}
