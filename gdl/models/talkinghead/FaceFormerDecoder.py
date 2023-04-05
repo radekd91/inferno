@@ -547,10 +547,12 @@ class FeedForwardDecoder(nn.Module):
         return hidden_states
 
     def _style_dim_factor(self): 
-        if self.obj_vector is None or self.style_op == "add":
+        if self.obj_vector is None: 
             return 1
         elif self.style_op == "cat":
             return 2
+        elif self.style_op in ["add", "none", "style_only"]:
+            return 1
         raise ValueError(f"Invalid operation: '{self.style_op}'")
        
     def _pe_dim_factor(self):
@@ -578,6 +580,10 @@ class FeedForwardDecoder(nn.Module):
             styled_hidden_states = hidden_states + style_emb
         elif self.style_op == "cat":
             styled_hidden_states = torch.cat([hidden_states, style_emb], dim=-1)
+        elif self.style_op == "none": # no style, for debugging purposes only
+            styled_hidden_states = hidden_states
+        elif self.style_op == "style_only": # no hidden features, only style. for debugging purposes only
+            styled_hidden_states = style_emb
         else: 
             raise ValueError(f"Invalid operation: '{self.style_op}'")
         
