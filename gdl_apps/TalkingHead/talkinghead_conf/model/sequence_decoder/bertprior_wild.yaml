@@ -103,8 +103,8 @@ style_embedding:
   use_shape: true
 
   type: emotion_linear 
-  # use_video_expression: true
-  use_video_feature: false
+  use_video_expression: true
+  # use_video_feature: false
   # use_video_feature: true
   # n_vid_expression_feature: 512 # needs to be changed based on the emotion feature
 
