@@ -38,7 +38,7 @@ metrics:
     # network_path: /is/cluster/work/rdanecek/video_emotion_recognition/trainings/2023_01_09_12-42-15_7763968562013076567_VideoEmotionClassifier_MEADP_TSC_PE_Lnce
 
     # mead, identity split, transformer 1, alibi, 128 dim
-    network_path: /is/cluster/work/rdanecek/video_emotion_recognition/trainings/2023_02_20_15-33-33_6438932288293748658_VideoEmotionClassifier_MEADP__TSC_NPE_Lnce
+    # network_path: /is/cluster/work/rdanecek/video_emotion_recognition/trainings/2023_02_20_15-33-33_6438932288293748658_VideoEmotionClassifier_MEADP__TSC_NPE_Lnce
 
     # # mead, identity split, transformer 1, alibi, 64 dim
     # network_path: /is/cluster/work/rdanecek/video_emotion_recognition/trainings/2023_02_20_15-33-16_-7404140082760850826_VideoEmotionClassifier_MEADP__TSC_NPE_Lnce
