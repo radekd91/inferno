@@ -103,16 +103,18 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             video_index = index // len(self.condition_settings)
             expression_index = index % len(self.condition_settings)
             sample = self.dataset[video_index]
-            sample[self.condition_prefix + "gt_expression_label"] = torch.nn.functional.one_hot(torch.tensor(expression_index), len(self.condition_settings)).to(torch.float32)
+            # sample[self.condition_prefix + "expression_label"] = torch.nn.functional.one_hot(torch.tensor(expression_index), len(self.condition_settings)).to(torch.float32)
+            sample[self.condition_prefix + "expression_label"] = torch.tensor(expression_index)
             if self.condition_source == "gt_expression_intensity":
                 intensity = 2
-                sample[self.condition_prefix + "gt_expression_intensity"] = torch.nn.functional.one_hot(torch.tensor(intensity), 3).to(torch.float32)
+                sample[self.condition_prefix + "expression_intensity"] = torch.nn.functional.one_hot(torch.tensor(intensity), 3).to(torch.float32)
             sample["condition_name"] = AffectNetExpressions(expression_index).name
             # hack for when the conditioning comes from a video emotion net during training and hence needs to be inserted for conditioned generation here
             sample["gt_emotion_video_logits"] = {}
             cam = "front" # ugly hack
             sample["gt_emotion_video_logits"][cam] = {}
-            sample["gt_emotion_video_logits"] = sample[self.condition_prefix + "gt_expression_label"].clone()
+            sample["gt_emotion_video_logits"] = sample[self.condition_prefix + "expression_label"].clone()
+            sample["gt_expression_label"] = sample[self.condition_prefix + "expression_label"].clone()
             if self.condition_source == "gt_expression_intensity":
                 sample["condition_name"] += f"_int_{intensity}"
         elif self.condition_source == "valence_arousal":
