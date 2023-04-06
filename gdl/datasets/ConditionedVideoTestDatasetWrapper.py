@@ -165,6 +165,9 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
                 if self.condition_prefix +   "arousal" in sample:
                     sample[self.condition_prefix + "arousal"] = sample[self.condition_prefix + "arousal"][None, ...].repeat(T, 1)
             # TODO: expression intensity 
+            elif self.condition_source == "gt_expression":
+                if self.condition_prefix + "gt_expression_label" in sample:
+                    sample[self.condition_prefix + "gt_expression_label"] = sample[self.condition_prefix + "gt_expression_label"][None, ...].repeat(T, 1)
             elif self.condition_source == "gt_expression_intensity":
                 if self.condition_prefix + "gt_expression_label" in sample:
                     sample[self.condition_prefix + "gt_expression_label"] = sample[self.condition_prefix + "gt_expression_label"][None, ...].repeat(T, 1)
