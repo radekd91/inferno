@@ -97,7 +97,7 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             sample["gt_emotion_video_logits"] = {}
             cam = "front" # ugly hack
             sample["gt_emotion_video_logits"][cam] = {}
-            sample["gt_emotion_video_logits"][cam] = sample[self.condition_prefix + "expression"].clone() 
+            sample["gt_emotion_video_logits"][cam] = - (1.-sample[self.condition_prefix + "expression"].clone()) * 99
             sample["condition_name"] = AffectNetExpressions(expression_index).name
         elif self.condition_source in ["gt_expression", "gt_expression_intensity"]:
             video_index = index // len(self.condition_settings)
