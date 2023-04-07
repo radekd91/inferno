@@ -1103,7 +1103,7 @@ class BertPriorDecoder(FeedForwardDecoder):
         B, T = decoded_offsets.shape[:2]
         decoded_offsets = decoded_offsets.view(B*T, -1)
         ## INSANE BUG WARNING (passing in styled_hidden_states instead of decoded_offsets)
-        if self.post_bug_fix:
+        if not self.post_bug_fix:
             decoded_offsets = self.decoder(styled_hidden_states)
         ## END INSANE BUG WARNING
         ## BUG FIX
