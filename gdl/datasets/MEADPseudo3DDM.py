@@ -52,6 +52,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 average_shape_decode= True,
                 emotion_type=None,
                 return_emotion_feature=False,
+                shuffle_validation=False,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, face_detector, 
             landmarks_from, 
@@ -81,6 +82,7 @@ class MEADPseudo3DDM(MEADDataModule):
             segmentation_source=segmentation_source,
             read_video=read_video,
             read_audio=read_audio,
+            shuffle_validation=shuffle_validation,
             )
         self.test_condition_source = test_condition_source or "original"
         self.test_condition_settings = test_condition_settings

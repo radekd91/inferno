@@ -394,7 +394,7 @@ class FaceFormer(TalkingHeadBase):
                 mask_ = mask[:B_orig, ...]
                 
                 if "gt_emotion_video_features" in sample.keys():
-                    gt_emo_feature = sample["gt_emotion_video_features"][cam_name][:B_orig]
+                    gt_emo_feature = sample["gt_emotion_video_features"][cam_name][:B_orig][condition_indices_1]
                     predicted_emo_feature = self.neural_losses.video_emotion_loss._forward_output(pred_vid,  mask=mask_)
                     loss_values[cam_name] = self.neural_losses.video_emotion_loss._compute_feature_loss(gt_emo_feature, predicted_emo_feature)
 

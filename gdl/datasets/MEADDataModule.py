@@ -78,6 +78,7 @@ class MEADDataModule(FaceVideoDataModule):
             viewing_angles=None,
             read_video=True,
             read_audio=True,
+            shuffle_validation=False,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, 
@@ -119,6 +120,7 @@ class MEADDataModule(FaceVideoDataModule):
         self.augmentation = augmentation
 
         self.training_sampler = training_sampler.lower()
+        self.shuffle_validation = shuffle_validation
         self.annotation_json_path = None # Path(root_dir).parent / "celebvhq_info.json" 
         ## assert self.annotation_json_path.is_file()
 
@@ -714,7 +716,10 @@ class MEADDataModule(FaceVideoDataModule):
         return dl
 
     def val_dataloader(self):
-        dl = DataLoader(self.validation_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
+        dl = DataLoader(self.validation_set, 
+                        # shuffle=False, 
+                        shuffle=self.shuffle_validation, 
+                        num_workers=self.num_workers, pin_memory=True,
                           batch_size=self.batch_size_val, 
                         #   drop_last=self.drop_last
                           drop_last=False, 

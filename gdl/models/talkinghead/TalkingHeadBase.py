@@ -229,7 +229,7 @@ class TalkingHeadBase(pl.LightningModule):
         
         B, T = sample["audio_feature"].shape[:2]
 
-        sample_shape = self.cfg.model.sequence_decoder.style_embedding.use_shape
+        condition_shape = self.cfg.model.sequence_decoder.style_embedding.use_shape
         num_shape = self.cfg.model.sequence_decoder.flame.n_shape
         condition_video_expression = self.cfg.model.sequence_decoder.style_embedding.get('use_video_expression', False)
         condition_gt_video_feature = self.cfg.model.sequence_decoder.style_embedding.get('use_video_feature', False)
@@ -246,7 +246,7 @@ class TalkingHeadBase(pl.LightningModule):
 
             conditions = {}
 
-            if sample_shape: 
+            if condition_shape: 
                 if not hasattr(self, "_shape_distribution"):
                     self._shape_distribution =torch.distributions.Normal(loc=torch.zeros(num_shape, device=self.device), scale=torch.ones(num_shape, device=self.device))
                 shape_cond = self._shape_distribution.sample((B,))
@@ -313,8 +313,12 @@ class TalkingHeadBase(pl.LightningModule):
             # assert B == 2, f"Batch size must be 2 for disentangle_type '{disentangle_type}'" 
 
             keys_to_exchange = [] 
-            if sample_shape:
-                keys_to_exchange += ["gt_shape"]
+            if condition_shape:
+                keys_to_exchange += ["gt_shape"] 
+                keys_to_exchange += ["template"]
+                keys_to_exchange += ["gt_albedo"]
+                keys_to_exchange += ["gt_tex"]
+                keys_to_exchange += ["gt_light"]
             if condition_video_expression: 
                 keys_to_exchange += ["gt_emotion_video_logits"]
                 if "gt_emotion_video_features" not in keys_to_exchange:

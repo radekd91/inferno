@@ -229,6 +229,7 @@ def create_single_dm(cfg, data_class):
 
                 emotion_type=cfg.data.get('emotion_type', None),
                 return_emotion_feature=cfg.data.get('return_emotion_feature', None),
+                shuffle_validation=cfg.model.get('disentangle_type', False) == 'condition_exchange',
         )
         dataset_name = "MEAD"
     else:
