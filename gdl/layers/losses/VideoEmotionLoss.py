@@ -201,4 +201,8 @@ class VideoEmotionRecognitionLoss(torch.nn.Module):
 
     def _compute_feature_loss(self, input_emotion_feat, output_emotion_feat):
         loss = self.metric(input_emotion_feat, output_emotion_feat)
+        # for i in range(input_emotion_feat.shape[0]):
+        #     print("In:\t", input_emotion_feat[i:i+1,:5]) 
+        #     print("Out:\t", output_emotion_feat[i:i+1,:5]) 
+        #     print(self.metric(input_emotion_feat[i:i+1], output_emotion_feat[i:i+1]))
         return loss

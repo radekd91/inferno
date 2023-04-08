@@ -207,10 +207,10 @@ class FaceFormer(TalkingHeadBase):
                     target_dict = sample
                 else: 
                     target_dict = sample["reconstruction"][target_method]
-                # gt video of the non-exchanged part of the batch -> [:B_eff]
-                gt_vid = target_dict["gt_video"][cam_name][:B_orig].view(B_orig*T, *rest)
-                # predicted video of the exchanged part of the batch -> [B_eff:]
-                pred_vid = sample["predicted_video"][cam_name][B_orig:].view(B_orig*T, *rest) 
+                # # gt video of the non-exchanged part of the batch -> [:B_eff]
+                # gt_vid = target_dict["gt_video"][cam_name][:B_orig].view(B_orig*T, *rest)
+                # # predicted video of the exchanged part of the batch -> [B_eff:]
+                # pred_vid = sample["predicted_video"][cam_name][B_orig:].view(B_orig*T, *rest) 
                 
                 condition_indices_1 = sample["condition_indices"][:B_orig]
                 condition_indices_2 = sample["condition_indices"][B_orig:]
@@ -220,8 +220,10 @@ class FaceFormer(TalkingHeadBase):
                 assert ( condition_indices_1 == condition_indices_2).sum() == 0,  "Disentanglement exchange not done correctly"
                 assert ( condition_indices_2 != input_indices_1[condition_indices_2]).sum() == 0, "Disentanglement exchange not done correctly"
 
-                gt_vid = target_dict["gt_video"][cam_name][:B_orig][condition_indices_1].view(B_orig*T, *rest)
-                pred_vid = sample["predicted_video"][cam_name][B_orig:][condition_indices_2].view(B_orig*T, *rest) 
+                # gt_vid = target_dict["gt_video"][cam_name][:B_orig][condition_indices_1].view(B_orig*T, *rest)
+                # pred_vid = sample["predicted_video"][cam_name][B_orig:][condition_indices_2].view(B_orig*T, *rest) 
+                gt_vid = target_dict["gt_video"][cam_name][:B_orig][condition_indices_2].view(B_orig*T, *rest)
+                pred_vid = sample["predicted_video"][cam_name][B_orig:].view(B_orig*T, *rest) 
                 mask_ = mask[:B_orig, ..., 0].view(B_orig*T)
                 _, emo_feat_loss_2, valence_loss, arousal_loss, expression_loss, _ = \
                     self.neural_losses.emotion_loss.compute_loss(gt_vid, pred_vid, mask=mask_)   
@@ -316,7 +318,8 @@ class FaceFormer(TalkingHeadBase):
                 # loss_value = torch.stack(loss_values).mean()
 
                 gt_vid = target_dict["gt_mouth_video"][cam_name][:B_orig]
-                pred_vid = sample["predicted_mouth_video"][cam_name][B_orig + input_indices_2]
+                # pred_vid = sample["predicted_mouth_video"][cam_name][B_orig + input_indices_2]
+                pred_vid = sample["predicted_mouth_video"][cam_name][B_orig:]
                 loss_values[cam_name] = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask_)
         
             loss_value = sum(loss_values.values()) / len(loss_values)
@@ -335,17 +338,19 @@ class FaceFormer(TalkingHeadBase):
                 else: 
                     target_dict = sample["reconstruction"][target_method]
 
-                gt_vid = target_dict["gt_video"][cam_name][:B_eff]
+                # gt_vid = target_dict["gt_video"][cam_name][:B_eff]
                 pred_vid = sample["predicted_video"][cam_name][:B_eff]
                 # loss_value = self.neural_losses.video_emotion_loss.compute_loss(
                 #     input_images=gt_vid, output_images=pred_vid,  mask=mask
                 #     )
                 gt_emo_feature = sample["gt_emo_feature"][:B_eff]
                 
-                mask_ = mask[:B_eff, ...]
+                # mask_ = mask[:B_eff, ...]
+                mask_ = None
                 if "gt_emotion_video_features" in sample.keys():
                     gt_emo_feature = sample["gt_emotion_video_features"][cam_name][:B_eff]
                     predicted_emo_feature = self.neural_losses.video_emotion_loss._forward_output(pred_vid, mask=mask_)
+                    # print("Emovideo loss:")
                     loss_values[cam_name] = self.neural_losses.video_emotion_loss._compute_feature_loss(gt_emo_feature, predicted_emo_feature)
                 
                 else:
@@ -382,23 +387,37 @@ class FaceFormer(TalkingHeadBase):
                 assert ( condition_indices_2 != input_indices_1[condition_indices_2]).sum() == 0, "Disentanglement exchange not done correctly"
 
                 # gt video of the original part of the batch -> [:B_orig]
-                gt_vid = target_dict["gt_video"][cam_name][:B_orig][condition_indices_1] #.view(B_orig*T, *rest)
+                ## THE NEXT LINE IS BUGGY FOR BATCH SIZES > 2
+                # gt_vid = target_dict["gt_video"][cam_name][:B_orig][condition_indices_1] #.view(B_orig*T, *rest)
+                ## THE NEXT LINE IS A FIX FOR BATCH SIZES > 2 BUT NEEDS TO BE TESTED
+                # gt_vid = target_dict["gt_video"][cam_name][:B_orig][condition_indices_2] #.view(B_orig*T, *rest)
+                
                 # predicted video of the exchanged part of the batch -> [B_orig:]
-                pred_vid = sample["predicted_video"][cam_name][B_orig:][condition_indices_2] #.view(B_orig*T, *rest) 
+                ## THE NEXT LINE IS BUGGY FOR BATCH SIZES > 2
+                # pred_vid = sample["predicted_video"][cam_name][B_orig:][condition_indices_2] #.view(B_orig*T, *rest) 
+                ## THE NEXT LINE IS A FIX FOR BATCH SIZES > 2 BUT NEEDS TO BE TESTED
+                pred_vid = sample["predicted_video"][cam_name][B_orig:] 
                 mask_ = mask[:B_orig, ..., 0] #.view(B_orig*T)
                 # emotion feature of the original part of the batch -> [:B_orig]
-                gt_emo_feature = sample["gt_emo_feature"][:B_orig][condition_indices_1]
                 # loss_value = self.neural_losses.video_emotion_loss.compute_loss(
                 #     input_images=gt_vid, output_images=pred_vid,  mask=mask
                 #     )
-                mask_ = mask[:B_orig, ...]
-                
-                if "gt_emotion_video_features" in sample.keys():
-                    gt_emo_feature = sample["gt_emotion_video_features"][cam_name][:B_orig][condition_indices_1]
-                    predicted_emo_feature = self.neural_losses.video_emotion_loss._forward_output(pred_vid,  mask=mask_)
-                    loss_values[cam_name] = self.neural_losses.video_emotion_loss._compute_feature_loss(gt_emo_feature, predicted_emo_feature)
+                # mask_ = mask[:B_orig, ...]
+                mask_ = None
 
+                if "gt_emotion_video_features" in sample.keys():
+                    ## THE NEXT LINE IS BUGGY FOR BATCH SIZES > 2
+                    # gt_emo_feature = sample["gt_emotion_video_features"][cam_name][:B_orig][condition_indices_1]
+                    ## THE NEXT LINE IS A FIX FOR BATCH SIZES > 2 BUT NEEDS TO BE TESTED
+                    gt_emo_feature = sample["gt_emotion_video_features"][cam_name][:B_orig][condition_indices_2]
+                    predicted_emo_feature = self.neural_losses.video_emotion_loss._forward_output(pred_vid,  mask=mask_)
+                    # print("Emovideo loss disentangled:")
+                    loss_values[cam_name] = self.neural_losses.video_emotion_loss._compute_feature_loss(gt_emo_feature, predicted_emo_feature)
                 else:
+                    ## THE NEXT LINE IS BUGGY FOR BATCH SIZES > 2
+                    # gt_emo_feature = sample["gt_emo_feature"][:B_orig][condition_indices_1]
+                    ## THE NEXT LINE IS A FIX FOR BATCH SIZES > 2 BUT NEEDS TO BE TESTED
+                    gt_emo_feature = sample["gt_emo_feature"][:B_orig][condition_indices_2]
                     loss_values[cam_name]  = self.neural_losses.video_emotion_loss.compute_loss(
                         input_emotion_features=gt_emo_feature, output_images=pred_vid,  mask=mask_
                         )
