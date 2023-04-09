@@ -3318,11 +3318,16 @@ class EMICA(ExpDECA):
         self.E_mica.testing = True
 
         # preprocessing for MICA
-        if self.config.mica_preprocessing:
+        mica_preprocessing_type = self.config.get('mica_preprocessing', False)
+        if mica_preprocessing_type is True or mica_preprocessing_type == 'default':
             from insightface.app import FaceAnalysis
             self.app = FaceAnalysis(name='antelopev2', providers=['CUDAExecutionProvider'])
             self.app.prepare(ctx_id=0, det_size=(224, 224))
-
+        elif mica_preprocessing_type == 'ported_insightface':
+            from .mica.FaceAnalysisAppTorch import FaceAnalysis as FaceAnalysisTorch
+            self.app = FaceAnalysisTorch(name='antelopev2')
+            self.app.prepare(det_size=(224, 224))
+        # elif mica_preprocessing_type == False or mica_preprocessing_type == 'none':
 
     def _get_num_shape_params(self):
         if self.use_mica_shape_dim:
@@ -3338,13 +3343,23 @@ class EMICA(ExpDECA):
         super().train(mode)
         self.E_mica.train(False) # MICA is pretrained and will be set to EVAL at all times 
 
+    def to(self, *args, **kwargs):
+        super().to(*args, **kwargs)
+        from .mica.FaceAnalysisAppTorch import FaceAnalysis as FaceAnalysisTorch
+        if isinstance(self.app, FaceAnalysisTorch):
+            self.app.det_model.to(*args, **kwargs)
+
 
     def _encode_flame(self, images):
         
-        if self.config.mica_preprocessing:
+        if self.config.mica_preprocessing in [True,  'default']:
             mica_image = self._dirty_image_preprocessing(images)
-        else: 
+        elif self.config.mica_preprocessing == 'ported_insightface':
+            mica_image = self._dirty_image_preprocessing(images)
+        elif self.config.mica_preprocessing in [False, 'none']: 
             mica_image = F.interpolate(images, (112,112), mode='bilinear', align_corners=False)
+        else: 
+            raise ValueError(f"Invalid mica_preprocessing option: '{self.config.mica_preprocessing}'")
 
         deca_code, exp_deca_code = super()._encode_flame(images)
         mica_code = self.E_mica.encode(images, mica_image) 

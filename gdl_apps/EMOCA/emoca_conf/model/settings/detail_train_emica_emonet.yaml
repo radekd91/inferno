@@ -7,7 +7,9 @@ expression_backbone: deca_clone
 #expression_backbone: emonet_static
 
 mica_model_path: 'assets/MICA/model/mica.tar'
-mica_preprocessing: False
+# mica_preprocessing: none
+mica_preprocessing: ported_insightface
+# mica_preprocessing: default
 
 exp_deca_global_pose: False
 #exp_deca_global_pose: True

@@ -7,7 +7,9 @@ expression_backbone: deca_clone
 #expression_backbone: emonet_static
 
 mica_model_path: 'assets/MICA/model/mica.tar'
-mica_preprocessing: False
+# mica_preprocessing: none
+mica_preprocessing: ported_insightface
+# mica_preprocessing: default
 
 max_epochs: 3
 #max_epochs: 2 TODO: it seems 2 or maybe even less, like 1.5 is more than enough, verify this and then change the default
