@@ -1,8 +1,11 @@
 # @package model
 type: BertPriorDecoder 
 num_layers: 1
+# num_layers: 4
 feature_dim: 64
+# feature_dim: 128
 nhead: 4
+# nhead: 8
 dropout: 0.25
 # activation: relu
 activation: gelu
@@ -100,45 +103,17 @@ post_bug_fix: True
 #   use_bias: true
 
 
-# video expression
-style_embedding: 
-
-  # use_shape: false
-  use_shape: true
-
-  type: emotion_linear 
-  use_video_expression: true
-  # use_video_feature: false
-  # use_video_feature: true
-  # n_vid_expression_feature: 512 # needs to be changed based on the emotion feature
-
-  # use_expression: true
-  use_expression: false
-  n_expression: 8 # affectnet 
-  # n_expression: 8 # ravdess
-  # n_expression: 4 # iemocap
-#   use_valence: true
-#   use_arousal: true
-  use_valence: false
-  use_arousal: false
-  use_emotion_feature: false
-#   num_features: 2048 
-  use_bias: true
-
-
-# # ## MEAD video expression
+# # video expression
 # style_embedding: 
 
 #   # use_shape: false
 #   use_shape: true
 
 #   type: emotion_linear 
-#   use_video_expression: false 
-
-#   gt_expression_label: True
-#   gt_expression_intensity: True
-#   # gt_expression_intensity: False
-#   n_intensities: 3
+#   use_video_expression: true
+#   # # use_video_feature: false
+#   # use_video_feature: true
+#   # n_vid_expression_feature: 512 # needs to be changed based on the emotion feature
 
 #   # use_expression: true
 #   use_expression: false
@@ -152,6 +127,34 @@ style_embedding:
 #   use_emotion_feature: false
 # #   num_features: 2048 
 #   use_bias: true
+
+
+# # # ## MEAD video expression
+style_embedding: 
+
+  # use_shape: false
+  use_shape: true
+
+  type: emotion_linear 
+  use_video_expression: false 
+
+  gt_expression_label: True
+  # gt_expression_intensity: True
+  gt_expression_intensity: False
+  n_intensities: 3
+
+  # use_expression: true
+  use_expression: false
+  n_expression: 8 # affectnet 
+  # n_expression: 8 # ravdess
+  # n_expression: 4 # iemocap
+#   use_valence: true
+#   use_arousal: true
+  use_valence: false
+  use_arousal: false
+  use_emotion_feature: false
+#   num_features: 2048 
+  use_bias: true
 
 
 # ## expression

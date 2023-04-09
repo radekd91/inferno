@@ -1,3 +1,4 @@
 # @package model 
 type: linear
 feature_dim: 64 
+# feature_dim: 128 
