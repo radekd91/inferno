@@ -28,7 +28,7 @@ class MicaEmocaModule(LightningModule):
         self.deca = deca_class(config=model_params)
 
 
-class EMICA(ExpDECA): 
+class ExpMICA(ExpDECA): 
 
     def __init__(self, config):
         super().__init__(config)

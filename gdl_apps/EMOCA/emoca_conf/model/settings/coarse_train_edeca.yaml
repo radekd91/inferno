@@ -34,8 +34,8 @@ lmk_weight: 1
 lmk_weight_mp: 1.
 #eyed: 1.0
 #lipd: 0.1
-eyed: 0.0 # do not use old eyes
-lipd: 0.0 # do noto use old lips
+eyed: 0.5 # 
+lipd: 0.5 # 
 eyed_mp: 0.5
 lipd_mp: 0.5
 #idw: 0.15 # from Yao's code

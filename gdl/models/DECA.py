@@ -3482,9 +3482,9 @@ def _emica_create_model(self):
 
 
 def _emica_get_num_shape_params(self):
-        if self.use_mica_shape_dim:
-            return self.mica_cfg.model.n_shape
-        return self.config.n_shape
+    if self.use_mica_shape_dim:
+        return self.mica_cfg.model.n_shape
+    return self.config.n_shape
 
 class MICAInterface(object):
     
@@ -3538,23 +3538,6 @@ class EDECA(DECA, MICAInterface):
     def to(self, *args, **kwargs):
         DECA.to(self,*args, **kwargs)
         MICAInterface.to(self, *args, **kwargs)
-        # self.mica_preprocessor.to(*args, **kwargs)
-
-    # def decompose_code(self, code): 
-    #     deca_code = code[0]
-    #     expdeca_code = code[1]
-    #     mica_code = code[2]
-
-    #     code_list, _ = super().decompose_code((deca_code, expdeca_code), )
-
-    #     id_idx = 0 # identity is the first part of the vector
-    #     # assert self.config.n_shape == mica_code.shape[-1]
-    #     # assert code_list[id_idx].shape[-1] == mica_code.shape[-1]
-    #     if self.use_mica_shape_dim:
-    #         code_list[id_idx] = mica_code
-    #     else: 
-    #         code_list[id_idx] = mica_code[..., :self.config.n_shape] 
-    #     return code_list, _
 
     def _encode_flame(self, images, mica_images=None, **kwargs):
         deca_code = DECA._encode_flame(self, images, **kwargs)
@@ -3564,7 +3547,7 @@ class EDECA(DECA, MICAInterface):
         return code
 
 
-class EMICA(ExpDECA): 
+class ExpMICA(ExpDECA): 
     """
     EMOCA with MICA for shape predictions (first version of MICA+EMOCA). 
     DECA is not meant to be finetuned (and so the pose and rotation are probably not optimally accurate). 
@@ -3572,37 +3555,9 @@ class EMICA(ExpDECA):
 
     def __init__(self, config):
         _emica_init(self, config)
-        # self.use_mica_shape_dim = True
-        # # self.use_mica_shape_dim = False
-        # from .mica.config import get_cfg_defaults
-        # self.mica_cfg = get_cfg_defaults()
-        # super().__init__(config)
   
     def _create_model(self):
-        # 1) Initialize DECA
         _emica_create_model(self)
-        # super()._create_model()
-        # from .mica.mica import MICA
-        # from .mica.MicaInputProcessing import MicaInputProcessor
-        # #TODO: MICA uses FLAME  
-        # # 1) This is redundant - get rid of it 
-        # # 2) Make sure it's the same FLAME as EMOCA
-        # if Path(self.config.mica_model_path).exists(): 
-        #     mica_path = self.config.mica_model_path 
-        # else:
-        #     from gdl.utils.other import get_path_to_assets
-        #     mica_path = get_path_to_assets() / self.config.mica_model_path  
-        #     assert mica_path.exists(), f"MICA model path does not exist: '{mica_path}'"
-
-        # self.mica_cfg.pretrained_model_path = str(mica_path)
-        # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        # self.E_mica = MICA(self.mica_cfg, device, str(mica_path), instantiate_flame=False)
-        # # E_mica should be fixed 
-        # self.E_mica.requires_grad_(False)
-        # self.E_mica.testing = True
-
-        # # preprocessing for MICA
-        # self.mica_preprocessor = MicaInputProcessor(self.config.get('mica_preprocessing', False))
 
     def _get_num_shape_params(self):
         if self.use_mica_shape_dim:
@@ -3647,7 +3602,7 @@ class EMICA(ExpDECA):
         return code_list, deca_code_list_copy
 
 
-class EMICA_v2(EDECA, ExpDECAInterface):
+class EMICA(EDECA, ExpDECAInterface):
 
     def __init__(self, config):
         EDECA.__init__(self, config)  # explicit calls without super
