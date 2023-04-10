@@ -21,7 +21,7 @@ import torch
 import torch.nn.functional as F
 # Needed dependency
 # pip install -U insightface
-from insightface.utils import face_align
+# from insightface.utils import face_align
 from loguru import logger
 from torch import nn
 
