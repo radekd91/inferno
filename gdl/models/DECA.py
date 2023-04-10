@@ -367,15 +367,15 @@ class DecaModule(LightningModule):
         return {'shape': shapecode, 'tex': texcode, 'exp': expcode, 'pose': posecode, 'cam': cam, 'light': lightcode}
         # return shapecode, texcode, expcode, posecode, cam, lightcode
 
-    def _encode_flame(self, images):
+    def _encode_flame(self, images, **kwargs):
         if self.mode == DecaMode.COARSE or \
                 (self.mode == DecaMode.DETAIL and self.deca.config.train_coarse):
             # forward pass with gradients (for coarse stage (used), or detail stage with coarse training (not used))
-            parameters = self.deca._encode_flame(images)
+            parameters = self.deca._encode_flame(images, **kwargs)
         elif self.mode == DecaMode.DETAIL:
             # in detail stage, the coarse forward pass does not need gradients
             with torch.no_grad():
-                parameters = self.deca._encode_flame(images)
+                parameters = self.deca._encode_flame(images, **kwargs)
         else:
             raise ValueError(f"Invalid EMOCA Mode {self.mode}")
         code_list, original_code = self.deca.decompose_code(parameters)
@@ -386,7 +386,8 @@ class DecaModule(LightningModule):
     def _expression_ring_exchange(self, original_batch_size, K,
                                   expcode, posecode, shapecode, lightcode, texcode,
                                   images, cam, lmk, masks, va, expr7, affectnetexp,
-                                  detailcode=None, detailemocode=None, exprw=None, lmk_mp=None):
+                                  detailcode=None, detailemocode=None, exprw=None, lmk_mp=None, 
+                                  mica_images=None):
         """
         Deprecated. Expression ring exchange is not used in EMOCA (nor DECA).
         """
@@ -426,6 +427,8 @@ class DecaModule(LightningModule):
         ## append gt
         images = torch.cat([images, images],
                            dim=0)  # images = images.view(-1, images.shape[-3], images.shape[-2], images.shape[-1])
+        if mica_images is not None:
+            mica_images = torch.cat([mica_images, mica_images], dim=0)
         lmk = torch.cat([lmk, lmk], dim=0)  # lmk = lmk.view(-1, lmk.shape[-2], lmk.shape[-1])
         if lmk_mp is not None:
             lmk_mp = torch.cat([lmk_mp, lmk_mp], dim=0)
@@ -461,7 +464,7 @@ class DecaModule(LightningModule):
             detailemocode = torch.cat([detailemocode, detailemocode[new_order]], dim=0)
 
         return expcode, posecode, shapecode, lightcode, texcode, images, cam, lmk, masks, va, expr7, affectnetexp, \
-               detailcode, detailemocode, exprw, lmk_mp
+               detailcode, detailemocode, exprw, lmk_mp, mica_images
 
         # return expcode, posecode, shapecode, lightcode, texcode, images, cam, lmk, masks, va, expr7
 
@@ -478,6 +481,10 @@ class DecaModule(LightningModule):
         original_batch_size = batch['image'].shape[0]
 
         images = batch['image']
+        if 'mica_images' in batch.keys():
+            mica_images = batch['mica_images']
+        else:
+            mica_images = None
 
         if len(images.shape) == 5:
             K = images.shape[1]
@@ -488,6 +495,8 @@ class DecaModule(LightningModule):
 
         # [B, K, 3, size, size] ==> [BxK, 3, size, size]
         images = images.view(-1, images.shape[-3], images.shape[-2], images.shape[-1])
+        if mica_images is not None:
+            mica_images = mica_images.view(-1, mica_images.shape[-3], mica_images.shape[-2], mica_images.shape[-1])
 
         if 'landmark' in batch.keys():
             lmk = batch['landmark']
@@ -535,7 +544,7 @@ class DecaModule(LightningModule):
         # 1) COARSE STAGE
         # forward pass of the coarse encoder
         # shapecode, texcode, expcode, posecode, cam, lightcode = self._encode_flame(images)
-        code, original_code = self._encode_flame(images)
+        code, original_code = self._encode_flame(images, mica_image=mica_images)
         shapecode, texcode, expcode, posecode, cam, lightcode = self._unwrap_list(code)
         if original_code is not None:
             original_code = self._unwrap_list_to_dict(original_code)
@@ -586,6 +595,8 @@ class DecaModule(LightningModule):
                     ## append gt
                     images = torch.cat([images, images],
                                        dim=0)  # images = images.view(-1, images.shape[-3], images.shape[-2], images.shape[-1])
+                    if mica_images is not None:
+                        mica_images = torch.cat([mica_images, mica_images], dim=0)
                     lmk = torch.cat([lmk, lmk], dim=0)  # lmk = lmk.view(-1, lmk.shape[-2], lmk.shape[-1])
                     if lmk_mp is not None:
                         lmk_mp = torch.cat([lmk_mp, lmk_mp], dim=0)
@@ -635,6 +646,8 @@ class DecaModule(LightningModule):
                     ## duplicate gt if any
                     images = torch.cat([images, images],
                                        dim=0)  # images = images.view(-1, images.shape[-3], images.shape[-2], images.shape[-1])
+                    if mica_images is not None:
+                        mica_images = torch.cat([mica_images, mica_images], dim=0)
                     print(f"TRAINING: {training}")
                     if lmk is not None:
                         lmk = torch.cat([lmk, lmk], dim=0)  # lmk = lmk.view(-1, lmk.shape[-2], lmk.shape[-1])
@@ -682,6 +695,8 @@ class DecaModule(LightningModule):
                     ## append gt
                     images = torch.cat([images, images],
                                        dim=0)  # images = images.view(-1, images.shape[-3], images.shape[-2], images.shape[-1])
+                    if mica_images is not None:
+                        mica_images = torch.cat([mica_images, mica_images], dim=0)
                     if lmk is not None:
                         lmk = torch.cat([lmk, lmk], dim=0)  # lmk = lmk.view(-1, lmk.shape[-2], lmk.shape[-1])
                     masks = torch.cat([masks, masks], dim=0)
@@ -730,10 +745,11 @@ class DecaModule(LightningModule):
                 elif 'expression_constrain_type' in self.deca.config.keys() and \
                         self.deca.config.expression_constrain_type == 'exchange':
                     ## NOT USED IN EMOCA OR DECA, deprecated
-                    expcode, posecode, shapecode, lightcode, texcode, images, cam, lmk, masks, va, expr7, affectnetexp, _, _, exprw, lmk_mp = \
+                    expcode, posecode, shapecode, lightcode, texcode, images, cam, lmk, \
+                        masks, va, expr7, affectnetexp, _, _, exprw, lmk_mp, mica_images = \
                         self._expression_ring_exchange(original_batch_size, K,
                                   expcode, posecode, shapecode, lightcode, texcode,
-                                  images, cam, lmk, masks, va, expr7, affectnetexp, None, None, exprw, lmk_mp)
+                                  images, cam, lmk, masks, va, expr7, affectnetexp, None, None, exprw, lmk_mp, mica_images)
                     # (self, original_batch_size, K,
                     #                                   expcode, posecode, shapecode, lightcode, texcode,
                     #                                   images, cam, lmk, masks, va, expr7, affectnetexp,
@@ -778,6 +794,8 @@ class DecaModule(LightningModule):
                     ## append gt
                     images = torch.cat([images, images],
                                        dim=0)  # images = images.view(-1, images.shape[-3], images.shape[-2], images.shape[-1])
+                    if mica_images is not None:
+                        mica_images = torch.cat([mica_images, mica_images], dim=0)
                     lmk = torch.cat([lmk, lmk], dim=0)  # lmk = lmk.view(-1, lmk.shape[-2], lmk.shape[-1])
                     masks = torch.cat([masks, masks], dim=0)
 
@@ -819,6 +837,8 @@ class DecaModule(LightningModule):
                     ## duplicate gt if any
                     images = torch.cat([images, images],
                                        dim=0)  # images = images.view(-1, images.shape[-3], images.shape[-2], images.shape[-1])
+                    if mica_images is not None:
+                        mica_images = torch.cat([mica_images, mica_images], dim=0)
                     print(f"TRAINING: {training}")
                     if lmk is not None:
                         lmk = torch.cat([lmk, lmk], dim=0)  # lmk = lmk.view(-1, lmk.shape[-2], lmk.shape[-1])
@@ -858,6 +878,8 @@ class DecaModule(LightningModule):
                     ## append gt
                     images = torch.cat([images, images],
                                        dim=0)  # images = images.view(-1, images.shape[-3], images.shape[-2], images.shape[-1])
+                    if mica_images is not None:
+                        mica_images = torch.cat([mica_images, mica_images], dim=0)
                     if lmk is not None:
                         lmk = torch.cat([lmk, lmk], dim=0)  # lmk = lmk.view(-1, lmk.shape[-2], lmk.shape[-1])
                     masks = torch.cat([masks, masks], dim=0)
@@ -874,10 +896,10 @@ class DecaModule(LightningModule):
 
                 elif 'expression_constrain_type' in self.deca.config.keys() and \
                         self.deca.config.expression_constrain_type == 'exchange':
-                    expcode, posecode, shapecode, lightcode, texcode, images, cam, lmk, masks, va, expr7, affectnetexp, detailcode, detailemocode, exprw = \
+                    expcode, posecode, shapecode, lightcode, texcode, images, cam, lmk, masks, va, expr7, affectnetexp, detailcode, detailemocode, exprw, lmk_mp, mica_images = \
                         self._expression_ring_exchange(original_batch_size, K,
                                   expcode, posecode, shapecode, lightcode, texcode,
-                                  images, cam, lmk, masks, va, expr7, affectnetexp, detailcode, detailemocode, exprw)
+                                  images, cam, lmk, masks, va, expr7, affectnetexp, detailcode, detailemocode, exprw, lmk_mp, mica_images)
 
 
         codedict['shapecode'] = shapecode
@@ -890,6 +912,8 @@ class DecaModule(LightningModule):
             codedict['detailcode'] = detailcode
             codedict['detailemocode'] = detailemocode
         codedict['images'] = images
+        if mica_images is not None:
+            codedict['mica_images'] = mica_images
         if 'mask' in batch.keys():
             codedict['masks'] = masks
         if 'landmark' in batch.keys():
@@ -1771,7 +1795,7 @@ class DecaModule(LightningModule):
         return losses, metrics, codedict
 
 
-    def _compute_loss(self, codedict, batch, training=True, testing=False) -> (dict, dict):
+    def _compute_loss(self, codedict, batch, training=True, testing=False):
         #### ----------------------- Losses
         losses = {}
         metrics = {}
@@ -3025,7 +3049,7 @@ class DECA(torch.nn.Module):
             self.start_epoch = 0
             self.start_iter = 0
 
-    def _encode_flame(self, images):
+    def _encode_flame(self, images, **kwargs):
         return self.E_flame(images)
 
     def decompose_code(self, code):
@@ -3201,12 +3225,12 @@ class ExpDECA(DECA):
         elif self.config.exp_deca_global_pose or self.config.exp_deca_jaw_pose:
             self.n_exp_param += 3
 
-    def _encode_flame(self, images):
+    def _encode_flame(self, images, **kwargs):
         if self.config.expression_backbone == 'deca_parallel':
             #SecondHeadResnet does the forward pass for shape and expression at the same time
             return self.E_expression(images)
         # other regressors have to do a separate pass over the image
-        deca_code = super()._encode_flame(images)
+        deca_code = super()._encode_flame(images, **kwargs)
         exp_deca_code = self.E_expression(images)
         return deca_code, exp_deca_code
 
@@ -3300,6 +3324,7 @@ class EMICA(ExpDECA):
         # 1) Initialize DECA
         super()._create_model()
         from .mica.mica import MICA
+        from .mica.MicaInputProcessing import MicaInputProcessor
         #TODO: MICA uses FLAME  
         # 1) This is redundant - get rid of it 
         # 2) Make sure it's the same FLAME as EMOCA
@@ -3318,25 +3343,25 @@ class EMICA(ExpDECA):
         self.E_mica.testing = True
 
         # preprocessing for MICA
-        mica_preprocessing_type = self.config.get('mica_preprocessing', False)
-        if mica_preprocessing_type is True or mica_preprocessing_type == 'default':
-            from insightface.app import FaceAnalysis
-            self.app = FaceAnalysis(name='antelopev2', providers=['CUDAExecutionProvider'])
-            self.app.prepare(ctx_id=0, det_size=(224, 224))
-        elif mica_preprocessing_type == 'ported_insightface':
-            from .mica.FaceAnalysisAppTorch import FaceAnalysis as FaceAnalysisTorch
-            self.app = FaceAnalysisTorch(name='antelopev2')
-            self.app.prepare(det_size=(224, 224))
-        # elif mica_preprocessing_type == False or mica_preprocessing_type == 'none':
+
+        self.mica_preprocessor = MicaInputProcessor(self.config.get('mica_preprocessing', False))
+        # mica_preprocessing_type = self.config.get('mica_preprocessing', False)
+        # if mica_preprocessing_type is True or mica_preprocessing_type == 'default':
+        #     from insightface.app import FaceAnalysis
+        #     self.app = FaceAnalysis(name='antelopev2', providers=['CUDAExecutionProvider'])
+        #     self.app.prepare(ctx_id=0, det_size=(224, 224))
+        # elif mica_preprocessing_type == 'ported_insightface':
+        #     from .mica.FaceAnalysisAppTorch import FaceAnalysis as FaceAnalysisTorch
+        #     self.app = FaceAnalysisTorch(name='antelopev2')
+        #     self.app.prepare(det_size=(224, 224))
+        # # elif mica_preprocessing_type == False or mica_preprocessing_type == 'none':
 
     def _get_num_shape_params(self):
         if self.use_mica_shape_dim:
             return self.mica_cfg.model.n_shape
         return self.config.n_shape
-
-    def _get_coarse_trainable_parameters(self):
         # MICA is not trainable so we don't wanna add it 
-        return super()._get_coarse_trainable_parameters()
+        # return super()._get_coarse_trainable_parameters()
 
 
     def train(self, mode: bool = True):
@@ -3345,23 +3370,26 @@ class EMICA(ExpDECA):
 
     def to(self, *args, **kwargs):
         super().to(*args, **kwargs)
-        from .mica.FaceAnalysisAppTorch import FaceAnalysis as FaceAnalysisTorch
-        if isinstance(self.app, FaceAnalysisTorch):
-            self.app.det_model.to(*args, **kwargs)
+        self.mica_preprocessor.to(*args, **kwargs)
+        # from .mica.FaceAnalysisAppTorch import FaceAnalysis as FaceAnalysisTorch
+        # if isinstance(self.app, FaceAnalysisTorch):
+        #     self.app.det_model.to(*args, **kwargs)
 
+    def _encode_flame(self, images, mica_images=None, **kwargs):
+        if mica_images is None:
+            # if self.config.mica_preprocessing in [True,  'default']:
+            #     mica_image = self._dirty_image_preprocessing(images)
+            # elif self.config.mica_preprocessing == 'ported_insightface':
+            #     mica_image = self._dirty_image_preprocessing(images)
+            # elif self.config.mica_preprocessing in [False, 'none']: 
+            #     mica_image = F.interpolate(images, (112,112), mode='bilinear', align_corners=False)
+            # else: 
+            #     raise ValueError(f"Invalid mica_preprocessing option: '{self.config.mica_preprocessing}'")
+            mica_image = self.mica_preprocessor(images)
+        else:
+            mica_image = mica_images
 
-    def _encode_flame(self, images):
-        
-        if self.config.mica_preprocessing in [True,  'default']:
-            mica_image = self._dirty_image_preprocessing(images)
-        elif self.config.mica_preprocessing == 'ported_insightface':
-            mica_image = self._dirty_image_preprocessing(images)
-        elif self.config.mica_preprocessing in [False, 'none']: 
-            mica_image = F.interpolate(images, (112,112), mode='bilinear', align_corners=False)
-        else: 
-            raise ValueError(f"Invalid mica_preprocessing option: '{self.config.mica_preprocessing}'")
-
-        deca_code, exp_deca_code = super()._encode_flame(images)
+        deca_code, exp_deca_code = super()._encode_flame(images, **kwargs)
         mica_code = self.E_mica.encode(images, mica_image) 
         mica_code = self.E_mica.decode(mica_code, predict_vertices=False)
         return deca_code, exp_deca_code, mica_code['pred_shape_code']
