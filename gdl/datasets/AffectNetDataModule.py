@@ -1725,6 +1725,8 @@ if __name__ == "__main__":
             # dataset_type="AffectNetWithMGCNetPredictions",
             # dataset_type="AffectNetWithExpNetPredictions",
             train_batch_size=4,
+            val_batch_size=4,
+            test_batch_size=4,
             # mica_processing="none",
             mica_processing="ported_insightface"
             # mica_processing="default"
@@ -1734,16 +1736,18 @@ if __name__ == "__main__":
     dm.prepare_data()
     dm.setup()
     # # # dm._extract_emotion_features()
-    dltr = dm.train_dataloader()
-    # dlv = dm.val_dataloader()
+    # dltr = dm.train_dataloader()
+    dlv = dm.val_dataloader()
     # dlt = dm.test_dataloader()
 
-    dataset = dm.training_set
-    # dataset = dm.test_set
+    # dataset = dm.training_set
+    # dataset = dm.validation_set2
+    dataset = dm.test_set
 
-    # for i in range(50):
-    for i, sample in enumerate(dltr):
-        # sample = dataset[i]
+    for i in range(5):
+    # for i, sample in enumerate(dltr):
+    # for i, sample in enumerate(dlv):
+        sample = dataset[i]
         # sample = next(dltr)
         # if AffectNetExpressions(sample["affectnetexp"].item()) != AffectNetExpressions.Contempt:
         #     # print(AffectNetExpressions(sample["affectnetexp"].item()))
