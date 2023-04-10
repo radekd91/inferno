@@ -169,7 +169,7 @@ class DecaModule(LightningModule):
         """
         Initialize the emotion perceptual loss (used for EMOCA supervision)
         """
-        if 'emonet_weight' in self.deca.config.keys() and bool(self.deca.config.emonet_model_path):
+        if 'emonet_weight' in self.deca.config.keys() and bool(self.deca.config.get('emonet_model_path', False)):
             if self.emonet_loss is not None:
                 emoloss_force_override = True if 'emoloss_force_override' in self.deca.config.keys() and self.deca.config.emoloss_force_override else False
                 if self.emonet_loss.is_trainable():
@@ -3057,7 +3057,9 @@ class DECA(torch.nn.Module):
         config.n_shape + config.n_tex + config.n_exp + config.n_pose + config.n_cam + config.n_light
         '''
         code_list = []
-        num_list = [self.config.n_shape, self.config.n_tex, self.config.n_exp, self.config.n_pose, self.config.n_cam,
+        # num_list = [self.config.n_shape, self.config.n_tex, self.config.n_exp, self.config.n_pose, self.config.n_cam,
+        #             self.config.n_light]
+        num_list = [self._get_num_shape_params(), self.config.n_tex, self.config.n_exp, self.config.n_pose, self.config.n_cam,
                     self.config.n_light]
         start = 0
         for i in range(len(num_list)):
@@ -3178,10 +3180,146 @@ class DECA(torch.nn.Module):
 from gdl.models.EmoNetRegressor import EmoNetRegressor, EmonetRegressorStatic
 
 
+class ExpDECAInterface(object): 
+    """
+    This serves as an interface for EMOCA-like classes that need to use a different sub class but 
+    retain the EMOCA functionality. See EMICA_v2 for an example.
+    """
+
+    def _create_model(self):
+        # 1) Initialize DECA
+        super(self)._create_model()
+        # E_flame should be fixed for expression EMOCA
+        self.E_flame.requires_grad_(False)
+        
+        # 2) add expression decoder
+        if self.config.expression_backbone == 'deca_parallel':
+            ## a) Attach a parallel flow of FCs onto the original DECA coarse backbone. (Only the second FC head is trainable)
+            self.E_expression = SecondHeadResnet(self.E_flame, self.n_exp_param, 'same')
+        elif self.config.expression_backbone == 'deca_clone':
+            ## b) Clones the original DECA coarse decoder (and the entire decoder will be trainable) - This is in final EMOCA.
+            #TODO this will only work for Resnet. Make this work for the other backbones (Swin) as well.
+            self.E_expression = ResnetEncoder(self.n_exp_param)
+            # clone parameters of the ResNet
+            self.E_expression.encoder.load_state_dict(self.E_flame.encoder.state_dict())
+        elif self.config.expression_backbone == 'emonet_trainable':
+            # Trainable EmoNet instead of Resnet (deprecated)
+            self.E_expression = EmoNetRegressor(self.n_exp_param)
+        elif self.config.expression_backbone == 'emonet_static':
+            # Frozen EmoNet with a trainable head instead of Resnet (deprecated)
+            self.E_expression = EmonetRegressorStatic(self.n_exp_param)
+        else:
+            raise ValueError(f"Invalid expression backbone: '{self.config.expression_backbone}'")
+        
+        if self.config.get('zero_out_last_enc_layer', False):
+            self.E_expression.reset_last_layer() 
+
+    def _get_coarse_trainable_parameters(self):
+        print("Add E_expression.parameters() to the optimizer")
+        return list(self.E_expression.parameters())
+
+    def _reconfigure(self, config):
+        super()._reconfigure(config)
+        self.n_exp_param = self.config.n_exp
+
+        if self.config.exp_deca_global_pose and self.config.exp_deca_jaw_pose:
+            self.n_exp_param += self.config.n_pose
+        elif self.config.exp_deca_global_pose or self.config.exp_deca_jaw_pose:
+            self.n_exp_param += 3
+
+    def _encode_flame(self, images, **kwargs):
+        if self.config.expression_backbone == 'deca_parallel':
+            #SecondHeadResnet does the forward pass for shape and expression at the same time
+            return self.E_expression(images)
+        # other regressors have to do a separate pass over the image
+        deca_code = super()._encode_flame(images, **kwargs)
+        exp_deca_code = self.E_expression(images)
+        return deca_code, exp_deca_code
+
+    def decompose_code(self, code):
+        deca_code = code[0]
+        expdeca_code = code[1]
+
+        deca_code_list, _ = super().decompose_code(deca_code)
+        # shapecode, texcode, expcode, posecode, cam, lightcode = deca_code_list
+        exp_idx = 2
+        pose_idx = 3
+
+        # deca_exp_code = deca_code_list[exp_idx]
+        # deca_global_pose_code = deca_code_list[pose_idx][:3]
+        # deca_jaw_pose_code = deca_code_list[pose_idx][3:6]
+
+        deca_code_list_copy = deca_code_list.copy()
+
+        # self.E_mica.cfg.model.n_shape
+
+        #TODO: clean this if-else block up
+        if self.config.exp_deca_global_pose and self.config.exp_deca_jaw_pose:
+            exp_code = expdeca_code[:, :self.config.n_exp]
+            pose_code = expdeca_code[:, self.config.n_exp:]
+            deca_code_list[exp_idx] = exp_code
+            deca_code_list[pose_idx] = pose_code
+        elif self.config.exp_deca_global_pose:
+            # global pose from ExpDeca, jaw pose from EMOCA
+            pose_code_exp_deca = expdeca_code[:, self.config.n_exp:]
+            pose_code_deca = deca_code_list[pose_idx]
+            deca_code_list[pose_idx] = torch.cat([pose_code_exp_deca, pose_code_deca[:,3:]], dim=1)
+            exp_code = expdeca_code[:, :self.config.n_exp]
+            deca_code_list[exp_idx] = exp_code
+        elif self.config.exp_deca_jaw_pose:
+            # global pose from EMOCA, jaw pose from ExpDeca
+            pose_code_exp_deca = expdeca_code[:, self.config.n_exp:]
+            pose_code_deca = deca_code_list[pose_idx]
+            deca_code_list[pose_idx] = torch.cat([pose_code_deca[:, :3], pose_code_exp_deca], dim=1)
+            exp_code = expdeca_code[:, :self.config.n_exp]
+            deca_code_list[exp_idx] = exp_code
+        else:
+            exp_code = expdeca_code
+            deca_code_list[exp_idx] = exp_code
+
+        return deca_code_list, deca_code_list_copy
+
+    def train(self, mode: bool = True):
+        super().train(mode)
+
+        # for expression deca, we are not training the resnet feature extractor plus the identity/light/texture regressor
+        self.E_flame.eval()
+
+        if mode:
+            if self.mode == DecaMode.COARSE:
+                self.E_expression.train()
+                # print("Setting E_expression to train")
+                self.E_detail.eval()
+                # print("Setting E_detail to eval")
+                self.D_detail.eval()
+                # print("Setting D_detail to eval")
+            elif self.mode == DecaMode.DETAIL:
+                if self.config.train_coarse:
+                    # print("Setting E_flame to train")
+                    self.E_expression.train()
+                else:
+                    # print("Setting E_flame to eval")
+                    self.E_expression.eval()
+                self.E_detail.train()
+                # print("Setting E_detail to train")
+                self.D_detail.train()
+            else:
+                raise ValueError(f"Invalid mode '{self.mode}'")
+        else:
+            self.E_expression.eval()
+            self.E_detail.eval()
+            self.D_detail.eval()
+        return self
+
+
+
 class ExpDECA(DECA):
     """
     This is the EMOCA class (previously ExpDECA). This class derives from DECA and add EMOCA-related functionality. 
-    Such as a separate expression decoder and related.
+    Such as a separate expression decoder and related. 
+
+    The class is still kept for backward compatibility, but it is recommended for new classes to inherit 
+    from DECA and ExpDECAInterface both
     """
 
     def _create_model(self):
@@ -3310,51 +3448,161 @@ class ExpDECA(DECA):
         return self
 
 
+def _emica_init(self, config):
+    self.use_mica_shape_dim = True
+    # self.use_mica_shape_dim = False
+    from .mica.config import get_cfg_defaults
+    self.mica_cfg = get_cfg_defaults()
+
+def _emica_create_model(self):
+    # super(self)._create_model()
+    # super(type(self).__mro__[1], self)._create_model()
+    from .mica.mica import MICA
+    from .mica.MicaInputProcessing import MicaInputProcessor
+    #TODO: MICA uses FLAME  
+    # 1) This is redundant - get rid of it 
+    # 2) Make sure it's the same FLAME as EMOCA
+    if Path(self.config.mica_model_path).exists(): 
+        mica_path = self.config.mica_model_path 
+    else:
+        from gdl.utils.other import get_path_to_assets
+        mica_path = get_path_to_assets() / self.config.mica_model_path  
+        assert mica_path.exists(), f"MICA model path does not exist: '{mica_path}'"
+
+    self.mica_cfg.pretrained_model_path = str(mica_path)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    self.E_mica = MICA(self.mica_cfg, device, str(mica_path), instantiate_flame=False)
+    # E_mica should be fixed 
+    self.E_mica.requires_grad_(False)
+    self.E_mica.testing = True
+
+    # preprocessing for MICA
+
+    self.mica_preprocessor = MicaInputProcessor(self.config.get('mica_preprocessing', False))
+
+
+def _emica_get_num_shape_params(self):
+        if self.use_mica_shape_dim:
+            return self.mica_cfg.model.n_shape
+        return self.config.n_shape
+
+class MICAInterface(object):
     
-class EMICA(ExpDECA): 
+    def __init__(self, config):
+        _emica_init(self, config) 
+
+    def _create_model(self):
+        _emica_create_model(self)
+
+    def _get_num_shape_params(self):
+        return _emica_get_num_shape_params(self) 
+    
+    def _encode_flame(self, images, mica_images = None, **kwargs):
+        if mica_images is None:
+            mica_image = self.mica_preprocessor(images)
+        else:
+            mica_image = mica_images
+        mica_code = self.E_mica.encode(images, mica_image) 
+        mica_code = self.E_mica.decode(mica_code, predict_vertices=False)
+        mica_shapecode = mica_code['pred_shape_code']
+        return mica_shapecode
+    
+    def to(self, *args, **kwargs):
+        self.E_mica.to(*args, **kwargs)
+        return super().to(*args, **kwargs)
+
+
+class EDECA(DECA, MICAInterface): 
+    """
+    DECA where shape predictions are replaced with MICA's shape predictions.
+    """
 
     def __init__(self, config):
-        self.use_mica_shape_dim = True
-        # self.use_mica_shape_dim = False
-        from .mica.config import get_cfg_defaults
-        self.mica_cfg = get_cfg_defaults()
-        super().__init__(config)
+        MICAInterface.__init__(self, config)
+        DECA.__init__(self, config)
+        # _emica_init(self, config)
+
+    def _create_model(self):
+        MICAInterface._create_model(self)
+        DECA._create_model(self)
+        # _emica_create_model(self)
+
+    def _get_num_shape_params(self):
+        return MICAInterface._get_num_shape_params(self)
+        # return _emica_get_num_shape_params(self)
+    
+    def train(self, mode: bool = True):
+        DECA.train(self, mode)
+        self.E_mica.train(False) # MICA is pretrained and will be set to EVAL at all times 
+
+    def to(self, *args, **kwargs):
+        DECA.to(self,*args, **kwargs)
+        MICAInterface.to(self, *args, **kwargs)
+        # self.mica_preprocessor.to(*args, **kwargs)
+
+    # def decompose_code(self, code): 
+    #     deca_code = code[0]
+    #     expdeca_code = code[1]
+    #     mica_code = code[2]
+
+    #     code_list, _ = super().decompose_code((deca_code, expdeca_code), )
+
+    #     id_idx = 0 # identity is the first part of the vector
+    #     # assert self.config.n_shape == mica_code.shape[-1]
+    #     # assert code_list[id_idx].shape[-1] == mica_code.shape[-1]
+    #     if self.use_mica_shape_dim:
+    #         code_list[id_idx] = mica_code
+    #     else: 
+    #         code_list[id_idx] = mica_code[..., :self.config.n_shape] 
+    #     return code_list, _
+
+    def _encode_flame(self, images, mica_images=None, **kwargs):
+        deca_code = DECA._encode_flame(self, images, **kwargs)
+        mica_shapecode = MICAInterface._encode_flame(self, images, **kwargs)
+        deca_code_no_shape = deca_code[..., self.config.n_shape:]
+        code = torch.cat([mica_shapecode, deca_code_no_shape,], dim=-1)
+        return code
+
+
+class EMICA(ExpDECA): 
+    """
+    EMOCA with MICA for shape predictions (first version of MICA+EMOCA). 
+    DECA is not meant to be finetuned (and so the pose and rotation are probably not optimally accurate). 
+    """
+
+    def __init__(self, config):
+        _emica_init(self, config)
+        # self.use_mica_shape_dim = True
+        # # self.use_mica_shape_dim = False
+        # from .mica.config import get_cfg_defaults
+        # self.mica_cfg = get_cfg_defaults()
+        # super().__init__(config)
   
     def _create_model(self):
         # 1) Initialize DECA
-        super()._create_model()
-        from .mica.mica import MICA
-        from .mica.MicaInputProcessing import MicaInputProcessor
-        #TODO: MICA uses FLAME  
-        # 1) This is redundant - get rid of it 
-        # 2) Make sure it's the same FLAME as EMOCA
-        if Path(self.config.mica_model_path).exists(): 
-            mica_path = self.config.mica_model_path 
-        else:
-            from gdl.utils.other import get_path_to_assets
-            mica_path = get_path_to_assets() / self.config.mica_model_path  
-            assert mica_path.exists(), f"MICA model path does not exist: '{mica_path}'"
+        _emica_create_model(self)
+        # super()._create_model()
+        # from .mica.mica import MICA
+        # from .mica.MicaInputProcessing import MicaInputProcessor
+        # #TODO: MICA uses FLAME  
+        # # 1) This is redundant - get rid of it 
+        # # 2) Make sure it's the same FLAME as EMOCA
+        # if Path(self.config.mica_model_path).exists(): 
+        #     mica_path = self.config.mica_model_path 
+        # else:
+        #     from gdl.utils.other import get_path_to_assets
+        #     mica_path = get_path_to_assets() / self.config.mica_model_path  
+        #     assert mica_path.exists(), f"MICA model path does not exist: '{mica_path}'"
 
-        self.mica_cfg.pretrained_model_path = str(mica_path)
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.E_mica = MICA(self.mica_cfg, device, str(mica_path), instantiate_flame=False)
-        # E_mica should be fixed 
-        self.E_mica.requires_grad_(False)
-        self.E_mica.testing = True
+        # self.mica_cfg.pretrained_model_path = str(mica_path)
+        # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # self.E_mica = MICA(self.mica_cfg, device, str(mica_path), instantiate_flame=False)
+        # # E_mica should be fixed 
+        # self.E_mica.requires_grad_(False)
+        # self.E_mica.testing = True
 
-        # preprocessing for MICA
-
-        self.mica_preprocessor = MicaInputProcessor(self.config.get('mica_preprocessing', False))
-        # mica_preprocessing_type = self.config.get('mica_preprocessing', False)
-        # if mica_preprocessing_type is True or mica_preprocessing_type == 'default':
-        #     from insightface.app import FaceAnalysis
-        #     self.app = FaceAnalysis(name='antelopev2', providers=['CUDAExecutionProvider'])
-        #     self.app.prepare(ctx_id=0, det_size=(224, 224))
-        # elif mica_preprocessing_type == 'ported_insightface':
-        #     from .mica.FaceAnalysisAppTorch import FaceAnalysis as FaceAnalysisTorch
-        #     self.app = FaceAnalysisTorch(name='antelopev2')
-        #     self.app.prepare(det_size=(224, 224))
-        # # elif mica_preprocessing_type == False or mica_preprocessing_type == 'none':
+        # # preprocessing for MICA
+        # self.mica_preprocessor = MicaInputProcessor(self.config.get('mica_preprocessing', False))
 
     def _get_num_shape_params(self):
         if self.use_mica_shape_dim:
@@ -3363,7 +3611,6 @@ class EMICA(ExpDECA):
         # MICA is not trainable so we don't wanna add it 
         # return super()._get_coarse_trainable_parameters()
 
-
     def train(self, mode: bool = True):
         super().train(mode)
         self.E_mica.train(False) # MICA is pretrained and will be set to EVAL at all times 
@@ -3371,20 +3618,9 @@ class EMICA(ExpDECA):
     def to(self, *args, **kwargs):
         super().to(*args, **kwargs)
         self.mica_preprocessor.to(*args, **kwargs)
-        # from .mica.FaceAnalysisAppTorch import FaceAnalysis as FaceAnalysisTorch
-        # if isinstance(self.app, FaceAnalysisTorch):
-        #     self.app.det_model.to(*args, **kwargs)
 
     def _encode_flame(self, images, mica_images=None, **kwargs):
         if mica_images is None:
-            # if self.config.mica_preprocessing in [True,  'default']:
-            #     mica_image = self._dirty_image_preprocessing(images)
-            # elif self.config.mica_preprocessing == 'ported_insightface':
-            #     mica_image = self._dirty_image_preprocessing(images)
-            # elif self.config.mica_preprocessing in [False, 'none']: 
-            #     mica_image = F.interpolate(images, (112,112), mode='bilinear', align_corners=False)
-            # else: 
-            #     raise ValueError(f"Invalid mica_preprocessing option: '{self.config.mica_preprocessing}'")
             mica_image = self.mica_preprocessor(images)
         else:
             mica_image = mica_images
@@ -3393,44 +3629,6 @@ class EMICA(ExpDECA):
         mica_code = self.E_mica.encode(images, mica_image) 
         mica_code = self.E_mica.decode(mica_code, predict_vertices=False)
         return deca_code, exp_deca_code, mica_code['pred_shape_code']
- 
-    def _dirty_image_preprocessing(self, input_image): 
-        # breaks whatever gradient flow that may have gone into the image creation process
-        from gdl.models.mica.detector import get_center, get_arcface_input
-        from insightface.app.common import Face
-        
-        image = input_image.detach().clone().cpu().numpy() * 255. 
-        # b,c,h,w to b,h,w,c
-        image = image.transpose((0,2,3,1))
-    
-        min_det_score = 0.5
-        image_list = list(image)
-        aligned_image_list = []
-        for i, img in enumerate(image_list):
-            bboxes, kpss = self.app.det_model.detect(img, max_num=0, metric='default')
-            if bboxes.shape[0] == 0:
-                aimg = resize(img, output_shape=(112,112), preserve_range=True)
-                aligned_image_list.append(aimg)
-                raise RuntimeError("No faces detected")
-                continue
-            i = get_center(bboxes, image)
-            bbox = bboxes[i, 0:4]
-            det_score = bboxes[i, 4]
-            # if det_score < min_det_score:
-            #     continue
-            kps = None
-            if kpss is not None:
-                kps = kpss[i]
-
-            face = Face(bbox=bbox, kps=kps, det_score=det_score)
-            blob, aimg = get_arcface_input(face, img)
-            aligned_image_list.append(aimg)
-        aligned_images = np.array(aligned_image_list)
-        # b,h,w,c to b,c,h,w
-        aligned_images = aligned_images.transpose((0,3,1,2))
-        # to torch to correct device 
-        aligned_images = torch.from_numpy(aligned_images).to(input_image.device)
-        return aligned_images
 
     def decompose_code(self, code): 
         deca_code = code[0]
@@ -3447,6 +3645,13 @@ class EMICA(ExpDECA):
         else: 
             code_list[id_idx] = mica_code[..., :self.config.n_shape]
         return code_list, deca_code_list_copy
+
+
+class EMICA_v2(EDECA, ExpDECAInterface):
+
+    def __init__(self, config):
+        EDECA.__init__(self, config)  # explicit calls without super
+        ExpDECAInterface.__init__(self)
 
 
 def instantiate_deca(cfg, stage, prefix, checkpoint=None, checkpoint_kwargs=None):
