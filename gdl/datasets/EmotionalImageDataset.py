@@ -268,6 +268,9 @@ class EmotionalImageDatasetBase(torch.utils.data.Dataset):
         if 'landmark_mediapipe' in sample.keys():
             num_images += 1
 
+        if "mica_images" in sample.keys():
+            num_images += 1
+
         if len(sample["image"].shape) >= 4:
             K = sample["image"].shape[0]
             fig, axs = plt.subplots(K, num_images)
@@ -292,10 +295,20 @@ class EmotionalImageDatasetBase(torch.utils.data.Dataset):
         im = sample["image"][k, ...] if K is not None else sample["image"]
         im_expanded = im[np.newaxis, ...]
 
-
         i = 0
-        index_axis(i, k).imshow(im.numpy().transpose([1, 2, 0]))
+        f = index_axis(i, k).imshow(im.numpy().transpose([1, 2, 0]))
+        index_axis(i, k).set_xlabel('Input image')
         i += 1
+
+        if "mica_images" in sample.keys():
+            mica_im = sample["mica_images"][k, ...] if K is not None else sample["mica_images"]
+            mica_im = mica_im.numpy().transpose([1, 2, 0])
+            mica_im = (mica_im + 1) / 2
+            index_axis(i, k).imshow(mica_im)
+            # add a caption to the axes.
+            index_axis(i, k).set_xlabel("MICA image")
+            i += 1
+
         if 'landmark' in sample.keys():
             lmk = sample["landmark"][k, ...] if K is not None else sample["landmark"]
             lmk_expanded = lmk[np.newaxis, ...]
@@ -348,7 +361,8 @@ class EmotionalImageDataset(EmotionalImageDatasetBase):
                  # segmentation_transform=None,
                  segmentation_discarded_lables=None,
                  K=None,
-                 K_policy=None
+                 K_policy=None, 
+                 mica_processing=None,
                  ):
         self.image_list = image_list
         self.annotations = annotations
@@ -385,6 +399,11 @@ class EmotionalImageDataset(EmotionalImageDatasetBase):
         for label in self.labels_set:
             self.label2index[label] = [i for i in range(len(self.labels))
                                        if self.labels[i] == label]
+            
+        self.mica_processor = None
+        if mica_processing is not None:
+            from gdl.models.mica.MicaInputProcessing import MicaInputProcessor
+            self.mica_processor = MicaInputProcessor(mica_processing)
 
     def __len__(self):
         # return 10 #TODO: REMOVE TESTING HACK
@@ -477,6 +496,9 @@ class EmotionalImageDataset(EmotionalImageDatasetBase):
             sample["landmark"] = torch.from_numpy(landmark)
         if seg_image is not None:
             sample["mask"] = numpy_image_to_torch(seg_image)
+
+        if self.mica_processor is not None:
+            sample["mica_images"] = self.mica_processor(sample["image"])
 
         # sample_end = timer()
         # print(f"Reading and processing a single sample took {sample_end-sample_start}s.")

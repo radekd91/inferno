@@ -63,7 +63,7 @@ class FaceAnalysis:
     def prepare(self, det_thresh=0.5, det_size=(640, 640)):
         self.det_thresh = det_thresh
         assert det_size is not None
-        print('set det-size:', det_size)
+        # print('set det-size:', det_size)
         self.det_size = det_size
         for taskname, model in self.models.items():
             if taskname=='detection':

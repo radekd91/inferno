@@ -26,6 +26,9 @@ class MicaInputProcessor(object):
                 self.app.det_model = self.app.det_model.to(device)
 
     def __call__(self, input_image):
+        batched = len(input_image.shape) == 4
+        if not batched:
+            input_image = input_image.unsqueeze(0)
         if self.mode in [True,  'default']:
             mica_image = self._dirty_image_preprocessing(input_image)
         elif self.mode == 'ported_insightface':
@@ -34,6 +37,8 @@ class MicaInputProcessor(object):
             mica_image = F.interpolate(input_image, (112,112), mode='bilinear', align_corners=False)
         else: 
             raise ValueError(f"Invalid mica_preprocessing option: '{self.mode}'")
+        if not batched:
+            mica_image = mica_image.squeeze(0)
         return mica_image
 
     def _dirty_image_preprocessing(self, input_image): 

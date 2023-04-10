@@ -123,7 +123,8 @@ class AffectNetDataModule(FaceDataModuleBase):
                  test_fname=None,
                  dataset_type = None,
                  use_gt = True,
-                 use_processed = True
+                 use_processed = True,
+                 mica_processing = None,
                  ):
         super().__init__(input_dir, output_dir, processed_subfolder,
                          face_detector=face_detector,
@@ -133,7 +134,9 @@ class AffectNetDataModule(FaceDataModuleBase):
                          bb_center_shift_y=bb_center_shift_y,
                          scale=scale,
                          processed_ext=processed_ext,
-                         device=device)
+                         device=device, 
+                         mica_processing = mica_processing,
+                         )
         # accepted_modes = ['manual', 'automatic', 'all']
         accepted_modes = ['manual', 'automatic']
         # accepted_modes = ['manual']
@@ -515,6 +518,7 @@ class AffectNetDataModule(FaceDataModuleBase):
                                                     nn_distances_array= nn_distances,
                                                     ext=self.processed_ext,
                                                     use_gt=self.use_gt,
+                                                    mica_processing=self.mica_processing,
                                                     )
 
         return new_affectnet(self.dataset_type)(self.image_path, self.train_dataframe_path, self.image_size, self.scale,
@@ -525,6 +529,7 @@ class AffectNetDataModule(FaceDataModuleBase):
                          load_emotion_feature=True,
                          ext=self.processed_ext,
                          use_gt=self.use_gt,
+                         mica_processing=self.mica_processing,
                          )
 
     def setup(self, stage=None):
@@ -535,6 +540,7 @@ class AffectNetDataModule(FaceDataModuleBase):
                                         ring_size=1,
                                         ext=self.processed_ext,
                                        use_gt=self.use_gt,
+                                        mica_processing=self.mica_processing,
                                         )
 
         self.test_dataframe_path = Path(self.output_dir) / self.test_fname
@@ -544,6 +550,7 @@ class AffectNetDataModule(FaceDataModuleBase):
                                   ring_size=1,
                                   ext=self.processed_ext,
                                     use_gt = self.use_gt,
+                                    mica_processing=self.mica_processing,
                                   )
         # if self.mode in ['all', 'manual']:
         #     # self.image_list += sorted(list((Path(self.path) / "Manually_Annotated").rglob(".jpg")))
@@ -756,6 +763,7 @@ class AffectNetEmoNetSplitModule(AffectNetDataModule):
                                         ring_size=1,
                                         ext=self.processed_ext,
                                         use_gt = self.use_gt,
+                                        mica_processing = self.mica_processing,
                                         )
         if self.ignore_invalid == "like_emonet":
             self.validation_set2 = new_affectnet(self.dataset_type)(self.image_path,
@@ -765,7 +773,8 @@ class AffectNetEmoNetSplitModule(AffectNetDataModule):
                                             ring_type=self.ring_type,
                                             ring_size=1,
                                             ext=self.processed_ext,
-                                                                    use_gt=self.use_gt,
+                                            use_gt=self.use_gt,
+                                            mica_processing = self.mica_processing,
                                             )
         if self.ignore_invalid == "like_emonet":
             self.test_dataframe_path = Path(self.output_dir) / "validation_emonet_split_clean_representative.csv"
@@ -777,7 +786,10 @@ class AffectNetEmoNetSplitModule(AffectNetDataModule):
             self.image_path = Path(self.output_dir) / (self.mode_str+"_Annotated__Annotated") / (self.mode_str+"_Annotated__Annotated_Images")
         self.test_set = new_affectnet(self.dataset_type)(self.image_path, self.test_dataframe_path, self.image_size, self.scale,
                                     None,
-                                                         ignore_invalid=self.ignore_invalid, use_gt=self.use_gt,)
+                                    ignore_invalid=self.ignore_invalid, 
+                                    use_gt=self.use_gt,
+                                    mica_processing = self.mica_processing,
+                                    )
 
     def val_dataloader(self):
         dls = [DataLoader(self.validation_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
@@ -817,14 +829,16 @@ class AffectNetEmoNetSplitModuleTest(AffectNetDataModule):
                                   ring_type=self.ring_type,
                                   ring_size=1,
                                   ext=self.processed_ext,
-                                                         use_gt=self.use_gt,
+                                use_gt=self.use_gt,
+                                mica_processing = self.mica_processing,
                                   )
         self.validation_set = new_affectnet(self.dataset_type)(self.image_path, self.val_dataframe_path, self.image_size, self.scale,
                                     None, ignore_invalid= self.ignore_invalid,
                                   ring_type=self.ring_type,
                                   ring_size=1,
                                   ext=self.processed_ext,
-                                                         use_gt=self.use_gt,
+                                use_gt=self.use_gt,
+                                mica_processing = self.mica_processing,
                                   )
 
     def train_dataloader(self):
@@ -846,7 +860,8 @@ class AffectNetEmoNetSplitModuleValTest(AffectNetEmoNetSplitModule):
                                         ring_type=self.ring_type,
                                         ring_size=1,
                                         ext=self.processed_ext,
-                                                               use_gt=self.use_gt,
+                                        use_gt=self.use_gt,
+                                        mica_processing = self.mica_processing,
                                         )
         if self.ignore_invalid == "like_emonet":
             self.validation_set2 = new_affectnet(self.dataset_type)(self.image_path,
@@ -856,7 +871,8 @@ class AffectNetEmoNetSplitModuleValTest(AffectNetEmoNetSplitModule):
                                             ring_type=self.ring_type,
                                             ring_size=1,
                                             ext=self.processed_ext,
-                                                                    use_gt=self.use_gt,
+                                            use_gt=self.use_gt,
+                                            mica_processing = self.mica_processing,
                                             )
 
         self.test_set = new_affectnet(self.dataset_type)(self.image_path, self.val_dataframe_path, self.image_size, self.scale,
@@ -864,7 +880,8 @@ class AffectNetEmoNetSplitModuleValTest(AffectNetEmoNetSplitModule):
                                   ring_type=self.ring_type,
                                   ring_size=1,
                                   ext=self.processed_ext,
-                                                         use_gt=self.use_gt,
+                                    use_gt=self.use_gt,
+                                    mica_processing = self.mica_processing,
                                   )
         if self.ignore_invalid == "like_emonet":
             self.test_set2 = new_affectnet(self.dataset_type)(self.image_path,
@@ -874,7 +891,8 @@ class AffectNetEmoNetSplitModuleValTest(AffectNetEmoNetSplitModule):
                                             ring_type=self.ring_type,
                                             ring_size=1,
                                             ext=self.processed_ext,
-                                                              use_gt=self.use_gt,
+                                            use_gt=self.use_gt,
+                                            mica_processing = self.mica_processing,
                                             )
 
     def val_dataloader(self):
@@ -912,7 +930,8 @@ class AffectNetTestModule(AffectNetDataModule):
         else:
             self.image_path = Path(self.output_dir) / (self.mode_str + "_Annotated") / (self.mode_str + "_Annotated_Images")
         self.test_set = new_affectnet(self.dataset_type)(self.image_path, self.test_dataframe_path, self.image_size, self.scale,
-                                    None, ignore_invalid=self.ignore_invalid, use_gt=self.use_gt,)
+                                    None, ignore_invalid=self.ignore_invalid, use_gt=self.use_gt,
+                                    mica_processing = self.mica_processing,)
 
     def train_dataloader(self):
         raise NotImplementedError()
@@ -935,7 +954,8 @@ class AffectNetEmoNetSplitTestModule(AffectNetTestModule):
         else:
             self.image_path = Path(self.root_dir) /  (self.mode_str + "_Annotated") / (self.mode_str + "_Annotated_Images")
         self.test_set = new_affectnet(self.dataset_type)(self.image_path, self.test_dataframe_path, self.image_size, self.scale,
-                                    None, ignore_invalid=self.ignore_invalid, use_gt=self.use_gt,)
+                                    None, ignore_invalid=self.ignore_invalid, use_gt=self.use_gt,
+                                    mica_processing = self.mica_processing,)
 
 
 class AffectNetEmoNetSplitTestModule2(AffectNetTestModule):
@@ -947,7 +967,8 @@ class AffectNetEmoNetSplitTestModule2(AffectNetTestModule):
         else:
             self.image_path = Path(self.root_dir) /  (self.mode_str + "_Annotated") / (self.mode_str + "_Annotated_Images")
         self.test_set = new_affectnet(self.dataset_type)(self.image_path, self.test_dataframe_path, self.image_size, self.scale,
-                                    None, ignore_invalid=self.ignore_invalid, use_gt=self.use_gt,)
+                                    None, ignore_invalid=self.ignore_invalid, use_gt=self.use_gt,
+                                    mica_processing = self.mica_processing,)
 
 
 
@@ -963,7 +984,8 @@ class AffectNetDataModuleValTest(AffectNetDataModule):
                                         ring_type=self.ring_type,
                                         ring_size=1,
                                         ext=self.processed_ext,
-                                                               use_gt=self.use_gt,
+                                        use_gt=self.use_gt,
+                                        mica_processing = self.mica_processing,
                                         )
 
         self.test_set = new_affectnet(self.dataset_type)(self.image_path, self.val_dataframe_path, self.image_size, self.scale,
@@ -971,7 +993,8 @@ class AffectNetDataModuleValTest(AffectNetDataModule):
                                   ring_type=self.ring_type,
                                   ring_size=1,
                                   ext=self.processed_ext,
-                                                         use_gt=self.use_gt,
+                                    use_gt=self.use_gt,
+                                    mica_processing = self.mica_processing,
                                   )
 
 class AffectNet(EmotionalImageDatasetBase):
@@ -993,6 +1016,7 @@ class AffectNet(EmotionalImageDatasetBase):
                  ext=".png",
                  use_gt = True,
                  # drop_last = False
+                 mica_processing = None,
                  ):
         self.dataframe_path = dataframe_path
         self.image_path = image_path
@@ -1011,6 +1035,7 @@ class AffectNet(EmotionalImageDatasetBase):
         self.num_skips = 0
         self.use_gt = use_gt
         self.drop_last = False
+        self.mica_processing = mica_processing
 
         self.load_mediapipe_landmarks = True # False in the original paper, True is experimental
 
@@ -1057,6 +1082,12 @@ class AffectNet(EmotionalImageDatasetBase):
         self.ring_type = ring_type
         self.ring_size = ring_size
         self._init_sample_weights()
+
+        self.mica_processor = None
+        if mica_processing is not None:
+            from gdl.models.mica.MicaInputProcessing import MicaInputProcessor
+            self.mica_processor = MicaInputProcessor(mica_processing)
+
 
 
     def get_ext(self, fname):
@@ -1295,6 +1326,9 @@ class AffectNet(EmotionalImageDatasetBase):
             "va_sample_weight": torch.tensor([self.va_sample_weights[index], ], dtype=torch.float32),
 
         }
+
+        if self.mica_processor is not None:
+            sample["mica_images"] = self.mica_processor(sample["image"])
 
         if self.use_gt:
             for key in gt.keys():
@@ -1691,6 +1725,9 @@ if __name__ == "__main__":
             # dataset_type="AffectNetWithMGCNetPredictions",
             # dataset_type="AffectNetWithExpNetPredictions",
             train_batch_size=4,
+            # mica_processing="none",
+            mica_processing="ported_insightface"
+            # mica_processing="default"
             )
     
     print(dm.num_subsets)
