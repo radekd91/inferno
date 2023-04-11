@@ -64,6 +64,7 @@ class MicaInputProcessor(object):
                     raise RuntimeError("No faces detected")
                 else: 
                     print("[WARNING] No faces detected in MicaInputProcessor")
+                    continue
             i = get_center(bboxes, image)
             bbox = bboxes[i, 0:4]
             det_score = bboxes[i, 4]
