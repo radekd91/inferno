@@ -80,11 +80,14 @@ class DatasetSplitter(Dataset):
 
 class DecaDataModule(LightningDataModule):
 
-    def __init__(self, config):
+    def __init__(self, config, **kwargs):
         super().__init__()
         self.config = config
         self.split_ratio = config.data.split_ratio
         self.split_style = config.data.split_style
+
+        self.mica_preprocessing = kwargs.get('mica_preprocessing', None)
+        
 
     def train_sampler(self):
         return None
@@ -107,12 +110,21 @@ class DecaDataModule(LightningDataModule):
 
     def setup(self, stage=None):
         dataset = build_dataset(self.config, self.config.data.training_datasets, concat=True)
+        if self.mica_preprocessing is not None:
+            from gdl.models.mica.MicaInputProcessing import MicaDatasetWrapper
+            dataset = MicaDatasetWrapper(dataset, self.mica_preprocessing)
         self.training_set = DatasetSplitter(dataset, self.split_ratio, self.split_style)
         self.validation_set = []
         if self.split_ratio < 1.:
             self.validation_set += [self.training_set.complementary_set(), ]
         self.validation_set += build_dataset(self.config, self.config.data.validation_datasets, concat=False)
+        if self.mica_preprocessing is not None:
+            # from gdl.models.mica.MicaInputProcessing import MicaDatasetWrapper
+            self.validation_set[-1] = MicaDatasetWrapper(self.validation_set[-1], self.mica_preprocessing) 
         self.test_set = build_dataset(self.config, self.config.data.testing_datasets, concat=False)
+        if self.mica_preprocessing is not None:
+            # from gdl.models.mica.MicaInputProcessing import MicaDatasetWrapper
+            self.test_set = MicaDatasetWrapper(self.test_set, self.mica_preprocessing)
 
     def train_dataloader(self, *args, **kwargs):
         train_loader = DataLoader(self.training_set,

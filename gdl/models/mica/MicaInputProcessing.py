@@ -2,14 +2,16 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from skimage.transform import resize
+from torch.utils.data import Dataset
 
 
 class MicaInputProcessor(object):
 
-    def __init__(self, mode):
+    def __init__(self, mode, crash_on_no_detection=False):
         super().__init__()
         assert mode in ['default', 'ported_insightface', 'none'], "mode must be one of 'default', 'ported_insightface', 'none'"
         self.mode = mode
+        self.crash_on_no_detection = crash_on_no_detection
         
         if mode is True or mode == 'default':
             from insightface.app import FaceAnalysis
@@ -58,8 +60,10 @@ class MicaInputProcessor(object):
             if bboxes.shape[0] == 0:
                 aimg = resize(img, output_shape=(112,112), preserve_range=True)
                 aligned_image_list.append(aimg)
-                raise RuntimeError("No faces detected")
-                continue
+                if self.crash_on_no_detection:
+                    raise RuntimeError("No faces detected")
+                else: 
+                    print("[WARNING] No faces detected in MicaInputProcessor")
             i = get_center(bboxes, image)
             bbox = bboxes[i, 0:4]
             det_score = bboxes[i, 4]
@@ -78,3 +82,23 @@ class MicaInputProcessor(object):
         # to torch to correct device 
         aligned_images = torch.from_numpy(aligned_images).to(input_image.device)
         return aligned_images
+    
+
+
+class MicaDatasetWrapper(Dataset): 
+    """
+    This class is a wrapper around any dataset that returns images. It adds MICA preprocessing to 
+    the dictionary returned by the dataset. 
+    """
+    
+    def __init__(self, dataset, mica_preprocessing='ported_insightface', crash_on_no_detection=False):
+        self.dataset = dataset
+        self.mica_preprocessing = MicaInputProcessor(mica_preprocessing, crash_on_no_detection=crash_on_no_detection)
+
+    def __len__(self):
+        return len(self.dataset)
+    
+    def __getitem__(self, idx):
+        data = self.dataset[idx]
+        data['mica_images'] = self.mica_preprocessing(data['image'])
+        return data
