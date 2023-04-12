@@ -864,7 +864,7 @@ class MEADDataset(VideoDatasetBase):
             landmark_list = FaceDataModuleBase.load_landmark_list(landmark_list_file)  
             landmark_valid_indices = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_alignment_used_frame_indices.pkl")  
         elif landmark_source == "aligned": 
-            landmarks, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
+            landmark_list, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
             landmark_valid_indices = landmark_confidences
         else: 
             raise ValueError(f"Unknown landmark source {landmark_source}")
