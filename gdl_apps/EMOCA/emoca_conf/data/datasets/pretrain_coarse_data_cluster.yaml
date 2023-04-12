@@ -27,4 +27,5 @@ n_train: 10000000
 #split_ratio: 0.9
 split_ratio: 0.8
 split_style: random
-num_workers: 4
+# num_workers: 4
+num_workers: 12
