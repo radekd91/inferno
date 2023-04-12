@@ -1,5 +1,6 @@
 import pytorch_lightning as pl 
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, List
+from omegaconf import ListConfig
 from gdl.models.temporal.Bases import TemporalFeatureEncoder, SequenceClassificationEncoder, Preprocessor, ClassificationHead
 from gdl.models.temporal.PositionalEncodings import PositionalEncoding 
 from gdl.models.temporal.TransformerMasking import  (init_alibi_biased_mask, init_alibi_biased_mask_future, init_mask, init_mask_future, init_faceformer_biased_mask, 
@@ -244,6 +245,31 @@ class LinearClassificationHead(ClassificationHead):
         return list(self.parameters())
     
 
+class MultiheadLinearClassificationHead(ClassificationHead):
+    
+    def __init__(self, cfg, input_dim, num_classes):
+        super().__init__()
+        self.cfg = cfg
+        self.input_dim = input_dim
+
+        assert isinstance(num_classes, (list, ListConfig))
+        classification_heads = [LinearClassificationHead(cfg, input_dim, classes) for classes in num_classes]
+        category_names=cfg.get('category_names', None)
+        if category_names is None:
+            head_names = [f"category_{i}" for i in range(len(num_classes))]
+        else:
+            head_names = category_names
+        self.classification_heads = nn.ModuleDict(dict(zip(head_names, classification_heads)))
+
+    def forward(self, sample, input_key="pooled_sequence_feature", output_key="predicted_logits"):
+        for key, head in self.classification_heads.items():
+            sample = head(sample, input_key, output_key + f"_{key}")
+        return sample
+
+    def get_trainable_parameters(self):
+        return list(self.parameters())
+
+
 class VideoClassifierBase(pl.LightningModule): 
 
     def __init__(self, 
@@ -466,8 +492,11 @@ class VideoClassifierBase(pl.LightningModule):
         # TODO: this could be done nicer (have a dict with name - loss functor)
         loss_type = loss_name if 'loss_type' not in loss_cfg.keys() else loss_cfg['loss_type']
 
-        if loss_type == "cross_entropy":
-            loss_value = F.cross_entropy(sample[loss_cfg["input_key"]], sample[loss_cfg["output_key"]])
+        if "cross_entropy" in loss_type: 
+            label = sample[loss_cfg["output_key"]]
+            if loss_cfg["output_key"] == "gt_expression_intensity":
+                label -= 1 # expression intensity is in 1-3 range, but we need 0-2 for cross entropy
+            loss_value = F.cross_entropy(sample[loss_cfg["input_key"]], label)
         else: 
             raise ValueError(f"Unsupported loss type: '{loss_type}'")
         return loss_value
@@ -561,6 +590,8 @@ def sequence_encoder_from_cfg(cfg, feature_dim):
 def classification_head_from_cfg(cfg, feature_size, num_classes):
     if cfg.type == "LinearClassificationHead":
         return LinearClassificationHead(cfg, feature_size, num_classes)
+    elif cfg.type == "MultiheadLinearClassificationHead":
+        return MultiheadLinearClassificationHead(cfg, feature_size, num_classes)
     else:
         raise ValueError(f"Unknown classification head model: {cfg.model}")
 
@@ -711,7 +742,8 @@ class VideoEmotionClassifier(VideoClassifierBase):
         sequence_classifier = sequence_encoder_from_cfg(cfg.model.get('sequence_encoder', None), feature_size)
         classification_head = classification_head_from_cfg(cfg.model.get('classification_head', None), 
                                                            sequence_classifier.encoder_output_dim(), 
-                                                           cfg.model.output.num_classes)
+                                                           cfg.model.output.num_classes, 
+                                                           )
 
         super().__init__(cfg,
             preprocessor = preprocessor,

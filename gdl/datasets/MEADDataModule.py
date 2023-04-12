@@ -32,6 +32,30 @@ def get_affectnet_index_from_mead_expression_str(expr_str):
         raise e
 
 
+def get_index_for_expression_with_intensity(expr_index, intensity):
+    # intensity is an integer between 0 and 2 
+    intensity -= 1
+    assert intensity >= 0 and intensity <= 2, "Intensity must be between 0 and 2"
+    if expr_index == 0: 
+        assert intensity == 0, "Neutral expression must have intensity 0"
+        return expr_index
+    expression_index = (expr_index * 3 + intensity) - 2 # -2 because the first expression is neutral and does not have intensities
+    return expression_index
+
+
+def get_expression_and_intensity_from_index(index):
+    # index is an integer between 0 and 22 
+    assert index >= 0 and index < 22, "Index must be between 0 and 8"
+    if index == 0: 
+        expr_index = 0
+        intensity = 0
+    else:
+        expr_index = (index + 2) // 3
+        intensity = (index + 2) % 3
+    assert expr_index >= 0 and expr_index < 8, "Expression index must be between 0 and 7 (inclusive)"
+    intensity += 1
+    return expr_index, intensity
+
 
 class MEADDataModule(FaceVideoDataModule): 
 
@@ -862,6 +886,8 @@ class MEADDataset(VideoDatasetBase):
         sample = super()._get_emotions(index, start_frame, num_read_frames, video_fps, num_frames, sample)
         sample["gt_expression_label"] = get_affectnet_index_from_mead_expression_str(self._video_expression(index))
         sample["gt_expression_intensity"] = int(self._expression_intensity(index)[-1])
+        sample["gt_expression_label_with_intensity"] = get_index_for_expression_with_intensity(
+            sample["gt_expression_label"], sample["gt_expression_intensity"])
         return sample
 
     def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
