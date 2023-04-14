@@ -163,8 +163,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 average_shape_decode=self.average_shape_decode,
                 emotion_type=self.emotion_type,
                 return_emotion_feature=self.return_emotion_feature,
-              )
-                    
+              )           
         self.validation_set = MEADPseudo3dDataset(self.root_dir, self.output_dir, 
                 self.video_list, self.video_metas, 
                 val, 
@@ -191,7 +190,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 emotion_type=self.emotion_type,
                 return_emotion_feature=self.return_emotion_feature,
             )
-
+        self.validation_set._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
         val_test_set = self._get_smaller_renderable_subset_single_identity(val, max_videos_per_category=1)
         train_test_set = self._get_smaller_renderable_subset_single_identity(train, max_videos_per_category=1)
         train_test_cond_set = self._get_smaller_renderable_subset_single_identity(train, max_videos_per_category=1, accepted_expression='neutral')
@@ -266,6 +265,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 return_emotion_feature=self.return_emotion_feature,
                 )
 
+        self.test_set_train_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
 
         self.test_set_train = ConditionedVideoTestDatasetWrapper(
             self.test_set_train_,
@@ -307,6 +307,8 @@ class MEADPseudo3DDM(MEADDataModule):
                 emotion_type=self.emotion_type,
                 return_emotion_feature=self.return_emotion_feature,
                 )
+        
+        self.test_set_val_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
 
         self.test_set_val = ConditionedVideoTestDatasetWrapper(
             self.test_set_val_,
@@ -386,6 +388,8 @@ class MEADPseudo3DDM(MEADDataModule):
                     emotion_type=self.emotion_type,
                     return_emotion_feature=self.return_emotion_feature,
                     )
+            
+            self.test_set_train_cond_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
 
 
             self.test_set_train_cond = ConditionedVideoTestDatasetWrapper(
@@ -425,6 +429,8 @@ class MEADPseudo3DDM(MEADDataModule):
                     emotion_type=self.emotion_type,
                     return_emotion_feature=self.return_emotion_feature,
                     )
+
+            self.test_set_val_cond_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
 
             self.test_set_val_cond = ConditionedVideoTestDatasetWrapper(
                 self.test_set_val_cond_,

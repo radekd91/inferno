@@ -45,7 +45,7 @@ def get_index_for_expression_with_intensity(expr_index, intensity):
 
 def get_expression_and_intensity_from_index(index):
     # index is an integer between 0 and 22 
-    assert index >= 0 and index < 22, "Index must be between 0 and 8"
+    assert index >= 0 and index < 22, "Index must be between 0 and 22"
     if index == 0: 
         expr_index = 0
         intensity = 0
@@ -55,6 +55,32 @@ def get_expression_and_intensity_from_index(index):
     assert expr_index >= 0 and expr_index < 8, "Expression index must be between 0 and 7 (inclusive)"
     intensity += 1
     return expr_index, intensity
+
+
+def get_index_for_expression_with_intensity_identity(expr_index, intensity, identity, num_identities ):
+    # intensity is an integer between 0 and 2 
+    num_expressions = 8
+    num_intensities = 3
+    # assert intensity >= 1 and intensity <= 2, "Intensity must be between 0 and 2"
+    # assert expr_index >= 0 and expr_index < num_expressions, "Expression index must be between 0 and 7 (inclusive)"
+    assert identity >= 0 and identity < num_identities, "Identity index must be between 0 and num_identities-1"
+    num_exp_int = num_expressions * num_intensities - 2 # -2 because the first expression is neutral and does not have intensities 2 and 3
+    index = get_index_for_expression_with_intensity(expr_index, intensity) + identity * num_exp_int
+    return index
+
+
+def get_expression_and_intensity_and_identity_from_index(index, num_identities):
+    # index is an integer between 0 and 22 
+    num_expressions = 8
+    num_intensities = 3
+    num_exp_int = num_expressions * num_intensities - 2 # -2 because the first expression is neutral and does not have intensities 2 and 3
+
+    assert index >= 0 and index < num_exp_int * num_identities
+
+    identity = index % num_identities
+    exp_int = index // num_identities
+    expr_index, intensity = get_expression_and_intensity_from_index(exp_int)
+    return expr_index, intensity, identity
 
 
 class MEADDataModule(FaceVideoDataModule): 
@@ -703,6 +729,7 @@ class MEADDataModule(FaceVideoDataModule):
                 read_video=self.read_video,
                 read_audio=self.read_audio,
             )
+        self.validation_set._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
 
         self.test_set = MEADDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
                 self.sequence_length_test, image_size=self.image_size, 
@@ -721,6 +748,7 @@ class MEADDataModule(FaceVideoDataModule):
                 read_video=self.read_video,
                 read_audio=self.read_audio,
                 )
+        self.test_set._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
 
     def train_sampler(self):
         if self.training_sampler == "uniform":
@@ -856,6 +884,46 @@ class MEADDataset(VideoDatasetBase):
             emotion_type=emotion_type,
             return_emotion_feature=return_emotion_feature,
         )
+        self._setup_identity_labels()
+    
+    def _setup_identity_labels(self):
+        # look at all the sample paths and get the their identity label
+        self.identity_labels = set()
+        for index in range(len(self)):
+            self.identity_labels.add(self._get_identity_label(index))
+        self.identity_labels = sorted(list(self.identity_labels))
+        self.identity_label2index = {label: index for index, label in enumerate(self.identity_labels)}
+        self.own_identity_label = True
+
+    def _get_identity_label(self, index):
+        identity = self.video_list[self.video_indices[index]].parts[0]
+        return identity
+    
+    def _get_identity_label_index(self, index):
+        identity = self._get_identity_label(index)
+        if self.own_identity_label: # the training and this (validation/test?) set share the same identity labels
+            return self.identity_label2index[identity]
+        else:
+            # the training and this (validation/test?) set have different identity labels
+            # so we need to map the identity label of this set to the training set
+            strategy = "random"
+            if strategy == "random":
+                import random
+                # pick a random identity label from the training set
+                return random.randint(0, len(self.identity_labels) - 1)
+            # elif strategy == "mod":
+            #     # map the identity label of this set to the training set
+            #     return self.identity_label2index[identity] % len(self.identity_labels) 
+            else:
+                raise ValueError(f"Unknown strategy '{strategy}'")
+    
+    def _set_identity_label(self, identity_labels, identity_label2index):
+        if identity_labels == self.identity_labels and identity_label2index == self.identity_label2index:
+            self.own_identity_label = True
+            return 
+        self.identity_labels = identity_labels
+        self.identity_label2index = identity_label2index
+        self.own_identity_label = False
 
     def _read_landmarks(self, index, landmark_type, landmark_source):
         landmarks_dir = self._path_to_landmarks(index, landmark_type, landmark_source)
@@ -886,8 +954,13 @@ class MEADDataset(VideoDatasetBase):
         sample = super()._get_emotions(index, start_frame, num_read_frames, video_fps, num_frames, sample)
         sample["gt_expression_label"] = get_affectnet_index_from_mead_expression_str(self._video_expression(index))
         sample["gt_expression_intensity"] = int(self._expression_intensity(index)[-1])
+        sample["gt_expression_identity"] = self._get_identity_label_index(index)
         sample["gt_expression_label_with_intensity"] = get_index_for_expression_with_intensity(
             sample["gt_expression_label"], sample["gt_expression_intensity"])
+        sample["gt_expression_label_with_intensity_identity"] = get_index_for_expression_with_intensity_identity(
+             sample["gt_expression_label"], sample["gt_expression_intensity"], sample["gt_expression_identity"], 
+            len(self.identity_labels),
+            )
         return sample
 
     def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 

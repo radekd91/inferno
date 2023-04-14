@@ -1,0 +1,4 @@
+# @package model
+# num_classes: 8 # affectnet basic expressions 
+# num_classes: 22 # affectnet basic expressions * 3 intensities = 24, neutral only has one level, so 22 (after subtracting to levels)
+num_classes: 1034 # affectnet basic expressions * 3 intensities = 24, neutral only has one level, so 22 (after subtracting to levels), then 22*47 identities (only will work when training on all of MEAD ) 

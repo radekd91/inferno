@@ -1,0 +1,8 @@
+# @package model
+type: MultiheadLinearClassificationHead 
+dropout_prob: 0.2 
+
+category_names: 
+  - expression
+  - intensity
+  - identity
