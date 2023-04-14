@@ -3676,6 +3676,9 @@ class EMICA(EDECA, ExpDECAInterface):
                 deca_detail, _ = load_model(Path(deca_detail_init).parent, Path(deca_detail_init).name, "detail", mode="best")
                 self.E_detail.load_state_dict(deca_detail.deca.E_detail.state_dict())
 
+    def _get_coarse_trainable_parameters(self):
+        return ExpDECAInterface._get_coarse_trainable_parameters(self)
+
     def _encode_flame(self, images, **kwargs):
         if self.config.expression_backbone == 'deca_parallel':
             #SecondHeadResnet does the forward pass for shape and expression at the same time
