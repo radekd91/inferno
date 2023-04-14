@@ -2767,6 +2767,9 @@ class DECA(torch.nn.Module):
         self._reconfigure(config)
         self._reinitialize()
 
+    def _dirty_init(self):
+        pass # not used here, implemented for EMICA
+
     def get_input_image_size(self): 
         return (self.config.image_size, self.config.image_size)
 
@@ -3187,8 +3190,6 @@ class ExpDECAInterface(object):
     """
 
     def _create_model(self):
-        # 1) Initialize DECA
-        super(self)._create_model()
         # E_flame should be fixed for expression EMOCA
         self.E_flame.requires_grad_(False)
         
@@ -3214,12 +3215,30 @@ class ExpDECAInterface(object):
         if self.config.get('zero_out_last_enc_layer', False):
             self.E_expression.reset_last_layer() 
 
+    def _dirty_init(self): # if we want to initialize different parts from a pretrained model
+        deca_coarse_init = self.config.get('initialize_deca_coarse_from', None) 
+        deca_detail_init = self.config.get('initialize_deca_detail_from', None)
+
+        if deca_coarse_init is not None:
+            deca_coarse = load_model(Path(deca_coarse_init).parent, Path(deca_coarse_init).name, "coarse", mode="best")
+            self.E_flame.load_state_dict(deca_coarse.deca.E_flame.state_dict())
+        
+            if deca_detail_init == deca_detail_init: 
+                self.E_detail.load_state_dict(deca_coarse.deca.E_detail.state_dict())
+                deca_detail_init = None # we already loaded the detail model
+
+        if deca_detail_init is not None:
+            if Path(deca_detail_init).ext == "tar": # old original model 
+                raise NotImplementedError("Loading old original model not implemented")
+            else:
+                deca_detail = load_model(Path(deca_detail_init).parent, Path(deca_detail_init).name, "detail", mode="best")
+                self.E_detail.load_state_dict(deca_detail.deca.E_detail.state_dict())
+
     def _get_coarse_trainable_parameters(self):
         print("Add E_expression.parameters() to the optimizer")
         return list(self.E_expression.parameters())
 
     def _reconfigure(self, config):
-        super()._reconfigure(config)
         self.n_exp_param = self.config.n_exp
 
         if self.config.exp_deca_global_pose and self.config.exp_deca_jaw_pose:
@@ -3228,19 +3247,14 @@ class ExpDECAInterface(object):
             self.n_exp_param += 3
 
     def _encode_flame(self, images, **kwargs):
-        if self.config.expression_backbone == 'deca_parallel':
-            #SecondHeadResnet does the forward pass for shape and expression at the same time
-            return self.E_expression(images)
-        # other regressors have to do a separate pass over the image
-        deca_code = super()._encode_flame(images, **kwargs)
         exp_deca_code = self.E_expression(images)
-        return deca_code, exp_deca_code
+        return exp_deca_code
 
-    def decompose_code(self, code):
+    def decompose_code(self, code, super_):
         deca_code = code[0]
         expdeca_code = code[1]
 
-        deca_code_list, _ = super().decompose_code(deca_code)
+        deca_code_list, _ = super_.decompose_code(self, deca_code)
         # shapecode, texcode, expcode, posecode, cam, lightcode = deca_code_list
         exp_idx = 2
         pose_idx = 3
@@ -3349,6 +3363,25 @@ class ExpDECA(DECA):
         
         if self.config.get('zero_out_last_enc_layer', False):
             self.E_expression.reset_last_layer() 
+
+    def _dirty_init(self): # if we want to initialize different parts from a pretrained model
+        deca_coarse_init = self.config.get('initialize_deca_coarse_from', None) 
+        deca_detail_init = self.config.get('initialize_deca_detail_from', None)
+
+        if deca_coarse_init is not None:
+            deca_coarse = load_model(Path(deca_coarse_init).parent, Path(deca_coarse_init).name, "coarse", mode="best")
+            self.E_flame.load_state_dict(deca_coarse.deca.E_flame.state_dict())
+        
+            if deca_detail_init == deca_detail_init: 
+                self.E_detail.load_state_dict(deca_coarse.deca.E_detail.state_dict())
+                deca_detail_init = None # we already loaded the detail model
+
+        if deca_detail_init is not None:
+            if Path(deca_detail_init).ext == "tar": # old original model 
+                raise NotImplementedError("Loading old original model not implemented")
+            else:
+                deca_detail = load_model(Path(deca_detail_init).parent, Path(deca_detail_init).name, "detail", mode="best")
+                self.E_detail.load_state_dict(deca_detail.deca.E_detail.state_dict())
 
     def _get_coarse_trainable_parameters(self):
         print("Add E_expression.parameters() to the optimizer")
@@ -3608,6 +3641,53 @@ class EMICA(EDECA, ExpDECAInterface):
         EDECA.__init__(self, config)  # explicit calls without super
         ExpDECAInterface.__init__(self)
 
+    def _create_model(self):
+        EDECA._create_model(self)
+        ExpDECAInterface._create_model(self)
+
+
+    def _reconfigure(self, config):
+        EDECA._reconfigure(self, config)
+        ExpDECAInterface._reconfigure(self, config)
+
+    def _dirty_init(self): # if we want to initialize different parts from a pretrained model
+        deca_coarse_init = self.config.get('initialize_deca_coarse_from', None) 
+        emoca_coarse_init = self.config.get('initialize_emoca_coarse_from', None)
+        deca_detail_init = self.config.get('initialize_deca_detail_from', None)
+
+        if deca_coarse_init is not None:
+            deca_coarse, _ = load_model(Path(deca_coarse_init).parent, Path(deca_coarse_init).name, "coarse", mode="best")
+            self.E_flame.load_state_dict(deca_coarse.deca.E_flame.state_dict())
+        
+        if emoca_coarse_init is not None:
+            emoca_coarse, _ = load_model(Path(emoca_coarse_init).parent, Path(emoca_coarse_init).name, "detail", mode="best", 
+                                         allow_stage_revert=True)
+            self.E_expression.load_state_dict(emoca_coarse.deca.E_expression.state_dict())
+
+            if deca_detail_init == emoca_coarse_init: 
+                self.E_detail.load_state_dict(emoca_coarse.deca.E_detail.state_dict())
+                self.D_detail.load_state_dict(emoca_coarse.deca.D_detail.state_dict())
+                deca_detail_init = None # we already loaded the detail model
+
+        if deca_detail_init is not None:
+            if Path(deca_detail_init).ext == "tar": # old original model 
+                raise NotImplementedError("Loading old original model not implemented")
+            else:
+                deca_detail, _ = load_model(Path(deca_detail_init).parent, Path(deca_detail_init).name, "detail", mode="best")
+                self.E_detail.load_state_dict(deca_detail.deca.E_detail.state_dict())
+
+    def _encode_flame(self, images, **kwargs):
+        if self.config.expression_backbone == 'deca_parallel':
+            #SecondHeadResnet does the forward pass for shape and expression at the same time
+            return ExpDECAInterface._encode_flame(self, images, **kwargs)
+        # other regressors have to do a separate pass over the image
+        deca_code = EDECA._encode_flame(self, images, **kwargs)
+        exp_deca_code = ExpDECAInterface._encode_flame(self, images, **kwargs)
+        return deca_code, exp_deca_code
+    
+    def decompose_code(self, code):
+        return ExpDECAInterface.decompose_code(self, code, super_=EDECA)
+
 
 def instantiate_deca(cfg, stage, prefix, checkpoint=None, checkpoint_kwargs=None):
     """
@@ -3620,6 +3700,7 @@ def instantiate_deca(cfg, stage, prefix, checkpoint=None, checkpoint_kwargs=None
             # This load the DECA model weights from the original DECA release
             print("[WARNING] Loading EMOCA checkpoint pretrained by the old code")
             deca.deca._load_old_checkpoint()
+        deca.deca._dirty_init()
     else:
         checkpoint_kwargs = checkpoint_kwargs or {}
         deca = DecaModule.load_from_checkpoint(checkpoint_path=checkpoint, strict=False, **checkpoint_kwargs)
@@ -3629,3 +3710,106 @@ def instantiate_deca(cfg, stage, prefix, checkpoint=None, checkpoint_kwargs=None
             mode = False
         deca.reconfigure(cfg.model, cfg.inout, cfg.learning, prefix, downgrade_ok=True, train=mode)
     return deca
+
+
+
+def load_model(path_to_models,
+              run_name,
+              stage,
+              relative_to_path=None,
+              replace_root_path=None,
+              mode='best',
+              allow_stage_revert=False, # allows to load coarse if detail checkpoint not found
+              ):
+    run_path = Path(path_to_models) / run_name
+    with open(Path(run_path) / "cfg.yaml", "r") as f:
+        conf = OmegaConf.load(f)
+
+    conf = replace_asset_dirs(conf, Path(path_to_models) / run_name)
+    conf.coarse.checkpoint_dir = str(Path(path_to_models) / run_name / "coarse" / "checkpoints")
+    conf.coarse.full_run_dir = str(Path(path_to_models) / run_name / "coarse" )
+    conf.coarse.output_dir = str(Path(path_to_models) )
+    conf.detail.checkpoint_dir = str(Path(path_to_models) / run_name / "detail" / "checkpoints")
+    conf.detail.full_run_dir = str(Path(path_to_models) / run_name / "detail" )
+    conf.detail.output_dir = str(Path(path_to_models) )
+    deca = load_deca(conf,
+              stage,
+              mode,
+              relative_to_path,
+              replace_root_path,
+              terminate_on_failure= not allow_stage_revert
+              )
+    if deca is None and allow_stage_revert:
+        deca = load_deca(conf,
+                         "coarse",
+                         mode,
+                         relative_to_path,
+                         replace_root_path,
+                         )
+
+    return deca, conf
+
+
+def replace_asset_dirs(cfg, output_dir : Path, ): 
+    asset_dir = get_path_to_assets()
+
+    for mode in ["coarse", "detail"]:
+        cfg[mode].inout.output_dir = str(output_dir.parent)
+        cfg[mode].inout.full_run_dir = str(output_dir / mode)
+        cfg[mode].inout.checkpoint_dir = str(output_dir / mode / "checkpoints")
+
+        cfg[mode].model.tex_path = str(asset_dir / "FLAME/texture/FLAME_albedo_from_BFM.npz")
+        cfg[mode].model.topology_path = str(asset_dir / "FLAME/geometry/head_template.obj")
+        cfg[mode].model.fixed_displacement_path = str(asset_dir / 
+                "FLAME/geometry/fixed_uv_displacements/fixed_displacement_256.npy")
+        cfg[mode].model.flame_model_path = str(asset_dir / "FLAME/geometry/generic_model.pkl")
+        cfg[mode].model.flame_lmk_embedding_path = str(asset_dir / "FLAME/geometry/landmark_embedding.npy")
+        if 'flame_mediapipe_lmk_embedding_path' in cfg[mode].model:
+            cfg[mode].model.flame_mediapipe_lmk_embedding_path = str(asset_dir / "FLAME/geometry/mediapipe_landmark_embedding.npz")
+        cfg[mode].model.face_mask_path = str(asset_dir / "FLAME/mask/uv_face_mask.png")
+        cfg[mode].model.face_eye_mask_path  = str(asset_dir / "FLAME/mask/uv_face_eye_mask.png")
+        cfg[mode].model.pretrained_modelpath = str(asset_dir / "DECA/data/deca_model.tar")
+        cfg[mode].model.pretrained_vgg_face_path = str(asset_dir /  "FaceRecognition/resnet50_ft_weight.pkl") 
+        # cfg.model.emonet_model_path = str(asset_dir /  "EmotionRecognition/image_based_networks/ResNet50")
+        cfg[mode].model.emonet_model_path = ""
+    
+    return cfg
+
+
+def load_deca(conf,
+              stage,
+              mode,
+              relative_to_path=None,
+              replace_root_path=None,
+              terminate_on_failure=True,
+              ):
+    print(f"Taking config of stage '{stage}'")
+    print(conf.keys())
+    if stage is not None:
+        cfg = conf[stage]
+    else:
+        cfg = conf
+    # if relative_to_path is not None and replace_root_path is not None:
+    #     cfg = hack_paths(cfg, replace_root_path=replace_root_path, relative_to_path=relative_to_path)
+    cfg.model.resume_training = False
+
+    from gdl.models.IO import locate_checkpoint
+    checkpoint = locate_checkpoint(cfg, replace_root_path, relative_to_path, mode=mode)
+    if checkpoint is None:
+        if terminate_on_failure:
+            sys.exit(0)
+        else:
+            return None
+    print(f"Loading checkpoint '{checkpoint}'")
+    # if relative_to_path is not None and replace_root_path is not None:
+    #     cfg = hack_paths(cfg, replace_root_path=replace_root_path, relative_to_path=relative_to_path)
+
+    checkpoint_kwargs = {
+        "model_params": cfg.model,
+        "learning_params": cfg.learning,
+        "inout_params": cfg.inout,
+        "stage_name": "testing",
+    }
+    deca = DecaModule.load_from_checkpoint(checkpoint_path=checkpoint, strict=False, **checkpoint_kwargs)
+    return deca
+

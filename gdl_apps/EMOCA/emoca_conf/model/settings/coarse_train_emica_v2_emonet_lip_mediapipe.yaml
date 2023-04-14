@@ -1,6 +1,6 @@
 # @package model
 
-deca_class: EMICA_v2
+deca_class: EMICA
 # expression_backbone: deca_parallel
 expression_backbone: deca_clone
 #expression_backbone: emonet_trainable
