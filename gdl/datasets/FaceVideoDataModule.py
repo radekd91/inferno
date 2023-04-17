@@ -933,8 +933,11 @@ class FaceVideoDataModule(FaceDataModuleBase):
     def _get_reconstruction_net_v2(self, device, rec_method="emoca"): 
         device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         if "emoca" in rec_method.lower():
-            if hasattr(self, '_emoca') and self._emoca is not None: 
-                return self._emoca.to(device)
+            if hasattr(self, '_emoca'): 
+                if rec_method in self._emoca.keys() :
+                    return self._emoca[rec_method].to(device)
+            else: 
+                self._emoca = {}
             from gdl.models.temporal.Preprocessors import EmocaPreprocessor
             from munch import Munch
             cfg = Munch()
@@ -950,7 +953,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             cfg.crash_on_invalid = False
             # cfg.render = True
             emoca = EmocaPreprocessor(cfg).to(device)
-            self._emoca = emoca
+            self._emoca[rec_method] = emoca
             return emoca
         if "emica" in rec_method.lower():
             if hasattr(self, '_emica'): 
