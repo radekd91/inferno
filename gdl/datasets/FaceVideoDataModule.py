@@ -954,7 +954,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             return emoca
         if "emica" in rec_method.lower():
             if hasattr(self, '_emica'): 
-                if self._emica[rec_method] is not None:
+                if rec_method in self._emica.keys() :
                     return self._emica[rec_method].to(device)
             else: 
                 self._emica = {}
