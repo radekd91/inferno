@@ -320,7 +320,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
         if rec_method == 'deca':
             return self._get_path_to_sequence_files(sequence_id, "reconstructions", "", suffix)
         else:
-            assert rec_method in ['emoca', 'deep3dface', 'spectre'] or rec_method.lower().startswith('emoca')
+            assert rec_method in ['emoca', 'deep3dface', 'spectre'] or \
+                rec_method.lower().startswith('emoca') or rec_method.lower().startswith('emica')
             return self._get_path_to_sequence_files(sequence_id, "reconstructions", rec_method, suffix)
         # video_file = self.video_list[sequence_id]
         # if rec_method == 'deca':
@@ -951,6 +952,29 @@ class FaceVideoDataModule(FaceDataModuleBase):
             emoca = EmocaPreprocessor(cfg).to(device)
             self._emoca = emoca
             return emoca
+        if "emica" in rec_method.lower():
+            if hasattr(self, '_emica'): 
+                if self._emica[rec_method] is not None:
+                    return self._emica[rec_method].to(device)
+            else: 
+                self._emica = {}
+            from gdl.models.temporal.Preprocessors import EmocaPreprocessor
+            from munch import Munch
+            cfg = Munch()
+            cfg.with_global_pose = True
+            cfg.return_global_pose = True
+            cfg.average_shape_decode = False
+            cfg.return_appearance = True
+            cfg.model_name = rec_method
+            cfg.model_path = False
+            cfg.stage = "coarse" 
+            cfg.max_b = 16
+            cfg.render = False
+            cfg.crash_on_invalid = False
+            # cfg.render = True
+            emica = EmocaPreprocessor(cfg).to(device)
+            self._emica[rec_method] = emica
+            return emica
         elif rec_method == "spectre": 
             if hasattr(self, '_spectre') and self._spectre is not None: 
                 return self._spectre.to(device)

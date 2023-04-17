@@ -362,8 +362,12 @@ class MEADDataModule(FaceVideoDataModule):
             # rec_methods = ['emoca', 'spectre',]
             # rec_methods = ['EMOCA_v2_lr_cos_1.5_with_bfmtex', 'EMOCA_v2_lr_mse_15_with_bfmtex', 
             #     'EMOCA_v2_lr_mse_20_with_bfmtex', 'EMOCA_v2_mp_with_bfmtex']
-            rec_methods = ['EMOCA_v2_lr_cos_1.5_with_bfmtex', 
-                'EMOCA_v2_lr_mse_20_with_bfmtex']
+            # rec_methods = ['EMOCA_v2_lr_cos_1.5_with_bfmtex', 'EMOCA_v2_lr_mse_20_with_bfmtex']
+            # rec_methods = ['EMICA_v0_mp', 'EMICA_v0_mp_lr_cos_1.5', 'EMICA_v0_mp_lr_cos_1.5', \
+            #                'EMICA_v0_mp_lr_mse_15', 'EMICA_v0_mp_lr_mse_20']
+            rec_methods = ['EMICA_v0_mp', 'EMICA_v0_mp_lr_cos_1.5', 'EMICA_v0_mp_lr_cos_1.5', \
+                    'EMICA_v0_mp_lr_mse_15', 'EMICA_v0_mp_lr_mse_20']
+            # rec_methods = ['EMICA_v0_mp_lr_mse_15']
             # for rec_method in rec_methods:
             #     self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
             #                         save_obj=False, save_mat=True, save_vis=False, save_images=False,
