@@ -121,7 +121,8 @@ def submit_trainings():
     # tags += ['KL']
     # tags += ['LATENT_SIZE']
     # tags += ['COMPRESSION']
-    tags += ['REC_TYPES']
+    # tags += ['REC_TYPES']
+    tags += ['EMICA_DATA_MSE_15']
 
     if "l2l" in conf:
         training_modes = [
@@ -172,9 +173,9 @@ def submit_trainings():
         ## split = "random_by_sequence_random_70_15_15" 
         # split = "random_by_sequence_sorted_70_15_15" 
         ## split = "random_by_identityV2_random_70_15_15" 
-        split = "random_by_identityV2_sorted_70_15_15" 
+        # split = "random_by_identityV2_sorted_70_15_15" 
         ## split = "specific_identity_random_80_20_M003"
-        # split = "specific_identity_sorted_80_20_M003"
+        split = "specific_identity_sorted_80_20_M003"
 
     fixed_overrides = [
         # '+model.sequence_decoder.style_embedding=none',
@@ -193,8 +194,8 @@ def submit_trainings():
         fixed_overrides += [f'data.split={split}']
 
     bid = 1000
-    # submit_ = False
-    submit_ = True
+    submit_ = False
+    # submit_ = True
     
     if not submit_:
         fixed_overrides += [
@@ -227,7 +228,7 @@ def submit_trainings():
 
             # feature_dims = [None] # default
             # feature_dims = [16, 32, 64, 128, 256]
-            feature_dims = [16, 32, 64, 128]
+            feature_dims = [16, 32, 64, 128, 256]
             # feature_dims = [16, 64, 128]
             for feature_dim in feature_dims:
                 if feature_dim is not None:
