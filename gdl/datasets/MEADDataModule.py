@@ -365,8 +365,9 @@ class MEADDataModule(FaceVideoDataModule):
             # rec_methods = ['EMOCA_v2_lr_cos_1.5_with_bfmtex', 'EMOCA_v2_lr_mse_20_with_bfmtex']
             # rec_methods = ['EMICA_v0_mp', 'EMICA_v0_mp_lr_cos_1.5', 'EMICA_v0_mp_lr_cos_1.5', \
             #                'EMICA_v0_mp_lr_mse_15', 'EMICA_v0_mp_lr_mse_20']
-            rec_methods = ['EMICA_v0_mp', 'EMICA_v0_mp_lr_cos_1.5', 'EMICA_v0_mp_lr_cos_1.5', \
-                    'EMICA_v0_mp_lr_mse_15', 'EMICA_v0_mp_lr_mse_20']
+            rec_methods = [ 'EMICA_v0_mp_lr_cos_1']
+            # rec_methods = ['EMICA_v0_mp', 'EMICA_v0_mp_lr_cos_1', 'EMICA_v0_mp_lr_cos_1.5', \
+            #         'EMICA_v0_mp_lr_mse_15', 'EMICA_v0_mp_lr_mse_20']
             # rec_methods = ['EMICA_v0_mp_lr_mse_15']
             # for rec_method in rec_methods:
             #     self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
