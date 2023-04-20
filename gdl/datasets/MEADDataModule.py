@@ -688,6 +688,11 @@ class MEADDataModule(FaceVideoDataModule):
             validation = indices[num_train:(num_train + num_val)]
             test = indices[(num_train + num_val):]
             return training, validation, test
+        elif set_type == "overfit_all": 
+            training = np.arange(len(self.video_list), dtype=np.int32)
+            validation = np.arange(len(self.video_list), dtype=np.int32)
+            test = [] 
+            return training, validation, test
         elif "temporal" in set_type:
             raise NotImplementedError("Not implemented yet")
         else: 
