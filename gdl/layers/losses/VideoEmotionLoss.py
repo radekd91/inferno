@@ -141,8 +141,18 @@ class VideoEmotionRecognitionLoss(torch.nn.Module):
         emotion_feat = video_emorec_batch["pooled_sequence_feature"]
         
         if return_logits:
-            predicted_logits = video_emorec_batch["predicted_logits"]
-            return emotion_feat, predicted_logits
+            if "predicted_logits" in video_emorec_batch:
+                predicted_logits = video_emorec_batch["predicted_logits"]
+                return emotion_feat, predicted_logits
+            logit_list = {}
+            if "predicted_logits_expression" in video_emorec_batch:
+                logit_list["predicted_logits_expression"] = video_emorec_batch["predicted_logits_expression"]
+            if "predicted_logits_intensity" in video_emorec_batch:
+                logit_list["predicted_logits_intensity"] = video_emorec_batch["predicted_logits_intensity"]
+            if "predicted_logits_identity" in video_emorec_batch:
+                logit_list["predicted_logits_identity"] = video_emorec_batch["predicted_logits_identity"]
+            return emotion_feat, logit_list
+
         return emotion_feat
 
 
