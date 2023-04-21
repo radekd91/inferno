@@ -180,6 +180,84 @@ def resume_motion_prior_on_cluster():
     # model_names += [""]
     # model_names += [""]
     
+    # Runs on EMICA-MEAD
+    # ## random_by_identityV2_sorted_70_15_15
+    # model_names += ["2023_04_19_00-28-36_2620263824860983578_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-08_3336320914244940859_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-09_-8239109196262280143_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-20_-5803196173148535762_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-29_1224983122974393223_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-48_-3920248191400610296_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-28-36_7641989056675034401_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-20-32_140076761040104708_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-33-45_3752709138041149366_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_03-12-13_-2352703592579167064_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_08-06-50_-2912228835425113432_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_07-20-52_7560882024093976248_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-05_-4997744900722365412_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-01_7323983481315963013_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-58-52_-431614051460033103_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-02_-967541212892117555_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-20_263244182211912227_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-31_985595843842576922_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-31_-5410683084982286477_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-33_6018236609208253182_L2lVqVae_MEADP_VAE"]
+
+    # ## random_by_sequence_sorted_70_15_15
+    # model_names += ["2023_04_19_00-00-05_-7677114385763699840_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-32_-3838203027570469007_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-31_-662511880207928567_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-31_107108105949616955_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_18-21-17_6691846097152544168_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_18-21-14_-453801061652362047_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-35_-8426467404534453753_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-30_-5904904494942409085_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_18-21-18_-6635429708944695063_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-43_-4368952989961137110_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-39_8943690337172483192_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_18-21-13_-2490096116192764107_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-39_8354726890857327493_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_18-21-16_6322900138811770517_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-16_1279880418853352871_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_18-21-18_5111038154583139267_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-33_-271736565210170671_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_18-21-20_-6785385252999123719_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-27_-2451312006709792497_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-27_516267371774217953_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-26_6809389698517385692_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-16_2684490964169142148_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_18-21-18_-6736424312364364268_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-33_4894095615562508970_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_18-21-17_-904605746287992741_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-24_-1201797576850643782_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-27_1086544893838595087_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_18-21-20_3822530478313716560_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-32_397696636039369469_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_18-21-17_-8715285656450941711_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-46_82870774431388047_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_18-21-20_1781989610217374714_L2lVqVae_MEADP_VAE"]
+
+    # # specific_identity_sorted_80_20_M003
+    # model_names += ["2023_04_19_00-01-33_8741517872782649963_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-49_3802241023296877179_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-37_-1230825983744144977_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-38_-3619334619956727409_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-36_8408178486888822267_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-37_-8322536348751144017_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-12_5970413263166749159_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-16_4566069169766000880_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-51_-3877074160401674034_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-14_-5622630547008254665_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-13_-3599943234089060607_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-13_7573360572940968708_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-13_7816736763074877860_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-13_3517003665362732815_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-10_-3866199628095394837_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-10_-2921706562687628710_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-00-16_2632277629187561565_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_19_00-08-19_1645645583971586379_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-51_8575967001023234628_L2lVqVae_MEADP_VAE"]
+    # model_names += ["2023_04_18_23-59-49_4450890243668563649_L2lVqVae_MEADP_VAE"]
 
 
     rename_video_result_folder = False
@@ -187,12 +265,12 @@ def resume_motion_prior_on_cluster():
 
     bid = 1000
 
-    # # continue training
+    # # # continue training
     # stage = 0 
     # resume_from_previous = False
     # force_new_location = False
 
-    # # ## test 
+    # ## test 
     stage = 1
     resume_from_previous = True
     force_new_location = False

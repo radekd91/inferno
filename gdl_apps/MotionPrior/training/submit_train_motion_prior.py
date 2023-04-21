@@ -171,11 +171,11 @@ def submit_trainings():
         ### MEAD splits
         ## split = "random_70_15_15"
         ## split = "random_by_sequence_random_70_15_15" 
-        # split = "random_by_sequence_sorted_70_15_15" 
+        split = "random_by_sequence_sorted_70_15_15" 
         ## split = "random_by_identityV2_random_70_15_15" 
         # split = "random_by_identityV2_sorted_70_15_15" 
         ## split = "specific_identity_random_80_20_M003"
-        split = "specific_identity_sorted_80_20_M003"
+        # split = "specific_identity_sorted_80_20_M003"
 
     fixed_overrides = [
         # '+model.sequence_decoder.style_embedding=none',
@@ -260,7 +260,8 @@ def submit_trainings():
 
                             # kl_weights = [None]
                             # kl_weights = [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05]
-                            kl_weights = [0.001, 0.005, 0.01, 0.05]
+                            # kl_weights = [0.001, 0.005, 0.01, 0.05]
+                            kl_weights = [0.1, 0.5, 1.0, 5.0]
                             # kl_weights = [ 0,5]
                             for kl_weight in kl_weights:
                                 if kl_weight is not None:

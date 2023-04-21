@@ -6,7 +6,7 @@ expression_backbone: deca_clone
 #expression_backbone: emonet_trainable
 #expression_backbone: emonet_static
 
-mica_model_path: 'assets/MICA/model/mica.tar'
+mica_model_path: 'MICA/model/mica.tar'
 # mica_preprocessing: False
 # mica_preprocessing: True
 # mica_preprocessing: none
