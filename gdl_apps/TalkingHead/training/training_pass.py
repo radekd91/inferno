@@ -230,6 +230,18 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
     if logger is not None:
         logger.finalize("")
 
+    dm.setup()
+
+    update_config = False
+    if cfg.model.sequence_decoder.style_embedding.get('gt_expression_identity', False):
+        cfg_num_training_identities = cfg.model.sequence_decoder.style_embedding.get('n_identities', None)
+        if cfg_num_training_identities == 'todo':
+            cfg.model.sequence_decoder.style_embedding.n_identities = dm.get_num_training_identities()
+            update_config = True
+
+    if update_config:
+        OmegaConf.save(cfg, Path(cfg.inout.full_run_dir) / "cfg.yaml")
+
     if model is None:
         # model = instantiation_function(cfg, stage, prefix, checkpoint, checkpoint_kwargs)
         model = instantiation_function(cfg, stage, prefix, checkpoint, checkpoint_kwargs)
@@ -241,7 +253,6 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
         # if checkpoint is not None:
         #     deca.load_from_checkpoint(checkpoint_path=checkpoint)
         # model.reconfigure(cfg.model, cfg.inout, cfg.learning, prefix, downgrade_ok=True, train=mode)
-
 
 
     # accelerator = None if cfg.learning.num_gpus == 1 else 'ddp2'
@@ -256,7 +267,7 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
     # loss_to_monitor = 'val_loss_total'
     train_loss_to_monitor = 'train/loss_total'
     val_loss_to_monitor = 'val/loss_total'
-    dm.setup()
+
     val_data = dm.val_dataloader()
     train_filename_pattern = 'model-{epoch:04d}-{' + train_loss_to_monitor + ':.12f}'
     val_filename_pattern = 'model-{epoch:04d}-{' + val_loss_to_monitor + ':.12f}'

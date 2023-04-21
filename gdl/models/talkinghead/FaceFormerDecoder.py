@@ -124,6 +124,9 @@ class EmotionCondition(StyleConditioning):
         if self.cfg.get('gt_expression_intensity', False):
             self.condition_dim += self.cfg.n_intensities
 
+        if self.cfg.get('gt_expression_identity', False):
+            self.condition_dim += self.cfg.n_identities
+
         if self.cfg.use_expression:
             self.condition_dim += self.cfg.n_expression
 
@@ -170,6 +173,14 @@ class EmotionCondition(StyleConditioning):
                 num_classes=self.cfg.n_intensities).to(device=sample["gt_expression_intensity"].device)
             intensities = intensities.to(dtype=torch.float32).unsqueeze(1).expand(-1, T, -1)
             condition += [intensities]
+
+        if self.cfg.get('gt_expression_identity', False): 
+            T = sample["gt_vertices"].shape[1]
+            identities = torch.nn.functional.one_hot(sample["gt_expression_identity"], 
+                                                      num_classes=self.cfg.n_identities).to(device=sample["gt_expression_identity"].device)
+            identities = identities.to(dtype=torch.float32).unsqueeze(1).expand(-1, T, -1)
+            condition += [identities]
+
         if self.cfg.use_expression: # pseudo GT  label (from Resnet AffectNet)
             condition += [sample["gt_expression"]] 
         if self.cfg.use_valence:

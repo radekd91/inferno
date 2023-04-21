@@ -165,6 +165,9 @@ class FaceformerVocasetDM(pl.LightningDataModule):
             torch.utils.data.DataLoader(dataset=self.test_set_val, batch_size=self.batch_size_test, 
                 shuffle=False, num_workers=self.num_workers), 
             ]
+    
+    def get_num_training_identities(self):
+        return len(self.train_subjects)
 
 
 class VocaSet(torch.utils.data.Dataset):

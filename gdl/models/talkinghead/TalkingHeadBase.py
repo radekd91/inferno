@@ -43,6 +43,28 @@ class TalkingHeadBase(pl.LightningModule):
         else:
             self.code_vec_input_name = "seq_decoder_output"
 
+    def on_validation_epoch_start(self):
+        super().on_validation_epoch_start()
+        validation_loaders = self.trainer.datamodule.val_dataloader()
+        if not isinstance(validation_loaders, list):
+            validation_loaders = [validation_loaders]
+        for loader in validation_loaders:
+            try: 
+                loader.dataset._setup_identity_rng()
+            except AttributeError:
+                pass
+
+    def on_test_epoch_start(self): 
+        super().on_test_epoch_start()
+        test_loaders = self.trainer.datamodule.test_dataloader()
+        if not isinstance(test_loaders, list):
+            test_loaders = [test_loaders]
+        for loader in test_loaders:
+            try: 
+                loader.dataset._setup_identity_rng()
+            except AttributeError:
+                pass
+
     @property
     def max_seq_length(self):
         return 5000
@@ -235,8 +257,10 @@ class TalkingHeadBase(pl.LightningModule):
         condition_gt_video_feature = self.cfg.model.sequence_decoder.style_embedding.get('use_video_feature', False)
         condition_gt_video_expression = self.cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False)
         condition_gt_video_intensity = self.cfg.model.sequence_decoder.style_embedding.get('gt_expression_intensity', False)
+        condition_gt_video_identity = self.cfg.model.sequence_decoder.style_embedding.get('gt_expression_identity', False)
         condition_expression = self.cfg.model.sequence_decoder.style_embedding.use_expression
         num_expressions = self.cfg.model.sequence_decoder.style_embedding.n_expression
+        num_identities = self.cfg.model.sequence_decoder.style_embedding.n_identity
         condition_valence = self.cfg.model.sequence_decoder.style_embedding.use_valence
         condition_arousal = self.cfg.model.sequence_decoder.style_embedding.use_arousal
             
@@ -279,6 +303,17 @@ class TalkingHeadBase(pl.LightningModule):
                 # normalize 
                 expression_cond = expression_cond / expression_cond.sum(dim=1, keepdim=True)
                 conditions["gt_expression"] = expression_cond.unsqueeze(1).expand(B, T, num_expressions)
+
+            if condition_gt_video_identity: 
+                if not hasattr(self, "_video_identity_distribution"):
+                    self._video_identity_distribution = torch.distributions.Uniform(
+                        low=torch.zeros(num_identities, device=self.device), 
+                        high=torch.ones(num_identities, device=self.device))
+                    # self._video_identity_distribution = torch.distributions.categorical.Categorical(probs=torch.ones(num_identities) / num_identities)
+                video_identity_cond = self._video_identity_distribution.sample((B,))
+                # normalize 
+                video_identity_cond = video_identity_cond / video_identity_cond.sum(dim=1, keepdim=True)
+                conditions["gt_identity_video"] = video_identity_cond.unsqueeze(1).expand(B, T, num_identities)
 
             if condition_valence:
                 if not hasattr(self, "_valence_distribution"):
@@ -330,6 +365,11 @@ class TalkingHeadBase(pl.LightningModule):
                 keys_to_exchange += ["gt_expression_label"]
             if condition_gt_video_intensity:
                 keys_to_exchange += ["gt_expression_intensity"]
+            if condition_gt_video_identity:
+                disentangle_identity = self.cfg.model.sequence_decoder.style_embedding.get('disentangle_identity', False)
+                if disentangle_identity:
+                    keys_to_exchange += ["gt_expression_identity"]
+
 
             if condition_expression:
                 keys_to_exchange += ["gt_expression"] # per-frame pseudo-GT

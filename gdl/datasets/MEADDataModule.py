@@ -805,6 +805,10 @@ class MEADDataModule(FaceVideoDataModule):
     def test_dataloader(self):
         return torch.utils.data.DataLoader(self.test_set, shuffle=False, num_workers=self.num_workers, pin_memory=True,
                           batch_size=self.batch_size_test, drop_last=self.drop_last)
+    
+    def get_num_training_identities(self):
+        return len(self.training_set.identity_labels)
+
 
 import imgaug
 from gdl.datasets.VideoDatasetBase import VideoDatasetBase
@@ -918,9 +922,11 @@ class MEADDataset(VideoDatasetBase):
             # so we need to map the identity label of this set to the training set
             strategy = "random"
             if strategy == "random":
-                import random
+                # import random
                 # pick a random identity label from the training set
-                return random.randint(0, len(self.identity_labels) - 1)
+                # return random.randint(0, len(self.identity_labels) - 1)
+                idx = self._identity_rng.integers(low=0, high=len(self.identity_labels))
+                return idx
             # elif strategy == "mod":
             #     # map the identity label of this set to the training set
             #     return self.identity_label2index[identity] % len(self.identity_labels) 
@@ -934,6 +940,10 @@ class MEADDataset(VideoDatasetBase):
         self.identity_labels = identity_labels
         self.identity_label2index = identity_label2index
         self.own_identity_label = False
+        self._setup_identity_rng()
+
+    def _setup_identity_rng(self):
+        self._identity_rng = np.random.default_rng(12345)
 
     def _read_landmarks(self, index, landmark_type, landmark_source):
         landmarks_dir = self._path_to_landmarks(index, landmark_type, landmark_source)
@@ -971,6 +981,13 @@ class MEADDataset(VideoDatasetBase):
              sample["gt_expression_label"], sample["gt_expression_intensity"], sample["gt_expression_identity"], 
             len(self.identity_labels),
             )
+        
+        # turn into array
+        sample["gt_expression_label"] = np.array(sample["gt_expression_label"])
+        sample["gt_expression_intensity"] = np.array(sample["gt_expression_intensity"])
+        sample["gt_expression_identity"] = np.array(sample["gt_expression_identity"])
+        sample["gt_expression_label_with_intensity"] = np.array(sample["gt_expression_label_with_intensity"])
+        sample["gt_expression_label_with_intensity_identity"] = np.array(sample["gt_expression_label_with_intensity_identity"])
         return sample
 
     def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
