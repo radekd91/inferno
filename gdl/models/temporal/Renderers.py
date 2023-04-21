@@ -139,7 +139,8 @@ class FixedViewFlameRenderer(FlameRenderer):
         if self.cut_out_mouth: 
             self.mouth_crop_width = cfg.get("mouth_crop_width", 96) # the default of SPECTRE
             self.mouth_crop_height = cfg.get("mouth_crop_height", 96)
-            self.mouth_window_margin = cfg.get("mouth_crop_height", 12)
+            # self.mouth_window_margin = cfg.get("mouth_crop_height", 12)
+            self.mouth_window_margin = cfg.get("mouth_window_margin", 12)
             self.mouth_landmark_start_idx = 48
             self.mouth_landmark_stop_idx = 68
 
@@ -284,111 +285,118 @@ class FixedViewFlameRenderer(FlameRenderer):
         # plt.show()
         return sample
 
-
     def cut_mouth_vectorized(self, images, landmarks, convert_grayscale=True):
-                
-        with torch.no_grad():
-            image_size = images.shape[-1] / 2
+        return cut_mouth_vectorized(images, landmarks, convert_grayscale=convert_grayscale, 
+                                    mouth_window_margin=self.mouth_window_margin, 
+                                    mouth_landmark_start_idx = self.mouth_landmark_start_idx, 
+                                    mouth_landmark_stop_idx = self.mouth_landmark_stop_idx, 
+                                    mouth_crop_height = self.mouth_crop_height, 
+                                    mouth_crop_width = self.mouth_crop_width,
+                                    )
 
-            landmarks = landmarks * image_size + image_size
-            # #1) smooth the landmarks with temporal convolution
-            # landmarks are of shape (T, 68, 2) 
-            # reshape to (T, 136) 
-            landmarks_t = landmarks.reshape(*landmarks.shape[:2], -1)
-            # make temporal dimension last 
-            landmarks_t = landmarks_t.permute(0, 2, 1)
-            # change chape to (N, 136, T)
-            # landmarks_t = landmarks_t.unsqueeze(0)
-            # smooth with temporal convolution
-            temporal_filter = torch.ones(self.mouth_window_margin, device=images.device) / self.mouth_window_margin
-            # pad the the landmarks 
-            landmarks_t_padded = F.pad(landmarks_t, (self.mouth_window_margin // 2, self.mouth_window_margin // 2), mode='replicate')
-            # convolve each channel separately with the temporal filter
-            num_channels = landmarks_t.shape[1]
-            smooth_landmarks_t = F.conv1d(landmarks_t_padded, 
-                temporal_filter.unsqueeze(0).unsqueeze(0).expand(num_channels,1,temporal_filter.numel()), 
-                groups=num_channels, padding='valid'
-            )
-            smooth_landmarks_t = smooth_landmarks_t[..., 0:landmarks_t.shape[-1]]
+        # with torch.no_grad():
+        #     image_size = images.shape[-1] / 2
 
-            # reshape back to the original shape 
-            smooth_landmarks_t = smooth_landmarks_t.permute(0, 2, 1).view(landmarks.shape)
-            smooth_landmarks_t = smooth_landmarks_t + landmarks.mean(dim=2, keepdims=True) - smooth_landmarks_t.mean(dim=2, keepdims=True)
+        #     landmarks = landmarks * image_size + image_size
+        #     # #1) smooth the landmarks with temporal convolution
+        #     # landmarks are of shape (T, 68, 2) 
+        #     # reshape to (T, 136) 
+        #     landmarks_t = landmarks.reshape(*landmarks.shape[:2], -1)
+        #     # make temporal dimension last 
+        #     landmarks_t = landmarks_t.permute(0, 2, 1)
+        #     # change chape to (N, 136, T)
+        #     # landmarks_t = landmarks_t.unsqueeze(0)
+        #     # smooth with temporal convolution
+        #     temporal_filter = torch.ones(self.mouth_window_margin, device=images.device) / self.mouth_window_margin
+        #     # pad the the landmarks 
+        #     landmarks_t_padded = F.pad(landmarks_t, (self.mouth_window_margin // 2, self.mouth_window_margin // 2), mode='replicate')
+        #     # convolve each channel separately with the temporal filter
+        #     num_channels = landmarks_t.shape[1]
+        #     smooth_landmarks_t = F.conv1d(landmarks_t_padded, 
+        #         temporal_filter.unsqueeze(0).unsqueeze(0).expand(num_channels,1,temporal_filter.numel()), 
+        #         groups=num_channels, padding='valid'
+        #     )
+        #     smooth_landmarks_t = smooth_landmarks_t[..., 0:landmarks_t.shape[-1]]
 
-            # #2) get the mouth landmarks
-            mouth_landmarks_t = smooth_landmarks_t[..., self.mouth_landmark_start_idx:self.mouth_landmark_stop_idx, :]
+        #     # reshape back to the original shape 
+        #     smooth_landmarks_t = smooth_landmarks_t.permute(0, 2, 1).view(landmarks.shape)
+        #     smooth_landmarks_t = smooth_landmarks_t + landmarks.mean(dim=2, keepdims=True) - smooth_landmarks_t.mean(dim=2, keepdims=True)
+
+        #     # #2) get the mouth landmarks
+        #     mouth_landmarks_t = smooth_landmarks_t[..., self.mouth_landmark_start_idx:self.mouth_landmark_stop_idx, :]
             
-            # #3) get the mean of the mouth landmarks
-            mouth_landmarks_mean_t = mouth_landmarks_t.mean(dim=-2, keepdims=True)
+        #     # #3) get the mean of the mouth landmarks
+        #     mouth_landmarks_mean_t = mouth_landmarks_t.mean(dim=-2, keepdims=True)
         
-            # #4) get the center of the mouth
-            center_x_t = mouth_landmarks_mean_t[..., 0]
-            center_y_t = mouth_landmarks_mean_t[..., 1]
+        #     # #4) get the center of the mouth
+        #     center_x_t = mouth_landmarks_mean_t[..., 0]
+        #     center_y_t = mouth_landmarks_mean_t[..., 1]
 
-            # #5) use grid_sample to crop the mouth in every image 
-            # create the grid
-            height = self.mouth_crop_height//2
-            width = self.mouth_crop_width//2
+        #     # #5) use grid_sample to crop the mouth in every image 
+        #     # create the grid
+        #     height = self.mouth_crop_height//2
+        #     width = self.mouth_crop_width//2
 
-            torch.arange(0, self.mouth_crop_width, device=images.device)
+        #     torch.arange(0, self.mouth_crop_width, device=images.device)
 
-            grid = torch.stack(torch.meshgrid(torch.linspace(-height, height, self.mouth_crop_height).to(images.device) / (images.shape[-2] /2),
-                                            torch.linspace(-width, width, self.mouth_crop_width).to(images.device) / (images.shape[-1] /2) ), 
-                                            dim=-1)
-            grid = grid[..., [1, 0]]
-            grid = grid.unsqueeze(0).unsqueeze(0).repeat(*images.shape[:2], 1, 1, 1)
+        #     grid = torch.stack(torch.meshgrid(torch.linspace(-height, height, self.mouth_crop_height).to(images.device) / (images.shape[-2] /2),
+        #                                     torch.linspace(-width, width, self.mouth_crop_width).to(images.device) / (images.shape[-1] /2) ), 
+        #                                     dim=-1)
+        #     grid = grid[..., [1, 0]]
+        #     grid = grid.unsqueeze(0).unsqueeze(0).repeat(*images.shape[:2], 1, 1, 1)
 
-            center_x_t -= images.shape[-1] / 2
-            center_y_t -= images.shape[-2] / 2
+        #     center_x_t -= images.shape[-1] / 2
+        #     center_y_t -= images.shape[-2] / 2
 
-            center_x_t /= images.shape[-1] / 2
-            center_y_t /= images.shape[-2] / 2
+        #     center_x_t /= images.shape[-1] / 2
+        #     center_y_t /= images.shape[-2] / 2
 
-            grid = grid + torch.cat([center_x_t, center_y_t ], dim=-1).unsqueeze(-2).unsqueeze(-2)
-        B, T = images.shape[:2]
-        images = images.view(B*T, *images.shape[2:])
-        grid = grid.view(B*T, *grid.shape[2:])
+        #     grid = grid + torch.cat([center_x_t, center_y_t ], dim=-1).unsqueeze(-2).unsqueeze(-2)
+        # B, T = images.shape[:2]
+        # images = images.view(B*T, *images.shape[2:])
+        # grid = grid.view(B*T, *grid.shape[2:])
 
-        if convert_grayscale: 
-            images = F_v.rgb_to_grayscale(images)
+        # if convert_grayscale: 
+        #     images = F_v.rgb_to_grayscale(images)
 
-        image_crops = F.grid_sample(
-            images, 
-            grid,  
-            align_corners=True, 
-            padding_mode='zeros',
-            mode='bicubic'
-            )
-        image_crops = image_crops.view(B, T, *image_crops.shape[1:])
+        # image_crops = F.grid_sample(
+        #     images, 
+        #     grid,  
+        #     align_corners=True, 
+        #     padding_mode='zeros',
+        #     mode='bicubic'
+        #     )
+        # image_crops = image_crops.view(B, T, *image_crops.shape[1:])
 
-        if convert_grayscale:
-            image_crops = image_crops#.squeeze(1)
+        # if convert_grayscale:
+        #     image_crops = image_crops#.squeeze(1)
 
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.imshow(image_crops[0, 0].permute(1,2,0).cpu().numpy())
-        # plt.show()
+        # # import matplotlib.pyplot as plt
+        # # plt.figure()
+        # # plt.imshow(image_crops[0, 0].permute(1,2,0).cpu().numpy())
+        # # plt.show()
 
-        # plt.figure()
-        # plt.imshow(image_crops[0, 10].permute(1,2,0).cpu().numpy())
-        # plt.show()
+        # # plt.figure()
+        # # plt.imshow(image_crops[0, 10].permute(1,2,0).cpu().numpy())
+        # # plt.show()
 
-        # plt.figure()
-        # plt.imshow(image_crops[0, 20].permute(1,2,0).cpu().numpy())
-        # plt.show()
+        # # plt.figure()
+        # # plt.imshow(image_crops[0, 20].permute(1,2,0).cpu().numpy())
+        # # plt.show()
 
-        # plt.figure()
-        # plt.imshow(image_crops[1, 0].permute(1,2,0).cpu().numpy())
-        # plt.show()
+        # # plt.figure()
+        # # plt.imshow(image_crops[1, 0].permute(1,2,0).cpu().numpy())
+        # # plt.show()
 
-        # plt.figure()
-        # plt.imshow(image_crops[1, 10].permute(1,2,0).cpu().numpy())
-        # plt.show()
+        # # plt.figure()
+        # # plt.imshow(image_crops[1, 10].permute(1,2,0).cpu().numpy())
+        # # plt.show()
 
-        # plt.figure()
-        # plt.imshow(image_crops[1, 20].permute(1,2,0).cpu().numpy())
-        # plt.show()
-        return image_crops
+        # # plt.figure()
+        # # plt.imshow(image_crops[1, 20].permute(1,2,0).cpu().numpy())
+        # # plt.show()
+        # return image_crops
+
 
     # TODO: vectorize this incredibly distasteful function
     def cut_mouth(self, images, landmarks, convert_grayscale=True):
@@ -548,3 +556,112 @@ class FixedViewFlameRenderer(FlameRenderer):
 
 
         return mouth_sequence
+
+
+def cut_mouth_vectorized(images, landmarks, 
+    mouth_window_margin, mouth_landmark_start_idx, mouth_landmark_stop_idx, 
+    mouth_crop_height, mouth_crop_width,
+    convert_grayscale=True):
+            
+    with torch.no_grad():
+        image_size = images.shape[-1] / 2
+
+        landmarks = landmarks * image_size + image_size
+        # #1) smooth the landmarks with temporal convolution
+        # landmarks are of shape (T, 68, 2) 
+        # reshape to (T, 136) 
+        landmarks_t = landmarks.reshape(*landmarks.shape[:2], -1)
+        # make temporal dimension last 
+        landmarks_t = landmarks_t.permute(0, 2, 1)
+        # change chape to (N, 136, T)
+        # landmarks_t = landmarks_t.unsqueeze(0)
+        # smooth with temporal convolution
+        temporal_filter = torch.ones(mouth_window_margin, device=images.device) / mouth_window_margin
+        # pad the the landmarks 
+        landmarks_t_padded = F.pad(landmarks_t, (mouth_window_margin // 2, mouth_window_margin // 2), mode='replicate')
+        # convolve each channel separately with the temporal filter
+        num_channels = landmarks_t.shape[1]
+        smooth_landmarks_t = F.conv1d(landmarks_t_padded, 
+            temporal_filter.unsqueeze(0).unsqueeze(0).expand(num_channels,1,temporal_filter.numel()), 
+            groups=num_channels, padding='valid'
+        )
+        smooth_landmarks_t = smooth_landmarks_t[..., 0:landmarks_t.shape[-1]]
+
+        # reshape back to the original shape 
+        smooth_landmarks_t = smooth_landmarks_t.permute(0, 2, 1).view(landmarks.shape)
+        smooth_landmarks_t = smooth_landmarks_t + landmarks.mean(dim=2, keepdims=True) - smooth_landmarks_t.mean(dim=2, keepdims=True)
+
+        # #2) get the mouth landmarks
+        mouth_landmarks_t = smooth_landmarks_t[..., mouth_landmark_start_idx:mouth_landmark_stop_idx, :]
+        
+        # #3) get the mean of the mouth landmarks
+        mouth_landmarks_mean_t = mouth_landmarks_t.mean(dim=-2, keepdims=True)
+    
+        # #4) get the center of the mouth
+        center_x_t = mouth_landmarks_mean_t[..., 0]
+        center_y_t = mouth_landmarks_mean_t[..., 1]
+
+        # #5) use grid_sample to crop the mouth in every image 
+        # create the grid
+        height = mouth_crop_height//2
+        width = mouth_crop_width//2
+
+        torch.arange(0, mouth_crop_width, device=images.device)
+
+        grid = torch.stack(torch.meshgrid(torch.linspace(-height, height, mouth_crop_height).to(images.device) / (images.shape[-2] /2),
+                                        torch.linspace(-width, width, mouth_crop_width).to(images.device) / (images.shape[-1] /2) ), 
+                                        dim=-1)
+        grid = grid[..., [1, 0]]
+        grid = grid.unsqueeze(0).unsqueeze(0).repeat(*images.shape[:2], 1, 1, 1)
+
+        center_x_t -= images.shape[-1] / 2
+        center_y_t -= images.shape[-2] / 2
+
+        center_x_t /= images.shape[-1] / 2
+        center_y_t /= images.shape[-2] / 2
+
+        grid = grid + torch.cat([center_x_t, center_y_t ], dim=-1).unsqueeze(-2).unsqueeze(-2)
+    B, T = images.shape[:2]
+    images = images.view(B*T, *images.shape[2:])
+    grid = grid.view(B*T, *grid.shape[2:])
+
+    if convert_grayscale: 
+        images = F_v.rgb_to_grayscale(images)
+
+    image_crops = F.grid_sample(
+        images, 
+        grid,  
+        align_corners=True, 
+        padding_mode='zeros',
+        mode='bicubic'
+        )
+    image_crops = image_crops.view(B, T, *image_crops.shape[1:])
+
+    if convert_grayscale:
+        image_crops = image_crops#.squeeze(1)
+
+    # import matplotlib.pyplot as plt
+    # plt.figure()
+    # plt.imshow(image_crops[0, 0].permute(1,2,0).cpu().numpy())
+    # plt.show()
+
+    # plt.figure()
+    # plt.imshow(image_crops[0, 10].permute(1,2,0).cpu().numpy())
+    # plt.show()
+
+    # plt.figure()
+    # plt.imshow(image_crops[0, 20].permute(1,2,0).cpu().numpy())
+    # plt.show()
+
+    # plt.figure()
+    # plt.imshow(image_crops[1, 0].permute(1,2,0).cpu().numpy())
+    # plt.show()
+
+    # plt.figure()
+    # plt.imshow(image_crops[1, 10].permute(1,2,0).cpu().numpy())
+    # plt.show()
+
+    # plt.figure()
+    # plt.imshow(image_crops[1, 20].permute(1,2,0).cpu().numpy())
+    # plt.show()
+    return image_crops
