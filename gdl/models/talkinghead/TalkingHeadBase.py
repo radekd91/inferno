@@ -449,9 +449,14 @@ class TalkingHeadBase(pl.LightningModule):
                     sample["reconstruction"][method]["gt_emotion_video_features"] = {}
                     sample["reconstruction"][method]["gt_emotion_video_logits"] = {}
                     for cam_name in sample["reconstruction"][method]["gt_video"].keys():
-                            sample["reconstruction"][method]["gt_emotion_video_features"][cam_name], \
-                            sample["reconstruction"][method]["gt_emotion_video_logits"][cam_name] = \
-                            self.neural_losses['video_emotion_loss']._forward_input(sample["reconstruction"][method]["gt_video"][cam_name], \
+                        use_real_video = self.cfg.learning.losses.emotion_video_loss.get('use_real_video_for_reference', False) 
+                        if use_real_video:
+                            ref_vid = sample["video"] 
+                        else:
+                            ref_vid = sample["reconstruction"][method]["gt_video"][cam_name]
+                        sample["reconstruction"][method]["gt_emotion_video_features"][cam_name], \
+                        sample["reconstruction"][method]["gt_emotion_video_logits"][cam_name] = \
+                            self.neural_losses['video_emotion_loss']._forward_input(ref_vid, \
                                                                                     return_logits=True)
         return sample
 

@@ -38,6 +38,8 @@ losses:
     # # mead, sequence split, transformer 1, alibi, 64 dim
     # network_path: /is/cluster/work/rdanecek/video_emotion_recognition/trainings/2023_02_24_17-25-21_7058628279281220579_VideoEmotionClassifier_MEADP__TSC_NPE_Lnce_early
 
+    use_real_video: False
+    # use_real_video: True
 
     # affectnet-trained resnet used also in EMOCA
     feature_extractor_path: /is/cluster/work/rdanecek/emoca/emodeca/2021_11_09_05-15-38_-8198495972451127810_EmoCnn_resnet50_shake_samp-balanced_expr_Aug_early
