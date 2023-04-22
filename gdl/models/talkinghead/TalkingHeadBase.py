@@ -260,7 +260,8 @@ class TalkingHeadBase(pl.LightningModule):
         condition_gt_video_identity = self.cfg.model.sequence_decoder.style_embedding.get('gt_expression_identity', False)
         condition_expression = self.cfg.model.sequence_decoder.style_embedding.use_expression
         num_expressions = self.cfg.model.sequence_decoder.style_embedding.n_expression
-        num_identities = self.cfg.model.sequence_decoder.style_embedding.n_identity
+        num_intensities = self.cfg.model.sequence_decoder.style_embedding.n_intensities
+        num_identities = self.cfg.model.sequence_decoder.style_embedding.n_identities
         condition_valence = self.cfg.model.sequence_decoder.style_embedding.use_valence
         condition_arousal = self.cfg.model.sequence_decoder.style_embedding.use_arousal
             
@@ -303,6 +304,17 @@ class TalkingHeadBase(pl.LightningModule):
                 # normalize 
                 expression_cond = expression_cond / expression_cond.sum(dim=1, keepdim=True)
                 conditions["gt_expression"] = expression_cond.unsqueeze(1).expand(B, T, num_expressions)
+
+            if condition_gt_video_intensity: 
+                if not hasattr(self, "_video_intensity_distribution"):
+                    self._video_intensity_distribution = torch.distributions.Uniform(
+                        low=torch.zeros(num_intensities, device=self.device), 
+                        high=torch.ones(num_intensities, device=self.device))
+                    # self._video_intensity_distribution = torch.distributions.categorical.Categorical(probs=torch.ones(num_intensities) / num_intensities)
+                video_intensity_cond = self._video_intensity_distribution.sample((B,))
+                # normalize 
+                video_intensity_cond = video_intensity_cond / video_intensity_cond.sum(dim=1, keepdim=True)
+                conditions["gt_intensity_video"] = video_intensity_cond.unsqueeze(1).expand(B, T, num_intensities)
 
             if condition_gt_video_identity: 
                 if not hasattr(self, "_video_identity_distribution"):
