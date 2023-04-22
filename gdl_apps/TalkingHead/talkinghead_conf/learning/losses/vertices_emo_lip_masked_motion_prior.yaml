@@ -21,9 +21,9 @@ losses:
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
 
   lip_reading_loss:
-    # metric: cosine_similarity
+    metric: cosine_similarity
     # metric: l1_loss
-    metric: mse_loss
+    # metric: mse_loss
     # weight: 10.0 
     # weight: 1.0
     # weight: 0.1

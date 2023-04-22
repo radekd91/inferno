@@ -89,6 +89,8 @@ losses:
     # emo_feat_loss: mse_loss
     trainable: false 
     normalize_features: false 
+    
+    metric: cosine_similarity
     # target_method_image: spectre # trying to make lips behave as spectre
     # target_method_image: EMOCA_v2_lr_mse_20_with_bfmtex 
     target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex 
