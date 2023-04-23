@@ -30,7 +30,7 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
                         raise ValueError(f"Invalid basic expression {cond}")
             assert isinstance(self.condition_settings, list), "Condition_settings must be a list of integers"
 
-        elif self.condition_source in ["gt_expression", "gt_expression_intensity"]:
+        elif self.condition_source in ["gt_expression", "gt_expression_intensity", "gt_expression_intensity_identity"]:
             if self.condition_settings is None: 
                 self.condition_settings = list(range(8)) 
             
@@ -73,7 +73,7 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
     def __len__(self):
         if self.condition_source == "expression":
             return len(self.dataset) * len(self.condition_settings)
-        if self.condition_source in ["gt_expression", "gt_expression_intensity"]:
+        if self.condition_source in ["gt_expression", "gt_expression_intensity", "gt_expression_intensity_identity"]:
             return len(self.dataset) * len(self.condition_settings)
         elif self.condition_source == "valence_arousal":
             return len(self.dataset) * len(self.valence) * len(self.arousal)
@@ -99,7 +99,7 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             sample["gt_emotion_video_logits"][cam] = {}
             sample["gt_emotion_video_logits"][cam] = - (1.-sample[self.condition_prefix + "expression"].clone()) * 99
             sample["condition_name"] = AffectNetExpressions(expression_index).name
-        elif self.condition_source in ["gt_expression", "gt_expression_intensity"]:
+        elif self.condition_source in ["gt_expression", "gt_expression_intensity", "gt_expression_intensity_identity"]:
             video_index = index // len(self.condition_settings)
             expression_index = index % len(self.condition_settings)
             sample = self.dataset[video_index]
@@ -108,6 +108,15 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             if self.condition_source == "gt_expression_intensity":
                 intensity = 2
                 sample[self.condition_prefix + "expression_intensity"] = torch.nn.functional.one_hot(torch.tensor(intensity), 3).to(torch.float32)
+            elif self.condition_source == "gt_expression_intensity_identity":
+                # intensity = 2 # highest intensity
+                # sample[self.condition_prefix + "expression_intensity"] = torch.nn.functional.one_hot(torch.tensor(intensity), 3).to(torch.float32)
+                intensity = 3 # highest intensity (1 gets subtracted and then one-hot encoded but this happens in the styling module)
+                sample[self.condition_prefix + "expression_intensity"] = torch.tensor(intensity)
+                identity = 0 # just use the style of the first identity
+                # n_identities = len(self.dataset.identity_labels)
+                # sample[self.condition_prefix + "expression_identity"] = torch.nn.functional.one_hot(torch.tensor(identity), n_identities).to(torch.float32)
+                sample[self.condition_prefix + "expression_identity"] = torch.tensor(identity)
             sample["condition_name"] = AffectNetExpressions(expression_index).name
             # hack for when the conditioning comes from a video emotion net during training and hence needs to be inserted for conditioned generation here
             sample["gt_emotion_video_logits"] = {}
@@ -117,6 +126,8 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             sample["gt_expression_label"] = sample[self.condition_prefix + "expression_label"].clone()
             if self.condition_source == "gt_expression_intensity":
                 sample["condition_name"] += f"_int_{intensity}"
+            elif self.condition_source == "gt_expression_intensity_identity":
+                sample["condition_name"] += f"_int_{intensity}_id_{identity}"
         elif self.condition_source == "valence_arousal":
             video_index = index // (len(self.valence) * len(self.arousal))
             va_index = index % (len(self.valence) * len(self.arousal))
@@ -175,6 +186,13 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
                     sample[self.condition_prefix + "gt_expression_label"] = sample[self.condition_prefix + "gt_expression_label"][None, ...].repeat(T, 1)
                 if self.condition_prefix + "gt_expression_intensity" in sample:
                     sample[self.condition_prefix + "gt_expression_intensity"] = sample[self.condition_prefix + "gt_expression_intensity"][None, ...].repeat(T, 1)
+            elif self.condition_source == "gt_expression_intensity_identity":
+                if self.condition_prefix + "gt_expression_label" in sample:
+                    sample[self.condition_prefix + "gt_expression_label"] = sample[self.condition_prefix + "gt_expression_label"][None, ...].repeat(T, 1)
+                if self.condition_prefix + "gt_expression_intensity" in sample:
+                    sample[self.condition_prefix + "gt_expression_intensity"] = sample[self.condition_prefix + "gt_expression_intensity"][None, ...].repeat(T, 1)
+                if self.condition_prefix + "gt_expression_identity" in sample:
+                    sample[self.condition_prefix + "gt_expression_identity"] = sample[self.condition_prefix + "gt_expression_identity"][None, ...].repeat(T, 1)
             else:
                 raise NotImplementedError(f"Condition source '{self.condition_source}' not implemented")
             sample["condition_name"] =  [sample["condition_name"] ] * T

@@ -58,6 +58,10 @@ def get_condition_string_from_config(cfg):
         if cfg.model.sequence_decoder.style_embedding.get('use_video_feature', False):
             return "expression", None
         if cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False) and \
+            cfg.model.sequence_decoder.style_embedding.get('gt_expression_intensity', True) and \
+            cfg.model.sequence_decoder.style_embedding.get('gt_expression_identity', False): 
+            return "gt_expression_intensity_identity", None
+        if cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False) and \
              cfg.model.sequence_decoder.style_embedding.get('gt_expression_intensity', True):
             return "gt_expression_intensity", None
         if cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False):
