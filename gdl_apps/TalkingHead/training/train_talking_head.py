@@ -18,7 +18,8 @@ All rights reserved.
 """
 import warnings
 warnings.filterwarnings('ignore', message='.*Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. *', )
-
+import torch 
+torch.autograd.set_detect_anomaly(True)
 from gdl.datasets.LRS3Pseudo3DDM import LRS3Pseudo3DDM
 from gdl_apps.TalkingHead.training.training_pass import( single_stage_training_pass, 
             get_checkpoint_with_kwargs, create_logger, configure_and_train, configure)
