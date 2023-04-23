@@ -37,6 +37,8 @@ class MaskedLoss(torch.nn.Module):
         reduction_dim = self.starting_dim_to_collapse - 1
         if self.reduction == 'mean':
             mask_sum = mask.sum(dim=reduction_dim, keepdims=True)
+            if mask_sum == 0:
+                return None
             loss = loss.sum(dim=reduction_dim, keepdims=True) / mask_sum
             loss_is_nan = loss.isnan()
             if loss_is_nan.any():
