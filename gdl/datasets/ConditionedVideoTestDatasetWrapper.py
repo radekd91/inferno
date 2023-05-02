@@ -11,12 +11,14 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
                  condition_source, 
                  condition_settings, 
                  key_prefix = "",
+                 conditioned_intensity = None, # defaults to 3 if needed and not provided
                  ):    
         self.dataset = dataset
         self.condition_source = condition_source or "original"
         self.condition_settings = condition_settings or None
         self.expand_temporal = True
         self.condition_prefix = key_prefix
+        
         if self.condition_source == "original":
             self.condition_settings = None
         elif self.condition_source == "expression":
@@ -39,6 +41,8 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
                     self.condition_settings[i] = AffectNetExpressions[cond]
                     if self.condition_settings[i] is None or self.condition_settings[i] > 7:
                         raise ValueError(f"Invalid basic expression {cond}")
+                    
+            self.conditioned_intensity = conditioned_intensity or 3
             assert isinstance(self.condition_settings, list), "Condition_settings must be a list of integers"
 
         elif self.condition_source == "valence_arousal":
@@ -106,12 +110,13 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             # sample[self.condition_prefix + "expression_label"] = torch.nn.functional.one_hot(torch.tensor(expression_index), len(self.condition_settings)).to(torch.float32)
             sample[self.condition_prefix + "expression_label"] = torch.tensor(expression_index)
             if self.condition_source == "gt_expression_intensity":
-                intensity = 2
+                # intensity = 3 # highest intensity (1 gets subtracted and then one-hot encoded but this happens in the styling module)
+                intensity = 3 if self.conditioned_intensity is None else self.conditioned_intensity
                 sample[self.condition_prefix + "expression_intensity"] = torch.nn.functional.one_hot(torch.tensor(intensity), 3).to(torch.float32)
             elif self.condition_source == "gt_expression_intensity_identity":
-                # intensity = 2 # highest intensity
                 # sample[self.condition_prefix + "expression_intensity"] = torch.nn.functional.one_hot(torch.tensor(intensity), 3).to(torch.float32)
-                intensity = 3 # highest intensity (1 gets subtracted and then one-hot encoded but this happens in the styling module)
+                # intensity = 3 # highest intensity (1 gets subtracted and then one-hot encoded but this happens in the styling module)
+                intensity = 3 if self.conditioned_intensity is None else self.conditioned_intensity
                 sample[self.condition_prefix + "expression_intensity"] = torch.tensor(intensity)
                 identity = 0 # just use the style of the first identity
                 # n_identities = len(self.dataset.identity_labels)

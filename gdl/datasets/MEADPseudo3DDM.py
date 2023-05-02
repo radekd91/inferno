@@ -101,7 +101,9 @@ class MEADPseudo3DDM(MEADDataModule):
         self.emotion_type = emotion_type
         self.return_emotion_feature = return_emotion_feature
 
-    def _get_smaller_renderable_subset_single_identity(self, indices, max_videos_per_category=1, accepted_expression=None):
+    def _get_smaller_renderable_subset_single_identity(self, indices, max_videos_per_category=1, 
+                                                       accepted_expression=None, 
+                                                       accepted_intensity=None):
         identity_expression_intensity2idx = {}
         identity = None
         for i in indices:
@@ -114,6 +116,8 @@ class MEADPseudo3DDM(MEADDataModule):
             if accepted_expression is not None and expression not in accepted_expression:
                 continue
             intensity = self._expression_intensity(i)
+            if accepted_intensity is not None and intensity not in accepted_intensity:
+                continue
             key = (identity, expression, intensity)
             if key not in identity_expression_intensity2idx:
                 identity_expression_intensity2idx[key] = []
@@ -194,7 +198,19 @@ class MEADPseudo3DDM(MEADDataModule):
         val_test_set = self._get_smaller_renderable_subset_single_identity(val, max_videos_per_category=1)
         train_test_set = self._get_smaller_renderable_subset_single_identity(train, max_videos_per_category=1)
         train_test_cond_set = self._get_smaller_renderable_subset_single_identity(train, max_videos_per_category=1, accepted_expression='neutral')
-        val_test_cond_set = self._get_smaller_renderable_subset_single_identity(val, max_videos_per_category=1, accepted_expression='neutral')
+        val_test_cond_set_neutral = self._get_smaller_renderable_subset_single_identity(val, max_videos_per_category=1, accepted_expression='neutral')
+        # val_test_cond_set_happy_1 = self._get_smaller_renderable_subset_single_identity(
+        #     val, max_videos_per_category=1, accepted_expression='happy', accepted_intensity='level_1')
+        # val_test_cond_set_happy_2 = self._get_smaller_renderable_subset_single_identity(
+        #     val, max_videos_per_category=1, accepted_expression='happy', accepted_intensity='level_2')
+        val_test_cond_set_happy_3 = self._get_smaller_renderable_subset_single_identity(
+            val, max_videos_per_category=1, accepted_expression='happy', accepted_intensity='level_3')
+        val_test_cond_set_sad_1 = self._get_smaller_renderable_subset_single_identity(
+            val, max_videos_per_category=1, accepted_expression='sad', accepted_intensity='level_1')
+        val_test_cond_set_sad_2 = self._get_smaller_renderable_subset_single_identity(
+            val, max_videos_per_category=1, accepted_expression='sad', accepted_intensity='level_2')
+        val_test_cond_set_sad_3 = self._get_smaller_renderable_subset_single_identity(
+            val, max_videos_per_category=1, accepted_expression='sad', accepted_intensity='level_3')
 
         self.test_set_names = []
         # if len(test) > 0:
@@ -400,9 +416,9 @@ class MEADPseudo3DDM(MEADDataModule):
             )
 
             max_validation_test_samples = 2
-            self.test_set_val_cond_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+            self.test_set_val_cond_neutral_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
                     # sorted(val)[:max_validation_test_samples], 
-                    sorted(val_test_cond_set), 
+                    sorted(val_test_cond_set_neutral), 
                     self.audio_metas, 
                     # sequence_length=self.sequence_length_test, 
                     sequence_length="all", 
@@ -430,14 +446,185 @@ class MEADPseudo3DDM(MEADDataModule):
                     return_emotion_feature=self.return_emotion_feature,
                     )
 
-            self.test_set_val_cond_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
+            self.test_set_val_cond_neutral_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
 
-            self.test_set_val_cond = ConditionedVideoTestDatasetWrapper(
-                self.test_set_val_cond_,
+            self.test_set_val_cond_neutral_3 = ConditionedVideoTestDatasetWrapper(
+                self.test_set_val_cond_neutral_,
+                self.test_condition_source, 
+                self.test_condition_settings, 
+                key_prefix="gt_",
+                conditioned_intensity=3
+            )
+
+            self.test_set_val_cond_neutral_2 = ConditionedVideoTestDatasetWrapper(
+                self.test_set_val_cond_neutral_,
+                self.test_condition_source, 
+                self.test_condition_settings, 
+                key_prefix="gt_",
+                conditioned_intensity=2,
+            )
+
+            self.test_set_val_cond_neutral_1 = ConditionedVideoTestDatasetWrapper(
+                self.test_set_val_cond_neutral_,
+                self.test_condition_source, 
+                self.test_condition_settings, 
+                key_prefix="gt_",
+                conditioned_intensity=1,
+            )
+
+            self.test_set_val_cond_happy_3_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+                    # sorted(val)[:max_validation_test_samples], 
+                    sorted(val_test_cond_set_happy_3), 
+                    self.audio_metas, 
+                    # sequence_length=self.sequence_length_test, 
+                    sequence_length="all", 
+                    image_size=self.image_size, 
+                    **self.occlusion_settings_val,
+                    hack_length=False, 
+                    # use_original_video=self.use_original_video,
+                    include_processed_audio = self.include_processed_audio,
+                    include_raw_audio = self.include_raw_audio,
+                    landmark_types=self.landmark_types,
+                    landmark_source=self.landmark_sources,
+                    # segmentation_source=self.segmentation_source,
+                    temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
+                    temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                    # preload_videos=self.preload_videos,
+                    inflate_by_video_size=False,
+                    include_filename=True,
+                    read_video=self.read_video,
+                    read_audio=self.read_audio,
+                    reconstruction_type=self.reconstruction_type,
+                    return_global_pose=self.return_global_pose,
+                    return_appearance=self.return_appearance,
+                    average_shape_decode=self.average_shape_decode,
+                    emotion_type=self.emotion_type,
+                    return_emotion_feature=self.return_emotion_feature,
+                    )
+
+            self.test_set_val_cond_happy_3_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
+            self.test_set_val_cond_happy_3 = ConditionedVideoTestDatasetWrapper(
+                self.test_set_val_cond_happy_3_,
                 self.test_condition_source, 
                 self.test_condition_settings, 
                 key_prefix="gt_",
             )
+            
+            self.test_set_val_cond_sad_1_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas,
+                    # sorted(val)[:max_validation_test_samples],
+                    sorted(val_test_cond_set_sad_1),
+                    self.audio_metas,
+                    # sequence_length=self.sequence_length_test,
+                    sequence_length="all",
+                    image_size=self.image_size,
+                    **self.occlusion_settings_val,
+                    hack_length=False,
+                    # use_original_video=self.use_original_video,
+                    include_processed_audio=self.include_processed_audio,
+                    include_raw_audio=self.include_raw_audio,
+                    landmark_types=self.landmark_types,
+                    landmark_source=self.landmark_sources,
+                    # segmentation_source=self.segmentation_source,
+                    temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
+                    temporal_split_end=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                    # preload_videos=self.preload_videos,
+                    inflate_by_video_size=False,
+                    include_filename=True,
+                    read_video=self.read_video,
+                    read_audio=self.read_audio,
+                    reconstruction_type=self.reconstruction_type,
+                    return_global_pose=self.return_global_pose,
+                    return_appearance=self.return_appearance,
+                    average_shape_decode=self.average_shape_decode,
+                    emotion_type=self.emotion_type,
+                    return_emotion_feature=self.return_emotion_feature,
+                    )
+            self.test_set_val_cond_sad_1_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
+            self.test_set_val_cond_sad_1 = ConditionedVideoTestDatasetWrapper(
+                self.test_set_val_cond_sad_1_,
+                self.test_condition_source,
+                self.test_condition_settings,
+                key_prefix="gt_",
+                # conditioned_intensity=1,
+            )
+
+
+            self.test_set_val_cond_sad_2_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas,
+                    # sorted(val)[:max_validation_test_samples],
+                    sorted(val_test_cond_set_sad_2),
+                    self.audio_metas,
+                    # sequence_length=self.sequence_length_test,
+                    sequence_length="all",
+                    image_size=self.image_size,
+                    **self.occlusion_settings_val,
+                    hack_length=False,
+                    # use_original_video=self.use_original_video,
+                    include_processed_audio=self.include_processed_audio,
+                    include_raw_audio=self.include_raw_audio,
+                    landmark_types=self.landmark_types,
+                    landmark_source=self.landmark_sources,
+                    # segmentation_source=self.segmentation_source,
+                    temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
+                    temporal_split_end=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                    # preload_videos=self.preload_videos,
+                    inflate_by_video_size=False,
+                    include_filename=True,
+                    read_video=self.read_video,
+                    read_audio=self.read_audio,
+                    reconstruction_type=self.reconstruction_type,
+                    return_global_pose=self.return_global_pose,
+                    return_appearance=self.return_appearance,
+                    average_shape_decode=self.average_shape_decode,
+                    emotion_type=self.emotion_type,
+                    return_emotion_feature=self.return_emotion_feature,
+                    )
+            self.test_set_val_cond_sad_2_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
+            self.test_set_val_cond_sad_2 = ConditionedVideoTestDatasetWrapper(
+                self.test_set_val_cond_sad_2_,
+                self.test_condition_source,
+                self.test_condition_settings,
+                key_prefix="gt_",
+                # conditioned_intensity=2,
+            )
+
+            self.test_set_val_cond_sad_3_ = MEADPseudo3dDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+                    # sorted(val)[:max_validation_test_samples], 
+                    sorted(val_test_cond_set_sad_3), 
+                    self.audio_metas, 
+                    # sequence_length=self.sequence_length_test, 
+                    sequence_length="all", 
+                    image_size=self.image_size, 
+                    **self.occlusion_settings_val,
+                    hack_length=False, 
+                    # use_original_video=self.use_original_video,
+                    include_processed_audio = self.include_processed_audio,
+                    include_raw_audio = self.include_raw_audio,
+                    landmark_types=self.landmark_types,
+                    landmark_source=self.landmark_sources,
+                    # segmentation_source=self.segmentation_source,
+                    temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
+                    temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                    # preload_videos=self.preload_videos,
+                    inflate_by_video_size=False,
+                    include_filename=True,
+                    read_video=self.read_video,
+                    read_audio=self.read_audio,
+                    reconstruction_type=self.reconstruction_type,
+                    return_global_pose=self.return_global_pose,
+                    return_appearance=self.return_appearance,
+                    average_shape_decode=self.average_shape_decode,
+                    emotion_type=self.emotion_type,
+                    return_emotion_feature=self.return_emotion_feature,
+                    )
+
+            self.test_set_val_cond_sad_3_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
+            self.test_set_val_cond_sad_3 = ConditionedVideoTestDatasetWrapper(
+                self.test_set_val_cond_sad_3_,
+                self.test_condition_source, 
+                self.test_condition_settings, 
+                key_prefix="gt_",
+            )
+
 
 
 
@@ -511,8 +698,8 @@ class MEADPseudo3DDM(MEADDataModule):
                           )]
             self.test_set_names += ["train_cond"]
 
-        if hasattr(self, "test_set_val_cond") and self.test_set_val_cond is not None:
-            test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond, shuffle=False, 
+        if hasattr(self, "test_set_val_cond_neutral_3") and self.test_set_val_cond_neutral_3 is not None:
+            test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond_neutral_3, shuffle=False, 
                         #   num_workers=self.num_workers, 
                           num_workers=0, 
                           pin_memory=True,
@@ -523,6 +710,84 @@ class MEADPseudo3DDM(MEADDataModule):
                           collate_fn=robust_collate
                           )]
             self.test_set_names += ["val_cond"]
+
+        if hasattr(self, "test_set_val_cond_neutral_2") and self.test_set_val_cond_neutral_2 is not None:
+            test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond_neutral_2, shuffle=False, 
+                        #   num_workers=self.num_workers, 
+                          num_workers=0, 
+                          pin_memory=True,
+                        #   batch_size=self.batch_size_test, 
+                          batch_size=1,
+                          drop_last=False,
+                        #   drop_last=self.drop_last,
+                          collate_fn=robust_collate
+                          )]
+            self.test_set_names += ["val_cond"]
+
+        if hasattr(self, "test_set_val_cond_neutral_1") and self.test_set_val_cond_neutral_1 is not None:
+            test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond_neutral_1, shuffle=False, 
+                        #   num_workers=self.num_workers, 
+                          num_workers=0, 
+                          pin_memory=True,
+                        #   batch_size=self.batch_size_test, 
+                          batch_size=1,
+                          drop_last=False,
+                        #   drop_last=self.drop_last,
+                          collate_fn=robust_collate
+                          )]
+            self.test_set_names += ["val_cond"]
+
+        if hasattr(self, "test_set_val_cond_happy_3") and self.test_set_val_cond_happy_3 is not None:
+            test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond_happy_3, shuffle=False,
+                        #   num_workers=self.num_workers,
+                            num_workers=0,
+                            pin_memory=True,
+                        #   batch_size=self.batch_size_test,
+                            batch_size=1,
+                            drop_last=False,
+                        #   drop_last=self.drop_last,
+                            collate_fn=robust_collate    
+                            )]
+            self.test_set_names += ["val_cond"]
+            
+        if hasattr(self, "test_set_val_cond_sad_1") and self.test_set_val_cond_sad_1 is not None:
+            test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond_sad_1, shuffle=False,
+                        #   num_workers=self.num_workers,
+                            num_workers=0,
+                            pin_memory=True,
+                        #   batch_size=self.batch_size_test,
+                            batch_size=1,
+                            drop_last=False,
+                        #   drop_last=self.drop_last,
+                            collate_fn=robust_collate    
+                            )]
+            self.test_set_names += ["val_cond"]
+            
+        if hasattr(self, "test_set_val_cond_sad_2") and self.test_set_val_cond_sad_2 is not None:
+            test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond_sad_2, shuffle=False,
+                        #   num_workers=self.num_workers,
+                            num_workers=0,
+                            pin_memory=True,
+                        #   batch_size=self.batch_size_test,
+                            batch_size=1,
+                            drop_last=False,
+                        #   drop_last=self.drop_last,
+                            collate_fn=robust_collate    
+                            )]
+
+        if hasattr(self, "test_set_val_cond_sad_3") and self.test_set_val_cond_sad_3 is not None:
+            test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond_sad_3, shuffle=False,
+                        #   num_workers=self.num_workers,
+                            num_workers=0,
+                            pin_memory=True,
+                        #   batch_size=self.batch_size_test,
+                            batch_size=1,
+                            drop_last=False,
+                        #   drop_last=self.drop_last,
+                            collate_fn=robust_collate    
+                            )]
+            self.test_set_names += ["val_cond"]
+
         return test_dls
 
 
