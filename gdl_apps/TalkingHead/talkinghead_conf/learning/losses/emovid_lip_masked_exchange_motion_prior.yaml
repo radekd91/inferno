@@ -99,7 +99,7 @@ losses:
     # affectnet-trained resnet used also in EMOCA
     feature_extractor_path: /is/cluster/work/rdanecek/emoca/emodeca/2021_11_09_05-15-38_-8198495972451127810_EmoCnn_resnet50_shake_samp-balanced_expr_Aug_early
     
-      use_real_video_for_reference: False
+    use_real_video_for_reference: False
     # use_real_video_for_reference: True
 
     # metric: masked_mse_loss

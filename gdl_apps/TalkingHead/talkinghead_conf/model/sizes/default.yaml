@@ -1,7 +1,8 @@
 # @package model
 
 # latent space
-n_shape: 100
+n_shape: 300
+# n_shape: 100
 # n_tex: 50
 n_exp: 50
 n_pose: 6

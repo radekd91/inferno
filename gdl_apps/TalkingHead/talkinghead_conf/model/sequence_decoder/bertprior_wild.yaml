@@ -2,10 +2,11 @@
 type: BertPriorDecoder 
 num_layers: 1
 # num_layers: 4
-feature_dim: 64
-# feature_dim: 128
-nhead: 4
-# nhead: 8
+# feature_dim: 64
+feature_dim: 128
+# feature_dim: 256
+# nhead: 4
+nhead: 8
 dropout: 0.25
 # activation: relu
 activation: gelu
@@ -19,8 +20,8 @@ squash_before: False
 squash_after: True
 # squash_after: False
 
-squash_type: conv
-# squash_type: stack_linear
+# squash_type: conv
+squash_type: stack_linear
 
 # style_op: add
 # style_op: style_only

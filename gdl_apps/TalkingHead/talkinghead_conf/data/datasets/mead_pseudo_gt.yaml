@@ -92,7 +92,8 @@ read_video: False
 # reconstruction_type: EMOCA_v2_lr_mse_20_with_bfmtex
 # reconstruction_type: [EMOCA_v2_lr_mse_15_with_bfmtex,]
 # reconstruction_type: EMOCA_v2_lr_cos_1.5_with_bfmtex
-reconstruction_type: [EMICA_v0_mp_lr_mse_15]
+# reconstruction_type: [EMICA_v0_mp_lr_mse_15]
+reconstruction_type: [EMICA_mead_mp_lr_mse_15]
 
 return_global_pose: False
 # return_appearance: False

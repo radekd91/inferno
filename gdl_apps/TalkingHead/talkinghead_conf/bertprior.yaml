@@ -16,7 +16,8 @@ defaults:
   - model/sequence_encoder@model/sequence_encoder: linear
   # - model/sequence_decoder@model/sequence_decoder: flamebert
   # - model/sequence_decoder@model/sequence_decoder: flamebert_npe
-  - model/sequence_decoder@model/sequence_decoder: bertprior
+  # - model/sequence_encoder@model/sequence_encoder: linear 
+  - model/sequence_encoder@model/sequence_encoder: linear_bertprior
   - model/output@model/output: exp_jaw
   - learning/losses: vertices_motion_prior
   # - learning/losses: vertices_masked_motion_prior
