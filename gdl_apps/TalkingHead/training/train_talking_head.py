@@ -30,7 +30,7 @@ from gdl.datasets.CelebVHQPseudo3DDM import CelebVHQPseudo3DDM
 from gdl.datasets.MEADPseudo3DDM import MEADPseudo3DDM
 
 
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, open_dict
 import sys
 from pathlib import Path
 from pytorch_lightning.loggers import WandbLogger
@@ -429,7 +429,8 @@ def train_model(cfg, start_i=-1,
     if cfg.inout.full_run_dir == 'todo' or force_new_location:
         if force_new_location:
             print("The run will be resumed in a new foler (forked)")
-            cfg.inout.previous_run_dir = cfg.inout.full_run_dir
+            with open_dict(cfg) as d:
+                d.inout.previous_run_dir = cfg.inout.full_run_dir
         time = datetime.datetime.now().strftime("%Y_%m_%d_%H-%M-%S")
         random_id = str(hash(time))
         experiment_name = create_experiment_name(cfg)
