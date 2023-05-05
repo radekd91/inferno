@@ -12,7 +12,7 @@ import soundfile as sf
 
 class TalkingHeadTestRenderingCallback(pl.Callback):
 
-    def __init__(self, template_mesh_path, path_chunks_to_cat=None, predicted_vertex_key=None):
+    def __init__(self, template_mesh_path, path_chunks_to_cat=None, predicted_vertex_key=None, save_meshes=False):
         # self.talking_head = talking_head
         # self.sample_interval = sample_interval
         self.renderer = PyRenderMeshSequenceRenderer(template_mesh_path)
@@ -26,6 +26,7 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
         self.overwrite = False
         self.predicted_vertex_key = predicted_vertex_key or "predicted_vertices"
         self.path_chunks_to_cat = path_chunks_to_cat or 0
+        self.save_meshes = save_meshes
 
     def _path_chunk(self, video_name):
         video_name = Path(video_name)
@@ -113,6 +114,13 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
                 image = np.concatenate([gt_image, pred_image], axis=1)
 
                 imsave(image_path, image)
+
+                if self.save_meshes: 
+                    import trimesh
+                    mesh = trimesh.base.Trimesh(pred_vertices, self.renderer.template.faces)
+                    mesh_path = path / (self.image_format % frame_index + ".obj")
+                    mesh.export(mesh_path)
+
 
                 if 'raw_audio' in batch.keys():
                     raw_audio_chunk = batch["raw_audio"][b,t].detach().cpu().numpy()
