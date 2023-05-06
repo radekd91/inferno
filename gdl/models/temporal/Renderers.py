@@ -136,6 +136,7 @@ class FixedViewFlameRenderer(FlameRenderer):
         self.cam_names = cfg.cam_names
 
         self.cut_out_mouth = cfg.get("cut_out_mouth", False)
+        self.mouth_grayscale = cfg.get("mouth_grayscale", True)
         if self.cut_out_mouth: 
             self.mouth_crop_width = cfg.get("mouth_crop_width", 96) # the default of SPECTRE
             self.mouth_crop_height = cfg.get("mouth_crop_height", 96)
@@ -263,7 +264,11 @@ class FixedViewFlameRenderer(FlameRenderer):
                 #     sample[out_mouth_vid_name][cam_name] += [self.cut_mouth(sample[out_vid_name][cam_name][bi], sample[out_landmark_name][cam_name][bi])]
                 # sample[out_mouth_vid_name][cam_name] = torch.stack(sample[out_mouth_vid_name][cam_name], dim=0)
 
-                sample[out_mouth_vid_name][cam_name] = self.cut_mouth_vectorized(sample[out_vid_name][cam_name], sample[out_landmark_name][cam_name])
+                sample[out_mouth_vid_name][cam_name] = self.cut_mouth_vectorized(
+                    sample[out_vid_name][cam_name], 
+                    sample[out_landmark_name][cam_name], 
+                    convert_grayscale=self.mouth_grayscale,                    
+                    )
 
         # ## plot the landmakrs over the video for debugging and sanity checking
         # import matplotlib.pyplot as plt 

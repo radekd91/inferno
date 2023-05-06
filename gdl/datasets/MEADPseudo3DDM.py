@@ -135,6 +135,38 @@ class MEADPseudo3DDM(MEADDataModule):
 
         return final_indices
 
+
+    def _get_validation_set(self, indices, sequence_length = None ): 
+        sequence_length = sequence_length or self.sequence_length_val
+        validation_set = MEADPseudo3dDataset(self.root_dir, self.output_dir, 
+                self.video_list, self.video_metas, 
+                indices, 
+                self.audio_metas, 
+                sequence_length, 
+                image_size=self.image_size,  
+                **self.occlusion_settings_val,
+                hack_length=False, 
+                # use_original_video=self.use_original_video,
+                include_processed_audio = self.include_processed_audio,
+                include_raw_audio = self.include_raw_audio,
+                landmark_types=self.landmark_types,
+                landmark_source=self.landmark_sources,
+                # segmentation_source=self.segmentation_source,
+                temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
+                temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+                preload_videos=self.preload_videos,
+                inflate_by_video_size=self.inflate_by_video_size,
+                read_video=self.read_video,
+                read_audio=self.read_audio,
+                reconstruction_type=self.reconstruction_type,
+                return_global_pose=self.return_global_pose,
+                return_appearance=self.return_appearance,
+                average_shape_decode=self.average_shape_decode,
+                emotion_type=self.emotion_type,
+                return_emotion_feature=self.return_emotion_feature,
+            )
+        validation_set._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
+        return validation_set
         
 
     def setup(self, stage=None):
@@ -168,33 +200,8 @@ class MEADPseudo3DDM(MEADDataModule):
                 emotion_type=self.emotion_type,
                 return_emotion_feature=self.return_emotion_feature,
               )           
-        self.validation_set = MEADPseudo3dDataset(self.root_dir, self.output_dir, 
-                self.video_list, self.video_metas, 
-                val, 
-                self.audio_metas, 
-                self.sequence_length_val, image_size=self.image_size,  
-                **self.occlusion_settings_val,
-                hack_length=False, 
-                # use_original_video=self.use_original_video,
-                include_processed_audio = self.include_processed_audio,
-                include_raw_audio = self.include_raw_audio,
-                landmark_types=self.landmark_types,
-                landmark_source=self.landmark_sources,
-                # segmentation_source=self.segmentation_source,
-                temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
-                temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
-                preload_videos=self.preload_videos,
-                inflate_by_video_size=self.inflate_by_video_size,
-                read_video=self.read_video,
-                read_audio=self.read_audio,
-                reconstruction_type=self.reconstruction_type,
-                return_global_pose=self.return_global_pose,
-                return_appearance=self.return_appearance,
-                average_shape_decode=self.average_shape_decode,
-                emotion_type=self.emotion_type,
-                return_emotion_feature=self.return_emotion_feature,
-            )
-        self.validation_set._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
+        self.validation_set = self._get_validation_set(val)
+
         val_test_set = self._get_smaller_renderable_subset_single_identity(val, max_videos_per_category=1)
         train_test_set = self._get_smaller_renderable_subset_single_identity(train, max_videos_per_category=1)
         train_test_cond_set = self._get_smaller_renderable_subset_single_identity(train, max_videos_per_category=1, accepted_expression='neutral')
@@ -637,8 +644,8 @@ class MEADPseudo3DDM(MEADDataModule):
             #         test_dl = [test_dl]
             #     test_dls += test_dl
                 test_dls += [torch.utils.data.DataLoader(self.test_set, shuffle=False, 
-                          #   num_workers=self.num_workers, 
-                          num_workers=0, 
+                            num_workers=self.num_workers, 
+                        #   num_workers=0, 
                           pin_memory=True,
                         #   batch_size=self.batch_size_test, 
                           batch_size=1, 
@@ -649,8 +656,8 @@ class MEADPseudo3DDM(MEADDataModule):
                 self.test_set_names += ["test"]
 
         test_dls += [torch.utils.data.DataLoader(self.test_set_train, shuffle=False, 
-                          #   num_workers=self.num_workers, 
-                          num_workers=0, 
+                            num_workers=self.num_workers, 
+                        #   num_workers=0, 
                           pin_memory=True,
                         #   batch_size=self.batch_size_test, 
                           batch_size=1, 
@@ -661,8 +668,8 @@ class MEADPseudo3DDM(MEADDataModule):
         self.test_set_names += ["train"]
 
         test_dls += [torch.utils.data.DataLoader(self.test_set_val, shuffle=False, 
-                          #   num_workers=self.num_workers, 
-                          num_workers=0, 
+                            num_workers=self.num_workers, 
+                        #   num_workers=0, 
                           pin_memory=True,
                         #   batch_size=self.batch_size_test, 
                           batch_size=1,
@@ -687,8 +694,8 @@ class MEADPseudo3DDM(MEADDataModule):
 
         if hasattr(self, "test_set_train_cond") and self.test_set_train_cond is not None:
             test_dls += [torch.utils.data.DataLoader(self.test_set_train_cond, shuffle=False, 
-                            #   num_workers=self.num_workers, 
-                          num_workers=0, 
+                              num_workers=self.num_workers, 
+                        #   num_workers=0, 
                             pin_memory=True,
                         #   batch_size=self.batch_size_test, 
                           batch_size=1,
@@ -702,6 +709,7 @@ class MEADPseudo3DDM(MEADDataModule):
             test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond_neutral_3, shuffle=False, 
                         #   num_workers=self.num_workers, 
                           num_workers=0, 
+                        #   num_workers=1, 
                           pin_memory=True,
                         #   batch_size=self.batch_size_test, 
                           batch_size=1,
@@ -714,7 +722,8 @@ class MEADPseudo3DDM(MEADDataModule):
         if hasattr(self, "test_set_val_cond_neutral_2") and self.test_set_val_cond_neutral_2 is not None:
             test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond_neutral_2, shuffle=False, 
                         #   num_workers=self.num_workers, 
-                          num_workers=0, 
+                        #   num_workers=0, 
+                          num_workers=1, 
                           pin_memory=True,
                         #   batch_size=self.batch_size_test, 
                           batch_size=1,
@@ -727,7 +736,8 @@ class MEADPseudo3DDM(MEADDataModule):
         if hasattr(self, "test_set_val_cond_neutral_1") and self.test_set_val_cond_neutral_1 is not None:
             test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond_neutral_1, shuffle=False, 
                         #   num_workers=self.num_workers, 
-                          num_workers=0, 
+                        #   num_workers=0, 
+                          num_workers=1, 
                           pin_memory=True,
                         #   batch_size=self.batch_size_test, 
                           batch_size=1,
@@ -740,7 +750,8 @@ class MEADPseudo3DDM(MEADDataModule):
         if hasattr(self, "test_set_val_cond_happy_3") and self.test_set_val_cond_happy_3 is not None:
             test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond_happy_3, shuffle=False,
                         #   num_workers=self.num_workers,
-                            num_workers=0,
+                            # num_workers=0,
+                            num_workers=1,
                             pin_memory=True,
                         #   batch_size=self.batch_size_test,
                             batch_size=1,
@@ -753,7 +764,8 @@ class MEADPseudo3DDM(MEADDataModule):
         if hasattr(self, "test_set_val_cond_sad_1") and self.test_set_val_cond_sad_1 is not None:
             test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond_sad_1, shuffle=False,
                         #   num_workers=self.num_workers,
-                            num_workers=0,
+                            # num_workers=0,
+                            num_workers=1,
                             pin_memory=True,
                         #   batch_size=self.batch_size_test,
                             batch_size=1,
@@ -766,7 +778,8 @@ class MEADPseudo3DDM(MEADDataModule):
         if hasattr(self, "test_set_val_cond_sad_2") and self.test_set_val_cond_sad_2 is not None:
             test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond_sad_2, shuffle=False,
                         #   num_workers=self.num_workers,
-                            num_workers=0,
+                            # num_workers=0,
+                            num_workers=1,
                             pin_memory=True,
                         #   batch_size=self.batch_size_test,
                             batch_size=1,
@@ -778,7 +791,8 @@ class MEADPseudo3DDM(MEADDataModule):
         if hasattr(self, "test_set_val_cond_sad_3") and self.test_set_val_cond_sad_3 is not None:
             test_dls += [torch.utils.data.DataLoader(self.test_set_val_cond_sad_3, shuffle=False,
                         #   num_workers=self.num_workers,
-                            num_workers=0,
+                            # num_workers=0,
+                            num_workers=1,
                             pin_memory=True,
                         #   batch_size=self.batch_size_test,
                             batch_size=1,

@@ -900,6 +900,7 @@ class MEADDataset(VideoDatasetBase):
             return_emotion_feature=return_emotion_feature,
         )
         self._setup_identity_labels()
+        self.read_gt_text = False
     
     def _setup_identity_labels(self):
         # look at all the sample paths and get the their identity label
@@ -964,6 +965,11 @@ class MEADDataset(VideoDatasetBase):
         if expr in ["front", "down", "top", "left_30",  "left_60", "right_30", "right_60", "1", "2"]: # a hack for MORONIC inconsistency in the paths of the MEAD dataset
             return self.video_list[self.video_indices[index]].parts[4]
         return expr
+
+    def _video_name_idx(self, index): 
+        intensity = self.video_list[self.video_indices[index]].stem
+        return intensity
+
 
     def _expression_intensity(self, index): 
         intensity = self.video_list[self.video_indices[index]].parts[4]
@@ -1153,6 +1159,29 @@ class MEADDataset(VideoDatasetBase):
         path_prefix = Path(self.output_dir) / f"emotions" / self.emotion_type 
         emo_path = path_prefix / parts[0] / "/".join(parts[2:])
         return emo_path.with_suffix("")
+
+    def _get_text(self, sample, index):
+        if self.read_gt_text:
+            if not hasattr(self, "_gt_text"):
+                path_to_text = Path(self.output_dir) / "list_full_mead_annotated.txt"
+                with open(path_to_text, "r") as f:
+                    # read the whole file 
+                    gt_text = f.read()
+                lines = gt_text.split("\n")
+                self._gt_text = {line[:line.index(' ')]: line[line.index(' ')+1:] for line in lines}
+
+            expression = self._video_expression(index)
+            intensity = self._expression_intensity(index)
+            identity = self._get_identity_label(index)
+            vid_fname_idx = self._video_name_idx(index)
+            key = f"{identity}_{intensity}_{expression}_{vid_fname_idx}"
+            sample["gt_text"] = self._gt_text[key]
+        return sample
+
+    def _getitem(self, index):
+        sample = super()._getitem(index)
+        sample = self._get_text(sample, index)
+        return sample
 
 
 def main(): 
