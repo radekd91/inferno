@@ -601,6 +601,10 @@ class FeedForwardDecoder(nn.Module):
         if self.style_op == "add":
             styled_hidden_states = hidden_states + style_emb
         elif self.style_op == "cat":
+            if style_emb.ndim == 2:
+                style_emb = style_emb.unsqueeze(1)
+            if style_emb.shape[1] == 1:
+                style_emb = style_emb.repeat(1, hidden_states.shape[1], 1)
             styled_hidden_states = torch.cat([hidden_states, style_emb], dim=-1)
         elif self.style_op == "none": # no style, for debugging purposes only
             styled_hidden_states = hidden_states
