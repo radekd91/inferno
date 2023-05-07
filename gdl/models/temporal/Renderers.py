@@ -137,6 +137,7 @@ class FixedViewFlameRenderer(FlameRenderer):
 
         self.cut_out_mouth = cfg.get("cut_out_mouth", False)
         self.mouth_grayscale = cfg.get("mouth_grayscale", True)
+        self.apply_mask = cfg.get("apply_mask", False)
         if self.cut_out_mouth: 
             self.mouth_crop_width = cfg.get("mouth_crop_width", 96) # the default of SPECTRE
             self.mouth_crop_height = cfg.get("mouth_crop_height", 96)
@@ -252,7 +253,11 @@ class FixedViewFlameRenderer(FlameRenderer):
             sample[out_mouth_vid_name] = {}
         # sample[out_verts_name] = {}
         for ci, cam_name in enumerate(self.cam_names):
-            sample[out_vid_name][cam_name] = rendering_sample["predicted_video"][:, ci::C, ...]
+            predicted_vid =  rendering_sample["predicted_video"][:, ci::C, ...]
+            if self.apply_mask: 
+                predicted_vid = predicted_vid * rendering_sample["predicted_mask"][:, ci::C, ...]
+            sample[out_vid_name][cam_name] = predicted_vid
+            
             # sample[out_name][cam_name] = sample[out_name][cam_name].view(B, T, *sample[out_name][cam_name].shape[1:])
             # sample[out_verts_name][cam_name] = rendering_sample["trans_verts"][:, ci::C, ...]
             if self.project_landmarks:
