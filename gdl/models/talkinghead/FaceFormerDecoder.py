@@ -163,10 +163,13 @@ class EmotionCondition(StyleConditioning):
             condition += [video_feats]
         if self.cfg.get('gt_expression_label', False): # mead GT expression label
             T = sample["gt_vertices"].shape[1]
-            expressions = torch.nn.functional.one_hot(sample["gt_expression_label"], 
-                                                      num_classes=self.cfg.n_expression).to(device=sample["gt_expression_label"].device)
-            # if expressions.ndim == 3: # B, T, num expressions
-            #     expressions = expressions.unsqueeze(1).expand(-1, T, -1)
+            if "gt_expression_label_condition" in sample:
+                expressions = sample["gt_expression_label_condition"]
+            else:
+                expressions = torch.nn.functional.one_hot(sample["gt_expression_label"], 
+                                                        num_classes=self.cfg.n_expression).to(device=sample["gt_expression_label"].device)
+                # if expressions.ndim == 3: # B, T, num expressions
+                #     expressions = expressions.unsqueeze(1).expand(-1, T, -1)
             if expressions.ndim == 2: # B, num expressions, missing temporal dimension -> expand
                 expressions = expressions.unsqueeze(1).expand(-1, T, -1)
             expressions = expressions.to(dtype=torch.float32)
@@ -174,8 +177,11 @@ class EmotionCondition(StyleConditioning):
             condition += [expressions]
         if self.cfg.get('gt_expression_intensity', False): # mead GT expression intensity
             T = sample["gt_vertices"].shape[1]
-            intensities = torch.nn.functional.one_hot(sample["gt_expression_intensity"] -1, 
-                num_classes=self.cfg.n_intensities).to(device=sample["gt_expression_intensity"].device)
+            if "gt_expression_intensity_condition" in sample:
+                intensities = sample["gt_expression_intensity_condition"]
+            else:
+                intensities = torch.nn.functional.one_hot(sample["gt_expression_intensity"] -1, 
+                    num_classes=self.cfg.n_intensities).to(device=sample["gt_expression_intensity"].device)
             if intensities.ndim == 2: # B, num intensities, missing temporal dimension -> expand
                 intensities = intensities.unsqueeze(1).expand(-1, T, -1)
             intensities = intensities.to(dtype=torch.float32)
@@ -184,8 +190,11 @@ class EmotionCondition(StyleConditioning):
 
         if self.cfg.get('gt_expression_identity', False): 
             T = sample["gt_vertices"].shape[1]
-            identities = torch.nn.functional.one_hot(sample["gt_expression_identity"], 
-                                                      num_classes=self.cfg.n_identities).to(device=sample["gt_expression_identity"].device)
+            if "gt_expression_identity_condition" in sample:
+                identities = sample["gt_expression_identity_condition"]
+            else:
+                identities = torch.nn.functional.one_hot(sample["gt_expression_identity"], 
+                                                        num_classes=self.cfg.n_identities).to(device=sample["gt_expression_identity"].device)
             if identities.ndim == 2: # B, num identities, missing temporal dimension -> expand
                 identities = identities.unsqueeze(1).expand(-1, T, -1)
             identities = identities.to(dtype=torch.float32)
