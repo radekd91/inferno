@@ -194,6 +194,9 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False):
                 print(ffmpeg_cmd)
                 os.system(ffmpeg_cmd)
 
+                # delete video without audio
+                os.remove(out_video_path)
+
 
             predicted_vertices = batch["predicted_vertices"][b]
             T = predicted_vertices.shape[0]
@@ -217,6 +220,9 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False):
             ffmpeg_cmd = f"ffmpeg -y -i {out_video_path} -i {audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
             print(ffmpeg_cmd)
             os.system(ffmpeg_cmd)
+
+            # delete video without audio
+            os.remove(out_video_path)
 
 
 def read_audio(audio_path):
