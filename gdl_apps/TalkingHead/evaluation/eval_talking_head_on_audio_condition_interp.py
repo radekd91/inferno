@@ -32,6 +32,34 @@ def eval_talking_head_interpolated_conditions(talking_head, audio_path):
 
     samples += create_emo_interpolations(talking_head, sample,
                                             start_indentities, end_indentities,
+                                            end_emotions, end_emotions,
+                                            start_intensities, end_intensities,
+                                            )
+    
+    # happy to sad
+    start_emotions = [AffectNetExpressions.Happy.value]
+    end_emotions = [AffectNetExpressions.Sad.value]
+    start_intensities = [2]
+    end_intensities = [2]
+    start_indentities = [0]
+    end_indentities = [0]
+
+    samples += create_emo_interpolations(talking_head, sample,
+                                            start_indentities, end_indentities,
+                                            start_emotions, end_emotions,
+                                            start_intensities, end_intensities,
+                                            )
+    
+    # surprised to disgusted
+    start_emotions = [AffectNetExpressions.Surprise.value]
+    end_emotions = [AffectNetExpressions.Disgust.value]
+    start_intensities = [2]
+    end_intensities = [2]
+    start_indentities = [0]
+    end_indentities = [0]
+
+    samples += create_emo_interpolations(talking_head, sample,
+                                            start_indentities, end_indentities,
                                             start_emotions, end_emotions,
                                             start_intensities, end_intensities,
                                             )
