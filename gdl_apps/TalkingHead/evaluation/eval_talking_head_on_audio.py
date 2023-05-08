@@ -72,10 +72,13 @@ def eval_talking_head_on_audio(talking_head, audio_path):
 
     batch_size = 4
 
+    template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply"        
+    renderer = PyRenderMeshSequenceRenderer(template_mesh_path)
     D = len(samples)
-
     BD = int(np.ceil(D / batch_size))
     training_subjects = talking_head.get_subject_labels('training')
+
+    overwrite = False
 
     for bd in tqdm(range(BD)):
 
@@ -116,11 +119,16 @@ def eval_talking_head_on_audio(talking_head, audio_path):
                 print(ffmpeg_cmd)
                 os.system(ffmpeg_cmd)
 
-            template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply"
-            renderer = PyRenderMeshSequenceRenderer(template_mesh_path)
 
             predicted_vertices = batch["predicted_vertices"][b]
             T = predicted_vertices.shape[0]
+
+
+            out_video_path = output_video_dir / f"pyrender_predicted_video_{suffix}.mp4"
+            out_video_with_audio_path = output_video_dir / f"pyrender_predicted_video_with_audio_{suffix}.mp4"
+
+            if out_video_with_audio_path.exists() and not overwrite:
+                continue
 
             pred_images = []
             for t in tqdm(range(T)):
@@ -130,11 +138,10 @@ def eval_talking_head_on_audio(talking_head, audio_path):
 
             pred_images = np.stack(pred_images, axis=0)
 
-            out_video_path = output_video_dir / f"pyrender_predicted_video_{suffix}.mp4"
             save_video(out_video_path, pred_images)
 
-            out_video_with_audio_path = output_video_dir / f"pyrender_predicted_video_with_audio_{suffix}.mp4"
-            ffmpeg_cmd = f"ffmpeg -i {out_video_path} -i {audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
+            
+            ffmpeg_cmd = f"ffmpeg -y -i {out_video_path} -i {audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
             print(ffmpeg_cmd)
             os.system(ffmpeg_cmd)
 
