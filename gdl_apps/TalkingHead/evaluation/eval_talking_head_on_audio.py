@@ -5,42 +5,35 @@ import numpy as np
 from gdl.utils.collate import robust_collate
 import torch
 import os
+from gdl.utils.PyRenderMeshSequenceRenderer import PyRenderMeshSequenceRenderer
+from tqdm.auto import tqdm
+from gdl.datasets.AffectNetAutoDataModule import AffectNetExpressions
 
-def create_condition(talking_head, sample):
+
+
+def create_condition(talking_head, sample, emotions=None, intensities=None, identities=None):
     # condition = []
     if talking_head.cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False): # mead GT expression label
         # T = sample["gt_vertices"].shape[1]
-        sample["gt_expression_label"] = np.array([1])
-        # expressions = torch.nn.functional.one_hot(sample["gt_expression_label"], 
-        #                                             num_classes=talking_head.cfg.n_expression).to(device=sample["gt_expression_label"].device)
-        # # if expressions.ndim == 3: # B, T, num expressions
-        # #     expressions = expressions.unsqueeze(1).expand(-1, T, -1)
-        # if expressions.ndim == 2: # B, num expressions, missing temporal dimension -> expand
-        #     expressions = expressions.unsqueeze(1).expand(-1, T, -1)
-        # expressions = expressions.to(dtype=torch.float32)
-        # assert expressions.ndim == 3, "Expressions must have 3 dimensions"
-        # condition += [expressions]
+        # sample["gt_expression_label"] = np.array([1])
+        if emotions is None:
+            emotions = [AffectNetExpressions.Neutral.value]
+        sample["gt_expression_label_condition"] = torch.nn.functional.one_hot(torch.tensor(emotions), 
+            num_classes=talking_head.get_num_emotions()).numpy()
+
     if talking_head.cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False): # mead GT expression intensity
         # T = sample["gt_vertices"].shape[1]
-        sample["gt_expression_intensity"] = np.array([3])
-        # intensities = torch.nn.functional.one_hot(sample["gt_expression_intensity"] -1, 
-        #     num_classes=talking_head.cfg.n_intensities).to(device=sample["gt_expression_intensity"].device)
-        # if intensities.ndim == 2: # B, num intensities, missing temporal dimension -> expand
-        #     intensities = intensities.unsqueeze(1).expand(-1, T, -1)
-        # intensities = intensities.to(dtype=torch.float32)
-        # assert intensities.ndim == 3, "Intensities must have 3 dimensions"
-        # condition += [intensities]
+        if intensities is None:
+            intensities = [2]
+        sample["gt_expression_intensity_condition"] = torch.nn.functional.one_hot(torch.tensor(intensities), 
+            num_classes=talking_head.get_num_intensities()).numpy()
 
     if talking_head.cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False): 
         # T = sample["gt_vertices"].shape[1]
-        sample["gt_expression_identity"] = np.array([0])
-        # identities = torch.nn.functional.one_hot(sample["gt_expression_identity"], 
-        #                                             num_classes=talking_head.cfg.n_identities).to(device=sample["gt_expression_identity"].device)
-        # if identities.ndim == 2: # B, num identities, missing temporal dimension -> expand
-        #     identities = identities.unsqueeze(1).expand(-1, T, -1)
-        # identities = identities.to(dtype=torch.float32)
-        # assert identities.ndim == 3, "Identities must have 3 dimensions"
-        # condition += [identities]
+        if identities is None:
+            identities = [0]
+        sample["gt_expression_identity_condition"] = torch.nn.functional.one_hot(torch.tensor(identities), 
+            num_classes=talking_head.get_num_identities()).numpy()
 
     return sample
 
@@ -63,26 +56,87 @@ def eval_talking_head_on_audio(talking_head, audio_path):
     sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]]["gt_jaw"] = np.zeros((T, 3), dtype=np.float32)
     sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]]["gt_tex"] = np.zeros((50), dtype=np.float32)
     
-    sample = create_condition(talking_head, sample)
+    samples = []
+    # for emo_idx in range(8):
+    # for emo_idx in range(0,4):
 
-    batch = robust_collate([sample])
-    batch = dict_to_device(batch, device)
-    with torch.no_grad():
-        batch = talking_head(batch)
+    for identity_idx in range(0, talking_head.get_num_identities()):
+        for emo_idx in range(0, talking_head.get_num_emotions()):
+            for int_idx in range(0, talking_head.get_num_intensities()):
+                sample_copy = sample.copy()
+                sample_copy = create_condition(talking_head, sample_copy, 
+                                               emotions=[emo_idx], 
+                                               identities=[identity_idx], 
+                                               intensities=[int_idx])
+                samples.append(sample_copy)
 
-    predicted_mouth_video = batch["predicted_video"]["front"][0]
-    
-    out_video_path = "predicted_video.mp4"
-    save_video(out_video_path, predicted_mouth_video)
-    
-    out_video_with_audio_path = "predicted_video_with_audio.mp4"
+    batch_size = 4
 
-    # attach audio to video with ffmpeg
-    # ffmpeg -i predicted_video.mp4 -i audio.wav -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 predicted_video_with_audio.mp4
+    D = len(samples)
 
-    ffmpeg_cmd = f"ffmpeg -i {out_video_path} -i {audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
-    print(ffmpeg_cmd)
-    os.system(ffmpeg_cmd)
+    BD = int(np.ceil(D / batch_size))
+    training_subjects = talking_head.get_subject_labels('training')
+
+    for bd in tqdm(range(BD)):
+
+        samples_batch = samples[bd*batch_size:(bd+1)*batch_size]
+        batch = robust_collate(samples_batch)
+        batch = dict_to_device(batch, device)
+
+        with torch.no_grad():
+            batch = talking_head(batch)
+
+        B = batch["predicted_vertices"].shape[0]
+        for b in range(B):
+
+            output_video_dir = Path(talking_head.cfg.inout.full_run_dir) / "test_videos" / (audio_path.parent.name + "_" + audio_path.stem)
+            output_video_dir.mkdir(exist_ok=True, parents=True)
+
+            intensity = batch["gt_expression_intensity_condition"][b].argmax().item()
+            emotion = batch["gt_expression_label_condition"][b].argmax().item()
+            identity = batch["gt_expression_identity_condition"][b].argmax().item()
+
+            emotion = AffectNetExpressions(emotion).name
+            identity = training_subjects[identity]
+
+            suffix = f"_{identity}_{emotion}_{intensity}"
+
+            if talking_head.render_results:
+                predicted_mouth_video = batch["predicted_video"]["front"][b]
+
+
+                out_video_path = output_video_dir / f"predicted_video_{suffix}.mp4"
+                save_video(out_video_path, predicted_mouth_video)
+                
+                out_video_with_audio_path = output_video_dir / f"predicted_video_with_audio_{suffix}.mp4"
+
+                # attach audio to video with ffmpeg
+
+                ffmpeg_cmd = f"ffmpeg -i {out_video_path} -i {audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
+                print(ffmpeg_cmd)
+                os.system(ffmpeg_cmd)
+
+            template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply"
+            renderer = PyRenderMeshSequenceRenderer(template_mesh_path)
+
+            predicted_vertices = batch["predicted_vertices"][b]
+            T = predicted_vertices.shape[0]
+
+            pred_images = []
+            for t in tqdm(range(T)):
+                pred_vertices = predicted_vertices[t].detach().cpu().view(-1,3).numpy()
+                pred_image = renderer.render(pred_vertices)
+                pred_images.append(pred_image)
+
+            pred_images = np.stack(pred_images, axis=0)
+
+            out_video_path = output_video_dir / f"pyrender_predicted_video_{suffix}.mp4"
+            save_video(out_video_path, pred_images)
+
+            out_video_with_audio_path = output_video_dir / f"pyrender_predicted_video_with_audio_{suffix}.mp4"
+            ffmpeg_cmd = f"ffmpeg -i {out_video_path} -i {audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
+            print(ffmpeg_cmd)
+            os.system(ffmpeg_cmd)
 
     print("Done")
 
@@ -140,11 +194,12 @@ def main():
 
     # audio = Path('/ps/project/EmotionalFacialAnimation/data/lrs3/extracted/test/0Fi83BHQsMA/00002.mp4')
     audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/trainval/0af00UcTOSc/50001.wav')
+    # audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/pretrain/0akiEFwtkyA/00031.wav')
 
     for resume_folder in resume_folders:
         model_path = Path(root) / resume_folder  
 
-        talking_head = TalkingHeadWrapper(model_path)
+        talking_head = TalkingHeadWrapper(model_path, render_results=False)
 
         eval_talking_head_on_audio(talking_head, audio)
     
