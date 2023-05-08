@@ -10,44 +10,83 @@ from tqdm.auto import tqdm
 from gdl.datasets.AffectNetAutoDataModule import AffectNetExpressions
 
 
-
 def create_condition(talking_head, sample, emotions=None, intensities=None, identities=None):
-    # condition = []
     if talking_head.cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False): # mead GT expression label
-        # T = sample["gt_vertices"].shape[1]
-        # sample["gt_expression_label"] = np.array([1])
         if emotions is None:
             emotions = [AffectNetExpressions.Neutral.value]
         sample["gt_expression_label_condition"] = torch.nn.functional.one_hot(torch.tensor(emotions), 
             num_classes=talking_head.get_num_emotions()).numpy()
 
     if talking_head.cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False): # mead GT expression intensity
-        # T = sample["gt_vertices"].shape[1]
         if intensities is None:
             intensities = [2]
         sample["gt_expression_intensity_condition"] = torch.nn.functional.one_hot(torch.tensor(intensities), 
             num_classes=talking_head.get_num_intensities()).numpy()
 
     if talking_head.cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False): 
-        # T = sample["gt_vertices"].shape[1]
         if identities is None:
             identities = [0]
         sample["gt_expression_identity_condition"] = torch.nn.functional.one_hot(torch.tensor(identities), 
             num_classes=talking_head.get_num_identities()).numpy()
-
     return sample
+
+
+def interpolate_condition(sample_1, sample_2, length, interpolation_type="linear"): 
+    keys_to_interpolate = ["gt_expression_label_condition", "gt_expression_intensity_condition", "gt_expression_identity_condition"]
+
+    sample_result = sample_1.copy()
+    for key in keys_to_interpolate:
+        condition_1 = sample_1[key]
+        condition_2 = sample_2[key]
+
+        # if temporal dimension is missing, add it
+        if len(condition_1.shape) == 1:
+            condition_1 = np.expand_dims(condition_1, axis=0)
+            # condition_1 = condition_1.unsqueeze(0)
+        if len(condition_2.shape) == 1:
+            condition_2 = np.expand_dims(condition_2, axis=0)
+            # conditions_2 = condition_2.unsqueeze(0)
+
+        
+        # if temporal dimension 1, repeat it
+        if condition_1.shape[0] == 1:
+            condition_1 = condition_1.repeat(length, axis=0)
+            # condition_1 = condition_1.repeat(length)
+        if condition_2.shape[0] == 1:
+            condition_2 = condition_2.repeat(length, axis=0)
+            # condition_2 = condition_2.repeat(length)
+
+        # interpolate
+        if interpolation_type == "linear":
+            # interpolate from condition_1 to condition_2 along the length
+            weights = np.linspace(0, 1, length)[..., np.newaxis]
+        elif interpolation_type == "nn":
+            # interpolate from condition_1 to condition_2 along the length
+            weights = np.linspace(0, 1, length)[..., np.newaxis]
+            weights = np.round(weights)
+        else:
+            raise ValueError(f"Unknown interpolation type {interpolation_type}")
+        
+        interpolated_condition = condition_1 * (1 - weights) + condition_2 * weights
+        sample_result[key] = interpolated_condition
+
+    return sample_result
 
 
 def eval_talking_head_on_audio(talking_head, audio_path):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     talking_head = talking_head.to(device)
     # talking_head.talking_head_model.preprocessor.to(device) # weird hack
+    sample = create_base_sample(talking_head, audio_path)
+    samples = create_id_emo_int_combinations(talking_head, sample)
+    run_evalutation(talking_head, samples, audio_path)
+    print("Done")
 
+
+def create_base_sample(talking_head, audio_path):
     wavdata, sampling_rate = read_audio(audio_path)
     sample = process_audio(wavdata, sampling_rate, video_fps=25)
-
     T = sample["raw_audio"].shape[0]
-
     sample["reconstruction"] = {}
     sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]] = {} 
     sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]]["gt_exp"] = np.zeros((T, 50), dtype=np.float32)
@@ -55,11 +94,37 @@ def eval_talking_head_on_audio(talking_head, audio_path):
     # sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]]["gt_shape"] = np.zeros((T, 300), dtype=np.float32)
     sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]]["gt_jaw"] = np.zeros((T, 3), dtype=np.float32)
     sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]]["gt_tex"] = np.zeros((50), dtype=np.float32)
-    
-    samples = []
-    # for emo_idx in range(8):
-    # for emo_idx in range(0,4):
+    sample = create_condition(talking_head, sample)
+    return sample
 
+
+def create_name(int_idx, emo_idx, identity_idx, training_subjects): 
+    intensity = int_idx
+    emotion = emo_idx
+    identity = identity_idx
+
+    emotion = AffectNetExpressions(emotion).name
+    identity = training_subjects[identity]
+    suffix = f"_{identity}_{emotion}_{intensity}"
+    return suffix
+
+
+def create_interpolation_name(start_int_idx, end_int_idx, 
+                              start_emo_idx, end_emo_idx, 
+                              start_identity_idx, end_identity_idx, 
+                              training_subjects, interpolation_type): 
+    
+    start_emotion = AffectNetExpressions(start_emo_idx).name
+    end_emotion = AffectNetExpressions(end_emo_idx).name
+    start_identity = training_subjects[start_identity_idx]
+    end_identity = training_subjects[end_identity_idx]
+    suffix = f"_{start_identity}to{end_identity}_{start_emotion}2{end_emotion}_{start_int_idx}to{end_int_idx}_{interpolation_type}"
+    return suffix
+
+
+def create_id_emo_int_combinations(talking_head, sample):
+    samples = []
+    training_subjects = talking_head.get_subject_labels('training')
     for identity_idx in range(0, talking_head.get_num_identities()):
         for emo_idx in range(0, talking_head.get_num_emotions()):
             for int_idx in range(0, talking_head.get_num_intensities()):
@@ -68,17 +133,21 @@ def eval_talking_head_on_audio(talking_head, audio_path):
                                                emotions=[emo_idx], 
                                                identities=[identity_idx], 
                                                intensities=[int_idx])
+
+                sample["output_name"] = create_name(int_idx, emo_idx, identity_idx, training_subjects)
+
                 samples.append(sample_copy)
+    return samples
 
+
+def run_evalutation(talking_head, samples, audio_path, overwrite=False):
     batch_size = 4
-
     template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply"        
     renderer = PyRenderMeshSequenceRenderer(template_mesh_path)
     D = len(samples)
     BD = int(np.ceil(D / batch_size))
     training_subjects = talking_head.get_subject_labels('training')
-
-    overwrite = False
+    device = talking_head.talking_head_model.device
 
     for bd in tqdm(range(BD)):
 
@@ -95,21 +164,27 @@ def eval_talking_head_on_audio(talking_head, audio_path):
             output_video_dir = Path(talking_head.cfg.inout.full_run_dir) / "test_videos" / (audio_path.parent.name + "_" + audio_path.stem)
             output_video_dir.mkdir(exist_ok=True, parents=True)
 
-            intensity = batch["gt_expression_intensity_condition"][b].argmax().item()
-            emotion = batch["gt_expression_label_condition"][b].argmax().item()
-            identity = batch["gt_expression_identity_condition"][b].argmax().item()
+            if "output_name" in batch:
+                suffix = batch["output_name"][b]
+            else:
+                try: 
+                    intensity = batch["gt_expression_intensity_condition"][b].argmax().item()
+                    emotion = batch["gt_expression_label_condition"][b].argmax().item()
+                    identity = batch["gt_expression_identity_condition"][b].argmax().item()
 
-            emotion = AffectNetExpressions(emotion).name
-            identity = training_subjects[identity]
-
-            suffix = f"_{identity}_{emotion}_{intensity}"
+                    emotion = AffectNetExpressions(emotion).name
+                    identity = training_subjects[identity]
+                    suffix = f"_{identity}_{emotion}_{intensity}"
+                except Exception as e:
+                    print(e)
+                    suffix = f"_{bd * batch_size + b}"
 
             if talking_head.render_results:
                 predicted_mouth_video = batch["predicted_video"]["front"][b]
 
 
                 out_video_path = output_video_dir / f"predicted_video_{suffix}.mp4"
-                save_video(out_video_path, predicted_mouth_video)
+                save_video(out_video_path, predicted_mouth_video, fourcc="mp4v", fps=25)
                 
                 out_video_with_audio_path = output_video_dir / f"predicted_video_with_audio_{suffix}.mp4"
 
@@ -122,7 +197,6 @@ def eval_talking_head_on_audio(talking_head, audio_path):
 
             predicted_vertices = batch["predicted_vertices"][b]
             T = predicted_vertices.shape[0]
-
 
             out_video_path = output_video_dir / f"pyrender_predicted_video_{suffix}.mp4"
             out_video_with_audio_path = output_video_dir / f"pyrender_predicted_video_with_audio_{suffix}.mp4"
@@ -138,15 +212,11 @@ def eval_talking_head_on_audio(talking_head, audio_path):
 
             pred_images = np.stack(pred_images, axis=0)
 
-            save_video(out_video_path, pred_images)
+            save_video(out_video_path, pred_images, fourcc="mp4v", fps=25)
 
-            
             ffmpeg_cmd = f"ffmpeg -y -i {out_video_path} -i {audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
             print(ffmpeg_cmd)
             os.system(ffmpeg_cmd)
-
-    print("Done")
-
 
 
 def read_audio(audio_path):
