@@ -52,6 +52,7 @@ source /home/<<USERNAME>>/.bashrc
 source /home/<<USERNAME>>/anaconda3/etc/profile.d/conda.sh
 eval "$(conda shell.bash hook)"
 conda activate <<ENV>>
+export SUBMISSION_DIR=$PWD
 export PYTHONPATH=$PYTHONPATH:<<REPO_ROOT>>
 <<MODULES>>
 <<PYTHON_BIN>> <<SCRIPT_NAME>> $@
@@ -163,18 +164,21 @@ def execute_on_cluster(cluster_script_path, args, submission_dir_local_mount,
 
     if chmod:
         cmd = f'cd {submission_dir_cluster_side} && ' \
+              f'echo $PWD > pwd.txt && ' \
               f'mkdir {logdir} && ' \
               f'chmod +x {os.path.basename(script_fname)} && ' \
               f'chmod +x {os.path.basename(condor_fname)} && ' \
               f'condor_submit_bid {bid} {os.path.basename(condor_fname)}'
     else:
         cmd = f'cd {submission_dir_cluster_side} && ' \
+              f'echo $PWD > pwd.txt && ' \
               f'mkdir {logdir} && ' \
               f'condor_submit_bid {bid} {os.path.basename(condor_fname)}'
 
     print("Called the following on the cluster: ")
     print(cmd)
     # subprocess.call(["ssh", "%s@login.cluster.is.localnet" % (username,)] + [cmd])
-    subprocess.call(["ssh", "%s@login1.cluster.is.localnet" % (username,)] + [cmd])
+    # subprocess.call(["ssh", "%s@login1.cluster.is.localnet" % (username,)] + [cmd])
     # subprocess.call(["ssh", "%s@login2.cluster.is.localnet" % (username,)] + [cmd])
+    subprocess.call(["ssh", "%s@login4.cluster.is.localnet" % (username,)] + [cmd])
     print("Done")

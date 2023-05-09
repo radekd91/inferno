@@ -30,8 +30,8 @@ from gdl.datasets.CelebVHQPseudo3DDM import CelebVHQPseudo3DDM
 from gdl.datasets.MEADPseudo3DDM import MEADPseudo3DDM
 
 
-from omegaconf import DictConfig, OmegaConf
-import sys
+from omegaconf import DictConfig, OmegaConf, open_dict
+import sys, os
 from pathlib import Path
 from pytorch_lightning.loggers import WandbLogger
 import datetime
@@ -332,6 +332,27 @@ def train_model(cfg, start_i=-1,
     cfg.inout.time = time
     cfg.inout.random_id = random_id
 
+    # add job id and submission dir to the config 
+    with open_dict(cfg) as d:
+        job_id_env = os.environ.get('JOB_ID', None)
+        if job_id_env is None:
+            if d.inout.job_id_env is None:
+                d.inout.job_id_env = [job_id_env]
+            else:
+                d.inout.job_id_env.append(job_id_env)
+
+            job_id = job_id_env.split("#")[1]
+            if d.inout.job_id is None:
+                d.inout.job_id = [job_id]
+            else:
+                d.inout.job_id.append(job_id)
+
+        submission_dir = os.environ.get('SUBMISSION_DIR', None)
+        if submission_dir is None:
+            if d.inout.submission_dir is None:
+                d.inout.submission_dir = [submission_dir]
+            else:
+                d.inout.submission_dir.append(submission_dir)
 
     # save config to target folder
     # conf = DictConfig({})
@@ -342,9 +363,12 @@ def train_model(cfg, start_i=-1,
     # if cfg_detail is not None:
     #     conf.detail = cfg_detail
     cfg_file = full_run_dir / "cfg.yaml"
-    if not cfg_file.exists():
-        with open(cfg_file, 'w') as outfile:
-            OmegaConf.save(config=cfg, f=outfile)
+    if cfg_file.exists():
+        # back up the old config
+        cfg_file.rename(cfg_file.parent / (cfg_file.name + ".bak"))
+
+    with open(cfg_file, 'w') as outfile:
+        OmegaConf.save(config=cfg, f=outfile)
 
     version = time
     if random_id is not None and len(random_id) > 0:
