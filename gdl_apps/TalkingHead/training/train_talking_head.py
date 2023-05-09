@@ -16,6 +16,8 @@ All rights reserved.
 # For comments or questions, please email us at emoca@tue.mpg.de
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
+import os
+os.environ['TRANSFORMERS_OFFLINE'] = '1'
 import warnings
 warnings.filterwarnings('ignore', message='.*Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. *', )
 import torch 
@@ -36,8 +38,7 @@ from pathlib import Path
 from pytorch_lightning.loggers import WandbLogger
 import datetime
 from gdl.utils.other import class_from_str
-import os
-os.environ['TRANSFORMERS_OFFLINE'] = '1'
+
 
 
 project_name = 'TalkingHead'
