@@ -342,7 +342,7 @@ def train_model(cfg, start_i=-1,
                 d.inout.job_id_env.append(job_id_env)
 
             job_id = job_id_env.split("#")[1]
-            if d.inout.job_id is not None:
+            if d.inout.job_id is None:
                 d.inout.job_id = [job_id]
             else:
                 d.inout.job_id.append(job_id)

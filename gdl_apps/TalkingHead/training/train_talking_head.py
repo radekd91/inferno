@@ -470,13 +470,13 @@ def train_model(cfg, start_i=-1,
         job_id_env = os.environ.get('JOB_ID', None)
         print("CONDOR JOB_ID:", job_id_env)
         if job_id_env is not None:
-            if d.inout.job_id_env is not None:
+            if d.inout.job_id_env is None:
                 d.inout.job_id_env = [job_id_env]
             else:
                 d.inout.job_id_env.append(job_id_env)
 
             job_id = job_id_env.split("#")[1]
-            if d.inout.job_id is not None:
+            if d.inout.job_id is None:
                 d.inout.job_id = [job_id]
             else:
                 d.inout.job_id.append(job_id)
