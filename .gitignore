@@ -1,5 +1,6 @@
 results/
 ./external/
+singularity/
 wandb/
 */wandb/*
 .idea*
