@@ -425,20 +425,20 @@ def train_model(cfg, start_i=-1,
     # add job id and submission dir to the config 
     with open_dict(cfg) as d:
         job_id_env = os.environ.get('JOB_ID', None)
-        if job_id_env is None:
-            if d.inout.job_id_env is not None:
+        if job_id_env is not None:
+            if d.inout.job_id_env is None:
                 d.inout.job_id_env = [job_id_env]
             else:
                 d.inout.job_id_env.append(job_id_env)
 
             job_id = job_id_env.split("#")[1]
-            if d.inout.job_id is not None:
+            if d.inout.job_id is None:
                 d.inout.job_id = [job_id]
             else:
                 d.inout.job_id.append(job_id)
 
         submission_dir = os.environ.get('SUBMISSION_DIR', None)
-        if submission_dir is None:
+        if submission_dir is not None:
             if d.inout.submission_dir is None:
                 d.inout.submission_dir = [submission_dir]
             else:

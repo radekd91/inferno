@@ -348,7 +348,7 @@ def train_model(cfg, start_i=-1,
                 d.inout.job_id.append(job_id)
 
         submission_dir = os.environ.get('SUBMISSION_DIR', None)
-        if submission_dir is None:
+        if submission_dir is not None:
             if d.inout.submission_dir is None:
                 d.inout.submission_dir = [submission_dir]
             else:

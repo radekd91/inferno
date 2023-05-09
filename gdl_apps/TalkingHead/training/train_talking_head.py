@@ -468,7 +468,8 @@ def train_model(cfg, start_i=-1,
     # add job id and submission dir to the config 
     with open_dict(cfg) as d:
         job_id_env = os.environ.get('JOB_ID', None)
-        if job_id_env is None:
+        print("CONDOR JOB_ID:", job_id_env)
+        if job_id_env is not None:
             if d.inout.job_id_env is not None:
                 d.inout.job_id_env = [job_id_env]
             else:
@@ -481,7 +482,8 @@ def train_model(cfg, start_i=-1,
                 d.inout.job_id.append(job_id)
 
         submission_dir = os.environ.get('SUBMISSION_DIR', None)
-        if submission_dir is None:
+        if submission_dir is not None:
+            print("Submission dir:", job_id_env)
             if d.inout.submission_dir is None:
                 d.inout.submission_dir = [submission_dir]
             else:
