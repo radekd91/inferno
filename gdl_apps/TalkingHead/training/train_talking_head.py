@@ -37,6 +37,7 @@ from pytorch_lightning.loggers import WandbLogger
 import datetime
 from gdl.utils.other import class_from_str
 import os
+os.environ['TRANSFORMERS_OFFLINE'] = '1'
 
 
 project_name = 'TalkingHead'
