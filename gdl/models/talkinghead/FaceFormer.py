@@ -184,11 +184,16 @@ class FaceFormer(TalkingHeadBase):
                 else: 
                     target_dict = sample["reconstruction"][target_method]
 
-                gt_vid = target_dict["gt_video"][cam_name][:B_eff].view(B_eff*T, *rest)
+                use_real_video = loss_cfg.get('use_real_video_for_reference', False) 
+                if use_real_video:
+                    gt_vid = target_dict["video"][:B_eff].view(B_eff*T, *rest)
+                else:
+                    gt_vid = target_dict["gt_video"][cam_name][:B_eff].view(B_eff*T, *rest)
                 pred_vid = sample["predicted_video"][cam_name][:B_eff].view(B_eff*T, *rest)
                 mask_ = mask[:B_eff, ..., 0].view(B_eff*T)
                 _, emo_feat_loss_2, valence_loss, arousal_loss, expression_loss, _ = \
-                    self.neural_losses.emotion_loss.compute_loss(gt_vid, pred_vid, mask=mask_)
+                    self.neural_losses.emotion_loss.compute_loss(gt_vid, pred_vid)
+                    # self.neural_losses.emotion_loss.compute_loss(gt_vid, pred_vid, mask=mask_)
 
                 loss_values[cam_name] = emo_feat_loss_2
             loss_value = sum(loss_values.values()) / len(loss_values)
@@ -203,6 +208,10 @@ class FaceFormer(TalkingHeadBase):
             loss_values = {}
             for cam_name in sample["predicted_video"].keys():
                 target_method = loss_cfg.get('target_method_image', None)
+                use_real_video = loss_cfg.get('use_real_video_for_reference', False) 
+                # if use_real_video:
+                #     raise NotImplementedError("Not implemented yet. Extract the mout regions from original video")
+                
                 if target_method is None:
                     target_dict = sample
                 else: 
@@ -221,12 +230,17 @@ class FaceFormer(TalkingHeadBase):
                 assert ( condition_indices_2 != input_indices_1[condition_indices_2]).sum() == 0, "Disentanglement exchange not done correctly"
 
                 # gt_vid = target_dict["gt_video"][cam_name][:B_orig][condition_indices_1].view(B_orig*T, *rest)
-                # pred_vid = sample["predicted_video"][cam_name][B_orig:][condition_indices_2].view(B_orig*T, *rest) 
-                gt_vid = target_dict["gt_video"][cam_name][:B_orig][condition_indices_2].view(B_orig*T, *rest)
+                # pred_vid = sample["predicted_video"][cam_name][B_orig:][condition_indices_2].view(B_orig*T, *rest)
+                #                 use_real_video = loss_cfg.get('use_real_video_for_reference', False) 
+                if use_real_video:
+                    gt_vid = target_dict["video"][:B_orig][condition_indices_2].view(B_orig*T, *rest)
+                else: 
+                    gt_vid = target_dict["gt_video"][cam_name][:B_orig][condition_indices_2].view(B_orig*T, *rest)
                 pred_vid = sample["predicted_video"][cam_name][B_orig:].view(B_orig*T, *rest) 
                 mask_ = mask[:B_orig, ..., 0].view(B_orig*T)
                 _, emo_feat_loss_2, valence_loss, arousal_loss, expression_loss, _ = \
-                    self.neural_losses.emotion_loss.compute_loss(gt_vid, pred_vid, mask=mask_)   
+                    self.neural_losses.emotion_loss.compute_loss(gt_vid, pred_vid)   
+                    # self.neural_losses.emotion_loss.compute_loss(gt_vid, pred_vid, mask=mask_)   
                 loss_values[cam_name] = emo_feat_loss_2
             loss_value = sum(loss_values.values()) / len(loss_values)
 
@@ -241,6 +255,9 @@ class FaceFormer(TalkingHeadBase):
             mask_ = mask[:B_eff, ..., 0].view(B_eff*T)
             for cam_name in sample["predicted_mouth_video"].keys():
                 target_method = loss_cfg.get('target_method_image', None)
+                use_real_video = loss_cfg.get('use_real_video_for_reference', False) 
+                # if use_real_video:
+                #     raise NotImplementedError("Not implemented yet. Extract the mout regions from original video")
                 if target_method is None:
                     target_dict = sample
                 else: 
@@ -264,7 +281,10 @@ class FaceFormer(TalkingHeadBase):
                 # loss_value = torch.stack(loss_values).mean()
 
                 # the new way (vectorized) 
-                gt_vid = target_dict["gt_mouth_video"][cam_name][:B_eff]
+                if use_real_video:
+                    gt_vid = target_dict["video_mouth"][:B_eff]
+                else:
+                    gt_vid = target_dict["gt_mouth_video"][cam_name][:B_eff]
                 pred_vid = sample["predicted_mouth_video"][cam_name][:B_eff]
                 loss_values[cam_name] = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask_)
                 # loss_value_ = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask)
@@ -295,6 +315,9 @@ class FaceFormer(TalkingHeadBase):
             mask_ = mask[:B_orig, ..., 0].view(B_orig*T)
             for cam_name in sample["predicted_mouth_video"].keys():
                 target_method = loss_cfg.get('target_method_image', None)
+                use_real_video = loss_cfg.get('use_real_video_for_reference', False) 
+                # if use_real_video:
+                #     raise NotImplementedError("Not implemented yet. Extract the mout regions from original video")
                 if target_method is None:
                     target_dict = sample
                 else: 
@@ -316,8 +339,10 @@ class FaceFormer(TalkingHeadBase):
                 #     loss = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask[bi])
                 #     loss_values.append(loss)
                 # loss_value = torch.stack(loss_values).mean()
-
-                gt_vid = target_dict["gt_mouth_video"][cam_name][:B_orig]
+                if use_real_video: 
+                    gt_vid = target_dict["video_mouth"][:B_orig]
+                else:
+                    gt_vid = target_dict["gt_mouth_video"][cam_name][:B_orig]
                 # pred_vid = sample["predicted_mouth_video"][cam_name][B_orig + input_indices_2]
                 pred_vid = sample["predicted_mouth_video"][cam_name][B_orig:]
                 loss_values[cam_name] = self.neural_losses.lip_reading_loss.compute_loss(gt_vid, pred_vid,  mask_)
