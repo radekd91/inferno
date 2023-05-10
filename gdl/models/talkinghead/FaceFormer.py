@@ -186,7 +186,7 @@ class FaceFormer(TalkingHeadBase):
 
                 use_real_video = loss_cfg.get('use_real_video_for_reference', False) 
                 if use_real_video:
-                    gt_vid = target_dict["video"][:B_eff].view(B_eff*T, *rest)
+                    gt_vid = sample["video"][:B_eff].view(B_eff*T, *rest)
                 else:
                     gt_vid = target_dict["gt_video"][cam_name][:B_eff].view(B_eff*T, *rest)
                 pred_vid = sample["predicted_video"][cam_name][:B_eff].view(B_eff*T, *rest)
@@ -233,7 +233,7 @@ class FaceFormer(TalkingHeadBase):
                 # pred_vid = sample["predicted_video"][cam_name][B_orig:][condition_indices_2].view(B_orig*T, *rest)
                 #                 use_real_video = loss_cfg.get('use_real_video_for_reference', False) 
                 if use_real_video:
-                    gt_vid = target_dict["video"][:B_orig][condition_indices_2].view(B_orig*T, *rest)
+                    gt_vid = sample["video"][:B_orig][condition_indices_2].view(B_orig*T, *rest)
                 else: 
                     gt_vid = target_dict["gt_video"][cam_name][:B_orig][condition_indices_2].view(B_orig*T, *rest)
                 pred_vid = sample["predicted_video"][cam_name][B_orig:].view(B_orig*T, *rest) 
@@ -282,7 +282,7 @@ class FaceFormer(TalkingHeadBase):
 
                 # the new way (vectorized) 
                 if use_real_video:
-                    gt_vid = target_dict["video_mouth"][:B_eff]
+                    gt_vid = sample["video_mouth"][:B_eff]
                 else:
                     gt_vid = target_dict["gt_mouth_video"][cam_name][:B_eff]
                 pred_vid = sample["predicted_mouth_video"][cam_name][:B_eff]
@@ -340,7 +340,7 @@ class FaceFormer(TalkingHeadBase):
                 #     loss_values.append(loss)
                 # loss_value = torch.stack(loss_values).mean()
                 if use_real_video: 
-                    gt_vid = target_dict["video_mouth"][:B_orig]
+                    gt_vid = sample["video_mouth"][:B_orig]
                 else:
                     gt_vid = target_dict["gt_mouth_video"][cam_name][:B_orig]
                 # pred_vid = sample["predicted_mouth_video"][cam_name][B_orig + input_indices_2]
