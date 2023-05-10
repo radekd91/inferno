@@ -1,11 +1,11 @@
 # @package model
 type: FlameBertDecoder 
 num_layers: 1
-feature_dim: 64
-# feature_dim: 128
+# feature_dim: 64
+feature_dim: 128
 # feature_dim: 256
-nhead: 4
-# nhead: 8
+# nhead: 4
+nhead: 8
 # nhead: 16
 dropout: 0.25
 # activation: relu
@@ -96,6 +96,7 @@ style_embedding:
   use_video_expression: false 
 
   gt_expression_label: True
+  # gt_expression_label: False
   gt_expression_intensity: True
   # gt_expression_intensity: False
   n_intensities: 3

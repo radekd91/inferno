@@ -19,14 +19,18 @@ losses:
     # weight: 0.000000001
     network_path: /is/cluster/work/rdanecek/emoca/emodeca/2021_11_09_05-15-38_-8198495972451127810_EmoCnn_resnet50_shake_samp-balanced_expr_Aug_early
     # emo_feat_loss: mse_loss
-    emo_feat_loss: masked_mse_loss
+    # emo_feat_loss: masked_mse_loss
+    emo_feat_loss: cosine_similarity
     trainable: false 
     normalize_features: false 
     # target_method_image: emoca # trying to make emotion behave as emoca
     # target_method_image: EMOCA_v2_lr_mse_20_with_bfmtex 
-    target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex 
+    # target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex 
     # target_method_image: EMOCA_v2_lr_cos_1.5_with_bfmtex 
+    target_method_image: EMICA_mead_mp_lr_mse_15
 
+    use_real_video_for_reference: False
+    # use_real_video_for_reference: True
 
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
   
@@ -44,15 +48,20 @@ losses:
     # weight: 0.000000001
     network_path: /is/cluster/work/rdanecek/emoca/emodeca/2021_11_09_05-15-38_-8198495972451127810_EmoCnn_resnet50_shake_samp-balanced_expr_Aug_early
     # emo_feat_loss: mse_loss
-    emo_feat_loss: masked_mse_loss
+    # emo_feat_loss: masked_mse_loss
+    emo_feat_loss: cosine_similarity
     trainable: false 
     normalize_features: false 
     # target_method_image: emoca # trying to make emotion behave as emoca
     # target_method_image: EMOCA_v2_lr_mse_20_with_bfmtex 
-    target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex 
+    # target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex 
     # target_method_image: EMOCA_v2_lr_cos_1.5_with_bfmtex 
+    target_method_image: EMICA_mead_mp_lr_mse_15
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
     apply_on_disentangled: True
+
+    use_real_video_for_reference: False
+    # use_real_video_for_reference: True
 
   lip_reading_loss:
     metric: cosine_similarity
@@ -71,9 +80,10 @@ losses:
     trainable: false 
     normalize_features: false 
     # target_method_image: spectre # trying to make lips behave as spectre
-    # reconstruction_type: EMOCA_v2_lr_mse_20_with_bfmtex
-    reconstruction_type: EMOCA_v2_lr_mse_15_with_bfmtex
-    # reconstruction_type: EMOCA_v2_lr_cos_1.5_with_bfmtex
+    # target_method_image: EMOCA_v2_lr_mse_20_with_bfmtex
+    # target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex
+    # target_method_image: EMOCA_v2_lr_cos_1.5_with_bfmtex
+    target_method_image: EMICA_mead_mp_lr_mse_15
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
 
   lip_reading_loss_disentangled:
@@ -93,9 +103,10 @@ losses:
     trainable: false 
     normalize_features: false 
     # target_method_image: spectre # trying to make lips behave as spectre
-    # reconstruction_type: EMOCA_v2_lr_mse_20_with_bfmtex
-    reconstruction_type: EMOCA_v2_lr_mse_15_with_bfmtex
-    # reconstruction_type: EMOCA_v2_lr_cos_1.5_with_bfmtex
+    # target_method_image: EMOCA_v2_lr_mse_20_with_bfmtex
+    # target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex
+    # target_method_image: EMOCA_v2_lr_cos_1.5_with_bfmtex
+    target_method_image: EMICA_mead_mp_lr_mse_15
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
     apply_on_disentangled: True
 
