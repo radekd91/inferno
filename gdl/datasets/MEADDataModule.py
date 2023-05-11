@@ -1058,8 +1058,9 @@ class MEADDataset(VideoDatasetBase):
                 landmarks = landmarks[start_frame: sequence_length + start_frame]
                 # landmark_confidences = landmark_confidences[start_frame: sequence_length + start_frame]
                 # landmark_validity = landmark_confidences #TODO: something is wrong here, the validity is not correct and has different dimensions
-                landmark_validity = None 
-            
+                # landmark_validity = None # this line craashes the code if FAN landmarks used (sometimes they are missing)
+                # a potentially dangerous hack (we don't know how valid the landmakrs are but MEAD is an easy dataset so it should be OK)
+                landmark_validity = np.ones((len(landmarks), 1), dtype=np.float32) 
             else: 
                 raise ValueError(f"Invalid landmark source: '{landmark_source}'")
 
