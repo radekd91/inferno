@@ -8,6 +8,7 @@ import os
 from gdl.utils.PyRenderMeshSequenceRenderer import PyRenderMeshSequenceRenderer
 from tqdm.auto import tqdm
 from gdl.datasets.AffectNetAutoDataModule import AffectNetExpressions
+import trimesh
 
 
 def create_condition(talking_head, sample, emotions=None, intensities=None, identities=None):
@@ -78,7 +79,8 @@ def eval_talking_head_on_audio(talking_head, audio_path):
     talking_head = talking_head.to(device)
     # talking_head.talking_head_model.preprocessor.to(device) # weird hack
     sample = create_base_sample(talking_head, audio_path)
-    samples = create_id_emo_int_combinations(talking_head, sample)
+    # samples = create_id_emo_int_combinations(talking_head, sample)
+    samples = create_high_intensity_emotions(talking_head, sample)
     run_evalutation(talking_head, samples, audio_path)
     print("Done")
 
@@ -140,14 +142,38 @@ def create_id_emo_int_combinations(talking_head, sample):
     return samples
 
 
-def run_evalutation(talking_head, samples, audio_path, overwrite=False):
+def create_high_intensity_emotions(talking_head, sample):
+    samples = []
+    training_subjects = talking_head.get_subject_labels('training')
+    # for identity_idx in range(0, talking_head.get_num_identities()): 
+    identity_idx = 0
+    for emo_idx in range(0, talking_head.get_num_emotions()):
+        # for int_idx in range(0, talking_head.get_num_intensities()):
+        int_idx = talking_head.get_num_intensities() - 1
+        sample_copy = sample.copy()
+        sample_copy = create_condition(talking_head, sample_copy, 
+                                        emotions=[emo_idx], 
+                                        identities=[identity_idx], 
+                                        intensities=[int_idx])
+
+        sample["output_name"] = create_name(int_idx, emo_idx, identity_idx, training_subjects)
+
+        samples.append(sample_copy)
+    return samples
+
+
+def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_meshes=True, pyrender_videos=True):
     batch_size = 4
     template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply"        
-    renderer = PyRenderMeshSequenceRenderer(template_mesh_path)
+    if pyrender_videos:
+        renderer = PyRenderMeshSequenceRenderer(template_mesh_path)
+    else:
+        renderer = None
     D = len(samples)
     BD = int(np.ceil(D / batch_size))
     training_subjects = talking_head.get_subject_labels('training')
     device = talking_head.talking_head_model.device
+
 
     for bd in tqdm(range(BD)):
 
@@ -197,32 +223,52 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False):
                 # delete video without audio
                 os.remove(out_video_path)
 
-
             predicted_vertices = batch["predicted_vertices"][b]
             T = predicted_vertices.shape[0]
 
             out_video_path = output_video_dir / f"pyrender_predicted_video_{suffix}.mp4"
             out_video_with_audio_path = output_video_dir / f"pyrender_predicted_video_with_audio_{suffix}.mp4"
 
-            if out_video_with_audio_path.exists() and not overwrite:
-                continue
+            if save_meshes: 
+                mesh_folder = output_video_dir / f"{suffix[1:]}"  / "meshes"
+                mesh_folder.mkdir(exist_ok=True, parents=True)
+                for t in tqdm(range(T)):
+                    mesh_path = mesh_folder / (f"{t:05d}" + ".obj")
+                    if mesh_path.exists() and not overwrite:
+                        continue
 
-            pred_images = []
-            for t in tqdm(range(T)):
-                pred_vertices = predicted_vertices[t].detach().cpu().view(-1,3).numpy()
-                pred_image = renderer.render(pred_vertices)
-                pred_images.append(pred_image)
+                    pred_vertices = predicted_vertices[t].detach().cpu().view(-1,3).numpy()
+                    mesh = trimesh.base.Trimesh(pred_vertices, renderer.template.faces)
+                    mesh.export(mesh_path)
 
-            pred_images = np.stack(pred_images, axis=0)
+                audio_link_path = output_video_dir / f"{suffix[1:]}" / "audio.wav"
+                if not audio_link_path.exists():
+                    os.symlink(audio_path, audio_link_path)
 
-            save_video(out_video_path, pred_images, fourcc="mp4v", fps=25)
+            if pyrender_videos:
+                if out_video_with_audio_path.exists() and not overwrite:
+                    continue
 
-            ffmpeg_cmd = f"ffmpeg -y -i {out_video_path} -i {audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
-            print(ffmpeg_cmd)
-            os.system(ffmpeg_cmd)
+                pred_images = []
+                for t in tqdm(range(T)):
+                    pred_vertices = predicted_vertices[t].detach().cpu().view(-1,3).numpy()
+                    pred_image = renderer.render(pred_vertices)
+                    pred_images.append(pred_image)
+                    if save_meshes: 
+                        mesh = trimesh.base.Trimesh(pred_vertices, renderer.template.faces)
+                        mesh_path = output_video_dir / (f"frame_{t:05d}" + ".obj")
+                        mesh.export(mesh_path)
 
-            # delete video without audio
-            os.remove(out_video_path)
+                pred_images = np.stack(pred_images, axis=0)
+
+                save_video(out_video_path, pred_images, fourcc="mp4v", fps=25)
+
+                ffmpeg_cmd = f"ffmpeg -y -i {out_video_path} -i {audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
+                print(ffmpeg_cmd)
+                os.system(ffmpeg_cmd)
+
+                # delete video without audio
+                os.remove(out_video_path)
 
 
 def read_audio(audio_path):
@@ -281,11 +327,10 @@ def main():
 
     for resume_folder in resume_folders:
         model_path = Path(root) / resume_folder  
-
         talking_head = TalkingHeadWrapper(model_path, render_results=False)
-
         eval_talking_head_on_audio(talking_head, audio)
     
+
 
 if __name__=="__main__": 
     main()

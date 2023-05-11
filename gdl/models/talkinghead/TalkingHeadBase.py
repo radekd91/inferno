@@ -470,6 +470,11 @@ class TalkingHeadBase(pl.LightningModule):
                         sample["reconstruction"][method]["gt_emotion_video_logits"][cam_name] = \
                             self.neural_losses['video_emotion_loss']._forward_input(ref_vid, \
                                                                                     return_logits=True)
+        if 'lip_reading_loss' in self.neural_losses.keys(): 
+            use_real_video = self.cfg.learning.losses.lip_reading_loss.get('use_real_video_for_reference', False) 
+            if use_real_video:
+                # cut out the mouth region from the real video using the FAN landmarks  
+                sample["video_mouth"] = self.renderer.cut_mouth_vectorized(sample["video"], sample["landmarks"]["fan"].float())
         return sample
 
     @torch.no_grad()
