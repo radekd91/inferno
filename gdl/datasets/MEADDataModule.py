@@ -1053,7 +1053,8 @@ class MEADDataset(VideoDatasetBase):
                     landmarks, landmark_confidences = self.lmk_cache[index][landmark_type][landmark_source]
 
                 # scale by image size 
-                landmarks = landmarks * sample["video"].shape[1]
+                # landmarks = landmarks * sample["video"].shape[1]
+                landmarks = landmarks * self.image_size
 
                 landmarks = landmarks[start_frame: sequence_length + start_frame]
                 # landmark_confidences = landmark_confidences[start_frame: sequence_length + start_frame]
