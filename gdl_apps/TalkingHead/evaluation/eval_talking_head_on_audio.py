@@ -79,8 +79,8 @@ def eval_talking_head_on_audio(talking_head, audio_path):
     talking_head = talking_head.to(device)
     # talking_head.talking_head_model.preprocessor.to(device) # weird hack
     sample = create_base_sample(talking_head, audio_path)
-    # samples = create_id_emo_int_combinations(talking_head, sample)
-    samples = create_high_intensity_emotions(talking_head, sample)
+    samples = create_id_emo_int_combinations(talking_head, sample)
+    # samples = create_high_intensity_emotions(talking_head, sample)
     run_evalutation(talking_head, samples, audio_path)
     print("Done")
 
@@ -318,8 +318,11 @@ def process_audio(wavdata, sampling_rate, video_fps):
 def main(): 
     root = "/is/cluster/work/rdanecek/talkinghead/trainings/"
     resume_folders = []
-    resume_folders += ["2023_05_04_13-04-51_-8462650662499054253_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
+    # resume_folders += ["2023_05_04_13-04-51_-8462650662499054253_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
     # resume_folders += ["2023_05_04_18-22-17_5674910949749447663_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+
+    # good model with disentanglement
+    resume_folders += ["2023_05_08_20-36-09_8797431074914794141_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
 
     # audio = Path('/ps/project/EmotionalFacialAnimation/data/lrs3/extracted/test/0Fi83BHQsMA/00002.mp4')
     audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/trainval/0af00UcTOSc/50001.wav')
