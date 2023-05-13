@@ -206,17 +206,17 @@ class TalkingHeadBase(pl.LightningModule):
 
         # forward pass
         sample = self.forward(batch, train=training, teacher_forcing=False, **kwargs)
-        # loss 
-        total_loss, losses, metrics = self.compute_loss(sample, training, validation=False, **kwargs)
+        # # loss 
+        # total_loss, losses, metrics = self.compute_loss(sample, training, validation=False, **kwargs)
 
-        losses_and_metrics_to_log = {**losses, **metrics}
-        # losses_and_metrics_to_log = {"train_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
-        losses_and_metrics_to_log = {"test/" + k: v.item() if isinstance(v, (torch.Tensor,)) else v if isinstance(v, float) else 0. for k, v in losses_and_metrics_to_log.items()}
+        # losses_and_metrics_to_log = {**losses, **metrics}
+        # # losses_and_metrics_to_log = {"train_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
+        # losses_and_metrics_to_log = {"test/" + k: v.item() if isinstance(v, (torch.Tensor,)) else v if isinstance(v, float) else 0. for k, v in losses_and_metrics_to_log.items()}
         
-        if self.logger is not None:
-            self.log_dict(losses_and_metrics_to_log, on_step=False, on_epoch=True, sync_dist=True) # log per epoch, # recommended
-
-        return total_loss
+        # if self.logger is not None:
+        #     self.log_dict(losses_and_metrics_to_log, on_step=False, on_epoch=True, sync_dist=True) # log per epoch, # recommended
+        return
+        # return total_loss
 
     def forward_audio(self, sample: Dict, train=False, desired_output_length=None, **kwargs: Any) -> Dict:
         return self.audio_model(sample, train=train, desired_output_length=desired_output_length, **kwargs)
