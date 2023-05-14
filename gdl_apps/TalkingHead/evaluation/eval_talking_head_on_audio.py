@@ -224,10 +224,10 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
                 predicted_mouth_video = batch["predicted_video"]["front"][b]
 
 
-                out_video_path = output_video_dir / f"predicted_video_{suffix}.mp4"
+                out_video_path = output_video_dir / f"{suffix[1:]}" / f"pytorch_video.mp4"
                 save_video(out_video_path, predicted_mouth_video, fourcc="mp4v", fps=25)
                 
-                out_video_with_audio_path = output_video_dir / f"predicted_video_with_audio_{suffix}.mp4"
+                out_video_with_audio_path = output_video_dir / f"{suffix[1:]}" / f"pytorch_video_with_audio_{suffix}.mp4"
 
                 # attach audio to video with ffmpeg
 
@@ -241,8 +241,8 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
             predicted_vertices = batch["predicted_vertices"][b]
             T = predicted_vertices.shape[0]
 
-            out_video_path = output_video_dir / f"{suffix[1:]}" / f"pyrender_{suffix}.mp4"
-            out_video_with_audio_path = output_video_dir / f"{suffix[1:]}" / f"pyrender_{suffix}.mp4"
+            out_video_path = output_video_dir / f"{suffix[1:]}" / f"pyrender.mp4"
+            out_video_with_audio_path = output_video_dir / f"{suffix[1:]}" / f"pyrender_with_audio.mp4"
 
             if save_meshes: 
                 mesh_folder = output_video_dir / f"{suffix[1:]}"  / "meshes"
