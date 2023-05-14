@@ -9,6 +9,7 @@ from gdl.utils.PyRenderMeshSequenceRenderer import PyRenderMeshSequenceRenderer
 from tqdm.auto import tqdm
 from gdl.datasets.AffectNetAutoDataModule import AffectNetExpressions
 import trimesh
+import copy
 
 
 def create_condition(talking_head, sample, emotions=None, intensities=None, identities=None):
@@ -35,7 +36,7 @@ def create_condition(talking_head, sample, emotions=None, intensities=None, iden
 def interpolate_condition(sample_1, sample_2, length, interpolation_type="linear"): 
     keys_to_interpolate = ["gt_expression_label_condition", "gt_expression_intensity_condition", "gt_expression_identity_condition"]
 
-    sample_result = sample_1.copy()
+    sample_result = copy.deepcopy(sample_1)
     for key in keys_to_interpolate:
         condition_1 = sample_1[key]
         condition_2 = sample_2[key]
@@ -79,8 +80,8 @@ def eval_talking_head_on_audio(talking_head, audio_path):
     talking_head = talking_head.to(device)
     # talking_head.talking_head_model.preprocessor.to(device) # weird hack
     sample = create_base_sample(talking_head, audio_path)
-    samples = create_id_emo_int_combinations(talking_head, sample)
-    # samples = create_high_intensity_emotions(talking_head, sample)
+    # samples = create_id_emo_int_combinations(talking_head, sample)
+    samples = create_high_intensity_emotions(talking_head, sample)
     run_evalutation(talking_head, samples, audio_path)
     print("Done")
 
@@ -130,13 +131,13 @@ def create_id_emo_int_combinations(talking_head, sample):
     for identity_idx in range(0, talking_head.get_num_identities()):
         for emo_idx in range(0, talking_head.get_num_emotions()):
             for int_idx in range(0, talking_head.get_num_intensities()):
-                sample_copy = sample.copy()
+                sample_copy = copy.deepcopy(sample)
                 sample_copy = create_condition(talking_head, sample_copy, 
                                                emotions=[emo_idx], 
                                                identities=[identity_idx], 
                                                intensities=[int_idx])
 
-                sample["output_name"] = create_name(int_idx, emo_idx, identity_idx, training_subjects)
+                sample_copy["output_name"] = create_name(int_idx, emo_idx, identity_idx, training_subjects)
 
                 samples.append(sample_copy)
     return samples
@@ -150,20 +151,31 @@ def create_high_intensity_emotions(talking_head, sample):
     for emo_idx in range(0, talking_head.get_num_emotions()):
         # for int_idx in range(0, talking_head.get_num_intensities()):
         int_idx = talking_head.get_num_intensities() - 1
-        sample_copy = sample.copy()
+        sample_copy = copy.deepcopy(sample)
         sample_copy = create_condition(talking_head, sample_copy, 
                                         emotions=[emo_idx], 
                                         identities=[identity_idx], 
                                         intensities=[int_idx])
 
-        sample["output_name"] = create_name(int_idx, emo_idx, identity_idx, training_subjects)
+        sample_copy["output_name"] = create_name(int_idx, emo_idx, identity_idx, training_subjects)
 
         samples.append(sample_copy)
     return samples
 
 
+class TestDataset(torch.utils.data.Dataset):
+    def __init__(self, samples):
+        self.samples = samples
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        return self.samples[idx]
+
+
 def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_meshes=False, pyrender_videos=True):
-    batch_size = 4
+    batch_size = 1
     template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply"        
     if pyrender_videos:
         renderer = PyRenderMeshSequenceRenderer(template_mesh_path)
@@ -174,13 +186,16 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
     training_subjects = talking_head.get_subject_labels('training')
     device = talking_head.talking_head_model.device
 
+    # samples = samples[batch_size:]
+    dl = torch.utils.data.DataLoader(TestDataset(samples), batch_size=batch_size, shuffle=False, num_workers=0, 
+                                     collate_fn=robust_collate)
 
-    for bd in tqdm(range(BD)):
+    # for bd in tqdm(range(BD)):
 
-        samples_batch = samples[bd*batch_size:(bd+1)*batch_size]
-        batch = robust_collate(samples_batch)
+    #     samples_batch = samples[bd*batch_size:(bd+1)*batch_size]
+        # batch = robust_collate(samples_batch)
+    for bi, batch in enumerate(tqdm(dl)):
         batch = dict_to_device(batch, device)
-
         with torch.no_grad():
             batch = talking_head(batch)
 
@@ -203,7 +218,7 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
                     suffix = f"_{identity}_{emotion}_{intensity}"
                 except Exception as e:
                     print(e)
-                    suffix = f"_{bd * batch_size + b}"
+                    suffix = f"_{bi * batch_size + b}"
 
             if talking_head.render_results:
                 predicted_mouth_video = batch["predicted_video"]["front"][b]
