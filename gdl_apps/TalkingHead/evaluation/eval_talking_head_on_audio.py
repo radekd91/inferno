@@ -242,6 +242,7 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
             T = predicted_vertices.shape[0]
 
             out_video_path = output_video_dir / f"{suffix[1:]}" / f"pyrender.mp4"
+            out_video_path.parent.mkdir(exist_ok=True, parents=True)
             out_video_with_audio_path = output_video_dir / f"{suffix[1:]}" / f"pyrender_with_audio.mp4"
 
             if save_meshes: 
