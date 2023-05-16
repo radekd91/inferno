@@ -143,11 +143,11 @@ def create_id_emo_int_combinations(talking_head, sample):
     return samples
 
 
-def create_high_intensity_emotions(talking_head, sample):
+def create_high_intensity_emotions(talking_head, sample, identity_idx=None):
     samples = []
     training_subjects = talking_head.get_subject_labels('training')
     # for identity_idx in range(0, talking_head.get_num_identities()): 
-    identity_idx = 0
+    identity_idx = identity_idx or 0
     for emo_idx in range(0, talking_head.get_num_emotions()):
         # for int_idx in range(0, talking_head.get_num_intensities()):
         int_idx = talking_head.get_num_intensities() - 1
@@ -174,7 +174,7 @@ class TestDataset(torch.utils.data.Dataset):
         return self.samples[idx]
 
 
-def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_meshes=False, pyrender_videos=True):
+def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_meshes=False, pyrender_videos=True, out_folder = None):
     batch_size = 1
     template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply"        
     if pyrender_videos:
@@ -194,6 +194,16 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
 
     #     samples_batch = samples[bd*batch_size:(bd+1)*batch_size]
         # batch = robust_collate(samples_batch)
+
+
+    if out_folder is None:
+        output_dir = Path(talking_head.cfg.inout.full_run_dir) / "test_videos" / (audio_path.parent.name + "_" + audio_path.stem)
+        output_dir.mkdir(exist_ok=True, parents=True)
+    else:
+        output_dir = Path(out_folder)
+        output_dir.mkdir(exist_ok=True, parents=True)
+
+
     for bi, batch in enumerate(tqdm(dl)):
         batch = dict_to_device(batch, device)
         with torch.no_grad():
@@ -201,9 +211,6 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
 
         B = batch["predicted_vertices"].shape[0]
         for b in range(B):
-
-            output_video_dir = Path(talking_head.cfg.inout.full_run_dir) / "test_videos" / (audio_path.parent.name + "_" + audio_path.stem)
-            output_video_dir.mkdir(exist_ok=True, parents=True)
 
             if "output_name" in batch:
                 suffix = batch["output_name"][b]
@@ -224,10 +231,10 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
                 predicted_mouth_video = batch["predicted_video"]["front"][b]
 
 
-                out_video_path = output_video_dir / f"{suffix[1:]}" / f"pytorch_video.mp4"
+                out_video_path = output_dir / f"{suffix[1:]}" / f"pytorch_video.mp4"
                 save_video(out_video_path, predicted_mouth_video, fourcc="mp4v", fps=25)
                 
-                out_video_with_audio_path = output_video_dir / f"{suffix[1:]}" / f"pytorch_video_with_audio_{suffix}.mp4"
+                out_video_with_audio_path = output_dir / f"{suffix[1:]}" / f"pytorch_video_with_audio_{suffix}.mp4"
 
                 # attach audio to video with ffmpeg
 
@@ -241,12 +248,12 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
             predicted_vertices = batch["predicted_vertices"][b]
             T = predicted_vertices.shape[0]
 
-            out_video_path = output_video_dir / f"{suffix[1:]}" / f"pyrender.mp4"
+            out_video_path = output_dir / f"{suffix[1:]}" / f"pyrender.mp4"
             out_video_path.parent.mkdir(exist_ok=True, parents=True)
-            out_video_with_audio_path = output_video_dir / f"{suffix[1:]}" / f"pyrender_with_audio.mp4"
+            out_video_with_audio_path = output_dir / f"{suffix[1:]}" / f"pyrender_with_audio.mp4"
 
             if save_meshes: 
-                mesh_folder = output_video_dir / f"{suffix[1:]}"  / "meshes"
+                mesh_folder = output_dir / f"{suffix[1:]}"  / "meshes"
                 mesh_folder.mkdir(exist_ok=True, parents=True)
                 for t in tqdm(range(T)):
                     mesh_path = mesh_folder / (f"{t:05d}" + ".obj")
@@ -257,7 +264,7 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
                     mesh = trimesh.base.Trimesh(pred_vertices, renderer.template.faces)
                     mesh.export(mesh_path)
 
-                audio_link_path = output_video_dir / f"{suffix[1:]}" / "audio.wav"
+                audio_link_path = output_dir / f"{suffix[1:]}" / "audio.wav"
                 if not audio_link_path.exists():
                     os.symlink(audio_path, audio_link_path)
 
@@ -328,7 +335,92 @@ def process_audio(wavdata, sampling_rate, video_fps):
     return sample
 
 
+## note to self: 
+# the MEAD test set that uses the split of "random_by_identityV2_sorted_70_15_15" (all of our training models)
+# has the following test individuals: 
+# ['M037', 'M039', 'M040', 'M041', 'M042', 'W037', 'W038', 'W040']
+# validation individuals: 
+# ['M032', 'M033', 'M034', 'M035', 'W033', 'W035', 'W036'] 
+# and training individuals
+#['M003', # GT status: good emotions, neutral a bit of artifacts, very expressive ## decision: 5
+# 'M005',  # GT status: decent emotions, neutral does not look neutral looks not neutral some artifacts, very expressive ## decision: 3.5
+# 'M007',  # GT status: decent emotions, neutral some artifacts, ok geometry but weird speaking style ## decision: 3.5
+# 'M009',  # GT status: good emotions, neutral a bit of artifacts, very expressive ## decision: 5
+# 'M011',  # GT status: ok emotions, neutral does not look neutral at all (bad recostruction) a bit of artifacts, very expressive ## decision: 2.5
+# 'M012',  # GT status: ok emotions, neutral a bit of artifacts, quite expressive ## decision: 4.5
+# 'M013',  # GT status: black guy, artifacts in reconstruction, quite expressive ## decision: 1
+# 'M019',  # GT status: good, emotions, very expressive, tiny bit of neutral artifacts ## decision: 5
+# 'M022',  # GT status: good, emotions, very expressive, tiny bit of neutral artifacts ## decision: 5
+# 'M023',  # GT status: good, emotions, lower amplitude but good, tiny bit of neutral artifacts ## decision: 5
+# 'M024',  # GT status: ok emotions, lower amplitude, neutral mubmles a bit, tiny bit of neutral artifacts ## decision: 4
+# 'M025',  # GT status: neural has some artifacts (the black kind of artifacts :-( ) but the emotions are OK: ## decision: 2.5
+# 'M026',  # GT status, neutral look emotional so not great, even the happy doesn't look good, not too wrong but overall very weird speaking style: 2
+# 'M027',  # GT status: good, emotions, very expressive, tiny bit of neutral artifacts ## decision: 5
+# 'M028',  # GT status: good, emotions, very expressive, tiny bit of neutral artifacts ## decision: 5
+# 'M029',  # GT status: consistent artifcats around lips (the reconstruction does not work so wel onn this guy): decision: 2 
+# 'M030',  #  GT status: ok emotions, ok expressive, some of neutral artifacts ## decision: 4
+# 'M031',  # GT status: good, emotions, very expressive, tiny bit of neutral artifacts ## decision: 5
+# 'W009', # GT status: 4-5
+# 'W011', # GT status: 4-5
+# 'W014', # GT status: 4-5
+# 'W015', # GT status: 4-5
+# 'W016', # GT status: 4-5
+# 'W018', # neutral not neutral (black artifact) not good 1 
+# 'W019', #  terrible actress but the reconstructions are OK, will confuse people though (happy not happy, ...) GT status: 3
+# 'W021', # GT status: 4-5
+# 'W023', # neutral not neutral (black artifact) not good 2.5 
+# 'W024', # neutral not neutral this time it's actually accurate, this woman't neutral looks sad, that said the reconstructions are OK but will confuse people ## 3.5
+# 'W025', # neutral not neutral (black artifact) not good 2. 
+# 'W026', # neutral not neutral this time it's actually accurate, this woman't neutral looks sad, that said the reconstructions are OK but will confuse people ## 3.5
+# 'W028', # 4-5
+# 'W029', # neutral not neutral (black artifact) not good 1.5
+# ]
+##
+training_ids = ['M003', 'M005', 'M007', 'M009', 'M011', 'M012', 'M013', 'M019', 'M022', 'M023', 'M024', 'M025', 'M026', 'M027', 'M028', 'M029', 'M030', 'M031', 'W009', 'W011', 'W014', 'W015', 'W016', 'W018', 'W019', 'W021', 'W023', 'W024', 'W025', 'W026', 'W028', 'W029']
+# val_ids = ['M032', 'M033', 'M034', 'M035', 'W033', 'W035', 'W036'] 
+# test_ids = ['M037', 'M039', 'M040', 'M041', 'M042', 'W037', 'W038', 'W040']
 
+# label2score = { 
+# 'M003': 5,
+# 'M005': 3.5,
+# 'M007': 3.5,
+# 'M009': 5,
+# 'M011': 2.5,
+# 'M012': 4.5,
+# 'M013': 1,
+# 'M019': 5,
+# 'M022': 5,
+# 'M023': 5,
+# 'M024': 4,
+# 'M025': 2.5,
+# 'M026': 2,
+# 'M027': 5,
+# 'M028': 5,
+# 'M029': 2 ,
+# 'M030': 4,
+# 'M031': 5,
+# 'W009': 4,
+# 'W011': 4,
+# 'W014': 4,
+# 'W015': 4,
+# 'W016': 4,
+# 'W018': 1 ,
+# 'W019': 3,
+# 'W021': 4,
+# 'W023': 2.5 ,
+# 'W024': 3.5,
+# 'W025': 2. ,
+# 'W026': 3.5,
+# 'W028': 4-5,
+# 'W029': 1.5,
+# }
+
+# id2label = zip(list(training_ids, range(len(training_ids))))
+# label2id = zip(range(len(training_ids)), list(training_ids))
+
+# # accepted labels >= 4
+# accepted_labels2score = { k: v for k, v in label2score.items() if v >= 4 }
+# accaoted_label2id = { k: v for k, v in label2id.items() if v in accepted_labels2score.keys() }
 
 
 def main(): 
