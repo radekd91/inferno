@@ -9,7 +9,8 @@ defaults:
   - model/preprocessor@model.preprocessor : flame_tex
   # - model/audio@model/audio: avhubert
   # - model/audio@model/audio: wav2vec2
-  - model/audio@model/audio: wav2vec2_resampled_trainable_wild
+  # - model/audio@model/audio: wav2vec2_resampled_trainable_wild
+  - model/audio@model/audio: wav2vec2_resampled_nontrainable_wild
   # - model/audio@model/audio: hubert
   # - model/face@model/face: flame
   # - model/face@model/face: full_space
@@ -27,7 +28,7 @@ defaults:
   - learning/losses: vertices_emovid_lip_masked_exchange
   - learning/optimizer: adam
   # - learning/batching@learning/batching: default
-  - learning/batching@learning/batching: fixed_length_bs2
+  - learning/batching@learning/batching: fixed_length
   # - learning/callbacks: early_stopping
   - learning/callbacks: none
   - learning/logging: wandb

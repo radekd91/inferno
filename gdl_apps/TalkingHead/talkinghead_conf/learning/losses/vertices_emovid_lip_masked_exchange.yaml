@@ -57,8 +57,9 @@ losses:
     normalize_features: false 
     # target_method_image: emoca # trying to make emotion behave as emoca
       # reconstruction_type: EMOCA_v2_lr_mse_20_with_bfmtex
-    reconstruction_type: EMOCA_v2_lr_mse_15_with_bfmtex
+    # reconstruction_type: EMOCA_v2_lr_mse_15_with_bfmtex
     # reconstruction_type: EMOCA_v2_lr_cos_1.5_with_bfmtex
+    target_method_image: EMICA_mead_mp_lr_mse_15
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
   
   emotion_video_loss_disentangled:
@@ -113,8 +114,9 @@ losses:
     normalize_features: false 
     # target_method_image: emoca # trying to make emotion behave as emoca
     # reconstruction_type: EMOCA_v2_lr_mse_20_with_bfmtex
-    reconstruction_type: EMOCA_v2_lr_mse_15_with_bfmtex
+    # reconstruction_type: EMOCA_v2_lr_mse_15_with_bfmtex
     # reconstruction_type: EMOCA_v2_lr_cos_1.5_with_bfmtex
+    target_method_image: EMICA_mead_mp_lr_mse_15
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
     apply_on_disentangled: True
 
@@ -136,8 +138,9 @@ losses:
     normalize_features: false 
     # target_method_image: spectre # trying to make lips behave as spectre
     # reconstruction_type: EMOCA_v2_lr_mse_20_with_bfmtex
-    reconstruction_type: EMOCA_v2_lr_mse_15_with_bfmtex
+    # reconstruction_type: EMOCA_v2_lr_mse_15_with_bfmtex
     # reconstruction_type: EMOCA_v2_lr_cos_1.5_with_bfmtex
+    target_method_image: EMICA_mead_mp_lr_mse_15
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
 
   lip_reading_loss_disentangled:
@@ -163,10 +166,11 @@ losses:
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
     apply_on_disentangled: True
 
-  expression_reg: 
-    weight: 0.0001
 
 metrics: 
+
+  expression_reg: 
+    weight: 1.0
 
   exp_loss: 
     weight: 1.
