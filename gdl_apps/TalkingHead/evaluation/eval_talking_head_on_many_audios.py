@@ -45,8 +45,14 @@ def main():
     for audio in audio_files:
         # print("audio: ", audio)
         audio = Path(audio)
-        output_dir = Path(talking_head.cfg.inout.full_run_dir) / "mturk_videos_lrs3" / audio.parents[1].name / (audio.parent.name + "/" + audio.stem)
+        output_dir = Path("/is/cluster/fast/scratch/rdanecek/testing/enspark/baselines/").name / \
+            Path(talking_head.cfg.inout.full_run_dir).name / "mturk_videos_lrs3" / \
+                audio.parents[1].name / (audio.parent.name + "/" + audio.stem)
+        # output_dir = Path(talking_head.cfg.inout.full_run_dir) / "mturk_videos_lrs3" / audio.parents[1].name / (audio.parent.name + "/" + audio.stem)
         eval_talking_head_on_audio(talking_head, audio, output_path=output_dir)
+
+        chmod_cmd = "find %s -type d -exec chmod 755 {{}} +".format(str(output_dir))
+        os.system(chmod_cmd)
 
 
 if __name__ == "__main__":
