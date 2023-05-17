@@ -177,7 +177,7 @@ class TestDataset(torch.utils.data.Dataset):
 def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_meshes=False, pyrender_videos=True, out_folder = None):
     batch_size = 1
     template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply"        
-    template = trimesh.load_mesh(template_file)
+    template = trimesh.load_mesh(template_mesh_path)
     if pyrender_videos:
         renderer = PyRenderMeshSequenceRenderer(template_mesh_path)
     else:
