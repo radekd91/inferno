@@ -177,6 +177,7 @@ class TestDataset(torch.utils.data.Dataset):
 def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_meshes=False, pyrender_videos=True, out_folder = None):
     batch_size = 1
     template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply"        
+    template = trimesh.load_mesh(template_file)
     if pyrender_videos:
         renderer = PyRenderMeshSequenceRenderer(template_mesh_path)
     else:
@@ -261,7 +262,7 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
                         continue
 
                     pred_vertices = predicted_vertices[t].detach().cpu().view(-1,3).numpy()
-                    mesh = trimesh.base.Trimesh(pred_vertices, renderer.template.faces)
+                    mesh = trimesh.base.Trimesh(pred_vertices, template.faces)
                     mesh.export(mesh_path)
 
                 audio_link_path = output_dir / f"{suffix[1:]}" / "audio.wav"
@@ -278,7 +279,7 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
                     pred_image = renderer.render(pred_vertices)
                     pred_images.append(pred_image)
                     # if save_meshes: 
-                    #     mesh = trimesh.base.Trimesh(pred_vertices, renderer.template.faces)
+                    #     mesh = trimesh.base.Trimesh(pred_vertices, template.faces)
                     #     # mesh_path = output_video_dir / (f"frame_{t:05d}" + ".obj")
                     #     mesh.export(mesh_path)
 
