@@ -14,38 +14,31 @@ lrs_subset = "pretrain"
 video_folder = f"mturk_videos_lrs3/{lrs_subset}"
 
 server_root = "/is/cluster/fast/scratch/rdanecek/testing/enspark/"
-path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark/study_2/"
+path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark/study_3/"
 catch_id = "run0"
 
 bucket_prefix = "https://ensparc.s3.eu-central-1.amazonaws.com/"
 
 
-def load_catch_videos_lipsync():
+def load_catch_videos_lipsync(method):
     catch_videos_lipsync_correct = []
     catch_videos_lipsync_wrong = []
 
-    path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/{catch_id}/study_1b"
+    identifier = method.split("_")[0]
+
+    path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/{catch_id}/study_3"
     # find videos that have "true" in their filename
     catch_videos_lipsync_correct = sorted(list(Path(path_to_catch_videos).glob("*true*.mp4")))
-    
+    # filter out videos that do not have the correct identifier
+    catch_videos_lipsync_correct = [video for video in catch_videos_lipsync_correct if identifier in video.stem]
+
     # find videos that have "false" in their filename
     catch_videos_lipsync_wrong = sorted(list(Path(path_to_catch_videos).glob("*false*.mp4")))
+    # filter out videos that do not have the correct identifier
+    catch_videos_lipsync_wrong = [video for video in catch_videos_lipsync_wrong if identifier in video.stem]
 
     return catch_videos_lipsync_correct, catch_videos_lipsync_wrong, Path(path_to_catch_videos)
 
-
-def load_catch_videos_emo():
-    catch_videos_emo_correct = []
-    catch_videos_emo_wrong = []
-
-    path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/{catch_id}/study_1a"
-    # find videos that have "true" in their filename
-    catch_videos_emo_correct = sorted(list(Path(path_to_catch_videos).glob("*true*.mp4")))
-    
-    # find videos that have "false" in their filename
-    catch_videos_emo_wrong = sorted(list(Path(path_to_catch_videos).glob("*false*.mp4")))
-
-    return catch_videos_emo_correct, catch_videos_emo_wrong, Path(path_to_catch_videos)
 
 
 def find_files(folder, extension):
@@ -145,7 +138,7 @@ def design_study_3(model_a, model_b, num_rows, num_videos_per_row, output_folder
     output_folder.mkdir(parents=True, exist_ok=True)
     study_folder = output_folder.parent
 
-    catch_videos_lip_correct, catch_videos_lip_wrong, lip_catch_path = load_catch_videos_lipsync()
+    catch_videos_lip_correct, catch_videos_lip_wrong, lip_catch_path = load_catch_videos_lipsync(model_b)
     
     # for each video    
     for ri in range(num_rows):
@@ -378,7 +371,17 @@ def main():
     # ablation models
     baselines_models = []
     ## ENSPARC with prior but no perceptual
-    baselines_models += ["CT_reorg"] 
+    suffix = ""
+    if lrs_subset == "test":
+        suffix = "_test"
+        mt_suffix = suffix
+    else:
+        mt_suffix = "_new"
+
+    baselines_models += [f"CT{suffix}_reorg"] 
+    # baselines_models += [f"FF{suffix}_reorg"] 
+    baselines_models += [f"VOCA{suffix}_reorg"] 
+    baselines_models += [f"MT{mt_suffix}_reorg"] 
     ablation_vids = []
 
     for model_b in baselines_models:
