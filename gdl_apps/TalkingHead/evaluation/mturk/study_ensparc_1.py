@@ -16,6 +16,8 @@ server_root = "/is/cluster/fast/scratch/rdanecek/testing/enspark/"
 path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark/study_1/"
 catch_id = "run0"
 
+bucket_prefix = "https://ensparc.s3.eu-central-1.amazonaws.com/"
+
 
 def load_catch_videos_lipsync():
     catch_videos_lipsync_correct = []
@@ -133,6 +135,7 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
     hit_list_lines = ["images"]
     hit_list_lines_rel = ["images"]
     hit_list_lines_dbg = ["images"]
+    hit_list_lines_mturk = ["images"]
     
     flips = [[]]
     selected_videos_a_emo = [[]]
@@ -145,6 +148,7 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
     catch_trials_relative_to_output = [[]]
     
     output_folder.mkdir(parents=True, exist_ok=True)
+    study_folder = output_folder.parent
 
     catch_videos_lip_correct, catch_videos_lip_wrong, lip_catch_path = load_catch_videos_lipsync()
     catch_videos_emo_correct, catch_videos_emo_wrong, emo_catch_path = load_catch_videos_emo()
@@ -154,6 +158,7 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
         hit_list_line = []
         hit_list_line_rel = []
         hit_list_line_dbg = []
+        hit_list_line_mturk = []
 
         video_count = 0
         i = 0
@@ -190,6 +195,9 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
             shutil.copy(video_a, video_a_output)
             shutil.copy(video_b, video_b_output)
 
+            video_a_relative_to_output = Path(video_a_output).relative_to(study_folder)
+            video_b_relative_to_output = Path(video_b_output).relative_to(study_folder)
+
             # create video_a_output that is mute and video_b_output that is also mute
             video_a_output_mute = video_a_output.parent / (video_a_output.stem + "_mute.mp4")
             video_b_output_mute = video_b_output.parent / (video_b_output.stem + "_mute.mp4")
@@ -198,11 +206,8 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
             os.system(f"ffmpeg -n -i {video_a_output} -vcodec copy -an {video_a_output_mute}")
             os.system(f"ffmpeg -n -i {video_b_output} -vcodec copy -an {video_b_output_mute}")
 
-            video_a_output_mute_relative_to_output = Path(video_a_output_mute).relative_to(output_folder)
-            video_b_output_mute_relative_to_output = Path(video_b_output_mute).relative_to(output_folder)
-
-            # TODO: check if the video names are the same
-            
+            video_a_output_mute_relative_to_output = Path(video_a_output_mute).relative_to(study_folder)
+            video_b_output_mute_relative_to_output = Path(video_b_output_mute).relative_to(study_folder)
 
             intensity = video_a.parts[-2].split("_")[2]
             intensity_b = video_b.parts[-2].split("_")[2]
@@ -220,26 +225,26 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
             # hit list line has the following format: videopath_left#videopath_right#emotion#angry;videopath_left#videopath_right#lipsync#happy
             video_a = str(video_a)
             video_b = str(video_b)
-            # if debug:
-            #     video_a = "http://0.0.0.0:8000/" + str(Path(video_a).relative_to(server_root))
-            #     video_b = "http://0.0.0.0:8000/" + str(Path(video_b).relative_to(server_root))
-            #     video_a_relative_to_output = "http://0.0.0.0:8000/" + str(Path(video_a_relative_to_output))
-            #     video_b_relative_to_output = "http://0.0.0.0:8000/" + str(Path(video_b_relative_to_output))
-            #     video_a_output_mute_relative_to_output = "http://0.0.0.0:8000/" + str(Path(video_a_output_mute_relative_to_output))
-            #     video_b_output_mute_relative_to_output = "http://0.0.0.0:8000/" + str(Path(video_b_output_mute_relative_to_output))
+
             video_a_relative_to_output_dbg =  "http://0.0.0.0:8000/" + str(video_a_relative_to_output)
             video_b_relative_to_output_dbg =  "http://0.0.0.0:8000/" + str(video_b_relative_to_output)
             video_a_output_mute_relative_to_output_dbg =   "http://0.0.0.0:8000/" + str(video_a_output_mute_relative_to_output)
             video_b_output_mute_relative_to_output_dbg =   "http://0.0.0.0:8000/" + str(video_b_output_mute_relative_to_output)
+            video_a_mturk = bucket_prefix + "/" + str(video_a_relative_to_output)
+            video_b_mturk = bucket_prefix + "/" + str(video_b_relative_to_output)
+            video_a_output_mute_mturk = bucket_prefix + "/" + str(video_a_output_mute_relative_to_output)
+            video_b_output_mute_mturk = bucket_prefix + "/" + str(video_b_output_mute_relative_to_output)
 
             if not flip:
                 hit_list_line += [f"{video_a}#{video_b}#emotion#{emotion};{video_a}#{video_b}#lipsync#{emotion}"]
                 hit_list_line_rel += [f"{video_a_output_mute_relative_to_output}#{video_b_output_mute_relative_to_output}#emotion#{emotion};{video_a_relative_to_output}#{video_b_relative_to_output}#lipsync#{emotion}"]
                 hit_list_line_dbg += [f"{video_a_output_mute_relative_to_output_dbg}#{video_b_output_mute_relative_to_output_dbg}#emotion#{emotion};{video_a_relative_to_output_dbg}#{video_b_relative_to_output_dbg}#lipsync#{emotion}"]
+                hit_list_line_mturk += [f"{video_a_output_mute_mturk}#{video_b_output_mute_mturk}#emotion#{emotion};{video_a_mturk}#{video_b_mturk}#lipsync#{emotion}"]
             else:
                 hit_list_line += [f"{video_b}#{video_a}#emotion#{emotion};{video_b}#{video_a}#lipsync#{emotion}"]
                 hit_list_line_rel += [f"{video_b_output_mute_relative_to_output}#{video_a_output_mute_relative_to_output}#emotion#{emotion};{video_b_relative_to_output}#{video_a_relative_to_output}#lipsync#{emotion}"]
                 hit_list_line_dbg += [f"{video_b_output_mute_relative_to_output_dbg}#{video_a_output_mute_relative_to_output_dbg}#emotion#{emotion};{video_b_relative_to_output_dbg}#{video_a_relative_to_output_dbg}#lipsync#{emotion}"]
+                hit_list_line_mturk += [f"{video_b_output_mute_mturk}#{video_a_output_mute_mturk}#emotion#{emotion};{video_b_mturk}#{video_a_mturk}#lipsync#{emotion}"]
 
             # hitlist_str += hit_list_line
             # hitlist_str_rel += hit_list_line_rel
@@ -280,10 +285,10 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
             # shutil.copy(video_a_emotion, output_folder / video_a_emotion_out)
             # shutil.copy(video_b_emotion, output_folder / video_b_emotion_out)
 
-            video_a_lip_relative_to_output = Path(video_a_lip_out).relative_to(output_folder)
-            video_b_lip_relative_to_output = Path(video_b_lip_out).relative_to(output_folder)
-            video_a_emotion_relative_to_output = Path(video_a_emotion_out).relative_to(output_folder)
-            video_b_emotion_relative_to_output = Path(video_b_emotion_out).relative_to(output_folder)
+            video_a_lip_relative_to_output = Path(video_a_lip_out).relative_to(study_folder)
+            video_b_lip_relative_to_output = Path(video_b_lip_out).relative_to(study_folder)
+            video_a_emotion_relative_to_output = Path(video_a_emotion_out).relative_to(study_folder)
+            video_b_emotion_relative_to_output = Path(video_b_emotion_out).relative_to(study_folder)
 
     
             selected_videos_a_emo[ri] += [video_a_emotion]
@@ -306,15 +311,23 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
             video_b_lip_dbg = "http://0.0.0.0:8000/" + video_b_lip_relative_to_output
             video_a_emotion_dbg = "http://0.0.0.0:8000/" + video_a_emotion_relative_to_output
             video_b_emotion_dbg = "http://0.0.0.0:8000/" + video_b_emotion_relative_to_output
-                
+
+
+            video_a_lip_mturk = str(video_a_lip_relative_to_output)
+            video_b_lip_mturk = str(video_b_lip_relative_to_output)
+            video_a_emotion_mturk = str(video_a_emotion_relative_to_output)
+            video_b_emotion_mturk = str(video_b_emotion_relative_to_output)
+
             if not flip:
                 hit_list_line += [f"{video_a_emotion}#{video_b_emotion}#emotion#{emotion};{video_a_lip}#{video_b_lip}#lipsync#{emotion}"]
                 hit_list_line_rel += [f"{video_a_emotion_relative_to_output}#{video_b_emotion_relative_to_output}#emotion#{emotion};{video_a_lip_relative_to_output}#{video_b_lip_relative_to_output}#lipsync#{emotion}"]
                 hit_list_line_dbg += [f"{video_a_emotion_dbg}#{video_b_emotion_dbg}#emotion#{emotion};{video_a_lip_dbg}#{video_b_lip_dbg}#lipsync#{emotion}"]
+                hit_list_line_mturk += [f"{video_a_emotion_mturk}#{video_b_emotion_mturk}#emotion#{emotion};{video_a_lip_mturk}#{video_b_lip_mturk}#lipsync#{emotion}"]
             else:
                 hit_list_line += [f"{video_b_emotion}#{video_a_emotion}#emotion#{emotion};{video_b_lip}#{video_a_lip}#lipsync#{emotion}"]
                 hit_list_line_rel += [f"{video_b_emotion_relative_to_output}#{video_a_emotion_relative_to_output}#emotion#{emotion};{video_b_lip_relative_to_output}#{video_a_lip_relative_to_output}#lipsync#{emotion}"]
                 hit_list_line_dbg += [f"{video_b_emotion_dbg}#{video_a_emotion_dbg}#emotion#{emotion};{video_b_lip_dbg}#{video_a_lip_dbg}#lipsync#{emotion}"]
+                hit_list_line_mturk += [f"{video_b_emotion_mturk}#{video_a_emotion_mturk}#emotion#{emotion};{video_b_lip_mturk}#{video_a_lip_mturk}#lipsync#{emotion}"]
 
         # shuffle to mix in catch trials
         index_list = list(range(len(flips[ri])))
@@ -328,6 +341,7 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
         hit_list_line = [hit_list_line[i] for i in index_list]
         hit_list_line_rel = [hit_list_line_rel[i] for i in index_list]
         hit_list_line_dbg = [hit_list_line_dbg[i] for i in index_list]
+        hit_list_line_mturk = [hit_list_line_mturk[i] for i in index_list]
 
         # repeat the first num_repeats elements at the end of the list
         flips[ri] += flips[ri][:num_repeats]
@@ -343,6 +357,7 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
         hit_list_lines += [';'.join(hit_list_line)]
         hit_list_lines_rel += [';'.join(hit_list_line_rel)]
         hit_list_lines_dbg += [";".join(hit_list_line_dbg)]
+        hit_list_lines_mturk += [";".join(hit_list_line_mturk)]
 
         # remove all selected videos from the lists 
         # convert videos to strings
@@ -406,6 +421,10 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
     hitlist_dbg_file = Path(output_folder) / "hitlist_dbg.csv"
     with open(hitlist_dbg_file, "w") as f:
         f.write("\n".join(hit_list_lines_dbg))
+
+    hitlist_mturk_file = Path(output_folder) / "hitlist_mturk.csv"
+    with open(hitlist_mturk_file, "w") as f:
+        f.write("\n".join(hit_list_lines_mturk))
     print(f"Protocol file saved to {hitlist_dbg_file}")
 
 
@@ -455,7 +474,7 @@ def main():
     # create a timestamped folder for the study
     study_name = "study_"
     using_date = datetime.datetime.now().strftime("%Y_%m_%d_%H-%M-%S")
-    study_name += "_" + using_date + f"nr{num_rows}_r{videos_per_row}_ct{num_catch_trials}_rep{repeats}"
+    study_name += "_" + using_date + f"__nr{num_rows}_r{videos_per_row}_ct{num_catch_trials}_rep{repeats}"
 
     # dump the video list to a file: 
     video_list_file = Path(path_to_studies) / study_name / "video_list.txt"
