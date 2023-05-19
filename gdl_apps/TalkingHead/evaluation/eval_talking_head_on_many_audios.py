@@ -45,7 +45,7 @@ def main():
     for audio in audio_files:
         # print("audio: ", audio)
         audio = Path(audio)
-        output_dir = Path("/is/cluster/fast/scratch/rdanecek/testing/enspark/baselines/").name / \
+        output_dir = Path("/is/cluster/fast/scratch/rdanecek/testing/enspark/baselines/") / \
             Path(talking_head.cfg.inout.full_run_dir).name / "mturk_videos_lrs3" / \
                 audio.parents[1].name / (audio.parent.name + "/" + audio.stem)
         # output_dir = Path(talking_head.cfg.inout.full_run_dir) / "mturk_videos_lrs3" / audio.parents[1].name / (audio.parent.name + "/" + audio.stem)
