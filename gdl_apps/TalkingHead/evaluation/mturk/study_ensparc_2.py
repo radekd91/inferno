@@ -14,8 +14,8 @@ lrs_subset = "test"
 video_folder = f"mturk_videos_lrs3/{lrs_subset}"
 
 server_root = "/is/cluster/fast/scratch/rdanecek/testing/enspark/"
-path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark/study_2/"
-catch_id = "run0"
+path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/study_2/"
+catch_id = "run18"
 
 bucket_prefix = "https://ensparc.s3.eu-central-1.amazonaws.com/"
 
@@ -180,8 +180,8 @@ def design_study_2(model, num_rows, num_videos_per_row, output_folder, num_catch
 
             video_relative_to_output_dbg =  "http://0.0.0.0:8000/" + str(video_relative_to_output)
             video_relative_to_output_mute_dbg =  "http://0.0.0.0:8000/" + str(video_relative_to_output_mute)
-            video_mturk = bucket_prefix + "/" + str(video_relative_to_output)
-            video_mturk_mute = bucket_prefix + "/" + str(video_relative_to_output_mute)
+            video_mturk = bucket_prefix + str(video_relative_to_output)
+            video_mturk_mute = bucket_prefix + str(video_relative_to_output_mute)
 
             hit_list_line += [f"{video}"]
             hit_list_line_rel += [f"{video_relative_to_output_mute}"]
@@ -216,7 +216,7 @@ def design_study_2(model, num_rows, num_videos_per_row, output_folder, num_catch
 
             video_a_lip_dbg = "http://0.0.0.0:8000/" + video_relative_to_output
 
-            video_a_lip_mturk = str(video_relative_to_output)
+            video_a_lip_mturk = bucket_prefix + str(video_relative_to_output)
             # if not flip:
             hit_list_line += [f"{video}"]
             hit_list_line_rel += [f"{video_relative_to_output}"]
@@ -245,6 +245,7 @@ def design_study_2(model, num_rows, num_videos_per_row, output_folder, num_catch
         hit_list_line += hit_list_line[:num_repeats]
         hit_list_line_rel += hit_list_line_rel[:num_repeats]
         hit_list_line_dbg += hit_list_line_dbg[:num_repeats]
+        hit_list_line_mturk += hit_list_line_mturk[:num_repeats]
 
         hit_list_lines += [';'.join(hit_list_line)]
         hit_list_lines_rel += [';'.join(hit_list_line_rel)]
@@ -299,6 +300,7 @@ def design_study_2(model, num_rows, num_videos_per_row, output_folder, num_catch
     with open(hitlist_mturk_file, "w") as f:
         f.write("\n".join(hit_list_lines_mturk))
     print(f"Protocol file saved to {hitlist_dbg_file}")
+    return hit_list_lines_mturk
 
 
 
@@ -339,9 +341,9 @@ def main():
         main_model_videos.pop(vi)
 
     num_rows = 1
-    videos_per_row = 10
-    repeats = 0
-    num_catch_trials = 2
+    videos_per_row = 35
+    repeats = 5
+    num_catch_trials = 3
 
     # create a timestamped folder for the study
     study_name = "study_"
@@ -354,14 +356,25 @@ def main():
     with open(video_list_file, "w") as f:
         f.write("\n".join([str(v) for v in main_model_videos]))
 
+    hitlists = []
     for mi, model in enumerate(ablation_models): 
         output_folder = Path(path_to_models) / model / "mturk"
         output_folder.mkdir(parents=True, exist_ok=True)
         output_folder = Path(path_to_studies) / study_name / f"{mi}"
 
         model_vids = ablation_vids[mi]
-        design_study_2(model, num_rows, videos_per_row, output_folder, num_catch_trials=num_catch_trials, videos=model_vids, num_repeats=repeats)
+        hitlist = design_study_2(model, num_rows, videos_per_row, output_folder, num_catch_trials=num_catch_trials, videos=model_vids, num_repeats=repeats)
+        hitlists.append(hitlist)
         print("Study folder:", output_folder)
+
+    
+    hitlist_all = ["images"]
+    for mi, hitlist in enumerate(hitlists):
+        hitlist_all += hitlist[1:]
+
+    hitlist_all_file = Path(path_to_studies) / study_name / "hitlist_all.csv"
+    with open(hitlist_all_file, "w") as f:
+        f.write("\n".join(hitlist_all))
 
     print("Done design_study_3")
 

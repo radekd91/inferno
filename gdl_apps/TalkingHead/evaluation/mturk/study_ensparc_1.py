@@ -13,8 +13,8 @@ lrs_subset = "test"
 video_folder = f"mturk_videos_lrs3/{lrs_subset}"
 
 server_root = "/is/cluster/fast/scratch/rdanecek/testing/enspark/"
-path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark/study_1/"
-catch_id = "run0"
+path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/study_1/"
+catch_id = "run18"
 
 bucket_prefix = "https://ensparc.s3.eu-central-1.amazonaws.com/"
 
@@ -231,10 +231,10 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
             video_b_relative_to_output_dbg =  "http://0.0.0.0:8000/" + str(video_b_relative_to_output)
             video_a_output_mute_relative_to_output_dbg =   "http://0.0.0.0:8000/" + str(video_a_output_mute_relative_to_output)
             video_b_output_mute_relative_to_output_dbg =   "http://0.0.0.0:8000/" + str(video_b_output_mute_relative_to_output)
-            video_a_mturk = bucket_prefix + "/" + str(video_a_relative_to_output)
-            video_b_mturk = bucket_prefix + "/" + str(video_b_relative_to_output)
-            video_a_output_mute_mturk = bucket_prefix + "/" + str(video_a_output_mute_relative_to_output)
-            video_b_output_mute_mturk = bucket_prefix + "/" + str(video_b_output_mute_relative_to_output)
+            video_a_mturk = bucket_prefix  + str(video_a_relative_to_output)
+            video_b_mturk = bucket_prefix  + str(video_b_relative_to_output)
+            video_a_output_mute_mturk = bucket_prefix  + str(video_a_output_mute_relative_to_output)
+            video_b_output_mute_mturk = bucket_prefix + str(video_b_output_mute_relative_to_output)
 
             if not flip:
                 hit_list_line += [f"{video_a}#{video_b}#emotion#{emotion};{video_a}#{video_b}#lipsync#{emotion}"]
@@ -316,10 +316,10 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
             video_b_emotion_dbg = "http://0.0.0.0:8000/" + video_b_emotion_relative_to_output
 
 
-            video_a_lip_mturk = str(video_a_lip_relative_to_output)
-            video_b_lip_mturk = str(video_b_lip_relative_to_output)
-            video_a_emotion_mturk = str(video_a_emotion_relative_to_output)
-            video_b_emotion_mturk = str(video_b_emotion_relative_to_output)
+            video_a_lip_mturk = bucket_prefix + str(video_a_lip_relative_to_output)
+            video_b_lip_mturk = bucket_prefix + str(video_b_lip_relative_to_output)
+            video_a_emotion_mturk = bucket_prefix + str(video_a_emotion_relative_to_output)
+            video_b_emotion_mturk = bucket_prefix + str(video_b_emotion_relative_to_output)
 
             if not flip:
                 hit_list_line += [f"{video_a_emotion}#{video_b_emotion}#emotion#{emotion};{video_a_lip}#{video_b_lip}#lipsync#{emotion}"]
@@ -359,6 +359,7 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
         hit_list_line += hit_list_line[:num_repeats]
         hit_list_line_rel += hit_list_line_rel[:num_repeats]
         hit_list_line_dbg += hit_list_line_dbg[:num_repeats]
+        hit_list_line_mturk += hit_list_line_mturk[:num_repeats]
 
         hit_list_lines += [';'.join(hit_list_line)]
         hit_list_lines_rel += [';'.join(hit_list_line_rel)]
@@ -436,6 +437,8 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
         f.write("\n".join(hit_list_lines_mturk))
     print(f"Protocol file saved to {hitlist_dbg_file}")
 
+    return hit_list_lines_mturk
+
 
 
 def main():
@@ -475,7 +478,7 @@ def main():
         main_model_videos.pop(vi)
 
     num_rows = 1
-    videos_per_row = 5
+    videos_per_row = 14
     repeats = 3
     num_catch_trials = 3
 
@@ -490,15 +493,26 @@ def main():
     with open(video_list_file, "w") as f:
         f.write("\n".join([str(v) for v in main_model_videos]))
 
+    hitlists = []
     for mi, model_b in enumerate(ablation_models): 
         output_folder = Path(path_to_models) / model_b / "mturk"
         output_folder.mkdir(parents=True, exist_ok=True)
         output_folder = Path(path_to_studies) / study_name / f"main_vs_{mi}"
 
-        design_study_1(main_model, model_b, num_rows, videos_per_row, output_folder, num_catch_trials=num_catch_trials, 
+        hitlist = design_study_1(main_model, model_b, num_rows, videos_per_row, output_folder, num_catch_trials=num_catch_trials, 
                        videos_a=main_model_videos,
                        num_repeats=repeats)
+        hitlists.append(hitlist)
         print("Study folder:", output_folder)
+    
+    hitlist_all = ["images"]
+    for mi, hitlist in enumerate(hitlists):
+        hitlist_all += hitlist[1:]
+
+    hitlist_all_file = Path(path_to_studies) / study_name / "hitlist_all.csv"
+    with open(hitlist_all_file, "w") as f:
+        f.write("\n".join(hitlist_all))
+
 
     print("Done design_study_1")
 
