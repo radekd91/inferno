@@ -9,8 +9,8 @@ import shutil
 
 path_to_models = "/is/cluster/fast/scratch/rdanecek/testing/enspark/ablations"
 path_to_baslines = "/is/cluster/fast/scratch/rdanecek/testing/enspark/baselines/"
-lrs_subset = "pretrain"
-# lrs_subset = "test"
+# lrs_subset = "pretrain"
+lrs_subset = "test"
 video_folder = f"mturk_videos_lrs3/{lrs_subset}"
 
 server_root = "/is/cluster/fast/scratch/rdanecek/testing/enspark/"
@@ -435,7 +435,7 @@ def main():
         output_folder.mkdir(parents=True, exist_ok=True)
         output_folder = Path(path_to_studies) / study_name / f"main_vs_{mi}"
 
-        design_study_3(main_model, model_b, num_rows, videos_per_row, output_folder, num_catch_trials=num_catch_trials, videos_a=main_model_videos, videos_b=main_model_videos, num_repeats=repeats)
+        design_study_3(main_model, model_b, num_rows, videos_per_row, output_folder, num_catch_trials=num_catch_trials, videos_a=main_model_videos, num_repeats=repeats)
         print("Study folder:", output_folder)
 
     print("Done design_study_3")

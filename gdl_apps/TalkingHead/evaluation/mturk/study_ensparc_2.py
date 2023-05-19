@@ -9,8 +9,8 @@ import shutil
 
 path_to_models = "/is/cluster/fast/scratch/rdanecek/testing/enspark/ablations"
 path_to_baslines = "/is/cluster/fast/scratch/rdanecek/testing/enspark/baselines/"
-lrs_subset = "pretrain"
-# lrs_subset = "test"
+# lrs_subset = "pretrain"
+lrs_subset = "test"
 video_folder = f"mturk_videos_lrs3/{lrs_subset}"
 
 server_root = "/is/cluster/fast/scratch/rdanecek/testing/enspark/"
