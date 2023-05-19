@@ -8,8 +8,8 @@ import datetime
 import shutil
 
 path_to_models = "/is/cluster/fast/scratch/rdanecek/testing/enspark/ablations"
-lrs_subset = "pretrain"
-# lrs_subset = "test"
+# lrs_subset = "pretrain"
+lrs_subset = "test"
 video_folder = f"mturk_videos_lrs3/{lrs_subset}"
 
 server_root = "/is/cluster/fast/scratch/rdanecek/testing/enspark/"
@@ -267,6 +267,8 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
             video_a_emotion = catch_videos_emo_correct[random_index]
             video_b_emotion = catch_videos_emo_wrong[random_index]
 
+            emotion = video_a_emotion.stem.split("_")[-3]
+
             # video_a_lip_rel = Path(video_a_lip).relative_to(lip_catch_path)
             # video_b_lip_rel = Path(video_b_lip).relative_to(lip_catch_path)
             # video_a_emotion_rel = Path(video_a_emotion).relative_to(emo_catch_path)
@@ -466,7 +468,6 @@ def main():
         if remove_vid:
             indices_to_remove.append(vi)
 
-    
     for vi in reversed(indices_to_remove):
         for ai, abvids in enumerate(ablation_vids):
             ablation_vids[ai].pop(vi)    
@@ -474,8 +475,8 @@ def main():
         main_model_videos.pop(vi)
 
     num_rows = 1
-    videos_per_row = 1
-    repeats = 0
+    videos_per_row = 5
+    repeats = 3
     num_catch_trials = 3
 
     # create a timestamped folder for the study
@@ -495,7 +496,7 @@ def main():
         output_folder = Path(path_to_studies) / study_name / f"main_vs_{mi}"
 
         design_study_1(main_model, model_b, num_rows, videos_per_row, output_folder, num_catch_trials=num_catch_trials, 
-                       videos_a=main_model_videos, videos_b=main_model_videos, 
+                       videos_a=main_model_videos,
                        num_repeats=repeats)
         print("Study folder:", output_folder)
 
