@@ -99,7 +99,8 @@ def check_video_match(videos_a, videos_b):
     return
 
 
-def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder, num_catch_trials=0, num_repeats=5, videos_a=None, videos_b=None):
+def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder, num_catch_trials=0, num_repeats=5, 
+                   videos_a=None):
     model_folder_a = Path(path_to_models) / model_a 
     model_folder_b = Path(path_to_models) / model_b
 
@@ -148,7 +149,7 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
     catch_trials_relative_to_output = [[]]
     
     output_folder.mkdir(parents=True, exist_ok=True)
-    study_folder = output_folder.parent
+    study_folder = output_folder.parent.parent.parent
 
     catch_videos_lip_correct, catch_videos_lip_wrong, lip_catch_path = load_catch_videos_lipsync()
     catch_videos_emo_correct, catch_videos_emo_wrong, emo_catch_path = load_catch_videos_emo()
@@ -329,6 +330,9 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
                 hit_list_line_dbg += [f"{video_b_emotion_dbg}#{video_a_emotion_dbg}#emotion#{emotion};{video_b_lip_dbg}#{video_a_lip_dbg}#lipsync#{emotion}"]
                 hit_list_line_mturk += [f"{video_b_emotion_mturk}#{video_a_emotion_mturk}#emotion#{emotion};{video_b_lip_mturk}#{video_a_lip_mturk}#lipsync#{emotion}"]
 
+        assert len(selected_videos_a_emo[ri]) == len(selected_videos_b_emo[ri]) == len(selected_videos_a_lip[ri]) == len(selected_videos_b_lip[ri]) 
+        assert len(selected_videos_a_emo[ri]) == len(flips[ri]) == len(catch_trials[ri])
+
         # shuffle to mix in catch trials
         index_list = list(range(len(flips[ri])))
         random.shuffle(index_list)
@@ -394,6 +398,8 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
         videos_a_all = [Path(video) for video in videos_a_all]
         videos_b_all = [Path(video) for video in videos_b_all]
 
+    assert len(selected_videos_a_emo) == len(selected_videos_b_emo) == len(selected_videos_a_lip) == len(selected_videos_b_lip) 
+    assert len(selected_videos_a_emo) == len(flips) == len(catch_trials)
     protocol_dict = {
         "model_a": model_a,
         "model_b": model_b,
@@ -404,6 +410,7 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
         "videos_b_lip": selected_videos_b_lip,
         "catch_trials": catch_trials,
         "num_repeats": num_repeats,
+        "num_catch_trials": num_catch_trials,
     }
 
     protocol_file = Path(output_folder) / "protocol.yaml"
@@ -487,7 +494,9 @@ def main():
         output_folder.mkdir(parents=True, exist_ok=True)
         output_folder = Path(path_to_studies) / study_name / f"main_vs_{mi}"
 
-        design_study_1(main_model, model_b, num_rows, videos_per_row, output_folder, num_catch_trials=num_catch_trials, videos_a=main_model_videos, videos_b=main_model_videos, num_repeats=repeats)
+        design_study_1(main_model, model_b, num_rows, videos_per_row, output_folder, num_catch_trials=num_catch_trials, 
+                       videos_a=main_model_videos, videos_b=main_model_videos, 
+                       num_repeats=repeats)
         print("Study folder:", output_folder)
 
     print("Done design_study_1")
