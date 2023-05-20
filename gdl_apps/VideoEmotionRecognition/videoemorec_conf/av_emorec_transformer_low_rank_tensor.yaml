@@ -1,5 +1,5 @@
 defaults:
-  - data/datasets: vocaset
+  - data/datasets: mead_pseudo_gt
   - data/augmentations: none
   # - model/paths : cluster
   - model/settings : av_emorec_tensor_low_rank_fusion
