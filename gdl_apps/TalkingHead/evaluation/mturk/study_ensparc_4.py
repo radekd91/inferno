@@ -239,6 +239,7 @@ def design_study_4(model, num_rows, num_videos_per_row, output_folder, num_catch
         hit_list_line_rel = [hit_list_line_rel[i] for i in index_list]
         hit_list_line_dbg = [hit_list_line_dbg[i] for i in index_list]
         hit_list_line_mturk = [hit_list_line_mturk[i] for i in index_list]
+        correct_emotions[ri] = [correct_emotions[ri][i] for i in index_list]
 
         # repeat the first num_repeats elements at the end of the list
         # flips[ri] += flips[ri][:num_repeats]
@@ -248,6 +249,7 @@ def design_study_4(model, num_rows, num_videos_per_row, output_folder, num_catch
         hit_list_line_rel += hit_list_line_rel[:num_repeats]
         hit_list_line_dbg += hit_list_line_dbg[:num_repeats]
         hit_list_line_mturk += hit_list_line_mturk[:num_repeats]
+        correct_emotions[ri] += correct_emotions[ri][:num_repeats]
 
         hit_list_lines += [';'.join(hit_list_line)]
         hit_list_lines_rel += [';'.join(hit_list_line_rel)]
