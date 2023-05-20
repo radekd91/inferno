@@ -35,6 +35,16 @@ def _load_hickle_file(filename):
             data = hkl.load(f)
     return data
 
+def _save_hickle_file(data, filename): 
+    try:
+        # no idea why but sometimes it fails to load the file just using the path but opening explicitly then works
+        hkl.dump(data, filename)
+    except OSError as e:
+        import h5py
+        # open a h5py file for writing 
+        with h5py.File(filename, 'w') as f:
+            hkl.dump(data, f)
+    return data
 
 def load_reconstruction_list(filename):
     reconstructions = _load_hickle_file(filename)
@@ -42,7 +52,8 @@ def load_reconstruction_list(filename):
 
 
 def save_reconstruction_list(filename, reconstructions):
-    hkl.dump(reconstructions, filename)
+    _save_hickle_file(reconstructions, filename)
+    # hkl.dump(reconstructions, filename)
 
 
 def load_emotion_list(filename):
@@ -51,7 +62,8 @@ def load_emotion_list(filename):
 
 
 def save_emotion_list(filename, emotions):
-    hkl.dump(emotions, filename)
+    _save_hickle_file(emotions, filename)
+    # hkl.dump(emotions, filename)
 
 
 def save_segmentation_list(filename, seg_images, seg_types, seg_names):

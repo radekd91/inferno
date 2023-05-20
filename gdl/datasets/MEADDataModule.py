@@ -379,7 +379,8 @@ class MEADDataModule(FaceVideoDataModule):
                         save_obj=False, save_mat=True, save_vis=False, save_images=False,
                         save_video=False, rec_methods=rec_methods, retarget_from=None, retarget_suffix=None)
         if recognize_emotions:
-            emo_methods = ['resnet50', ]
+            # emo_methods = ['resnet50', ]
+            emo_methods = ['swin-b', ]
             self._extract_emotion_in_sequence(idx, emo_methods=emo_methods)
 
     def _process_shard(self, videos_per_shard, shard_idx, 

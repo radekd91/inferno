@@ -926,6 +926,15 @@ class FaceVideoDataModule(FaceDataModuleBase):
             cfg.return_features = True
             self._emo_resnet = EmotionRecognitionPreprocessor(cfg).to(device)
             return self._emo_resnet
+        elif rec_method == 'swin-b':
+            from gdl.models.temporal.Preprocessors import EmotionRecognitionPreprocessor
+            from munch import Munch
+            cfg = Munch()
+            cfg.model_name = "SWIN-B"
+            cfg.model_path = False
+            cfg.return_features = True
+            self._emo_swinb = EmotionRecognitionPreprocessor(cfg).to(device)
+            return self._emo_swinb
 
         raise ValueError(f"Unknown emotion recognition method: {rec_method}")
 

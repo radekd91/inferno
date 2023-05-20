@@ -625,7 +625,7 @@ class EmoSwin(TemporalFeatureEncoder):
         images = sample["video"].view(B*T, *sample["video"].shape[2:])
         swin_batch["image"] = images
         swin_out = self.swin(swin_batch)
-        emo_feature =  swin_out["emo_feature"]
+        emo_feature =  swin_out["emo_feat_2"]
         emo_feature = emo_feature.view(B, T, -1)
         sample["hidden_feature"] = emo_feature
         return sample
