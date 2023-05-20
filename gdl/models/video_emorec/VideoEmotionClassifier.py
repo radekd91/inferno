@@ -607,7 +607,7 @@ class EmoSwin(TemporalFeatureEncoder):
         swin_cfg_path = Path(cfg.model_path)
         self.trainable = cfg.trainable
         if not swin_cfg_path.is_absolute():
-            swin_cfg_path = get_path_to_assets() / "EmotionRecognition" / "image_based_models" / swin_cfg_path / "cfg.yaml"
+            swin_cfg_path = get_path_to_assets() / "EmotionRecognition" / "image_based_networks" / swin_cfg_path / "cfg.yaml"
         # read the config file using omegaconf
         with open(swin_cfg_path, "r") as f:
             swin_cfg = OmegaConf.load(f)
