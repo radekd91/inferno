@@ -155,6 +155,8 @@ class EmoSwinModule(EmotionRecognitionBaseModule):
         if self.predicts_AUs():
             values['AUs'] = emotion['AUs']
 
+        values['emo_feature'] = emotion['emo_feat_2']
+
         # TODO: WARNING: HACK
         if 'n_expression' not in self.config.data.keys():
             if self.n_expression == 8:

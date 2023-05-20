@@ -9,6 +9,10 @@ from gdl.models.temporal.AudioEncoders import Wav2Vec2Encoder
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from gdl.models.EmoSwinModule import EmoSwinModule
+from pathlib import Path
+from gdl.utils.other import get_path_to_assets
+from omegaconf import OmegaConf
 
 
 def positional_encoding_from_cfg(cfg, feature_dim): 
@@ -596,11 +600,59 @@ def classification_head_from_cfg(cfg, feature_size, num_classes):
         raise ValueError(f"Unknown classification head model: {cfg.model}")
 
 
+class EmoSwin(TemporalFeatureEncoder): 
+
+    def __init__(self, cfg):
+        super().__init__()
+        swin_cfg_path = Path(cfg.model_path)
+        self.trainable = cfg.trainable
+        if not swin_cfg_path.is_absolute():
+            swin_cfg_path = get_path_to_assets() / "EmotionRecognition" / "image_based_models_2" / swin_cfg_path / "cfg.yaml"
+        # read the config file using omegaconf
+        with open(swin_cfg_path, "r") as f:
+            swin_cfg = OmegaConf.load(f)
+        self.swin = EmoSwinModule(swin_cfg)
+
+        if not self.trainable:
+            for param in self.swin.parameters():
+                param.requires_grad = False
+            self.swin.eval()
+
+    def _forward(self, sample, train=False, desired_output_length=None, **kwargs): 
+        swin_batch = {} 
+        # collapse the batch dimension and the temporal dimension
+        B, T = sample["video"].shape[:2]
+        images = sample["video"].view(B*T, *sample["video"].shape[2:])
+        swin_batch["image"] = images
+        swin_out = self.swin(swin_batch)
+        emo_feature =  swin_out["emo_feature"]
+        emo_feature = emo_feature.view(B, T, -1)
+        sample["hidden_feature"] = emo_feature
+        return sample
+
+
+    def forward(self, sample, train=False, desired_output_length=None, **kwargs): 
+        if self.trainable:
+            return self._forward(sample, train=train, desired_output_length=desired_output_length, **kwargs)
+        else:
+            with torch.no_grad():
+                return self._forward(sample, train=train, desired_output_length=desired_output_length, **kwargs)
+            
+    def get_trainable_parameters(self):
+        return [p for p in self.parameters() if p.requires_grad]
+
+    def output_feature_dim(self): 
+        return self.swin.swin.num_features
+
+
 def feature_enc_from_cfg(cfg):
     if cfg is None or not cfg.type: 
         return None
     elif cfg.type == "wav2vec2": 
         encoder = Wav2VecFeature(cfg)
+        return encoder
+    elif cfg.type == "emoswin":
+        encoder = EmoSwin(cfg) 
         return encoder
     # elif cfg.model == "transformer":
     #     return TransformerSequenceFeature(cfg, feature_dim, num_labels)
