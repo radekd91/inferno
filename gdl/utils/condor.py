@@ -81,7 +81,7 @@ def execute_on_cluster(cluster_script_path, args, submission_dir_local_mount,
                        submission_dir_cluster_side=None,
                        cluster_repo_dir='/home/rdanecek/workspace/repos/gdl',
                        cpus=1, gpus=0, mem_gb=4, num_jobs=1, bid=10, max_time_h=None,
-                       max_price=5000,
+                       max_price=None,
                        job_name="skynet",
                        python_bin='python',
                        #env='work36',
@@ -95,6 +95,8 @@ def execute_on_cluster(cluster_script_path, args, submission_dir_local_mount,
                        concurrency_tag = None,
                        modules_to_load = None,
                        chmod=True):
+    max_price = max_price or 300
+    assert bid <= max_price, "Bid must be lower than max price"
     modules_to_load = modules_to_load or []
     submission_dir_cluster_side = submission_dir_cluster_side or submission_dir_local_mount
     logdir = 'logs'
