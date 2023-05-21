@@ -58,7 +58,9 @@ def main():
         audio_folder = Path(sys.argv[2])
     else:
         # audio = Path('/ps/project/EmotionalFacialAnimation/data/lrs3/extracted/test/0Fi83BHQsMA/00002.mp4')
-        audio_folder = Path('/is/cluster/fast/rdanecek/data/lrs3_enspark_testing')
+        # audio_folder = Path('/is/cluster/fast/rdanecek/data/lrs3_enspark_testing')
+        # audio_folder = Path('/is/cluster/fast/rdanecek/data/lrs3_enspark_testing/test')
+        audio_folder = Path('/is/cluster/work/rdanecek/data/lrs3_enspark_testing_v2')
         # audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/pretrain/0akiEFwtkyA/00031.wav')
 
     emotion_index_list = None
