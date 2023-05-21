@@ -51,6 +51,7 @@ submit_ = False
 
 def submit(resume_folder,
            audio_folder,
+           emotion_index_list=None,
            bid=10, 
            max_price=None,
            ):
@@ -84,6 +85,8 @@ def submit(resume_folder,
     mem_gb = 20
 
     args = f" {resume_folder} {str(audio_folder)}"
+    if emotion_index_list is not None:
+        args += f" {','.join([str(x) for x in emotion_index_list])}"
 
     #    env="work38",
     #    env="work38_clone",
@@ -124,6 +127,8 @@ def run_talking_head_eval():
     
     resume_folders = []
 
+    #### final PAPER models ####
+    
     ### final ENSPARC models (WITH prior, lip reading, video emotion, disentanglement), trainable w2v (initially) 
     # check the results - wl = wld = 0.000025, we, wed = 0.0000025
     resume_folders += ["2023_05_18_01-26-32_-6224330163499889169_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
@@ -193,12 +198,29 @@ def run_talking_head_eval():
     ### ENSPARC WITHOUT ANY PERCEPTUAL LOSSES (WITHOUT prior, lip reading, video emotion, disentanglement), trainable w2v (initially)
     resume_folders += ["2023_05_13_21-00-49_-6819445356403438364_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
     # FlameBert
-    resume_folders == ["2023_05_10_14-27-51_-7474011499178916721_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_Seml_PPE_predEJ_LVm"]
+    resume_folders += ["2023_05_10_14-26-58_7312238994463268480_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_Seml_PPE_predEJ_LVm"]
     # FlameFormer with emotions - not well converged
     resume_folders += ["2023_05_10_13-21-50_1717396956261008837_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
     # FaceFormer with emotions 
     resume_folders += ["2023_05_10_13-10-08_8067654090108546902_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
 
+    emotion_index_list = list(range(8))
+
+
+    # #### MODELS NOT CONDITIONED ON EMOTIONS AT ALL 
+    # ## 1) not conditioned on emotions, 128d, 8 heads,  trainable w2v
+    # ## FlameBERTPrior,
+    resume_folders += ["2023_05_12_11-34-40_8409157253283996274_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
+    # ## FlameBERTPrior, frozen w2v 
+    # resume_folders += ["2023_05_12_11-33-17_189824166655322547_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
+    ## FlameBERT
+    resume_folders += ["2023_05_10_14-27-51_-7474011499178916721_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_Seml_PPE_predEJ_LVm"]
+    # ## FlameFormer
+    resume_folders += ["2023_05_10_13-24-04_5562322546915629563_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
+    # ## FaceFormer
+    resume_folders += ["2023_05_10_13-16-00_-3885098104460673227_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
+
+    emotion_index_list = [0]
 
     # bid = 2000
     # bid = 150
@@ -210,9 +232,9 @@ def run_talking_head_eval():
 
     for resume_folder in resume_folders:
         if submit_:
-            submit(resume_folder, audio_folder, bid=bid, max_price=max_price)
+            submit(resume_folder, audio_folder, emotion_index_list=emotion_index_list, bid=bid, max_price=max_price)
         else: 
-            script.run(resume_folder, audio_folder)
+            script.run(resume_folder, audio_folder, emotion_index_list=emotion_index_list)
 
 
 

@@ -19,13 +19,13 @@ def create_condition(talking_head, sample, emotions=None, intensities=None, iden
         sample["gt_expression_label_condition"] = torch.nn.functional.one_hot(torch.tensor(emotions), 
             num_classes=talking_head.get_num_emotions()).numpy()
 
-    if talking_head.cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False): # mead GT expression intensity
+    if talking_head.cfg.model.sequence_decoder.style_embedding.get('gt_expression_intensity', False): # mead GT expression intensity
         if intensities is None:
             intensities = [2]
         sample["gt_expression_intensity_condition"] = torch.nn.functional.one_hot(torch.tensor(intensities), 
             num_classes=talking_head.get_num_intensities()).numpy()
 
-    if talking_head.cfg.model.sequence_decoder.style_embedding.get('gt_expression_label', False): 
+    if talking_head.cfg.model.sequence_decoder.style_embedding.get('gt_expression_identity', False): 
         if identities is None:
             identities = [0]
         sample["gt_expression_identity_condition"] = torch.nn.functional.one_hot(torch.tensor(identities), 
@@ -143,14 +143,18 @@ def create_id_emo_int_combinations(talking_head, sample):
     return samples
 
 
-def create_high_intensity_emotions(talking_head, sample, identity_idx=None):
+def create_high_intensity_emotions(talking_head, sample, identity_idx=None, emotion_index_list=None):
     samples = []
     training_subjects = talking_head.get_subject_labels('training')
     # for identity_idx in range(0, talking_head.get_num_identities()): 
     identity_idx = identity_idx or 0
-    for emo_idx in range(0, talking_head.get_num_emotions()):
+    emotion_index_list = emotion_index_list or list(range(0, talking_head.get_num_emotions()))
+    for emo_idx in emotion_index_list:
         # for int_idx in range(0, talking_head.get_num_intensities()):
-        int_idx = talking_head.get_num_intensities() - 1
+        if emotion_index_list == [0]:
+            int_idx = 0
+        else:
+            int_idx = talking_head.get_num_intensities() - 1
         sample_copy = copy.deepcopy(sample)
         sample_copy = create_condition(talking_head, sample_copy, 
                                         emotions=[emo_idx], 
@@ -257,7 +261,8 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
                 mesh_folder = output_dir / f"{suffix[1:]}"  / "meshes"
                 mesh_folder.mkdir(exist_ok=True, parents=True)
                 for t in tqdm(range(T)):
-                    mesh_path = mesh_folder / (f"{t:05d}" + ".obj")
+                    # mesh_path = mesh_folder / (f"{t:05d}" + ".obj")
+                    mesh_path = mesh_folder / (f"{t:05d}" + ".ply")
                     if mesh_path.exists() and not overwrite:
                         continue
 
@@ -293,6 +298,9 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
 
                 # delete video without audio
                 os.remove(out_video_path)
+
+            chmod_cmd = f"find {str(output_dir)} -print -type d -exec chmod 775 {{}} +"
+            os.system(chmod_cmd)
 
 
 def read_audio(audio_path):
