@@ -54,7 +54,7 @@ def main():
         resume_folder = "2023_05_08_20-36-09_8797431074914794141_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
 
     if len(sys.argv) > 2:
-        audio_folder = sys.argv[2]
+        audio_folder = Path(sys.argv[2])
     else:
         # audio = Path('/ps/project/EmotionalFacialAnimation/data/lrs3/extracted/test/0Fi83BHQsMA/00002.mp4')
         audio_folder = Path('/is/cluster/fast/rdanecek/data/lrs3_enspark_testing')
