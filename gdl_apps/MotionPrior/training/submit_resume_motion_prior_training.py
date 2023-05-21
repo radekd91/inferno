@@ -93,6 +93,16 @@ def submit(resume_folder,
 
     args += f" {stage} {int(resume_from_previous)} {int(force_new_location)}"
 
+    # env="work38",
+    # env="work38_clone",
+    # env = "/is/cluster/fast/rdanecek/envs/work38_fast" 
+    env = "/is/cluster/fast/rdanecek/envs/work38_fast_clone" 
+
+    # if env is an absolute path to the conda environment
+    if Path(env).exists() and Path(env).resolve() == Path(env):
+        python_bin = str(Path(env) / "bin/python")
+        assert Path(python_bin).exists(), f"Python binary {python_bin} does not exist"
+
     execute_on_cluster(str(cluster_script_path),
                        args,
                        str(submission_folder_local),
@@ -111,8 +121,7 @@ def submit(resume_folder,
                        max_price=max_price,
                        job_name=job_name,
                        cuda_capability_requirement=cuda_capability_requirement,
-                    #    env="work38",
-                       env="work38_clone",
+                       env=env,
                        )
     t.sleep(1)
 

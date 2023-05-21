@@ -54,9 +54,9 @@ def submit(resume_folder,
            bid=10, 
            max_price=None,
            ):
-    cluster_repo_path = user_config.cluster_repo_path
-    submission_dir_local_mount = user_config.submission_dir_local_mount
-    submission_dir_cluster_side = user_config.submission_dir_cluster_side
+    cluster_repo_path = "/home/rdanecek/workspace/repos/gdl"
+    submission_dir_local_mount = "/is/cluster/work/rdanecek/talking_head_eval/submission"
+    submission_dir_cluster_side = "/is/cluster/work/rdanecek/talking_head_eval/submission"
 
     time = datetime.datetime.now().strftime("%Y_%m_%d_%H-%M-%S")
     submission_folder_name = time + "_" + str(hash(time)) + "_" + "submission"
@@ -69,8 +69,8 @@ def submit(resume_folder,
 
     submission_folder_local.mkdir(parents=True)
 
-    python_bin = user_config.python_bin
-    username = user_config.username
+    python_bin = 'python'
+    username = 'rdanecek'
     gpu_mem_requirement_mb = 30 * 1024
     gpu_mem_requirement_mb_max = 40000
     # gpu_mem_requirement_mb = None
@@ -210,7 +210,7 @@ def run_talking_head_eval():
 
     for resume_folder in resume_folders:
         if submit_:
-            submit(resume_folder, bid=bid, max_price=max_price)
+            submit(resume_folder, audio_folder, bid=bid, max_price=max_price)
         else: 
             script.run(resume_folder, audio_folder)
 
@@ -218,4 +218,3 @@ def run_talking_head_eval():
 
 if __name__ == "__main__":
     run_talking_head_eval()
-    
