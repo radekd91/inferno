@@ -7,15 +7,18 @@ import yaml
 import datetime
 import shutil
 
-path_to_models = "/is/cluster/fast/scratch/rdanecek/testing/enspark/ablations"
+# path_to_models = "/is/cluster/fast/scratch/rdanecek/testing/enspark/ablations"
+path_to_models = "/is/cluster/work/rdanecek/testing/enspark/ablations"
 path_to_baslines = "/is/cluster/fast/scratch/rdanecek/testing/enspark/baselines/"
 # lrs_subset = "pretrain"
 lrs_subset = "test"
 video_folder = f"mturk_videos_lrs3/{lrs_subset}"
 
 server_root = "/is/cluster/fast/scratch/rdanecek/testing/enspark/"
-path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/study_3/"
-catch_id = "run18"
+# path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/study_3/"
+# catch_id = "run18"
+path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark_final_v0/study_3/"
+catch_id = "run11"
 
 bucket_prefix = "https://ensparc.s3.eu-central-1.amazonaws.com/"
 
@@ -26,7 +29,14 @@ def load_catch_videos_lipsync(method):
 
     identifier = method.split("_")[0]
 
-    path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/{catch_id}/study_3"
+    if identifier not in ["CT", "VOCA", "MT", "FF"]: 
+        identifier = "FF"
+        print("WARNING: identifier not recognized, using FF as default for method: ", method)
+
+
+    # path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/{catch_id}/study_3"
+    path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/new_renders/{catch_id}/study_3"
+
     # find videos that have "true" in their filename
     catch_videos_lipsync_correct = sorted(list(Path(path_to_catch_videos).glob("*true*.mp4")))
     # filter out videos that do not have the correct identifier
@@ -58,12 +68,14 @@ def read_rendered_vids_neutral(video_folder):
     return sorted(lines)
 
 
-def search_neutral_rendered_vids(video_folder): 
+def search_neutral_rendered_vids(video_folder, pattern = None): 
     path_to_list = Path(video_folder) / "rendered_list_neutral.txt"
     # find all mp4 files in the folder using linux bash find command, they must inlucde "Neutral" in full path
     if not path_to_list.exists():
-        cmd = f"find {video_folder} -name '*.mp4' | grep Neutral" 
+        cmd = f"find {video_folder} -name '*.mp4' | grep Neutral_0" 
         rendered_vids = sorted(os.popen(cmd).read().split("\n")[:-1])
+        if pattern is not None:
+            rendered_vids = [vid for vid in rendered_vids if pattern in vid]
         # dump the list of rendered videos to a file
         with open(path_to_list, "w") as f:
             f.write("\n".join(rendered_vids))
@@ -76,7 +88,14 @@ def search_neutral_rendered_vids(video_folder):
 def replace_rendered_baseline_model(video_list, model_path):
     videos_b = []
     for vid in video_list:
-        video_b = Path(path_to_baslines) / model_path / vid.parts[12] / vid.parts[13] / vid.name
+        video_b = Path(path_to_baslines) / model_path / vid.parts[11] / vid.parts[12] / vid.name
+        videos_b += [video_b]
+    return videos_b
+
+def replace_rendered_vid_model(video_list, model_path, model_idx=9):
+    videos_b = []
+    for vid in video_list:
+        video_b = Path("/") / "/".join(list(vid.parts[1:model_idx])) / model_path / "/".join(vid.parts[model_idx+1:])
         videos_b += [video_b]
     return videos_b
 
@@ -92,8 +111,21 @@ def check_video_match(videos_a, videos_b):
     return
 
 
+
+def check_video_match_ablation(videos_a, videos_b):
+    # check if the videos match
+    # parts_to_match = [-2, -3, -4, -5]
+    for i in range(len(videos_a)):
+        video_a = Path(videos_a[i])
+        video_b = Path(videos_b[i])
+        # for pi in parts_to_match:
+        assert video_a.parts[-4:-1] == video_b.parts[-4:-1], f"Videos do not match in filenames {video_a} {video_b}"
+    return
+
+
+
 def design_study_3(model_a, model_b, num_rows, num_videos_per_row, output_folder, num_catch_trials=0, num_repeats=5, 
-                   videos_a=None):
+                   videos_a=None, is_baseline=True):
     model_folder_a = Path(path_to_models) / model_a 
     model_folder_b = Path(path_to_models) / model_b
 
@@ -108,7 +140,10 @@ def design_study_3(model_a, model_b, num_rows, num_videos_per_row, output_folder
     # videos_b = find_files(video_folder_b, "mp4")
 
     videos_a_all = videos_a or read_rendered_vids_neutral(video_folder_a)
-    videos_b_all = replace_rendered_baseline_model(videos_a, model_b)
+    if is_baseline:
+        videos_b_all = replace_rendered_baseline_model(videos_a, model_b)
+    else:
+        videos_b_all = replace_rendered_vid_model(videos_a, model_b, model_idx=8)
     # videos_b = read_rendered_vids(video_folder_b)
     
     # remove videos that don't exist in both folders
@@ -121,7 +156,10 @@ def design_study_3(model_a, model_b, num_rows, num_videos_per_row, output_folder
     # videos_a = videos_a[:100]
     # videos_b = videos_b[:100]
 
-    check_video_match(videos_a_all, videos_b_all)
+    if is_baseline:
+        check_video_match(videos_a_all, videos_b_all)
+    else:
+        check_video_match_ablation(videos_a_all, videos_b_all)
     assert len(videos_a_all) == len(videos_b_all), "Number of videos in the two folders must be the same"
 
     # set the random seed
@@ -168,7 +206,10 @@ def design_study_3(model_a, model_b, num_rows, num_videos_per_row, output_folder
 
             # copy both videos to the output folder (keep the subfolder structure from path_to_models)
             video_a_relative_to_output = Path(video_a).relative_to(path_to_models)
-            video_b_relative_to_output = Path(video_b).relative_to(path_to_baslines)
+            if is_baseline:
+                video_b_relative_to_output = Path(video_b).relative_to(path_to_baslines)
+            else:
+                video_b_relative_to_output = Path(video_b).relative_to(path_to_models)
 
             video_a_output = output_folder / video_a_relative_to_output
             video_b_output = output_folder / video_b_relative_to_output
@@ -372,11 +413,15 @@ def design_study_3(model_a, model_b, num_rows, num_videos_per_row, output_folder
 
 
 def main():
-    ## final ENSPARC model (WITH prior, lip reading, video emotion, disentanglement) - to be revised
-    main_model = "2023_05_08_20-36-09_8797431074914794141_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
+    # ## final ENSPARC model (WITH prior, lip reading, video emotion, disentanglement) - to be revised
+    # main_model = "2023_05_08_20-36-09_8797431074914794141_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
+    # main_model_videos_folder = Path(path_to_models) / main_model / video_folder
+    
+    ## NEW MAIN MODEL 
+    main_model = "2023_05_18_01-26-32_-6224330163499889169_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
     main_model_videos_folder = Path(path_to_models) / main_model / video_folder
     # main_model_videos = read_rendered_vids(main_model_videos_folder)
-    main_model_videos = search_neutral_rendered_vids(main_model_videos_folder)
+    main_model_videos = search_neutral_rendered_vids(main_model_videos_folder,  pattern="M003")
 
     # ablation models
     baselines_models = []
@@ -388,14 +433,26 @@ def main():
     else:
         mt_suffix = "_new"
 
+    is_baseline = []
+
     baselines_models += [f"CT{suffix}_reorg"] 
+    is_baseline += [True]
     baselines_models += [f"FF{suffix}_reorg"] 
+    is_baseline += [True]
     baselines_models += [f"VOCA{suffix}_reorg"] 
+    is_baseline += [True]
     baselines_models += [f"MT{mt_suffix}_reorg"] 
+    is_baseline += [True]
+    baselines_models += ["2023_05_10_13-16-00_-3885098104460673227_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
+    is_baseline += [False]
+
     ablation_vids = []
 
-    for model_b in baselines_models:
-        vids = replace_rendered_baseline_model(main_model_videos, model_b)
+    for bi, model_b in enumerate(baselines_models):
+        if is_baseline[bi]:
+            vids = replace_rendered_baseline_model(main_model_videos, model_b)
+        else:
+            vids = replace_rendered_vid_model(main_model_videos, model_b, model_idx=8)
         ablation_vids.append(vids)
 
     # check if all the videos exist 
@@ -439,7 +496,7 @@ def main():
         output_folder = Path(path_to_models) / model_b / "mturk"
         output_folder.mkdir(parents=True, exist_ok=True)
         output_folder = Path(path_to_studies) / study_name / f"main_vs_{mi}"
-        hitlist = design_study_3(main_model, model_b, num_rows, videos_per_row, output_folder, num_catch_trials=num_catch_trials, videos_a=main_model_videos, num_repeats=repeats)
+        hitlist = design_study_3(main_model, model_b, num_rows, videos_per_row, output_folder, num_catch_trials=num_catch_trials, videos_a=main_model_videos, num_repeats=repeats, is_baseline=is_baseline[mi])
         hitlists.append(hitlist)
         print("Study folder:", output_folder)
 

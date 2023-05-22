@@ -7,14 +7,17 @@ import yaml
 import datetime
 import shutil
 
-path_to_models = "/is/cluster/fast/scratch/rdanecek/testing/enspark/ablations"
+# path_to_models = "/is/cluster/fast/scratch/rdanecek/testing/enspark/ablations"
+path_to_models = "/is/cluster/work/rdanecek/testing/enspark/ablations"
 # lrs_subset = "pretrain"
 lrs_subset = "test"
 video_folder = f"mturk_videos_lrs3/{lrs_subset}"
 
 server_root = "/is/cluster/fast/scratch/rdanecek/testing/enspark/"
-path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/study_1/"
-catch_id = "run18"
+# path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/study_1/"
+# catch_id = "run18"
+path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark_final_v0/study_1/"
+catch_id = "run11"
 
 bucket_prefix = "https://ensparc.s3.eu-central-1.amazonaws.com/"
 
@@ -23,7 +26,9 @@ def load_catch_videos_lipsync():
     catch_videos_lipsync_correct = []
     catch_videos_lipsync_wrong = []
 
-    path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/{catch_id}/study_1b"
+    # path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/{catch_id}/study_1b"
+    path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/new_renders/{catch_id}/study_1b"
+
     # find videos that have "true" in their filename
     catch_videos_lipsync_correct = sorted(list(Path(path_to_catch_videos).glob("*true*.mp4")))
     
@@ -37,7 +42,8 @@ def load_catch_videos_emo():
     catch_videos_emo_correct = []
     catch_videos_emo_wrong = []
 
-    path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/{catch_id}/study_1a"
+    # path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/{catch_id}/study_1a"
+    path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/new_renders/{catch_id}/study_1a"
     # find videos that have "true" in their filename
     catch_videos_emo_correct = sorted(list(Path(path_to_catch_videos).glob("*true*.mp4")))
     
@@ -64,12 +70,14 @@ def read_rendered_vids(video_folder):
     return sorted(lines)
 
 
-def search_rendered_vids(video_folder): 
+def search_rendered_vids(video_folder, pattern=None): 
     path_to_list = Path(video_folder) / "rendered_list.txt"
     # find all mp4 files in the folder using linux bash find command 
     if not path_to_list.exists():
         cmd = f"find {video_folder} -name '*.mp4'"
         rendered_vids = sorted(os.popen(cmd).read().split("\n")[:-1])
+        if pattern is not None:
+            rendered_vids = [vid for vid in rendered_vids if pattern in vid]
         # dump the list of rendered videos to a file
         with open(path_to_list, "w") as f:
             f.write("\n".join(rendered_vids))
@@ -79,10 +87,9 @@ def search_rendered_vids(video_folder):
     return rendered_vids
 
 
-def replace_rendered_vid_model(video_list, model_path):
+def replace_rendered_vid_model(video_list, model_path, model_idx=9):
     videos_b = []
     for vid in video_list:
-        model_idx = 9 
         video_b = Path("/") / "/".join(list(vid.parts[1:model_idx])) / model_path / "/".join(vid.parts[model_idx+1:])
         videos_b += [video_b]
     return videos_b
@@ -99,7 +106,7 @@ def check_video_match(videos_a, videos_b):
     return
 
 
-def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder, num_catch_trials=0, num_repeats=5, 
+def design_study_1(model_a, model_b, num_rows, num_videos_per_emotion_per_row, output_folder, num_catch_trials=0, num_repeats=5, 
                    videos_a=None):
     model_folder_a = Path(path_to_models) / model_a 
     model_folder_b = Path(path_to_models) / model_b
@@ -115,7 +122,7 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
     # videos_b = find_files(video_folder_b, "mp4")
 
     videos_a_all = videos_a or read_rendered_vids(video_folder_a)
-    videos_b_all = replace_rendered_vid_model(videos_a, model_b)
+    videos_b_all = replace_rendered_vid_model(videos_a, model_b, model_idx=8)
     # videos_b = read_rendered_vids(video_folder_b)
     
     # remove videos that don't exist in both folders
@@ -164,14 +171,31 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
         video_count = 0
         i = 0
 
+
         videos_a = videos_a_all.copy()
         videos_b = videos_b_all.copy()
-        while video_count < num_videos_per_row:
+        emotion_counts = {}
+        num_emotions = 7
+        while video_count < num_videos_per_emotion_per_row*num_emotions:
             video_a = Path(videos_a[i])
             video_b = Path(videos_b[i])
             # if not video_a.exists() or not video_b.exists():
             #     i += 1
             #     continue
+
+            emotion = video_a.parts[-2].split("_")[1].lower()
+
+            if emotion.lower() == "neutral":
+                i += 1
+                continue
+
+            if emotion not in emotion_counts:
+                emotion_counts[emotion] = 0
+            if emotion_counts[emotion] < num_videos_per_emotion_per_row:
+                emotion_counts[emotion] += 1
+            else:
+                i += 1
+                continue
 
             speaker = video_a.parts[-2].split("_")[0]
             speaker_b = video_b.parts[-2].split("_")[0]
@@ -179,9 +203,7 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
             emotion = video_a.parts[-2].split("_")[1].lower()
             emotion_b = video_b.parts[-2].split("_")[1].lower()
             assert emotion == emotion_b, f"Emotions do not match: {emotion} vs {emotion_b}"
-            if emotion.lower() == "neutral":
-                i += 1
-                continue
+
 
             # copy both videos to the output folder (keep the subfolder structure from path_to_models)
             video_a_relative_to_output = Path(video_a).relative_to(path_to_models)
@@ -259,13 +281,14 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
             catch_trials[ri] += [1]
             flips[ri] += [flip]
 
-            random_index = random.randint(0, len(catch_videos_emo_correct)-1)
+            random_index_lip = random.randint(0, len(catch_videos_lip_correct)-1)
+            random_index_emo = random.randint(0, len(catch_videos_emo_correct)-1)
 
-            video_a_lip = catch_videos_lip_correct[random_index]
-            video_b_lip = catch_videos_lip_wrong[random_index]
+            video_a_lip = catch_videos_lip_correct[random_index_lip]
+            video_b_lip = catch_videos_lip_wrong[random_index_lip]
 
-            video_a_emotion = catch_videos_emo_correct[random_index]
-            video_b_emotion = catch_videos_emo_wrong[random_index]
+            video_a_emotion = catch_videos_emo_correct[random_index_emo]
+            video_b_emotion = catch_videos_emo_wrong[random_index_emo]
 
             emotion = video_a_emotion.stem.split("_")[-3]
 
@@ -442,20 +465,50 @@ def design_study_1(model_a, model_b, num_rows, num_videos_per_row, output_folder
 
 
 def main():
-    ## final ENSPARC model (WITH prior, lip reading, video emotion, disentanglement) - to be revised
-    main_model = "2023_05_08_20-36-09_8797431074914794141_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
+    ## OLD MODEL
+    # #### final ENSPARC model (WITH prior, lip reading, video emotion, disentanglement) - to be revised
+    # ###main_model = "2023_05_08_20-36-09_8797431074914794141_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
+    
+    ## NEW MAIN MODEL 
+    main_model = "2023_05_18_01-26-32_-6224330163499889169_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
+
     main_model_videos_folder = Path(path_to_models) / main_model / video_folder
     # main_model_videos = read_rendered_vids(main_model_videos_folder)
-    main_model_videos = search_rendered_vids(main_model_videos_folder)
+    main_model_videos = search_rendered_vids(main_model_videos_folder, pattern="M003")
 
-    # ablation models
+    ## old ablation models
+    ## ablation_models = []
+    ### ## ENSPARC with prior but no perceptual
+    ### ablation_models += ["2023_05_03_22-37-15_3901372200521672564_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"] # lr = 0.0000025, lrd = 0.
+
+    # NEW ABLATION MODELS
     ablation_models = []
-    ## ENSPARC with prior but no perceptual
-    ablation_models += ["2023_05_03_22-37-15_3901372200521672564_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"] # lr = 0.0000025, lrd = 0.
-    ablation_vids = []
 
+    # without disentanglement
+    ablation_models += ["2023_05_16_23-13-12_-2523817769843276359_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+
+    # without emotion loss
+    ablation_models += ["2023_05_18_01-27-11_7629119778539369902_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+
+    # without lip loss
+    ablation_models += ["2023_05_18_01-28-06_-6355446600867862848_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+
+    # without prior
+    ablation_models += ["2023_05_16_20-26-30_5452619485602726463_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm"]
+
+    # without peceptual losses 
+    ablation_models += ["2023_05_13_21-00-49_-6819445356403438364_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
+
+    # static emotion with disentalnglement
+    ablation_models += ["2023_05_18_01-58-31_6242149878645900496_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmEmmLmm"]
+
+    # faceformer with emotions 
+    ablation_models += ["2023_05_10_13-10-08_8067654090108546902_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
+
+
+    ablation_vids = []
     for model_b in ablation_models:
-        vids = replace_rendered_vid_model(main_model_videos, model_b)
+        vids = replace_rendered_vid_model(main_model_videos, model_b, model_idx=8)
         ablation_vids.append(vids)
 
     # check if all the videos exist 
@@ -478,7 +531,9 @@ def main():
         main_model_videos.pop(vi)
 
     num_rows = 1
-    videos_per_row = 14
+    # videos_per_row = 14
+    # videos_per_row = 21
+    videos_per_row = 2
     repeats = 3
     num_catch_trials = 3
 

@@ -7,21 +7,25 @@ import yaml
 import datetime
 import shutil
 
-path_to_models = "/is/cluster/fast/scratch/rdanecek/testing/enspark/ablations"
+# path_to_models = "/is/cluster/fast/scratch/rdanecek/testing/enspark/ablations"
+path_to_models = "/is/cluster/work/rdanecek/testing/enspark/ablations"
 path_to_baslines = "/is/cluster/fast/scratch/rdanecek/testing/enspark/baselines/"
 # lrs_subset = "pretrain"
 lrs_subset = "test"
 video_folder = f"mturk_videos_lrs3/{lrs_subset}"
 
 server_root = "/is/cluster/fast/scratch/rdanecek/testing/enspark/"
-path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/study_4/"
-catch_id = "run18"
+# path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/study_4/"
+# catch_id = "run18"
+path_to_studies = "/is/cluster/fast/scratch/rdanecek/studies/enspark_final_v0/study_4/"
+catch_id = "run11"
 
 bucket_prefix = "https://ensparc.s3.eu-central-1.amazonaws.com/"
 
 
 def load_catch_videos_study_4():
-    path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/{catch_id}/study_4"
+    # path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/{catch_id}/study_4"
+    path_to_catch_videos = f"/is/cluster/fast/scratch/rdanecek/testing/enspark/catch_trials/new_renders/{catch_id}/study_4"
     # find videos that have "true" in their filename
     catch_videos = sorted(list(Path(path_to_catch_videos).glob("*true*.mp4")))
     correct_answers = ["1"] * len(catch_videos)
