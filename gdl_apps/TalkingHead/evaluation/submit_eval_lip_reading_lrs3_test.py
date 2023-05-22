@@ -130,7 +130,7 @@ def run_talking_head_eval():
     
     # ### final ENSPARC models (WITH prior, lip reading, video emotion, disentanglement), trainable w2v (initially) 
     # check the results - wl = wld = 0.000025, we, wed = 0.0000025
-    resume_folders += ["2023_05_18_01-26-32_-6224330163499889169_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+    # resume_folders += ["2023_05_18_01-26-32_-6224330163499889169_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
     
     # # check the results - wl = wld = 0.00005, we, wed = 0.000005
     # resume_folders += ["2023_05_16_23-13-38_-2116095221923261916_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
