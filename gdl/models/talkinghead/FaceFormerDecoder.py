@@ -144,12 +144,16 @@ class EmotionCondition(StyleConditioning):
 
     def _gather_condition(self, sample):
         condition = []
+        try:
+            T = sample["gt_vertices"].shape[1]
+        except KeyError:
+            T = sample["raw_audio"].shape[1]
         if self.cfg.get('use_video_expression', False):
             assert len(sample["gt_emotion_video_logits"]) == 1, "Only one video expression supported" 
             cam = list(sample["gt_emotion_video_logits"].keys())[0]
             video_classification = torch.nn.functional.softmax(sample["gt_emotion_video_logits"][cam], dim=-1)
             # expand to match the sequence length
-            T = sample["gt_vertices"].shape[1]
+            # T = sample["gt_vertices"].shape[1]
             video_classification = video_classification.unsqueeze(1).expand(-1, T, -1)
             condition += [video_classification]
         if self.cfg.get('use_video_feature', False): 
@@ -158,11 +162,11 @@ class EmotionCondition(StyleConditioning):
             video_feats = torch.nn.functional.softmax(sample["gt_emotion_video_features"][cam], dim=-1)
             # expand to match the sequence length
             assert self.cfg.n_vid_expression_feature == video_feats.shape[-1], "Number of video features does not match"
-            T = sample["gt_vertices"].shape[1]
+
             video_feats = video_feats.unsqueeze(1).expand(-1, T, -1)
             condition += [video_feats]
         if self.cfg.get('gt_expression_label', False): # mead GT expression label
-            T = sample["gt_vertices"].shape[1]
+            # T = sample["gt_vertices"].shape[1]
             if "gt_expression_label_condition" in sample:
                 expressions = sample["gt_expression_label_condition"]
             else:
@@ -176,7 +180,7 @@ class EmotionCondition(StyleConditioning):
             assert expressions.ndim == 3, "Expressions must have 3 dimensions"
             condition += [expressions]
         if self.cfg.get('gt_expression_intensity', False): # mead GT expression intensity
-            T = sample["gt_vertices"].shape[1]
+            # T = sample["gt_vertices"].shape[1]
             if "gt_expression_intensity_condition" in sample:
                 intensities = sample["gt_expression_intensity_condition"]
             else:
@@ -189,7 +193,7 @@ class EmotionCondition(StyleConditioning):
             condition += [intensities]
 
         if self.cfg.get('gt_expression_identity', False): 
-            T = sample["gt_vertices"].shape[1]
+            # T = sample["gt_vertices"].shape[1]
             if "gt_expression_identity_condition" in sample:
                 identities = sample["gt_expression_identity_condition"]
             else:

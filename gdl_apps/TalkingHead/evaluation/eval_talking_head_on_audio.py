@@ -86,9 +86,11 @@ def eval_talking_head_on_audio(talking_head, audio_path):
     print("Done")
 
 
-def create_base_sample(talking_head, audio_path):
+def create_base_sample(talking_head, audio_path, smallest_unit=1):
     wavdata, sampling_rate = read_audio(audio_path)
     sample = process_audio(wavdata, sampling_rate, video_fps=25)
+    # pad the audio such that it is a multiple of the smallest unit
+    sample["raw_audio"] = np.pad(sample["raw_audio"], (0, smallest_unit - sample["raw_audio"].shape[0] % smallest_unit))
     T = sample["raw_audio"].shape[0]
     sample["reconstruction"] = {}
     sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]] = {} 

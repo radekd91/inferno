@@ -167,10 +167,10 @@ class ConditionedVideoTestDatasetWrapper(torch.utils.data.Dataset):
             raise NotImplementedError(f"Condition source '{self.condition_source}' not implemented")
         
         try:
-            T =  sample["video"].size(0)
+            T =  sample["raw_audio"].size(0)
         except KeyError:
             try:
-                T =  sample["raw_audio"].size(0)
+                T =  sample["video"].size(0)
             except KeyError:
                 T =  sample["gt_vertices"].size(0)
         if self.expand_temporal: 
