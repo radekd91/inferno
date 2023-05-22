@@ -28,8 +28,8 @@ from omegaconf import DictConfig, OmegaConf, open_dict
 import sys
 import shutil
 
-submit_ = False
-# submit_ = True
+# submit_ = False
+submit_ = True
 
 # if submit_:
 #     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -223,10 +223,11 @@ def run_talking_head_eval():
 
     # bid = 2000
     # bid = 150
-    bid = 28
+    # bid = 28
+    bid = 100
     # max_price = 250
-    max_price = 200
-
+    # max_price = 200
+    max_price = 500
     
     # subset = "trainval"
     # max_videos = 1000
