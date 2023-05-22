@@ -127,9 +127,9 @@ def run_talking_head_eval():
     
     resume_folders = []
 
-    #### final PAPER models ####
+    # #### final PAPER models ####
     
-    ### final ENSPARC models (WITH prior, lip reading, video emotion, disentanglement), trainable w2v (initially) 
+    # ### final ENSPARC models (WITH prior, lip reading, video emotion, disentanglement), trainable w2v (initially) 
     # check the results - wl = wld = 0.000025, we, wed = 0.0000025
     resume_folders += ["2023_05_18_01-26-32_-6224330163499889169_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
     
@@ -195,32 +195,32 @@ def run_talking_head_eval():
     resume_folders += ["2023_05_18_02-15-52_-7116303129003010747_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmEmmLmm"]
 
 
-    ### ENSPARC WITHOUT ANY PERCEPTUAL LOSSES (WITHOUT prior, lip reading, video emotion, disentanglement), trainable w2v (initially)
+    ### ENSPARC WITHOUT ANY PERCEPTUAL LOSSES (lip reading, video emotion, disentanglement), trainable w2v (initially)
     resume_folders += ["2023_05_13_21-00-49_-6819445356403438364_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
-    # FlameBert
+    # FlameBert WITHOUT prior
     resume_folders += ["2023_05_10_14-26-58_7312238994463268480_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_Seml_PPE_predEJ_LVm"]
     # FlameFormer with emotions - not well converged
     resume_folders += ["2023_05_10_13-21-50_1717396956261008837_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
     # FaceFormer with emotions 
     resume_folders += ["2023_05_10_13-10-08_8067654090108546902_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
 
-    emotion_index_list = list(range(8))
+    # emotion_index_list = list(range(8))
 
 
-    # #### MODELS NOT CONDITIONED ON EMOTIONS AT ALL 
-    # ## 1) not conditioned on emotions, 128d, 8 heads,  trainable w2v
-    # ## FlameBERTPrior,
-    resume_folders += ["2023_05_12_11-34-40_8409157253283996274_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
-    # ## FlameBERTPrior, frozen w2v 
-    # resume_folders += ["2023_05_12_11-33-17_189824166655322547_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
-    ## FlameBERT
-    resume_folders += ["2023_05_10_14-27-51_-7474011499178916721_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_Seml_PPE_predEJ_LVm"]
-    # ## FlameFormer
-    resume_folders += ["2023_05_10_13-24-04_5562322546915629563_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
-    # ## FaceFormer
-    resume_folders += ["2023_05_10_13-16-00_-3885098104460673227_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
+    # # #### MODELS NOT CONDITIONED ON EMOTIONS AT ALL 
+    # # ## 1) not conditioned on emotions, 128d, 8 heads,  trainable w2v
+    # # ## FlameBERTPrior,
+    # resume_folders += ["2023_05_12_11-34-40_8409157253283996274_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
+    # # ## FlameBERTPrior, frozen w2v 
+    # # resume_folders += ["2023_05_12_11-33-17_189824166655322547_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
+    # ## FlameBERT
+    # resume_folders += ["2023_05_10_14-27-51_-7474011499178916721_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_Seml_PPE_predEJ_LVm"]
+    # # ## FlameFormer
+    # resume_folders += ["2023_05_10_13-24-04_5562322546915629563_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
+    # # ## FaceFormer
+    # resume_folders += ["2023_05_10_13-16-00_-3885098104460673227_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
 
-    emotion_index_list = [0]
+    # emotion_index_list = [0]
 
     # bid = 2000
     # bid = 150
@@ -228,7 +228,8 @@ def run_talking_head_eval():
     # max_price = 250
     max_price = 200
 
-    audio_folder = Path('/is/cluster/fast/rdanecek/data/lrs3_enspark_testing')
+    # audio_folder = Path('/is/cluster/fast/rdanecek/data/lrs3_enspark_testing')
+    audio_folder = Path('/is/cluster/work/rdanecek/data/lrs3_enspark_testing_v2')
 
     for resume_folder in resume_folders:
         if submit_:
