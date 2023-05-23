@@ -71,7 +71,8 @@ def submit(resume_folder, subset, max_videos,
 
     python_bin = 'python'
     username = 'rdanecek'
-    gpu_mem_requirement_mb = 30 * 1024
+    # gpu_mem_requirement_mb = 30 * 1024
+    gpu_mem_requirement_mb = 20 * 1024
     gpu_mem_requirement_mb_max = 40000
     # gpu_mem_requirement_mb = None
     cpus = 10 #cfg.data.num_workers + 2 # 1 for the training script, 1 for wandb or other loggers (and other stuff), the rest of data loading
@@ -226,10 +227,10 @@ def run_talking_head_eval():
     # bid = 2000
     # bid = 150
     # bid = 28
-    bid = 100
+    bid = 300
     # max_price = 250
     # max_price = 200
-    max_price = 500
+    max_price = 800
 
     
     # subset = "trainval"
