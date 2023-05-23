@@ -28,8 +28,8 @@ from omegaconf import DictConfig, OmegaConf, open_dict
 import sys
 import shutil
 
-# submit_ = False
-submit_ = True
+submit_ = False
+# submit_ = True
 
 # if submit_:
 #     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -128,98 +128,98 @@ def run_talking_head_eval():
 
     # #### final PAPER models ####
     
-    # ### final ENSPARC models (WITH prior, lip reading, video emotion, disentanglement), trainable w2v (initially) 
-    # check the results - wl = wld = 0.000025, we, wed = 0.0000025
-    resume_folders += ["2023_05_18_01-26-32_-6224330163499889169_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+    # # ### final ENSPARC models (WITH prior, lip reading, video emotion, disentanglement), trainable w2v (initially) 
+    # # check the results - wl = wld = 0.000025, we, wed = 0.0000025
+    # resume_folders += ["2023_05_18_01-26-32_-6224330163499889169_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
     
-    # check the results - wl = wld = 0.00005, we, wed = 0.000005
-    resume_folders += ["2023_05_16_23-13-38_-2116095221923261916_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+    # # check the results - wl = wld = 0.00005, we, wed = 0.000005
+    # resume_folders += ["2023_05_16_23-13-38_-2116095221923261916_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
 
-    ### ENSPARC WITHOUT disentanglement (WITH prior, lip reading, video emotion, WITHOUT disentanglement), trainable w2v (initially)  
-    ## check the results - wl = 0.00005, we = 0.000005
-    resume_folders += ["2023_05_16_23-13-12_-2523817769843276359_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
-    ## check the results - wl = 0.00005, we = 0.0000025
-    resume_folders += ["2023_05_16_23-12-26_6547601109468810874_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
-    ## check the results - wl = 0.0001, we = 0.000005
-    # resume_folders += ["2023_05_16_23-12-24_-8306171087132288898_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+    # ### ENSPARC WITHOUT disentanglement (WITH prior, lip reading, video emotion, WITHOUT disentanglement), trainable w2v (initially)  
+    # ## check the results - wl = 0.00005, we = 0.000005
+    # resume_folders += ["2023_05_16_23-13-12_-2523817769843276359_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+    # ## check the results - wl = 0.00005, we = 0.0000025
+    # resume_folders += ["2023_05_16_23-12-26_6547601109468810874_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+    # ## check the results - wl = 0.0001, we = 0.000005
+    # # resume_folders += ["2023_05_16_23-12-24_-8306171087132288898_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
 
-    ### ENSPARC WITHOUT video emotion (WITH prior, lip reading, WITHOUT video emotion, disentanglement), trainable w2v (initially)
-    ## without disentanglement wl = 0.00005
-    resume_folders += ["2023_05_18_01-27-11_7629119778539369902_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
-    ## with disentanglement wl = wld = 0.000025
-    resume_folders += ["2023_05_18_01-27-28_8727579300900226200_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+    # ### ENSPARC WITHOUT video emotion (WITH prior, lip reading, WITHOUT video emotion, disentanglement), trainable w2v (initially)
+    # ## without disentanglement wl = 0.00005
+    # resume_folders += ["2023_05_18_01-27-11_7629119778539369902_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+    # ## with disentanglement wl = wld = 0.000025
+    # resume_folders += ["2023_05_18_01-27-28_8727579300900226200_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
 
-    ### ENSPARC WITHOUT lip reading (WITH prior, video emotion, WITHOUT lip reading, disentanglement), trainable w2v (initially)
-    ## without disentanglement wl = 0.00005
-    resume_folders += ["2023_05_18_01-28-06_-6355446600867862848_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
-    ## with disentanglement wl = wld = 0.000025
-    resume_folders += ["2023_05_18_01-27-47_-4003478001355428123_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+    # ### ENSPARC WITHOUT lip reading (WITH prior, video emotion, WITHOUT lip reading, disentanglement), trainable w2v (initially)
+    # ## without disentanglement wl = 0.00005
+    # resume_folders += ["2023_05_18_01-28-06_-6355446600867862848_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+    # ## with disentanglement wl = wld = 0.000025
+    # resume_folders += ["2023_05_18_01-27-47_-4003478001355428123_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
 
-    # ENSPARC - prior (FLAMEBERT) (WITHOUT prior, but other stuff as final ENSPARC model) - to be revised
-    # with disentanglement
-    resume_folders += ["2023_05_16_20-26-30_5452619485602726463_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm"] 
-    # without disenganlement
-    resume_folders += ["2023_05_16_20-34-11_8508648578323040497_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm"]
+    # # ENSPARC - prior (FLAMEBERT) (WITHOUT prior, but other stuff as final ENSPARC model) - to be revised
+    # # with disentanglement
+    # resume_folders += ["2023_05_16_20-26-30_5452619485602726463_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm"] 
+    # # without disenganlement
+    # resume_folders += ["2023_05_16_20-34-11_8508648578323040497_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm"]
 
-    # ENSPARC - prior (FLAMEBERT) - no lip reading loss no disentanglement we = 0.00005
-    resume_folders += ["2023_05_16_20-40-41_8088631020349769941_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm"]
+    # # ENSPARC - prior (FLAMEBERT) - no lip reading loss no disentanglement we = 0.00005
+    # resume_folders += ["2023_05_16_20-40-41_8088631020349769941_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm"]
 
-    # ENSPARC - prior (FLAMEBERT) - no lip reading loss with disentanglement we = wed= 0.000025
-    resume_folders += ["2023_05_16_20-45-34_2799073586488120156_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm"]
+    # # ENSPARC - prior (FLAMEBERT) - no lip reading loss with disentanglement we = wed= 0.000025
+    # resume_folders += ["2023_05_16_20-45-34_2799073586488120156_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm"]
 
-    # ENSPARC - prior (FLAMEBERT) - no video emotion loss with disentanglement wl = wl= 0.000025
-    resume_folders += ["2023_05_16_20-44-52_4388314819577499314_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm"]
+    # # ENSPARC - prior (FLAMEBERT) - no video emotion loss with disentanglement wl = wl= 0.000025
+    # resume_folders += ["2023_05_16_20-44-52_4388314819577499314_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm"]
 
-    # ENSPARC - prior (FLAMEBERT) - no video emotion loss no disentanglement wl = 0.00005
-    resume_folders += ["2023_05_16_20-42-05_6372071075743624200_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm"]
+    # # ENSPARC - prior (FLAMEBERT) - no video emotion loss no disentanglement wl = 0.00005
+    # resume_folders += ["2023_05_16_20-42-05_6372071075743624200_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm"]
 
-    ## ENSPARC WITHOUT video emotion and with STATIC emotion loss 
-    # with disentanglement, wl = wld = 0.00005,  we = wed = 0.00005
-    resume_folders += ["2023_05_18_01-58-31_6242149878645900496_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmEmmLmm"]
-    # without disentanglement, wl = 0.00005, we =  0.00005
-    resume_folders += ["2023_05_18_01-58-51_2653017516632768605_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmEmmLmm"]
-    # with disentanglement, no lip reading, we = wed = 0.00005
-    resume_folders += ["2023_05_18_01-58-03_-2039300938773449621_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmEmmLmm"]
-    # without disentanglement, no lip reading, we =  0.00005
-    resume_folders += ["2023_05_18_01-58-34_-6870608487115958370_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmEmmLmm"]
+    # ## ENSPARC WITHOUT video emotion and with STATIC emotion loss 
+    # # with disentanglement, wl = wld = 0.00005,  we = wed = 0.00005
+    # resume_folders += ["2023_05_18_01-58-31_6242149878645900496_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmEmmLmm"]
+    # # without disentanglement, wl = 0.00005, we =  0.00005
+    # resume_folders += ["2023_05_18_01-58-51_2653017516632768605_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmEmmLmm"]
+    # # with disentanglement, no lip reading, we = wed = 0.00005
+    # resume_folders += ["2023_05_18_01-58-03_-2039300938773449621_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmEmmLmm"]
+    # # without disentanglement, no lip reading, we =  0.00005
+    # resume_folders += ["2023_05_18_01-58-34_-6870608487115958370_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmEmmLmm"]
 
-    ## ENSPARC WITHOUT prior (FlameBERT), video emotion and with STATIC emotion loss 
-    # with disentanglement, wl = wld = 0.00005,  we = wed = 0.00005
-    resume_folders += ["2023_05_18_02-14-58_-5741489981604096939_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmEmmLmm"]
-    # without disentanglement, wl = 0.00005, we = 0.00005
-    resume_folders += ["2023_05_18_02-16-41_-8640432717482685377_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmEmmLmm"]
-    # with disentanglement, no lip reading, we = wed = 0.00005
-    resume_folders += ["2023_05_18_02-16-41_1632039793563347593_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmEmmLmm"]
-    # without disentanglement, no lip reading, we = 0.00005
-    resume_folders += ["2023_05_18_02-15-52_-7116303129003010747_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmEmmLmm"]
-
-
-    ### ENSPARC WITHOUT ANY PERCEPTUAL LOSSES (lip reading, video emotion, disentanglement), trainable w2v (initially)
-    resume_folders += ["2023_05_13_21-00-49_-6819445356403438364_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
-    # FlameBert WITHOUT prior
-    resume_folders += ["2023_05_10_14-26-58_7312238994463268480_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_Seml_PPE_predEJ_LVm"]
-    # FlameFormer with emotions - not well converged
-    resume_folders += ["2023_05_10_13-21-50_1717396956261008837_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
-    # FaceFormer with emotions 
-    resume_folders += ["2023_05_10_13-10-08_8067654090108546902_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
-
-    # # emotion_index_list = list(range(8))
+    # ## ENSPARC WITHOUT prior (FlameBERT), video emotion and with STATIC emotion loss 
+    # # with disentanglement, wl = wld = 0.00005,  we = wed = 0.00005
+    # resume_folders += ["2023_05_18_02-14-58_-5741489981604096939_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmEmmLmm"]
+    # # without disentanglement, wl = 0.00005, we = 0.00005
+    # resume_folders += ["2023_05_18_02-16-41_-8640432717482685377_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmEmmLmm"]
+    # # with disentanglement, no lip reading, we = wed = 0.00005
+    # resume_folders += ["2023_05_18_02-16-41_1632039793563347593_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmEmmLmm"]
+    # # without disentanglement, no lip reading, we = 0.00005
+    # resume_folders += ["2023_05_18_02-15-52_-7116303129003010747_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmEmmLmm"]
 
 
-    # # # #### MODELS NOT CONDITIONED ON EMOTIONS AT ALL 
-    # # # ## 1) not conditioned on emotions, 128d, 8 heads,  trainable w2v
-    # # # ## FlameBERTPrior,
-    # # resume_folders += ["2023_05_12_11-34-40_8409157253283996274_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
-    # # # ## FlameBERTPrior, frozen w2v 
-    # # # resume_folders += ["2023_05_12_11-33-17_189824166655322547_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
-    # # ## FlameBERT
-    # # resume_folders += ["2023_05_10_14-27-51_-7474011499178916721_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_Seml_PPE_predEJ_LVm"]
-    # # # ## FlameFormer
-    # # resume_folders += ["2023_05_10_13-24-04_5562322546915629563_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
-    # # # ## FaceFormer
-    # # resume_folders += ["2023_05_10_13-16-00_-3885098104460673227_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
+    # ### ENSPARC WITHOUT ANY PERCEPTUAL LOSSES (lip reading, video emotion, disentanglement), trainable w2v (initially)
+    # resume_folders += ["2023_05_13_21-00-49_-6819445356403438364_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
+    # # FlameBert WITHOUT prior
+    # resume_folders += ["2023_05_10_14-26-58_7312238994463268480_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_Seml_PPE_predEJ_LVm"]
+    # # FlameFormer with emotions - not well converged
+    # resume_folders += ["2023_05_10_13-21-50_1717396956261008837_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
+    # # FaceFormer with emotions 
+    # resume_folders += ["2023_05_10_13-10-08_8067654090108546902_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
 
-    # # emotion_index_list = [0]
+    # # # emotion_index_list = list(range(8))
+
+
+    # #### MODELS NOT CONDITIONED ON EMOTIONS AT ALL 
+    # # ## 1) not conditioned on emotions, 128d, 8 heads,  trainable w2v
+    # ## FlameBERTPrior,
+    resume_folders += ["2023_05_12_11-34-40_8409157253283996274_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
+    # ## FlameBERTPrior, frozen w2v 
+    # # resume_folders += ["2023_05_12_11-33-17_189824166655322547_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
+    # ## FlameBERT
+    # resume_folders += ["2023_05_10_14-27-51_-7474011499178916721_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_Seml_PPE_predEJ_LVm"]
+    # # ## FlameFormer
+    # resume_folders += ["2023_05_10_13-24-04_5562322546915629563_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
+    # # ## FaceFormer
+    # resume_folders += ["2023_05_10_13-16-00_-3885098104460673227_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
+
+    emotion_index_list = [0]
 
     # bid = 2000
     # bid = 150
