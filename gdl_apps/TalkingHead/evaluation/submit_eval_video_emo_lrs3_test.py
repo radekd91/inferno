@@ -201,15 +201,15 @@ def run_talking_head_eval():
     # # FlameFormer with emotions - not well converged
     # resume_folders += ["2023_05_10_13-21-50_1717396956261008837_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
     # # FaceFormer with emotions 
-    # resume_folders += ["2023_05_10_13-10-08_8067654090108546902_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
+    resume_folders += ["2023_05_10_13-10-08_8067654090108546902_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
 
     # # # emotion_index_list = list(range(8))
 
 
     # #### MODELS NOT CONDITIONED ON EMOTIONS AT ALL 
     # # ## 1) not conditioned on emotions, 128d, 8 heads,  trainable w2v
-    # ## FlameBERTPrior,
-    resume_folders += ["2023_05_12_11-34-40_8409157253283996274_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
+    # # ## FlameBERTPrior,
+    # resume_folders += ["2023_05_12_11-34-40_8409157253283996274_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
     # ## FlameBERTPrior, frozen w2v 
     # # resume_folders += ["2023_05_12_11-33-17_189824166655322547_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
     # ## FlameBERT
@@ -224,7 +224,7 @@ def run_talking_head_eval():
     # bid = 2000
     # bid = 150
     # bid = 28
-    bid = 100
+    bid = 400
     # max_price = 250
     # max_price = 200
     max_price = 500
