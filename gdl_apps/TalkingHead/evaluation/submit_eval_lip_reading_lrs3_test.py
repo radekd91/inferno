@@ -201,7 +201,7 @@ def run_talking_head_eval():
     # # FlameFormer with emotions - not well converged
     # resume_folders += ["2023_05_10_13-21-50_1717396956261008837_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
     # # FaceFormer with emotions 
-    # resume_folders += ["2023_05_10_13-10-08_8067654090108546902_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
+    resume_folders += ["2023_05_10_13-10-08_8067654090108546902_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
 
     # # # emotion_index_list = list(range(8))
 
@@ -209,15 +209,17 @@ def run_talking_head_eval():
     # # # #### MODELS NOT CONDITIONED ON EMOTIONS AT ALL 
     # # # ## 1) not conditioned on emotions, 128d, 8 heads,  trainable w2v
     # # # ## FlameBERTPrior,
-    resume_folders += ["2023_05_12_11-34-40_8409157253283996274_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
-    # ## FlameBERTPrior, frozen w2v 
-    # resume_folders += ["2023_05_12_11-33-17_189824166655322547_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
-    ## FlameBERT
-    resume_folders += ["2023_05_10_14-27-51_-7474011499178916721_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_Seml_PPE_predEJ_LVm"]
-    # ## FlameFormer
-    resume_folders += ["2023_05_10_13-24-04_5562322546915629563_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
-    # ## FaceFormer
-    resume_folders += ["2023_05_10_13-16-00_-3885098104460673227_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
+    # resume_folders += ["2023_05_12_11-34-40_8409157253283996274_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
+    # # ## FlameBERTPrior, frozen w2v 
+    # # resume_folders += ["2023_05_12_11-33-17_189824166655322547_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
+    # ## FlameBERT
+    # resume_folders += ["2023_05_10_14-27-51_-7474011499178916721_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_Seml_PPE_predEJ_LVm"]
+    # # ## FlameFormer
+    # resume_folders += ["2023_05_10_13-24-04_5562322546915629563_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
+    # # ## FaceFormer
+    # resume_folders += ["2023_05_10_13-16-00_-3885098104460673227_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
+
+
 
     # # emotion_index_list = [0]
 
