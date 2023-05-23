@@ -28,8 +28,8 @@ from omegaconf import DictConfig, OmegaConf, open_dict
 import sys
 import shutil
 
-submit_ = False
-# submit_ = True
+# submit_ = False
+submit_ = True
 
 # if submit_:
 #     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -239,7 +239,8 @@ def run_talking_head_eval():
         if submit_:
             submit(resume_folder, subset, max_videos, bid=bid, max_price=max_price)
         else: 
-            script.read_lip_reading_results(Path(root) / resume_folder, subset, max_videos, process_visemes=True)
+            # script.read_results(Path(root) / resume_folder, subset, max_videos, process_visemes=True)
+            script.read_lip_reading_results(subset, max_videos, Path(root) / resume_folder, process_visemes=True)
 
 
 
