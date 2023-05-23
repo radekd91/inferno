@@ -110,12 +110,17 @@ def create_emo_interpolations(talking_head, sample,
     return samples
 
 
-def main(): 
+def run(resume_folder, audio_path,):
     root = "/is/cluster/work/rdanecek/talkinghead/trainings/"
     # resume_folders = []
     # resume_folder = "2023_05_04_13-04-51_-8462650662499054253_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"
     # resume_folders += ["2023_05_04_18-22-17_5674910949749447663_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+    model_path = Path(root) / resume_folder  
+    talking_head = TalkingHeadWrapper(model_path, render_results=False)
+    eval_talking_head_interpolated_conditions(talking_head, audio_path)
 
+
+def main(): 
     if len(sys.argv) > 1:
         resume_folder = sys.argv[1]
     else:
@@ -128,11 +133,8 @@ def main():
         # audio = Path('/ps/project/EmotionalFacialAnimation/data/lrs3/extracted/test/0Fi83BHQsMA/00002.mp4')
         audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/trainval/0af00UcTOSc/50001.wav')
         # audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/pretrain/0akiEFwtkyA/00031.wav')
-
-    model_path = Path(root) / resume_folder  
-    talking_head = TalkingHeadWrapper(model_path, render_results=False)
-    eval_talking_head_interpolated_conditions(talking_head, audio)
-    
+    run(resume_folder, audio)
 
 if __name__=="__main__": 
     main()
+
