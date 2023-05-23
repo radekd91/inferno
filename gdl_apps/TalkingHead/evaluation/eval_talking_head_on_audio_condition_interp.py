@@ -77,6 +77,48 @@ def eval_talking_head_interpolated_conditions(talking_head, audio_path, speaking
                                             start_intensities, end_intensities,
                                             )
     
+    start_emotions = [AffectNetExpressions.Sad.value]
+    end_emotions = [AffectNetExpressions.Anger.value]
+    start_intensities = [2]
+    end_intensities = [2]
+    start_indentities = [speaking_style_index]
+    end_indentities = [speaking_style_index]
+
+    samples += create_emo_interpolations(talking_head, sample,
+                                            start_indentities, end_indentities,
+                                            start_emotions, end_emotions,
+                                            start_intensities, end_intensities,
+                                            )
+    
+    start_emotions = [AffectNetExpressions.Sad.value]
+    end_emotions = [AffectNetExpressions.Fear.value]
+    start_intensities = [2]
+    end_intensities = [2]
+    start_indentities = [speaking_style_index]
+    end_indentities = [speaking_style_index]
+
+    samples += create_emo_interpolations(talking_head, sample,
+                                            start_indentities, end_indentities,
+                                            start_emotions, end_emotions,
+                                            start_intensities, end_intensities,
+                                            )
+    
+
+    start_emotions = [AffectNetExpressions.Sad.value]
+    end_emotions = [AffectNetExpressions.Contempt.value]
+    start_intensities = [2]
+    end_intensities = [2]
+    start_indentities = [speaking_style_index]
+    end_indentities = [speaking_style_index]
+
+    samples += create_emo_interpolations(talking_head, sample,
+                                            start_indentities, end_indentities,
+                                            start_emotions, end_emotions,
+                                            start_intensities, end_intensities,
+                                            )
+
+
+
 
     # surprised to disgusted
     start_emotions = [AffectNetExpressions.Fear.value]
