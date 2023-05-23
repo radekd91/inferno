@@ -28,8 +28,8 @@ from omegaconf import DictConfig, OmegaConf, open_dict
 import sys
 import shutil
 
-submit_ = False
-# submit_ = True
+# submit_ = False
+submit_ = True
 
 # if submit_:
 #     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -51,6 +51,7 @@ submit_ = False
 
 def submit(resume_folder,
            audio_path,
+           speaking_style_idx=None,
            bid=10, 
            max_price=None,
            ):
@@ -83,6 +84,8 @@ def submit(resume_folder,
     cuda_capability_requirement = 7
     mem_gb = 20
     args = f"{resume_folder} {audio_path}"
+    if speaking_style_idx is not None:
+        args += f" {speaking_style_idx}"
 
     #    env="work38",
     #    env="work38_clone",
@@ -229,11 +232,17 @@ def run_talking_head_eval():
     audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/trainval/0af00UcTOSc/50001.wav')
     # audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/pretrain/0akiEFwtkyA/00031.wav')
 
+    speaking_style_idx = 20
+    # speaking_style_idx = 0
+    # speaking_style_idx = 3
+    # speaking_style_idx = 8
+    # speaking_style_idx = 8
+
     for resume_folder in resume_folders:
         if submit_:
-            submit(resume_folder, audio, bid=bid, max_price=max_price)
+            submit(resume_folder, audio, speaking_style_idx, bid=bid, max_price=max_price)
         else: 
-            script.run(resume_folder, audio, )
+            script.run(resume_folder, audio, speaking_style_idx)
 
 
 
