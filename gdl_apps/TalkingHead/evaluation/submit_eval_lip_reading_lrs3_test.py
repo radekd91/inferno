@@ -28,8 +28,8 @@ from omegaconf import DictConfig, OmegaConf, open_dict
 import sys
 import shutil
 
-submit_ = False
-# submit_ = True
+# submit_ = False
+submit_ = True
 
 # if submit_:
 #     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -74,7 +74,7 @@ def submit(resume_folder, subset, max_videos,
     gpu_mem_requirement_mb = 30 * 1024
     gpu_mem_requirement_mb_max = 40000
     # gpu_mem_requirement_mb = None
-    cpus = 3 #cfg.data.num_workers + 2 # 1 for the training script, 1 for wandb or other loggers (and other stuff), the rest of data loading
+    cpus = 10 #cfg.data.num_workers + 2 # 1 for the training script, 1 for wandb or other loggers (and other stuff), the rest of data loading
     # cpus = 2 # 1 for the training script, 1 for wandb or other loggers (and other stuff), the rest of data loading
     gpus = 1
     num_jobs = 1
