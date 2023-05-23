@@ -28,8 +28,8 @@ from omegaconf import DictConfig, OmegaConf, open_dict
 import sys
 import shutil
 
-# submit_ = False
-submit_ = True
+submit_ = False
+# submit_ = True
 
 # if submit_:
 #     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -74,9 +74,9 @@ def submit(resume_folder, subset, max_videos,
     gpu_mem_requirement_mb = 30 * 1024
     gpu_mem_requirement_mb_max = 40000
     # gpu_mem_requirement_mb = None
-    cpus = 8 #cfg.data.num_workers + 2 # 1 for the training script, 1 for wandb or other loggers (and other stuff), the rest of data loading
+    cpus = 12 #cfg.data.num_workers + 2 # 1 for the training script, 1 for wandb or other loggers (and other stuff), the rest of data loading
     # cpus = 2 # 1 for the training script, 1 for wandb or other loggers (and other stuff), the rest of data loading
-    gpus = 1
+    gpus = 0
     num_jobs = 1
     max_time_h = 36
     job_name = "train_talking_head"
@@ -133,13 +133,13 @@ def run_talking_head_eval():
     resume_folders += ["2023_05_18_01-26-32_-6224330163499889169_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
     
     # # check the results - wl = wld = 0.00005, we, wed = 0.000005
-    resume_folders += ["2023_05_16_23-13-38_-2116095221923261916_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+    # resume_folders += ["2023_05_16_23-13-38_-2116095221923261916_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
 
     ### ENSPARC WITHOUT disentanglement (WITH prior, lip reading, video emotion, WITHOUT disentanglement), trainable w2v (initially)  
     ## check the results - wl = 0.00005, we = 0.000005
     resume_folders += ["2023_05_16_23-13-12_-2523817769843276359_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
     ## check the results - wl = 0.00005, we = 0.0000025
-    resume_folders += ["2023_05_16_23-12-26_6547601109468810874_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
+    # resume_folders += ["2023_05_16_23-12-26_6547601109468810874_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
     ## check the results - wl = 0.0001, we = 0.000005
     # resume_folders += ["2023_05_16_23-12-24_-8306171087132288898_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
 
@@ -217,7 +217,7 @@ def run_talking_head_eval():
     # # ## FlameFormer
     # resume_folders += ["2023_05_10_13-24-04_5562322546915629563_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
     # # ## FaceFormer
-    resume_folders += ["2023_05_10_13-16-00_-3885098104460673227_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
+    # resume_folders += ["2023_05_10_13-16-00_-3885098104460673227_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
 
     # # emotion_index_list = [0]
 
