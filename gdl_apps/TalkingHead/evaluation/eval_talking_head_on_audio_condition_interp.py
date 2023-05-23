@@ -64,7 +64,7 @@ def eval_talking_head_interpolated_conditions(talking_head, audio_path):
                                             start_intensities, end_intensities,
                                             )
     
-    run_evalutation(talking_head, samples, audio_path)
+    run_evalutation(talking_head, samples, audio_path, pyrender_videos=False, save_meshes=True)
     print("Done")
 
 
