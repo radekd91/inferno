@@ -168,6 +168,10 @@ def main():
     else:
         identity_idx = 0
     
+
+    print("Running with resume_folder: ", resume_folder)
+    print("Running with audio: ", audio)
+    print("Running with identity_idx: ", identity_idx)
     run(resume_folder, audio, identity_idx)
 
 if __name__=="__main__": 
