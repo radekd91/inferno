@@ -200,8 +200,8 @@ def run_talking_head_eval():
     resume_folders += ["2023_05_10_14-26-58_7312238994463268480_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameBertDecoder_Seml_PPE_predEJ_LVm"]
     # FlameFormer with emotions - not well converged
     resume_folders += ["2023_05_10_13-21-50_1717396956261008837_FaceFormer_MEADP_Awav2vec2T_Elinear_DFlameFormerDecoder_Seml_PPE_predEJ_LV"]
-    # FaceFormer with emotions 
-    resume_folders += ["2023_05_10_13-10-08_8067654090108546902_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
+    # # FaceFormer with emotions 
+    # resume_folders += ["2023_05_10_13-10-08_8067654090108546902_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
 
     # # # emotion_index_list = list(range(8))
 
@@ -239,7 +239,7 @@ def run_talking_head_eval():
         if submit_:
             submit(resume_folder, subset, max_videos, bid=bid, max_price=max_price)
         else: 
-            script.read_results(Path(root) / resume_folder, subset, max_videos)
+            script.read_lip_reading_results(Path(root) / resume_folder, subset, max_videos, process_visemes=True)
 
 
 
