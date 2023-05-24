@@ -9,7 +9,7 @@ def eval_talking_head_on_audio(talking_head, audio_path, emotion_index_list=None
     # talking_head.talking_head_model.preprocessor.to(device) # weird hack
     sample = create_base_sample(talking_head, audio_path)
     # samples = create_id_emo_int_combinations(talking_head, sample)
-    styles = ['M003', 'M009', 'M022', 'W011', 'W014', 'W028']
+    styles = ['M003', 'M009', 'M022', 'M028', 'W014', 'W028']
     style_indices = [training_ids.index(s) for s in styles]
     samples = []
     for i in style_indices:

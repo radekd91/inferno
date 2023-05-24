@@ -232,11 +232,12 @@ def run_talking_head_eval():
     audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/trainval/0af00UcTOSc/50001.wav')
     # audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/pretrain/0akiEFwtkyA/00031.wav')
 
-    speaking_style_idx = 20
+    # speaking_style_idx = 20
     # speaking_style_idx = 0
     # speaking_style_idx = 3
     # speaking_style_idx = 8
-    # speaking_style_idx = 8
+    speaking_style_idx = 8
+    # m022
 
     for resume_folder in resume_folders:
         if submit_:
