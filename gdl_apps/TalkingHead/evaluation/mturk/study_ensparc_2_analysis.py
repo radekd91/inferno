@@ -13,8 +13,10 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 
-path_to_result_csv = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/results_ensparc_2_pilot.csv"
-path_to_protocols = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/study_2/"
+# path_to_result_csv = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/results_ensparc_2_pilot.csv"
+# path_to_protocols = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/study_2/"
+path_to_result_csv = "/is/cluster/fast/scratch/rdanecek/studies/enspark_final_v1/ENSPARC_2_main_study.csv"
+path_to_protocols = "/is/cluster/fast/scratch/rdanecek/studies/enspark_final_v1/study_2/"
 
 
 def analyze_participant(header, participant_results, protocol, discard_repeats=True): 
@@ -176,6 +178,20 @@ def analyze_single_batch(header, result_lines, protocol):
 
 
 
+def get_batch_results(results, protocol):
+    model_b = protocol["model"]
+    indices = []
+    batch_results = []
+    for ri in range(len(results)):
+        task_str = results[ri]
+        task_list = task_str.split(",")[-2].strip('"').split(";")
+        for ti, task in enumerate(task_list): 
+            if model_b in task:
+                indices += [ri]
+                batch_results += [results[ri]]
+                break
+    return batch_results
+
 
 
 def analyze(results, protocol):
@@ -207,7 +223,8 @@ def analyze(results, protocol):
         
         # num_participants = batch_protocol["num_participants"]
 
-        batch_results = result_lines[batch_i * num_participants : (batch_i + 1) * num_participants]
+        # batch_results = result_lines[batch_i * num_participants : (batch_i + 1) * num_participants]
+        batch_results = get_batch_results(result_lines, batch_protocol)
 
         total_accuracy, total_accuracy_per_emotion, conf_matrix_sum, num_participants, num_useful_participants \
             = analyze_single_batch(header, batch_results, batch_protocol)
@@ -238,7 +255,8 @@ def analyze(results, protocol):
     conf_matrix_model = np.stack(conf_mats, axis=-1)
 
     # plot the conf mats
-    plot_confusion_matrix(conf_matrix_model, ["ours", "baseline"], class_names=[AffectNetExpressions(i).name for i in range(8)])
+    # plot_confusion_matrix(conf_matrix_model, ["ours", "baseline"], class_names=[AffectNetExpressions(i).name for i in range(8)])
+    plot_confusion_matrix(conf_matrix_model, ["ours", "w/o emotion", "w/o perceptual", "faceformer+emo"], class_names=[AffectNetExpressions(i).name for i in range(8)])
     print("Done")
 
 

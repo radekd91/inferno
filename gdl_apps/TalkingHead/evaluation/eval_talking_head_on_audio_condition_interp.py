@@ -14,6 +14,9 @@ def eval_talking_head_interpolated_conditions(talking_head, audio_path, speaking
     end_emotions.remove(AffectNetExpressions.Neutral.value)
     start_emotions = [AffectNetExpressions.Neutral.value] * len(end_emotions)
 
+    samples += create_high_intensity_emotions(talking_head, sample)
+
+
     start_intensities = [2] * len(end_emotions)
     end_intensities = [2] * len(end_emotions)
 

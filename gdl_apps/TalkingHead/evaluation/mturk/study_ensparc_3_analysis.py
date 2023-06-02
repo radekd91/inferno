@@ -9,10 +9,15 @@ import shutil
 from collections import OrderedDict
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 
-path_to_result_csv = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/results_ensparc_3_pilot.csv"
-path_to_protocols = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/study_3/"
+# path_to_result_csv = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/results_ensparc_3_pilot.csv"
+# path_to_protocols = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/study_3/"
+
+
+path_to_result_csv = "/is/cluster/fast/scratch/rdanecek/studies/enspark_final_v1/ENSPARC_3_main_study.csv"
+path_to_protocols = "/is/cluster/fast/scratch/rdanecek/studies/enspark_final_v1/study_3/"
 
 
 def analyze_participant(header, participant_results, protocol, discard_repeats=True): 
@@ -140,6 +145,23 @@ def analyze_single_batch(header, result_lines, protocol):
 
 
 
+def get_batch_results(results, protocol):
+    model_b = protocol["model_b"]
+    indices = []
+    batch_results = []
+    for ri in range(len(results)):
+        task_str = results[ri]
+        task_list = task_str.split(",")[-2].strip('"').split(";")
+        for ti, task in enumerate(task_list): 
+            if model_b in task:
+                indices += [ri]
+                batch_results += [results[ri]]
+                break
+    return batch_results
+
+
+
+
 def analyze(results, protocol):
     num_participants = len(results)
 
@@ -167,15 +189,18 @@ def analyze(results, protocol):
         
         # num_participants = batch_protocol["num_participants"]
 
-        batch_results = result_lines[batch_i * num_participants : (batch_i + 1) * num_participants]
+        # batch_results = result_lines[batch_i * num_participants : (batch_i + 1) * num_participants]
+        batch_results = get_batch_results(result_lines, batch_protocol)
 
         avg_preferences_lip, all_preferences_lip, num_participants, num_useful_participants \
             = analyze_single_batch(header, batch_results, batch_protocol)
+        std_preferences_lip = np.std(np.stack( all_preferences_lip, axis=0), axis=0)
         batches[batch_i] = {
             'protocol_name' : protocol_name,
             'model_a' : batch_protocol["model_a"],
             'model_b' : batch_protocol["model_b"],
             'avg_preferences_lip' : avg_preferences_lip, 
+            'std_preferences_lip' : std_preferences_lip, 
             'all_preferences_lip' : all_preferences_lip, 
             'num_participants' : num_participants, 
             'num_useful_participants' : num_useful_participants
@@ -186,19 +211,69 @@ def analyze(results, protocol):
         print("Model B: ", batch_protocol["model_b"])
         print("Number of participants: ", num_participants)
         print("Number of useful participants: ", num_useful_participants)
-        print("Average preferences for lip: ", avg_preferences_lip)
+        print("Average preferences for lip sync: ", avg_preferences_lip)
         print("Preference A:", 2*avg_preferences_lip[0] +  avg_preferences_lip[1])
         print("Preference B:", 2*avg_preferences_lip[-1] +  avg_preferences_lip[-2])
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.bar(["Strongly ours", "Weakly ours", "Indifferent", "Weakly other", "Stongly other"], avg_preferences_lip, color="blue")
-        ax.set_title(f"Average Preferences for Lips: Ours vs {batch_protocol['model_b']}")
-        ax.set_ylabel("Average Preference")
-        ax.set_xticks(range(0, 5))
-        ax.set_xticklabels(["Strongly\n ours", "Weakly\n ours", "Indifferent", "Weakly\n other", "Stongly\n other"])
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(111)
+    #     ax.bar(["Strongly ours", "Weakly ours", "Indifferent", "Weakly other", "Stongly other"], avg_preferences_lip, color="blue")
+    #     ax.set_title(f"Average Preferences for Lips: Ours vs {batch_protocol['model_b']}")
+    #     ax.set_ylabel("Average Preference")
+    #     ax.set_xticks(range(0, 5))
+    #     ax.set_xticklabels(["Strongly\n ours", "Weakly\n ours", "Indifferent", "Weakly\n other", "Stongly\n other"])
 
+    # plt.show()
+    order = [3, 0, 2, 1, 4]
+
+    merged_hist(batches, order)
+
+
+model_name_dict= {
+    'CT_test_reorg' : 'CodeTalker',
+    'VOCA_test_reorg' : 'VOCA',
+    'FF_test_reorg' : 'FaceFormer',
+    'MT_test_reorg' : 'MeshTalk',
+    '2023_05_10_13-16-00_-3885098104460673227_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV' : 'FaceFormer-MEAD',
+}
+
+def merged_hist(batches, order=None, with_std=False, fig=None):
+    # Suppose we have n models and their results
+    n = len(batches)  # replace with your number of models
+    order = list(range(n)) if order is None else order
+    # Define the number of bins and the bar width
+    bins = np.linspace(-4, 4, 5)  # change bin numbers as needed
+    width = (bins[1] - bins[0]) / (n + 1)  # adjust for the number of models
+
+    sns.set_style("whitegrid")
+    colors = sns.color_palette("Set2", n)
+
+    if fig is None:
+        fig = plt.figure(figsize=(8,6))
+
+    # Plot the results of each model
+    # for i, batch in enumerate(batches):
+    for i, order_idx in enumerate(order):
+        result = batches[order_idx]["avg_preferences_lip"]
+        std = batches[order_idx]["std_preferences_lip"]
+        x_coords = bins - width*(n/2) + i*width
+        plt.bar(x_coords, result, width=width, 
+                label=f'Ours vs  {model_name_dict[ batches[order_idx]["model_b"]]}', color=colors[order_idx])
+        if with_std:
+            plt.errorbar(x_coords, result, yerr=std, fmt='none', color='k')
+
+    # Add legend and labels
+    plt.legend()
+    # plt.xlabel('Value')
+    plt.ylabel('Participant average preference for lip sync')
+    plt.title("Average preferences for lip sync: EMOTE vs SOTA methods")
+    fig.gca().set_xticklabels(["", "Strongly\n ours", "Weakly\n ours", "Indifferent", "Weakly\n other", "Stongly\n other"])
+    # disable x ticks but keep the labels 
+    plt.tick_params(axis='x', which='both', length=0)
     plt.show()
+    # export to pdf, no white borders
+    fig.savefig(Path(__file__).parent / "study_result_3.pdf", bbox_inches='tight', pad_inches=0)
+
 
 def main():
     protocol_root = Path(path_to_protocols)
