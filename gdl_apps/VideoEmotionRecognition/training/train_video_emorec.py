@@ -37,7 +37,7 @@ import datetime
 from gdl.utils.other import class_from_str
 
 
-project_name = 'VideEmotionRecognition'
+project_name = 'VideoEmotionRecognition'
 
 
 def get_condition_string_from_config(cfg):
