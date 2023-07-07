@@ -55,7 +55,10 @@ def locate_checkpoint(cfg_or_checkpoint_dir, replace_root = None, relative_to = 
     elif mode == 'latest':
         # checkpoint = str(checkpoints[-1])
         checkpoint = checkpoints[0]
-        assert checkpoint.name == "last.ckpt", f"Checkpoint name is not 'last.ckpt' but '{checkpoint.name}'. Are you sure this is the right checkpoint?"
+        # assert checkpoint.name == "last.ckpt", f"Checkpoint name is not 'last.ckpt' but '{checkpoint.name}'. Are you sure this is the right checkpoint?"
+        if checkpoint.name != "last.ckpt":
+            # print(f"Checkpoint name is not 'last.ckpt' but '{checkpoint.name}'. Are you sure this is the right checkpoint?")
+            return None
         checkpoint = str(checkpoint)
     elif mode == 'best':
         min_value = 999999999999999.
