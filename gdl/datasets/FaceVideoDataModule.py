@@ -1526,7 +1526,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
         self.video_list = [path.relative_to(self.root_dir) for path in video_list]
 
         annotation_list = sorted(Path(self.root_dir).rglob("*.txt"))
-        self.annotation_list = [path.relative_to(self.root_dir) for path in annotation_list]
+        if len(annotation_list) == 0:
+            self.annotation_list = None
+        else:
+            self.annotation_list = [path.relative_to(self.root_dir) for path in annotation_list]
 
         self._gather_video_metadata()
         print("Found %d video files." % len(self.video_list))
@@ -1551,7 +1554,12 @@ class FaceVideoDataModule(FaceDataModuleBase):
             # codec_idx = [idx for idx in range(len(vid)) if vid['streams'][idx]['codec_type'] == 'video']
             codec_idx = [idx for idx in range(len(vid['streams'])) if vid['streams'][idx]['codec_type'] == 'video']
             if len(codec_idx) == 0:
-                raise RuntimeError("Video file has no video streams! '%s'" % str(vid_file))
+                # raise RuntimeError("Video file has no video streams! '%s'" % str(vid_file))
+                print("[WARNING] Video file has no video streams! '%s'" % str(vid_file))
+                self.video_metas += [None]
+                self.audio_metas += [None]
+                invalid_videos += [vi]
+                continue
             if len(codec_idx) > 1:
                 # raise RuntimeError("Video file has two video streams! '%s'" % str(vid_file))
                 print("[WARNING] Video file has %d video streams. Only the first one will be processed" % len(codec_idx))
