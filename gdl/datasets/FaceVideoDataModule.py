@@ -403,6 +403,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 # videogen =  vread(str(video_name))
                 # for i in range(start_fid): 
                     # _discarded_frame = next(videogen
+                # reader = skvideo.io.FFmpegReader(str(video_name))
+                # num_frames = videogen.getShape()[0]
             else: 
                 videogen =  vread(str(video_name))
 
@@ -416,9 +418,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 out_bbox_type_all = None
 
             for fid in tqdm(range(start_fid, num_frames)):
-                self._detect_faces_in_image_wrapper(videogen, fid, out_detection_folder, out_landmark_folder, out_file_boxes,
-                                            centers_all, sizes_all, detection_fnames_all, landmark_fnames_all,
-                                            out_landmarks_all, out_landmarks_original_all, out_bbox_type_all)
+                try:
+                    self._detect_faces_in_image_wrapper(videogen, fid, out_detection_folder, out_landmark_folder, out_file_boxes,
+                                                centers_all, sizes_all, detection_fnames_all, landmark_fnames_all,
+                                                out_landmarks_all, out_landmarks_original_all, out_bbox_type_all)
+                except StopIteration as e:
+                    print(f"[WARNING] Reached the end of the video. Expected number of frames: {num_frames} but the video has only {fid} frames.")
+                    break
                                             
         if self.save_landmarks_one_file: 
             # saves all landmarks per video  
@@ -1570,6 +1576,14 @@ class FaceVideoDataModule(FaceDataModuleBase):
             vid_meta['fps'] = vid_info['avg_frame_rate']
             vid_meta['width'] = int(vid_info['width'])
             vid_meta['height'] = int(vid_info['height'])
+            # if vid_meta['num_frames'] == 0: 
+            # _vr = skvideo.io.FFmpegReader(video_path)
+            # vid_meta['num_frames'] = _vr.getShape()[0]
+            # del _vr
+            # with skvideo.io.FFmpegReader(video_path) as _vr:
+            #     vid_meta['num_frames'] = _vr.getShape()[0]
+            
+            # if vid_meta['num_frames'] == 0:
             if 'nb_frames' in vid_info.keys():
                 vid_meta['num_frames'] = int(vid_info['nb_frames'])
             elif 'num_frames' in vid_info.keys():
@@ -1578,12 +1592,12 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 vid_meta['num_frames'] = 0
             # make the frame number reading a bit more robest, sometims the above does not work and gives zeros
             if vid_meta['num_frames'] == 0: 
+                with skvideo.io.FFmpegReader(video_path) as _vr:
+                    vid_meta['num_frames'] = _vr.getShape()[0]
+            if vid_meta['num_frames'] == 0: 
                 vid_meta['num_frames'] = int(subprocess.check_output(["ffprobe", "-v", "error", "-select_streams", "v:0", "-count_packets", "-show_entries", "stream=nb_read_packets", "-of", "csv=p=0", 
                     video_path]))
-            if vid_meta['num_frames'] == 0: 
-                _vr = skvideo.io.FFmpegReader(video_path)
-                vid_meta['num_frames'] = _vr.getShape()[0]
-                del _vr
+
             vid_meta['bit_rate'] = vid_info['bit_rate']
             if 'bits_per_raw_sample' in vid_info.keys():
                 vid_meta['bits_per_raw_sample'] = vid_info['bits_per_raw_sample']
@@ -2472,7 +2486,9 @@ class FaceVideoDataModule(FaceDataModuleBase):
             if first_index == last_index: 
                 continue
             frame_recognitions = embeddings[first_index:last_index, ...]
-            
+            if frame_recognitions.size == 0:
+                continue
+
             # 3) compute the distance between the main recognition and the detections
             distances = np.linalg.norm(frame_recognitions - main_occurence_mean, axis=1)
             # find the closest detection to the main recognition
