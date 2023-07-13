@@ -123,7 +123,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
         # self._saveMeta()
 
     def _gather_data(self, exist_ok=True):
-        super()._gather_data(exist_ok)
+        super()._gather_data(exist_ok, allow_later_audio_start=False)
         
         # vl = [(path.parent / path.stem).as_posix() for path in self.video_list]
         # al = [(path.parent / path.stem).as_posix() for path in self.annotation_list]

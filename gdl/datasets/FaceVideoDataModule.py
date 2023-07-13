@@ -1518,7 +1518,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
 
     # def _gather_data(self, exist_ok=False):
-    def _gather_data(self, exist_ok=True):
+    def _gather_data(self, exist_ok=True, **kwargs):
         print("Processing dataset")
         Path(self.output_dir).mkdir(parents=True, exist_ok=exist_ok)
 
@@ -1531,10 +1531,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
         else:
             self.annotation_list = [path.relative_to(self.root_dir) for path in annotation_list]
 
-        self._gather_video_metadata()
+        self._gather_video_metadata(**kwargs)
         print("Found %d video files." % len(self.video_list))
 
-    def _gather_video_metadata(self):
+    def _gather_video_metadata(self, allow_later_audio_start=False):
         import ffmpeg
         self.video_metas = []
         self.audio_metas = []
@@ -1608,7 +1608,15 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 aud_meta['sample_fmt'] = aud_info['sample_fmt']
                 # aud_meta['num_samples'] = int(aud_info['nb_samples'])
                 aud_meta["num_frames"] = int(aud_info['nb_frames'])
-                assert float(aud_info['start_time']) == 0
+                if float(aud_info['start_time']) != 0:       
+                    if not allow_later_audio_start:
+                        # assert float(aud_info['start_time']) == 0, f"Audio start time is not zero: {aud_info['start_time']}"
+                        self.video_metas += [None]
+                        self.audio_metas += [None]
+                        invalid_videos += [vi]
+                        print(f"[WARNING] Audio start time is not zero: {aud_info['start_time']} for video {vid_file}. The video will not be considered.")
+                    else:
+                        print(f"[WARNING] Audio start time is not zero: {aud_info['start_time']} for video {vid_file}")
                 self.audio_metas += [aud_meta]
         
         for vi in sorted(invalid_videos, reverse=True):
