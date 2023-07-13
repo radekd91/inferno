@@ -400,7 +400,7 @@ class CelebVTextDataModule(FaceVideoDataModule):
                 )
 
     def get_single_video_dataset(self, i):
-        dataset = CelebVTextDataModule(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+        dataset = CelebVTextDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
                 [i], 
                 self.audio_metas, 
                 # self.sequence_length_test, 
@@ -538,7 +538,7 @@ class CelebVTextDataset(VideoDatasetBase):
 
 
     def _path_to_landmarks(self, index, landmark_type, landmark_source): 
-        return (Path(self.output_dir) / f"landmarks_{landmark_source}_{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
+        return (Path(self.output_dir) / f"landmarks_{landmark_source}/{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
 
 
     def _read_landmarks(self, index, landmark_type, landmark_source):
@@ -549,7 +549,7 @@ class CelebVTextDataset(VideoDatasetBase):
             landmark_list = FaceDataModuleBase.load_landmark_list(landmark_list_file)  
             landmark_valid_indices = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_alignment_used_frame_indices.pkl")  
         elif landmark_source == "aligned": 
-            landmarks, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
+            landmark_list, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
             landmark_valid_indices = landmark_confidences
         else: 
             raise ValueError(f"Unknown landmark source {landmark_source}")
@@ -563,7 +563,7 @@ class CelebVTextDataset(VideoDatasetBase):
         for lti, landmark_type in enumerate(self.landmark_types):
             landmark_source = self.landmark_source[lti]
             # landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}" / landmark_type /  self.video_list[self.video_indices[index]]).with_suffix("")
-            landmarks_dir = (Path(self.output_dir) / f"landmarks/{landmark_source}/{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
+            landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}/{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
             landmarks = []
             if landmark_source == "original":
                 # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{landmark_source}.pkl")  

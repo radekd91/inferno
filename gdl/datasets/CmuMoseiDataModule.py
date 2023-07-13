@@ -349,7 +349,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
     def setup(self, stage=None):
         train, val, test = self._get_subsets(self.split)
         training_augmenter = create_image_augmenter(self.image_size, self.augmentation)
-        self.training_set = CelebVTextDataModule(self.root_dir, self.output_dir, self.video_list, self.video_metas, train, 
+        self.training_set = CmuMoseiDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, train, 
                 self.audio_metas, self.sequence_length_train, image_size=self.image_size, 
                 transforms=training_augmenter,
                 **self.occlusion_settings_train,
@@ -366,7 +366,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
               )
                     
-        self.validation_set = CelebVTextDataModule(self.root_dir, self.output_dir, 
+        self.validation_set = CmuMoseiDataset(self.root_dir, self.output_dir, 
                 self.video_list, self.video_metas, val, self.audio_metas, 
                 self.sequence_length_val, image_size=self.image_size,  
                 **self.occlusion_settings_val,
@@ -383,7 +383,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
             )
 
-        self.test_set = CelebVTextDataModule(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
+        self.test_set = CmuMoseiDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
                 self.sequence_length_test, image_size=self.image_size, 
                 **self.occlusion_settings_test,
                 hack_length=False, 
@@ -400,7 +400,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 )
 
     def get_single_video_dataset(self, i):
-        dataset = CelebVTextDataModule(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+        dataset = CmuMoseiDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
                 [i], 
                 self.audio_metas, 
                 # self.sequence_length_test, 
@@ -538,7 +538,7 @@ class CmuMoseiDataset(VideoDatasetBase):
 
 
     def _path_to_landmarks(self, index, landmark_type, landmark_source): 
-        return (Path(self.output_dir) / f"landmarks_{landmark_source}_{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
+        return (Path(self.output_dir) / f"landmarks_{landmark_source}/{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
 
 
     def _read_landmarks(self, index, landmark_type, landmark_source):
@@ -549,7 +549,7 @@ class CmuMoseiDataset(VideoDatasetBase):
             landmark_list = FaceDataModuleBase.load_landmark_list(landmark_list_file)  
             landmark_valid_indices = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_alignment_used_frame_indices.pkl")  
         elif landmark_source == "aligned": 
-            landmarks, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
+            landmark_list, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
             landmark_valid_indices = landmark_confidences
         else: 
             raise ValueError(f"Unknown landmark source {landmark_source}")
@@ -563,7 +563,7 @@ class CmuMoseiDataset(VideoDatasetBase):
         for lti, landmark_type in enumerate(self.landmark_types):
             landmark_source = self.landmark_source[lti]
             # landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}" / landmark_type /  self.video_list[self.video_indices[index]]).with_suffix("")
-            landmarks_dir = (Path(self.output_dir) / f"landmarks/{landmark_source}/{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
+            landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}/{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
             landmarks = []
             if landmark_source == "original":
                 # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{landmark_source}.pkl")  
