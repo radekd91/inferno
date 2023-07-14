@@ -1628,6 +1628,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                         self.video_metas += [None]
                         self.audio_metas += [None]
                         invalid_videos += [vi]
+                        continue
                         print(f"[WARNING] Audio start time is not zero: {aud_info['start_time']} for video {vid_file}. The video will not be considered.")
                     else:
                         print(f"[WARNING] Audio start time is not zero: {aud_info['start_time']} for video {vid_file}")

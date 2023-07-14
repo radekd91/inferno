@@ -281,7 +281,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         print(device)
-        net, seg_type, batch_size = self._get_segmentation_net(device)
+        net, seg_type, batch_size = self._get_segmentation_net(device, "focus")
 
         # if self.save_detection_images:
         #     ref_im = imread(detection_fnames_or_ims[0])
@@ -396,12 +396,22 @@ class FaceDataModuleBase(pl.LightningDataModule):
         elif method == "gpen": 
             seg_type = 'face_parsing_gpen'
             if hasattr(self, "_gpen" ): 
-                net = self._bisenet
+                net = self._gpen
             else:
                 from gdl.models.external.GPENFaceParsing import GPENFaceParsing
                 net = GPENFaceParsing()
                 self._gpen = net
             batch_size = 16
+        elif method == "focus": 
+            seg_type = 'face_parsing_focus'
+            if hasattr(self, "_focus" ): 
+                net = self._focus
+            else:
+                from gdl.models.external.FocusSegmentation import FocusSegmentation
+                net = FocusSegmentation()
+                self._focus = net
+            batch_size = 16
+            # batch_size = 16
         else: 
             raise ValueError(f"Unknown segmentation type: {method}" )
 
