@@ -270,8 +270,9 @@ class FaceDataModuleBase(pl.LightningDataModule):
 
 
 
-    def _segment_images(self, detection_fnames_or_ims, out_segmentation_folder, path_depth = 0, landmarks=None):
+    def _segment_images(self, detection_fnames_or_ims, out_segmentation_folder, path_depth = 0, landmarks=None, segmentation_net=None):
         import time
+        segmentation_net = segmentation_net or "bisenet"
         if self.save_landmarks_one_file: 
             overwrite = False 
             single_out_file = out_segmentation_folder / "segmentations.pkl"
@@ -281,7 +282,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         print(device)
-        net, seg_type, batch_size = self._get_segmentation_net(device, "focus")
+        net, seg_type, batch_size = self._get_segmentation_net(device, segmentation_net)
 
         # if self.save_detection_images:
         #     ref_im = imread(detection_fnames_or_ims[0])
@@ -403,7 +404,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
                 self._gpen = net
             batch_size = 16
         elif method == "focus": 
-            seg_type = 'face_parsing_focus'
+            seg_type = 'face_segmentation_focus'
             if hasattr(self, "_focus" ): 
                 net = self._focus
             else:

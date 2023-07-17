@@ -193,7 +193,9 @@ class CelebVTextDataModule(FaceVideoDataModule):
         # if cut_out_faces: 
         #     self._cut_out_detected_faces_in_sequence(idx)
         if segment_videos:
-            self._segment_faces_in_sequence(idx, use_aligned_videos=True)
+            seg_methods = ['bisenet', 'focus']
+            for seg_method in seg_methods:
+                self._segment_faces_in_sequence(idx, use_aligned_videos=True, segmentation_net=seg_method)
             # raise NotImplementedError()
         if detect_aligned_landmarks: 
             self._detect_landmarkes_in_aligned_sequence(idx)

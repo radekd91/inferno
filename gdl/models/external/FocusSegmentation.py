@@ -49,11 +49,21 @@ class FocusSegmentation(ImageTranslationNetBase):
             Resize((args.width, args.height)), 
         ])
 
+        self._fix_upsample_crash()
+
+    def _fix_upsample_crash(self): 
+        # fixes a pytorch bug, which crashes the forward pass on Upsample modules due to a missing member 
+        module_list = list(self.net.unet_for_mask.modules()) + list(self.net.enc_net.modules())
+        for module in module_list: 
+            if isinstance(module, torch.nn.Upsample): 
+                setattr(module, "recompute_scale_factor", None)
+                # module.recompute_scale_factor = False
+
     @property
     def input_size(self):
         return (self.im_size, self.im_size)
 
-    def forward(self, input_image, resize_to_input_size=False):
+    def forward(self, input_image, resize_to_input_size=False, return_other_results=False):
         """
         input_image: torch.Tensor [b,c,w,h] in RGB format 0,1
         """
@@ -66,24 +76,26 @@ class FocusSegmentation(ImageTranslationNetBase):
         # image_paths = data['filename'] 
         
         reconstructed_results = self.net.forward_intactfaceshape_NOW(data)
-        image_results = reconstructed_results['imgs_fitted']
-        raster_mask = reconstructed_results['raster_masks']
+        occlusion_fg_mask = reconstructed_results['est_mask']
+        # image_results = reconstructed_results['imgs_fitted']
+        # raster_mask = reconstructed_results['raster_masks']
         # lmring = reconstructed_results['lm_NoW']
         # vertex_3d = reconstructed_results['nonexp_intact_verts']
-        occlusion_fg_mask = reconstructed_results['est_mask']
 
         # use plotly to visualize the the input image, image_results and occlusion_fg_mask
-        import plotly.graph_objects as go
-        import plotly.express as px
-        import plotly.io as pio
+        # import plotly.graph_objects as go
+        # import plotly.express as px
+        # import plotly.io as pio
 
         # # plot the image
-        # raster_mask_repeated = raster_mask.repeat(1,3,1,1)
+        # raster_mask_repeated = raster_mask[:, None, ...].repeat(1,3,1,1)
         # occlusion_fg_mask_repeated = occlusion_fg_mask.repeat(1,3,1,1)
-        # result_concatenated = torch.cat((input_image, image_results, raster_mask_repeated, occlusion_fg_mask_repeated), axis=2)
+        # result_concatenated = torch.cat((input_image, image_results, raster_mask_repeated, occlusion_fg_mask_repeated), axis=3)
 
         # fig = px.imshow(result_concatenated[0].permute(1,2,0).cpu().numpy())
         # fig.show()
+        if return_other_results:
+            return occlusion_fg_mask, reconstructed_results
 
         return occlusion_fg_mask
 

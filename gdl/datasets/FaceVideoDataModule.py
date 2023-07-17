@@ -609,7 +609,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
         return net, "emo_net"
 
-    def _segment_faces_in_sequence(self, sequence_id, use_aligned_videos=False):
+    def _segment_faces_in_sequence(self, sequence_id, use_aligned_videos=False, segmentation_net=None):
         video_file = self.video_list[sequence_id]
         print("Segmenting faces in sequence: '%s'" % video_file)
         # suffix = Path(self._video_category(sequence_id)) / 'detections' /self._video_set(sequence_id) / video_file.stem
@@ -637,7 +637,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # else: 
         #     landmarks = None
 
-        self._segment_images(detections, out_segmentation_folder) 
+        self._segment_images(detections, out_segmentation_folder, segmentation_net=segmentation_net) 
 
     def _extract_emotion_from_faces_in_sequence(self, sequence_id):
 
