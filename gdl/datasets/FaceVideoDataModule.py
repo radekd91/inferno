@@ -277,7 +277,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
     def _get_segmentation_method(self):
         return ""
 
-    def _get_path_to_sequence_segmentations(self, sequence_id, use_aligned_videos=False):
+    def _get_path_to_sequence_segmentations(self, sequence_id, use_aligned_videos=False, segmentation_net=None):
         if self.save_detection_images: 
             # landmarks will be saved wrt to the detection images
             segmentation_subfolder = "segmentations" 
@@ -288,7 +288,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             # so better put them in a different folder to make it clear
             segmentation_subfolder = "segmentations_original"
 
-        method = self._get_segmentation_method()
+        method = segmentation_net or self._get_segmentation_method()
 
         return self._get_path_to_sequence_files(sequence_id, segmentation_subfolder, method=method)
         # return self._get_path_to_sequence_files(sequence_id, "segmentations")
@@ -628,7 +628,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             detections = detections.astype(np.float32) / 255.
             
 
-        out_segmentation_folder = self._get_path_to_sequence_segmentations(sequence_id, use_aligned_videos=use_aligned_videos)
+        out_segmentation_folder = self._get_path_to_sequence_segmentations(sequence_id, use_aligned_videos=use_aligned_videos, segmentation_net=segmentation_net)
         out_segmentation_folder.mkdir(exist_ok=True, parents=True)
 
         # if self.save_landmarks_frame_by_frame: 
