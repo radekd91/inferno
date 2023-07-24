@@ -159,9 +159,10 @@ class LRS3DataModule(FaceVideoDataModule):
         out_folder = video_file.parts[-3]
         return out_folder
 
-    def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix=""): 
-        assert file_type in ['videos', 'detections', "landmarks", "landmarks_original", "segmentations", "segmentations_original",
-            "emotions", "reconstructions",  "audio", "videos_restored" ]
+    def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix="", assert_=True): 
+        if assert_:
+            assert file_type in ['videos', 'detections', "landmarks", "landmarks_original", "segmentations", "segmentations_original",
+                "emotions", "reconstructions",  "audio", "videos_restored" ]
         video_file = self.video_list[sequence_id]
         if len(method) > 0:
             # file_type += "_" + method 

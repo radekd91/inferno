@@ -817,20 +817,31 @@ def plot_verts(image, kpts, color='r'):
     return image
 
 
-def tensor_vis_landmarks(images, landmarks, gt_landmarks=None, color='g', isScale=True, rgb2bgr=True, scale_colors=True):
+def detach_to_cpu_numpy(tensor): 
+    if isinstance(tensor, torch.Tensor):
+        return tensor.detach().cpu().numpy()
+    elif isinstance(tensor, np.ndarray):
+        return tensor
+    else:
+        raise TypeError('tensor should be torch.Tensor or np.ndarray, but got {}'.format(type(tensor)))
+
+def tensor_vis_landmarks(images, landmarks, gt_landmarks=None, color='g', isScale=True, rgb2bgr=True, scale_colors=True, transpose=True):
     # visualize landmarks
     vis_landmarks = []
-    images = images.cpu().numpy()
-    predicted_landmarks = landmarks.detach().cpu().numpy()
+    is_torch = isinstance(images, torch.Tensor)
+    images = detach_to_cpu_numpy(images)
+    predicted_landmarks = detach_to_cpu_numpy(landmarks)
     if gt_landmarks is not None:
-        gt_landmarks_np = gt_landmarks.detach().cpu().numpy()
+        gt_landmarks_np = detach_to_cpu_numpy(gt_landmarks)
     if rgb2bgr:
         color_idx = [2, 1, 0]
     else:
         color_idx = [0, 1, 2]
     for i in range(images.shape[0]):
         image = images[i]
-        image = image.transpose(1, 2, 0)[:, :, color_idx].copy()
+        if transpose:
+            image = image.transpose(1, 2, 0)
+        image = image[:, :, color_idx].copy()
         if scale_colors:
             image = image * 255
         if isScale:
@@ -850,10 +861,14 @@ def tensor_vis_landmarks(images, landmarks, gt_landmarks=None, color='g', isScal
         vis_landmarks.append(image_landmarks)
 
     vis_landmarks = np.stack(vis_landmarks)
-    vis_landmarks = torch.from_numpy(
-        vis_landmarks[:, :, :, color_idx].transpose(0, 3, 1, 2))
+    if transpose:
+        vis_landmarks = vis_landmarks[:, :, :, color_idx].transpose(0, 3, 1, 2)
+    else:
+        vis_landmarks = vis_landmarks[:, :, :, color_idx]
     if scale_colors:
         vis_landmarks /= 255.  # , dtype=torch.float32)
+    if is_torch:
+        vis_landmarks = torch.from_numpy(vis_landmarks)
     return vis_landmarks
 
 

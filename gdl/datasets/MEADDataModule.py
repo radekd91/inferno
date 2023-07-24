@@ -305,11 +305,12 @@ class MEADDataModule(FaceVideoDataModule):
         num_shards = int(np.ceil( self.num_sequences / videos_per_shard))
         return num_shards
 
-    def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix=""): 
-        assert file_type in ['videos', 'videos_aligned', 'detections', 
-            "landmarks", "landmarks_original", "landmarks_aligned",
-            "segmentations", "segmentations_aligned",
-            "emotions", "reconstructions", "audio"]
+    def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix="", assert_=True): 
+        if assert_:
+            assert file_type in ['videos', 'videos_aligned', 'detections', 
+                "landmarks", "landmarks_original", "landmarks_aligned",
+                "segmentations", "segmentations_aligned",
+                "emotions", "reconstructions", "audio"]
         video_file = self.video_list[sequence_id]
         if len(method) > 0:
             file_type += "_" + method 
@@ -423,11 +424,12 @@ class MEADDataModule(FaceVideoDataModule):
             
         print("Done processing shard")
 
-    def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix=""): 
-        assert file_type in ['videos', 'videos_aligned', 'detections', 
-            "landmarks", "landmarks_original", "landmarks_aligned",
-            "segmentations", "segmentations_aligned",
-            "emotions", "reconstructions", "audio"]
+    def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix="", assert_=True): 
+        if assert_:
+            assert file_type in ['videos', 'videos_aligned', 'detections', 
+                "landmarks", "landmarks_original", "landmarks_aligned",
+                "segmentations", "segmentations_aligned",
+                "emotions", "reconstructions", "audio"]
         video_file = self.video_list[sequence_id]
         if len(method) > 0:
             file_type += "/" + method 

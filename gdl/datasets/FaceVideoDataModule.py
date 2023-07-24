@@ -230,9 +230,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
         for sid in range(self.num_sequences):
             self._detect_faces_in_sequence(sid)
 
-    def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix=""): 
-        assert file_type in ['videos', 'detections', "landmarks", "segmentations", 
-            "emotions", "reconstructions"]
+    def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix="", assert_=True): 
+        if assert_:
+            assert file_type in ['videos', 'detections', "landmarks", "segmentations", 
+                "emotions", "reconstructions"]
         video_file = self.video_list[sequence_id]
         if len(method) > 0:
             file_type += "_" + method 
@@ -258,7 +259,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
     def _get_landmark_method(self):
         return "" # for backwards compatibility (AffectNet, ...), the inheriting classes should specify the method
 
-    def _get_path_to_sequence_landmarks(self, sequence_id, use_aligned_videos=False):
+    def _get_path_to_sequence_landmarks(self, sequence_id, use_aligned_videos=False, landmark_method = None):
 
         if self.save_detection_images: 
             # landmarks will be saved wrt to the detection images
@@ -270,7 +271,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             # so better put them in a different folder to make it clear
             landmark_subfolder = "landmarks_original"
 
-        method = self._get_landmark_method()
+        method = landmark_method or self._get_landmark_method()
 
         return self._get_path_to_sequence_files(sequence_id, landmark_subfolder, method=method)
 
@@ -293,6 +294,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
         return self._get_path_to_sequence_files(sequence_id, segmentation_subfolder, method=method)
         # return self._get_path_to_sequence_files(sequence_id, "segmentations")
 
+    def _get_path_to_sequence_visualizations(self, sequence_id):
+        return self._get_path_to_sequence_files(sequence_id, "visualizations", assert_=False)
 
     # def _get_path_to_sequence_landmarks(self, sequence_id):
     #     return self._get_path_to_sequence_files(sequence_id, "landmarks")
@@ -2857,6 +2860,127 @@ class FaceVideoDataModule(FaceDataModuleBase):
     def _get_bb_center_from_fname(self, fname, detection_fname_list, center_list):
         i1, i2 = self._get_bb_from_fname(fname, detection_fname_list)
         return center_list[i1][i2]
+
+
+    def _create_video_from_mediapipe_landmarks(self, video_frames, landmarks_mp): 
+        from gdl.utils.MediaPipeLandmarkDetector import np2mediapipe
+        landmarks_mp_list = [] 
+        # landmarks_mp_scaled = landmarks_mp / self.image_size
+        for i in range(landmarks_mp.shape[0]):
+            landmarks_mp_proto = np2mediapipe(landmarks_mp[i] / video_frames.shape[2])
+            # landmarks_mp_proto = np2mediapipe(landmarks_mp_scaled)
+            # landmarks_mp_proto = np2mediapipe(landmarks_mp[i] )
+            landmarks_mp_list.append(landmarks_mp_proto)
+
+        # Load drawing_utils and drawing_styles
+        import mediapipe as mp
+        mp_drawing = mp.solutions.drawing_utils 
+        mp_drawing_styles = mp.solutions.drawing_styles
+        mp_face_mesh = mp.solutions.face_mesh
+
+        video_frames_landmarks_mp = np.copy(video_frames)
+        for i in range(video_frames_landmarks_mp.shape[0]):
+            mp_drawing.draw_landmarks(
+                image=video_frames_landmarks_mp[i],
+                landmark_list=landmarks_mp_list[i],
+                connections=mp_face_mesh.FACEMESH_CONTOURS,
+                landmark_drawing_spec=None,
+                connection_drawing_spec=mp_drawing_styles
+                .get_default_face_mesh_contours_style()
+                )
+        return video_frames_landmarks_mp
+
+
+    def _create_video_from_fan_landmarks(self, video_frames, landmarks_fan):
+        from gdl.utils.DecaUtils import tensor_vis_landmarks
+        N = video_frames.shape[0]
+
+        lmk_im = np.copy(video_frames)
+        width = lmk_im.shape[2]
+        height = lmk_im.shape[1]
+        # scale the landmarks to the image size
+        landmarks_fan = landmarks_fan * np.array([[[width, height]]])
+        lmk_im = tensor_vis_landmarks(lmk_im,
+                                        landmarks_fan,
+                                        transpose=False,
+                                        isScale=False, rgb2bgr=False, scale_colors=False) 
+        return lmk_im
+
+
+    def _create_video_from_sequence(self, idx): 
+        from gdl.utils.video import save_video, concatenate_videos, save_video_with_audio
+        extract_audio=True
+        # restore_videos=True
+        detect_landmarks=True
+        recognize_faces=True
+        # cut_out_faces=True
+        segment_videos=True
+        # detect_aligned_landmarks=False
+        reconstruct_faces=False
+        # recognize_emotions=False
+
+        # 0a) get the video path 
+        video_path = self._get_path_to_aligned_videos(idx)
+        # 0b) get the audio path
+        audio_path = self._get_path_to_sequence_audio(idx)
+        # 0c) get path to the landmarks
+        mp_landmarks_path = self._get_path_to_sequence_landmarks(idx, use_aligned_videos=False, landmark_method="mediapipe")
+        fan_landmarks_path = self._get_path_to_sequence_landmarks(idx, use_aligned_videos=True, landmark_method="fan")
+        # 0d) get path to the segmentations
+        bisenet_segmentations_path = self._get_path_to_sequence_segmentations(idx, use_aligned_videos=True, segmentation_net="bisenet")
+        focus_segmentations_path = self._get_path_to_sequence_segmentations(idx, use_aligned_videos=True, segmentation_net="focus")
+
+        # 1) load everything 
+        from skvideo.io import vread 
+        # a) load the video
+        video = vread(str(video_path))
+
+        # b) load the landmarks
+        fan_landmarks, fan_lamdmark_cofindences, _ = FaceDataModuleBase.load_landmark_list_v2(fan_landmarks_path / f"landmarks.pkl")
+        mp_landmark_list= np.stack( FaceDataModuleBase.load_landmark_list(mp_landmarks_path / f"landmarks_aligned_video_smoothed.pkl"), axis=0)
+
+
+        # c) load the segmentations
+        from gdl.datasets.IO import load_emotion_list, load_segmentation_list, process_segmentation
+        bisenet_segmentations = load_segmentation_list(bisenet_segmentations_path / f"segmentations.pkl")
+        focus_segmentations = load_segmentation_list(focus_segmentations_path / f"segmentations.pkl")
+
+        bisenet_type = bisenet_segmentations[-2][0]
+        focus_type = focus_segmentations[-2][0]
+
+        bisenet_segmentations = np.stack(bisenet_segmentations[0], axis=0)
+        focus_segmentations = np.stack(focus_segmentations[0], axis=0)
+
+        bisenet_segmentations =( process_segmentation(bisenet_segmentations, bisenet_type) * 255.).astype(np.uint8)
+        focus_segmentations = (process_segmentation(focus_segmentations, focus_type) * 255. ).astype(np.uint8)
+        # repeat the channel dimensions so that they are 3 channels instead of 1 
+
+        bisenet_segmentations = np.repeat(bisenet_segmentations.transpose(0, 2, 3, 1), 3, axis=3)
+        focus_segmentations = np.repeat(focus_segmentations.transpose(0, 2, 3, 1), 3, axis=3)
+
+        # 2) create the videos 
+        mp_landmark_video = self._create_video_from_mediapipe_landmarks(video, mp_landmark_list)
+        fan_landmark_video = self._create_video_from_fan_landmarks(video, fan_landmarks) 
+
+
+
+        visualization_path = self._get_path_to_sequence_visualizations(idx) 
+        visualization_path.mkdir(parents=True, exist_ok=True)
+
+        # concatenate the videos
+        full_video = np.concatenate([video, mp_landmark_video, fan_landmark_video], axis=1)
+        black = np.zeros_like(video)
+        segmentation_video = np.concatenate([black, bisenet_segmentations, focus_segmentations], axis=1)
+
+        full_video = np.concatenate([full_video, segmentation_video], axis=2)
+
+        # 3) save the videos
+        audio_path = self._get_path_to_sequence_audio(idx)
+
+        vis_file = visualization_path / "video_landmarks.mp4"
+        save_video_with_audio(vis_file, audio_path, full_video) 
+
+        print(f"Visualization for {idx} saved to {vis_file}.")
 
     # def _create_emotional_image_dataset(self,
     #                                     annotation_list=None,

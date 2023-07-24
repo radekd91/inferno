@@ -183,6 +183,10 @@ def process_segmentation(segmentation, seg_type, discarded_labels=None):
         # end = timer()
         # print(f"Segmentation label discarding took {end - start}s")
         return segmentation_proc
+    elif seg_type == "face_segmentation_focus":
+        segmentation = segmentation > 0.5 
+        segmentation = segmentation.astype(np.float32)
+        return segmentation
     else:
         raise ValueError(f"Invalid segmentation type '{seg_type}'")
 

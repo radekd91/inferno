@@ -170,6 +170,7 @@ class CelebVTextDataModule(FaceVideoDataModule):
         num_shards = int(np.ceil( self.num_sequences / videos_per_shard))
         return num_shards
 
+
     def _process_video(self, idx, extract_audio=True, 
             restore_videos=True, 
             detect_landmarks=True, 
@@ -179,6 +180,7 @@ class CelebVTextDataModule(FaceVideoDataModule):
             detect_aligned_landmarks=False,
             reconstruct_faces=False,
             recognize_emotions=False,
+            create_video=False,
             ):
         if extract_audio: 
             self._extract_audio_for_video(idx)
@@ -221,12 +223,16 @@ class CelebVTextDataModule(FaceVideoDataModule):
             emo_methods = ['resnet50', ]
             self._extract_emotion_in_sequence(idx, emo_methods=emo_methods)
   
+        if create_video:
+            self._create_video_from_sequence(idx)
+
 
     def _process_shard(self, videos_per_shard, shard_idx, extract_audio=True,
         restore_videos=True, detect_landmarks=True, segment_videos=True, 
         detect_aligned_landmarks=False,
         reconstruct_faces=False,
         recognize_emotions=False,
+        create_video=False,
     ):
         num_shards = self._get_num_shards(videos_per_shard)
         start_idx = shard_idx * videos_per_shard
@@ -252,15 +258,17 @@ class CelebVTextDataModule(FaceVideoDataModule):
                 detect_aligned_landmarks=detect_aligned_landmarks,
                 reconstruct_faces=reconstruct_faces, 
                 recognize_emotions=recognize_emotions,
+                create_video=create_video,
                 )
             
         print("Done processing shard")
 
-    def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix=""): 
-        assert file_type in ['videos', 'videos_aligned', 'detections', 
-            "landmarks", "landmarks_original", "landmarks_aligned",
-            "segmentations", "segmentations_aligned",
-            "emotions", "reconstructions", "audio"]
+    def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix="", assert_=True): 
+        if assert_:
+            assert file_type in ['videos', 'videos_aligned', 'detections', 
+                "landmarks", "landmarks_original", "landmarks_aligned",
+                "segmentations", "segmentations_aligned",
+                "emotions", "reconstructions", "audio"]
         video_file = self.video_list[sequence_id]
         if len(method) > 0:
             file_type += "/" + method 
@@ -653,7 +661,7 @@ class CelebVTextDataset(VideoDatasetBase):
 
 
     def _path_to_segmentations(self, index): 
-        return (Path(self.output_dir) / f"segmentations/{self.segmentation_source}/{self.segmentation_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
+        return (Path(self.output_dir) / f"segmentations_{self.segmentation_source}/{self.segmentation_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
 
 
     def _path_to_reconstructions(self, index, rec_type): 
