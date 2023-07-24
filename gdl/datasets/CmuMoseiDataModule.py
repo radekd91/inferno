@@ -220,7 +220,8 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                         save_obj=False, save_mat=True, save_vis=False, save_images=False,
                         save_video=False, rec_methods=rec_methods, retarget_from=None, retarget_suffix=None)
         if recognize_emotions:
-            emo_methods = ['resnet50', ]
+            # emo_methods = ['resnet50', ]
+            emo_methods = ['resnet50', 'swin-b']
             self._extract_emotion_in_sequence(idx, emo_methods=emo_methods)
         
         if create_video:
@@ -243,7 +244,9 @@ class CmuMoseiDataModule(FaceVideoDataModule):
         np.random.seed(0)
         np.random.shuffle(idxs)
 
-        if detect_aligned_landmarks: 
+        if detect_aligned_landmarks:             
+            if detect_landmarks: # if detecting both aligned and unaligned landmarks, we need the aligned detector to be the same as unaligned
+                assert self.face_detector_type != 'fan'
             self.face_detector_type = 'fan'
             self._instantiate_detector(overwrite=True)
 
@@ -428,7 +431,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=False,
                 )
-        dataset._allow_alignment_fail = True
+        dataset._allow_alignment_fail = False
         return dataset
 
 

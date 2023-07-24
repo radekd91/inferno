@@ -881,8 +881,9 @@ class VideoDatasetBase(AbstractVideoDataset):
                     assert np.isnan(img_warped).sum() == 0, f"NaNs in image {i} after face aligning image warp." \
                         f"Center: {center[i]}, size: {size[i]}. Are these values valid?"
                 else: 
-                    img_warped[np.isnan(img_warped)] = 0.
-                    print('[WARNING] NaNs in image after face aligning image warp. Center: {}, size: {}. Are these values valid?'.format(center[i], size[i]))
+                    if np.isnan(img_warped).sum() > 0:
+                        img_warped[np.isnan(img_warped)] = 0.
+                        print('[WARNING] NaNs in image after face aligning image warp. Center: {}, size: {}. Are these values valid?'.format(center[i], size[i]))
                 sample["video"][i] = img_warped 
                 # sample["segmentation"][i] = seg_warped * 255.
                 if "segmentation" in sample.keys():
