@@ -447,8 +447,9 @@ def main():
         resume_folder = sys.argv[1]
     else:
         # good model with disentanglement
-        resume_folder = "2023_05_08_20-36-09_8797431074914794141_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
-
+        # resume_folder = "2023_05_08_20-36-09_8797431074914794141_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
+        # NEW MAIN MODEL 
+        resume_folder = "2023_05_18_01-26-32_-6224330163499889169_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
     if len(sys.argv) > 2:
         audio = Path(sys.argv[2])
     else:

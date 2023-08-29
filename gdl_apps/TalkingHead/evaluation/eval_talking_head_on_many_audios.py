@@ -52,7 +52,9 @@ def main():
         resume_folder = sys.argv[1]
     else:
         # good model with disentanglement
-        resume_folder = "2023_05_08_20-36-09_8797431074914794141_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
+        # resume_folder = "2023_05_08_20-36-09_8797431074914794141_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
+        # final models
+        resume_folder = "2023_05_18_01-26-32_-6224330163499889169_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
 
     if len(sys.argv) > 2:
         audio_folder = Path(sys.argv[2])
@@ -60,7 +62,8 @@ def main():
         # audio = Path('/ps/project/EmotionalFacialAnimation/data/lrs3/extracted/test/0Fi83BHQsMA/00002.mp4')
         # audio_folder = Path('/is/cluster/fast/rdanecek/data/lrs3_enspark_testing')
         # audio_folder = Path('/is/cluster/fast/rdanecek/data/lrs3_enspark_testing/test')
-        audio_folder = Path('/is/cluster/work/rdanecek/data/lrs3_enspark_testing_v2')
+        # audio_folder = Path('/is/cluster/work/rdanecek/data/lrs3_enspark_testing_v2')
+        audio_folder = Path('/is/cluster/work/rdanecek/data/lrs3_enspark_testing_silence')
         # audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/pretrain/0akiEFwtkyA/00031.wav')
 
     emotion_index_list = None
