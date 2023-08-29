@@ -27,7 +27,9 @@ dependencies:
   - murmurhash=1.0.5
   # - ninja=1.10.2
   - notebook=6.3.0
-  - numba=0.53.0
+  - numba=0.53.0 ## if numba crashing with a weird error, try installing with: 
+      # LLVM_CONFIG=/usr/local/bin/llvm-config-12 CXXFLAGS=-fPIC pip --no-cache-dir install numba llvmlite
+      # the error in quesion : RuntimeError: Unable to find target for this triple (no targets are registered) Segfault
   - opencv=4.5.5
   - pandas=1.1.5
   - pip=21.2.4
@@ -47,6 +49,7 @@ dependencies:
   - wheel=0.37.0
   - yaml=0.2.5
   - yarl=1.6.3
+  - jiwer=3.0.1
   - pip:
     # - cython>=0.29.21
     - adabound>=0.0.5
@@ -156,4 +159,5 @@ dependencies:
     - wrapt==1.12.1
     - yapf==0.30.0
     - youtube-dl==2021.6.6
+    - phonemizer==3.2.1
 prefix: /home/rdanecek/anaconda3/envs/work38_cu11
