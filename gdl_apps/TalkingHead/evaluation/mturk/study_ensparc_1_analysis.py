@@ -10,6 +10,7 @@ from collections import OrderedDict
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
 
 
 # path_to_result_csv = "/is/cluster/fast/scratch/rdanecek/studies/enspark_v2/results_ensparc_1_pilot.csv"
@@ -21,7 +22,7 @@ path_to_protocols = "/is/cluster/fast/scratch/rdanecek/studies/enspark_final_v1/
 
 
 
-def analyze_participant(header, participant_results, protocol, discard_repeats=True): 
+def analyze_participant(header, participant_results, protocol, discard_repeats=True, process_with_old_bug=False): 
     # assignment_label = '"AssignmentId"'
     # worker_label = '"WorkerId"'
     # img_label = '"Input.images"'
@@ -84,11 +85,30 @@ def analyze_participant(header, participant_results, protocol, discard_repeats=T
     }
 
     unflipped_answers_emo = []
+    unflipped_answers_emo_bug = []
     unflipped_answers_lip = []
+    unflipped_answers_lip_bug = []
+    videos_a_bug = []
+    videos_a = protocol['videos_a_lip'][0]
+    videos_b_bug = []
+    videos_b = protocol['videos_b_lip'][0]
     for i in range(len(answers_emo)):
         if flips[i]:
             unflipped_answers_emo += [flipping[answers_emo[i]]]
             unflipped_answers_lip += [flipping[answers_lip[i]]]
+            unflipped_answers_emo_bug += [flipping[answers_emo[i]]] 
+            unflipped_answers_lip_bug += [flipping[answers_lip[i]]]
+            videos_a_bug += [protocol['videos_a_lip'][0][i]]
+            videos_b_bug += [protocol['videos_b_lip'][0][i]]
+        else: # ORIGINAL STUDY BUG ALERT - THIS IS CONDITION WAS MISSING SO RANDOM 50% OF THE ANSWERS WERE NOT CONSIDERED
+            unflipped_answers_emo += [answers_emo[i]]
+            unflipped_answers_lip += [answers_lip[i]]
+
+    # # SANITY CHECK TO PREVENT THE BUG IN THE FUTURE
+    assert len(unflipped_answers_emo) == len(unflipped_answers_lip) == len(flips) == len(catch_trials) == len(videos_a) == len(videos_b), \
+        "Something went wrong with the flipping. The lengths are not the same."
+    assert len(videos_a_bug) == len(videos_b_bug) == len(unflipped_answers_emo_bug) == len(unflipped_answers_lip_bug), \
+        "Something went wrong with the flipping. The lengths are not the same."
 
     if discard_repeats: 
         unflipped_answers_emo = unflipped_answers_emo[num_repeats:]
@@ -98,21 +118,62 @@ def analyze_participant(header, participant_results, protocol, discard_repeats=T
         answers = answers[num_repeats:]
         catch_trials = catch_trials[num_repeats:]
 
+        unflipped_answers_emo_bug = unflipped_answers_emo_bug[num_repeats:]
+        unflipped_answers_lip_bug = unflipped_answers_lip_bug[num_repeats:]
+        videos_a_bug = videos_a_bug[num_repeats:]
+        videos_b_bug = videos_b_bug[num_repeats:]
+        videos_a = videos_a[num_repeats:]
+        videos_b = videos_b[num_repeats:]
+
     model_preferences_emo = [0] * 5
     catch_preferences_emo = [0] * 5
     model_preferences_lip = [0] * 5
     catch_preferences_lip = [0] * 5
-    for i in range(len(unflipped_answers_emo)):
-        if catch_trials[i] == 1:
-            catch_preferences_emo[int(unflipped_answers_emo[i])-1] += 1
-        else:
-            model_preferences_emo[int(unflipped_answers_emo[i])-1] += 1
 
-    for i in range(len(unflipped_answers_lip)):
+
+    # process_with_old_bug = False
+    if process_with_old_bug:
+        n_answers = len(unflipped_answers_emo_bug)
+    else:
+        n_answers = len(unflipped_answers_emo)
+
+    # for i in range(len(unflipped_answers_emo)):
+    for i in range(n_answers):
         if catch_trials[i] == 1:
-            catch_preferences_lip[int(unflipped_answers_lip[i])-1] += 1
+            # print("Correct trial A: ",videos_a[i])
+            # print("Correct trial B: ",videos_b[i])
+            # print("Correct answer: ", unflipped_answers_emo[i])
+            # print("Bugged trial A: ", videos_a_bug[i])
+            # print("Bugged trial B: ", videos_b_bug[i])
+            # print("Bugged answer: ", unflipped_answers_emo_bug[i])
+            # # print("Flip: ", flips[i])
+            if not process_with_old_bug:
+                catch_preferences_emo[int(unflipped_answers_emo[i])-1] += 1
+            else:
+                catch_preferences_emo[int(unflipped_answers_emo_bug[i])-1] += 1
+            
         else:
-            model_preferences_lip[int(unflipped_answers_lip[i])-1] += 1
+            if not process_with_old_bug:
+                model_preferences_emo[int(unflipped_answers_emo[i])-1] += 1
+            else:
+                model_preferences_emo[int(unflipped_answers_emo_bug[i])-1] += 1
+
+    # for i in range(len(unflipped_answers_lip)):
+    if process_with_old_bug:
+        n_answers = len(unflipped_answers_lip_bug)
+    else:
+        n_answers = len(unflipped_answers_lip)
+    for i in range(n_answers):
+        if catch_trials[i] == 1:
+            if not process_with_old_bug:
+                catch_preferences_lip[int(unflipped_answers_lip[i])-1] += 1
+            else:
+                catch_preferences_lip[int(unflipped_answers_lip_bug[i])-1] += 1
+        else:
+            if not process_with_old_bug:
+                model_preferences_lip[int(unflipped_answers_lip[i])-1] += 1
+            else:
+                model_preferences_lip[int(unflipped_answers_lip_bug[i])-1] += 1
     
     caught_emo = False
     if sum(catch_preferences_emo[:2]) < sum(catch_preferences_emo[2:]):
@@ -127,7 +188,7 @@ def analyze_participant(header, participant_results, protocol, discard_repeats=T
 
     
 # def analyze_single_batch(header, result_lines, assignment_id, protocol):
-def analyze_single_batch(header, result_lines, protocol):
+def analyze_single_batch(header, result_lines, protocol, process_with_old_bug=False, use_lip_catch=True, use_emo_catch=True):
     # assignment_label = '"AssignmentId"'
     # assignment_idx = header.index(assignment_label)
     # find all the results with the same assignment id
@@ -142,10 +203,20 @@ def analyze_single_batch(header, result_lines, protocol):
     num_participants = len(assignment_results)
     num_useful_participants = len(assignment_results)
     for result in assignment_results:
-        preferences_emo, preferences_lip, caught_emo, caught_lips = analyze_participant(header, result, protocol)
-        if caught_emo or caught_lips:
-            num_useful_participants -= 1
-            continue
+        preferences_emo, preferences_lip, caught_emo, caught_lips = analyze_participant(header, result, protocol, process_with_old_bug=process_with_old_bug)
+        # if caught_emo or caught_lips: ## ORIGINAL STUDY WAS CATCHING AND LIPS. THIS MAY BE UNFAIR AND IT MAY BE BETTER TO CATCH ONLY ON LIPS
+        if use_emo_catch and use_lip_catch:
+            if caught_emo or caught_lips:
+                num_useful_participants -= 1
+                continue
+        elif use_lip_catch:
+            if caught_lips:
+                num_useful_participants -= 1
+                continue
+        elif use_emo_catch:
+            if caught_emo:
+                num_useful_participants -= 1
+                continue
         all_preferences_emo += [preferences_emo]
         all_preferences_lip += [preferences_lip]
         summed_preferences_emo += preferences_emo
@@ -206,6 +277,12 @@ def analyze(results, protocol):
     
     batches = {}
 
+    # process_with_old_bug = False
+    process_with_old_bug = True
+    # use_lip_catch = True
+    use_lip_catch = False
+    # use_emo_catch = True
+    use_emo_catch = False
 
     num_batches = len(protocol)
     num_participants = len(result_lines) // num_batches
@@ -220,7 +297,10 @@ def analyze(results, protocol):
 
         avg_preferences_emo, avg_preferences_lip, all_preferences_emo,\
               all_preferences_lip, num_participants, num_useful_participants \
-                = analyze_single_batch(header, batch_results, batch_protocol)
+                = analyze_single_batch(header, batch_results, batch_protocol, 
+                                       process_with_old_bug=process_with_old_bug, 
+                                       use_lip_catch=use_lip_catch,
+                                       use_emo_catch=use_emo_catch)
         batches[batch_i] = {
             'protocol_name' : protocol_name,
             'model_a' : batch_protocol['model_a'],
@@ -244,15 +324,24 @@ def analyze(results, protocol):
         print("Preference lip B:", 2*avg_preferences_lip[-1] +  avg_preferences_lip[-2])
         
 
-    merged_hist(batches, title="Average preferences for emotion: EMOTE vs ablation models",
-                output_path=Path(__file__).parent / "study_result_1_emo.pdf",
-                metric="preferences_emo"
-                )
+    # merged_hist(batches, title="Average preferences for emotion: EMOTE vs ablation models",
+    #             output_path=Path(__file__).parent / "study_result_1_emo.pdf",
+    #             metric="preferences_emo"
+    #             )
     
-    merged_hist(batches, title="Average preferences for lip sync: EMOTE vs ablation models",
-                output_path=Path(__file__).parent / "study_result_1_lip.pdf",
-                metric="preferences_lip"
-                )
+    # merged_hist(batches, title="Average preferences for lip sync: EMOTE vs ablation models",
+    #             output_path=Path(__file__).parent / "study_result_1_lip.pdf",
+    #             metric="preferences_lip"
+    #             )
+    suffix = "_bugged" if process_with_old_bug else ""
+    if not use_emo_catch and not use_lip_catch:
+        suffix += "_no_catch"
+    elif not use_emo_catch:
+        suffix += "_no_emo_catch"
+    elif not use_lip_catch:
+        suffix += "_no_lip_catch"
+
+    plot_likert_results(batches, suffix=suffix)
 
 
 model_name_dict = {
@@ -262,6 +351,16 @@ model_name_dict = {
     '2023_05_16_20-26-30_5452619485602726463_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm' : 'EMOTE \wo FLINT',
     '2023_05_13_21-00-49_-6819445356403438364_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm' : 'EMOTE \wo any perceptual losses',
     '2023_05_18_01-58-31_6242149878645900496_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmEmmLmm' : 'EMOTE \w static emotion loss',
+    '2023_05_10_13-10-08_8067654090108546902_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV' : 'FaceFormer-EMO',
+}
+
+model_name_dict_likert = { ## same dict, just the values are formatted for likert plots
+    '2023_05_16_23-13-12_-2523817769843276359_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm' : 'EMOTE w/o \n disentanglement',
+    '2023_05_18_01-27-11_7629119778539369902_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm' : 'EMOTE w/o video \nemotion loss',
+    '2023_05_18_01-28-06_-6355446600867862848_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm' : 'EMOTE w/o lip \nreading loss',
+    '2023_05_16_20-26-30_5452619485602726463_FaceFormer_MEADP_Awav2vec2_Elinear_DFlameBertDecoder_Seml_PPE_Tff_predEJ_LVmmmLmm' : 'EMOTE \nw/o FLINT',
+    '2023_05_13_21-00-49_-6819445356403438364_FaceFormer_MEADP_Awav2vec2T_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm' : 'EMOTE w/o any \nperceptual losses',
+    '2023_05_18_01-58-31_6242149878645900496_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmEmmLmm' : 'EMOTE w/ static \nemotion loss',
     '2023_05_10_13-10-08_8067654090108546902_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV' : 'FaceFormer-EMO',
 }
     
@@ -297,7 +396,7 @@ def merged_hist(batches, title, metric, order=None, with_std=False, fig=None, ou
     # plt.xlabel('Value')
     plt.ylabel('Participant average preference')
     plt.title(title)
-    fig.gca().set_xticklabels(["", "Strongly\n ours", "Weakly\n ours", "Indifferent", "Weakly\n other", "Stongly\n other"])
+    fig.gca().set_xticklabels(["", "Strongly\n ours", "Weakly\n ours", "Indifferent", "Weakly\n other", "Strongly\n other"])
     # disable x ticks but keep the labels 
     plt.tick_params(axis='x', which='both', length=0)
     plt.show()
@@ -305,7 +404,145 @@ def merged_hist(batches, title, metric, order=None, with_std=False, fig=None, ou
     if output_path is not None:
         # export to pdf, no white borders
         fig.savefig(output_path, bbox_inches='tight', pad_inches=0)
+
+
+def plot_likert_results(batches, order=None, suffix=""): 
+    order = order or list(range(len(batches)))
+    columns = [] 
+    data_sync = []
+    data_emo = []
+    num_valid_participants = []
+    for key in batches.keys():
+        columns += [model_name_dict_likert[batches[key]['model_b']]]
+        # data += [np.sum(np.stack(batches[key]['all_preferences_sync'], axis=0), axis=0)]
+        data_sync += [ np.sum(np.stack(batches[key]['all_preferences_lip'], axis=1), axis=1)]
+        data_emo += [ np.sum(np.stack(batches[key]['all_preferences_emo'], axis=1), axis=1)]
+        num_valid_participants += [str(batches[key]['num_useful_participants']) + "/" + str(batches[key]['num_participants'])]
+
+    data_sync = np.stack(data_sync, axis=0)  
+    data_emo = np.stack(data_emo, axis=0)
+
+    # data_sync = data_sync / np.sum(data_sync, axis=1, keepdims=True)
+    # data_emo = data_emo / np.sum(data_emo, axis=1, keepdims=True)
+
+    # create a pandas data frame with rows as batches and columns as model_b
+    likert_scale =  ["Strongly ours", "Weakly ours", "Indifferent", "Weakly other", "Strongly other"]
+    df_sync = pd.DataFrame(data_sync, columns=likert_scale, index= columns)
+    df_emo = pd.DataFrame(data_emo, columns=likert_scale, index= columns)
+
+    # reorder using the order
+    df_sync = df_sync.iloc[order]
+    df_emo = df_emo.iloc[order]
+    num_valid_participants = [num_valid_participants[i] for i in order]
+
+    # fileformat = "png"
+    # fileformat = "pdf"
+
+    fileformats = [".png", ".pdf"]
+
+    for fileformat in fileformats:
+        # sync_fname = Path(path_to_protocols) / "likert_sync_all"
+        # emo_fname = Path(path_to_protocols) / "likert_emo_all"
+
+        # sync_fname = Path(path_to_protocols) / "likert_sync_vs_sota"
+        # emo_fname = Path(path_to_protocols) / "likert_emo_vs_sota"
+
+        sync_fname = Path(path_to_protocols) / f"likert_sync_vs_ablations_{suffix}"
+        emo_fname = Path(path_to_protocols) / f"likert_emo_vs_ablations_{suffix}"
+
+        # sync_fname = Path(path_to_protocols) / "likert_sync_vs_ablations_no_catch"
+        # emo_fname = Path(path_to_protocols) / "likert_emo_vs_ablations_no_catch"
+
+        # sync_fname = Path(path_to_protocols) / "likert_sync_vs_ablations_no_catch_bugged"
+        # emo_fname = Path(path_to_protocols) / "likert_emo_vs_ablations_no_catch_bugged"
+
+        # sync_fname = Path(path_to_protocols) / "likert_sync_vs_ablations_bugged"
+        # emo_fname = Path(path_to_protocols) / "likert_emo_vs_ablations_bugged"
+
+        # sync_fname = Path(path_to_protocols) / "likert_gestures_sync.pdf"
+        # emo_fname = Path(path_to_protocols) / "likert_gestures_emo.pdf"
+
+        plot_likert_scale(df_sync, sync_fname.with_suffix(fileformat), likert_scale=likert_scale, 
+                        num_parcitipants=num_valid_participants,
+                        title="Average preferences for lip sync: EMOTE vs ablation models")
+
+        plot_likert_scale(df_emo, emo_fname.with_suffix(fileformat), likert_scale=likert_scale, 
+                        num_parcitipants=num_valid_participants,
+                        title="Average preferences for emotion: EMOTE vs ablation models")
+
+
+
+
+def plot_likert_scale(df, filename, likert_scale = None, title="", num_parcitipants=None):
+    import plot_likert
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
     
+
+
+    # rng = np.random.default_rng(seed=42)
+    # df = pd.DataFrame(rng.choice(plot_likert.scales.agree, (10,2)), columns=columns)
+    # df = pd.DataFrame(data, columns=columns)
+
+    likert_scale = likert_scale or ["Strongly ours", "Weakly ours", "Indifferent", "Weakly other", "Strongly other"]
+
+    import plot_likert.colors as builtin_colors
+
+    # plot_likert.plot_likert(df, likert_scale, plot_percentage=False, bar_labels=True) 
+    plot_likert.plot_counts(df, likert_scale, 
+                            compute_percentages=True, 
+                            bar_labels=True, 
+                            colors=builtin_colors.default_with_darker_neutral[:1] + builtin_colors.default_with_darker_neutral[-1:0:-1])
+    plt.gcf() 
+
+    plt.title(title)
+    # get rid of the figure border
+    plt.gca().set_frame_on(False)
+    # disable y ticks but keep the labels
+    plt.tick_params(axis='y', which='both', length=0)
+
+
+    # put y axis closer together
+
+
+    # disable x axis label 
+    plt.gca().set_xlabel("")
+
+    # place the legend better 
+    plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), fancybox=True, shadow=True, ncol=5)
+    # widen the figure along x axis
+    plt.gcf().set_size_inches(12, 4)
+
+    # # get rid of the x ticks and labels
+    plt.gca().set_xticks([])
+    plt.gca().set_xticklabels([])
+
+    # set x axis range from -80 to 80
+    plt.gca().set_xlim(0., 160.)
+    # # squeeze y axis a bit changing the aspect ratio
+    plt.gca().set_aspect(7)
+
+    # add a second set of y tick labels to the other side of the plot
+    if num_parcitipants is not None:
+        right_labels = reversed( num_parcitipants)
+        for tick, label in zip(plt.gca().get_yticks(), right_labels):
+            plt.gca().text(1.02, tick, label, transform=plt.gca().get_yaxis_transform(),
+                    ha='left', va='center')
+        # add one extra label above the last one
+        plt.gca().text(1.02, plt.gca().get_yticks()[-1] + .6, "valid / total\nparticipants", 
+                       transform=plt.gca().get_yaxis_transform(),
+                    ha='center', va='center')
+    # plt.gca().yaxis.set_label_position("right")
+    # plt.gca().yaxis.tick_right()
+    # plt.gca().set_yticklabels(["Strongly\n ours", "Weakly\n ours", "Indifferent", "Weakly\n other", "Stongly\n other"])
+
+    # make title 50% bigger
+    plt.title(title, fontsize=18)
+
+    # plt.show()
+    plt.savefig(filename)
+    plt.close()
 
 
 def main():
