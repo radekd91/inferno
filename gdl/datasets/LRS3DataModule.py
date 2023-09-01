@@ -53,6 +53,9 @@ class LRS3DataModule(FaceVideoDataModule):
                 include_raw_audio = True,
                 preload_videos=False,
                 inflate_by_video_size=False,
+                landmark_types = None,
+                landmark_sources=None,
+                segmentation_source=None,
                 ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, device, 
@@ -87,6 +90,10 @@ class LRS3DataModule(FaceVideoDataModule):
         self.occlusion_settings_val = occlusion_settings_val or {}
         self.occlusion_settings_test = occlusion_settings_test or {}
         self.augmentation = augmentation
+
+        self.landmark_types = landmark_types or ["mediapipe", "fan"]
+        self.landmark_sources = landmark_sources or ["original", "aligned"]
+        self.segmentation_source = segmentation_source or "aligned"
 
     def prepare_data(self):
         # super().prepare_data()
@@ -567,6 +574,10 @@ class LRS3DataModule(FaceVideoDataModule):
                 occlusion_probability_left_eye = 0.0,
                 occlusion_probability_right_eye = 0.0,
                 occlusion_probability_face = 0.0,
+
+                landmark_source=self.landmark_sources,
+                landmark_types=self.landmark_types,
+                segmentation_source=self.segmentation_source,
             )
 
         return dataset
@@ -584,6 +595,10 @@ class LRS3DataModule(FaceVideoDataModule):
                 temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+
+                landmark_source=self.landmark_sources,
+                landmark_types=self.landmark_types,
+                segmentation_source=self.segmentation_source,
               )
 
 
@@ -597,6 +612,10 @@ class LRS3DataModule(FaceVideoDataModule):
                 temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+                
+                landmark_source=self.landmark_sources,
+                landmark_types=self.landmark_types,
+                segmentation_source=self.segmentation_source,
             )
 
 
@@ -608,6 +627,11 @@ class LRS3DataModule(FaceVideoDataModule):
                 temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+
+                
+                landmark_source=self.landmark_sources,
+                landmark_types=self.landmark_types,
+                segmentation_source=self.segmentation_source,
                 )
 
         if "specific_identity" in self.split: 
@@ -621,6 +645,11 @@ class LRS3DataModule(FaceVideoDataModule):
                 occlusion_probability_left_eye = 0.0,
                 occlusion_probability_right_eye = 0.0,
                 occlusion_probability_face = 0.0,
+
+                
+                landmark_source=self.landmark_sources,
+                landmark_types=self.landmark_types,
+                segmentation_source=self.segmentation_source,
             )
 
         # if self.mode in ['all', 'manual']:

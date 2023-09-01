@@ -81,7 +81,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         self.video_list = video_list
         self.video_indices = video_indices
         self.video_metas = video_metas
-        self.sequence_length = sequence_length
+        self.sequence_length = sequence_length or 1
         # self.audio_paths = audio_paths
         self.audio_metas = audio_metas
         self.audio_noise_prob = audio_noise_prob

@@ -30,14 +30,19 @@ class FlameShapeModel(ShapeModel):
         globpose = sample["globalpose"]
         posecode = torch.cat([globpose, jawpose], dim=-1)
 
-        B = shapecode.shape[0]
-        T = shapecode.shape[1]
+        if shapecode.ndim == 3:
+            B = shapecode.shape[0]
+            T = shapecode.shape[1]
+        else: 
+            B = shapecode.shape[0]
+            T = None
 
         # batch-temporal squeeze
-        shapecode = shapecode.view(B*T, *shapecode.shape[2:])
-        expcode = expcode.view(B*T, *expcode.shape[2:])
-        texcode = texcode.view(B*T, *texcode.shape[2:])
-        posecode = posecode.view(B*T, *posecode.shape[2:])
+        if T is not None:
+            shapecode = shapecode.view(B*T, *shapecode.shape[2:])
+            expcode = expcode.view(B*T, *expcode.shape[2:])
+            texcode = texcode.view(B*T, *texcode.shape[2:])
+            posecode = posecode.view(B*T, *posecode.shape[2:])
 
         out = self.flame(
                 shape_params=shapecode, 
@@ -62,14 +67,15 @@ class FlameShapeModel(ShapeModel):
                 self.deca.config.uv_size], device=shapecode.device) * 0.5
 
         # batch temporal unsqueeze
-        verts = verts.view(B, T, *verts.shape[1:])
-        landmarks2d = landmarks2d.view(B, T, *landmarks2d.shape[1:])
-        landmarks3d = landmarks3d.view(B, T, *landmarks3d.shape[1:])
-        if landmarks2d_mediapipe is not None:
-            landmarks2d_mediapipe = landmarks2d_mediapipe.view(B, T, *landmarks2d_mediapipe.shape[1:])
-        # if landmarks3d_mediapipe is not None:
-        #     landmarks3d_mediapipe = landmarks3d_mediapipe.view(B, T, *landmarks3d_mediapipe.shape[1:])
-        albedo = albedo.view(B, T, *albedo.shape[1:])
+        if T is not None:
+            verts = verts.view(B, T, *verts.shape[1:])
+            landmarks2d = landmarks2d.view(B, T, *landmarks2d.shape[1:])
+            landmarks3d = landmarks3d.view(B, T, *landmarks3d.shape[1:])
+            if landmarks2d_mediapipe is not None:
+                landmarks2d_mediapipe = landmarks2d_mediapipe.view(B, T, *landmarks2d_mediapipe.shape[1:])
+            # if landmarks3d_mediapipe is not None:
+            #     landmarks3d_mediapipe = landmarks3d_mediapipe.view(B, T, *landmarks3d_mediapipe.shape[1:])
+            albedo = albedo.view(B, T, *albedo.shape[1:])
         
         sample["verts"] = verts
         sample["predicted_landmarks2d_flame_space"] = landmarks2d

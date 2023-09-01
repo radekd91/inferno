@@ -1,0 +1,13 @@
+type: FlameShapeModel
+
+flame: 
+  type: flame_mediapipe
+  flame_model_path: /ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl 
+  # n_shape: 100 
+  n_shape: 300 
+  # n_exp: 50
+  n_exp: 100
+  flame_lmk_embedding_path: /ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy 
+  flame_mediapipe_lmk_embedding_path: /ps/scratch/rdanecek/data/FLAME/geometry/mediapipe_landmark_embedding.npz
+
+use_texture: false
