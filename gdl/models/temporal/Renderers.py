@@ -667,10 +667,15 @@ class FixedViewFlameRenderer(FlameRenderer):
         return mouth_sequence
 
 
-def cut_mouth_vectorized(images, landmarks, 
-    mouth_window_margin, mouth_landmark_start_idx, mouth_landmark_stop_idx, 
-    mouth_crop_height, mouth_crop_width,
-    convert_grayscale=True):
+def cut_mouth_vectorized(images, 
+                         landmarks, 
+                         mouth_window_margin, 
+                         mouth_landmark_start_idx, 
+                         mouth_landmark_stop_idx,
+                         mouth_crop_height, 
+                         mouth_crop_width,
+                         convert_grayscale=True
+                         ):
             
     with torch.no_grad():
         image_size = images.shape[-1] / 2

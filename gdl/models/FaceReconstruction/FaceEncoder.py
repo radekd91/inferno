@@ -55,11 +55,6 @@ class DecaEncoder(FaceEncoderBase):
         code_vec = self.encoder(image)
         batch = self._decompose_code(batch, code_vec)
         return batch
-
-    def _unwrap_list(self, codelist): 
-        shapecode, texcode, expcode, posecode, cam, lightcode = codelist
-        return shapecode, texcode, expcode, posecode, cam, lightcode
-
     
     def _decompose_code(self, batch, code):
         '''
@@ -160,8 +155,8 @@ class MicaDecaEncoder(FaceEncoderBase):
 
 class ExpressionEncoder(DecaEncoder): 
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, cfg, *args, **kwargs) -> None:
+        super().__init__(cfg, *args, **kwargs)
 
     def initialize_from(self, other_encoder):
         other_state_dict = copy.deepcopy(other_encoder.state_dict())
@@ -170,11 +165,11 @@ class ExpressionEncoder(DecaEncoder):
 
 class EmocaEncoder(FaceEncoderBase):
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, cfg, *args, **kwargs) -> None:
+        super().__init__(cfg, *args, **kwargs)
         self.deca_encoder = DecaEncoder(config=self.config)
         self.expression_encoder = ExpressionEncoder(config=self.config)
-        self.initialize_expression_encoder(self.deca_encoder)
+        # self.initialize_expression_encoder(self.deca_encoder)
 
     def initialize_expression_encoder(self, other_encoder):
         self.expression_encoder.initialize_from(other_encoder)
@@ -190,11 +185,11 @@ class EmocaEncoder(FaceEncoderBase):
 
 class EmicaEncoder(FaceEncoderBase): 
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.mica_deca_encoder = MicaDecaEncoder(config=self.config) 
-        self.expression_encoder = ExpressionEncoder(config=self.config)
-        self.initialize_expression_encoder(self.deca_encoder)
+    def __init__(self, cfg, *args, **kwargs) -> None:
+        super().__init__(cfg, *args, **kwargs)
+        self.mica_deca_encoder = MicaDecaEncoder(cfg=self.cfg.encoders.mica_deca_encoder) 
+        self.expression_encoder = ExpressionEncoder(cfg=self.cfg.encoders.expression_encoder)
+        # self.initialize_expression_encoder(self.deca_encoder)
 
     def initialize_expression_encoder(self, other_encoder):
         self.expression_encoder.initialize_from(other_encoder)
@@ -204,6 +199,9 @@ class EmicaEncoder(FaceEncoderBase):
         batch = self.expression_encoder.encode(batch)
         return batch
     
+    def get_trainable_parameters(self):
+        return self.mica_deca_encoder.get_trainable_parameters() + self.expression_encoder.get_trainable_parameters()
+    
 
 def encoder_from_cfg(cfg):
     enc_cfg = cfg.model.face_encoder
@@ -211,7 +209,7 @@ def encoder_from_cfg(cfg):
         encoder = DecaEncoder(cfg=enc_cfg)
     elif enc_cfg.type == "MicaDecaEncoder":
         encoder = MicaDecaEncoder(cfg=enc_cfg)
-    elif enc_cfg.type == "EmocaENcoder": 
+    elif enc_cfg.type == "EmocaEncoder": 
         encoder = EmocaEncoder(cfg=enc_cfg)
     elif enc_cfg.type == "EmicaEncoder":
         encoder = EmicaEncoder(cfg=enc_cfg)

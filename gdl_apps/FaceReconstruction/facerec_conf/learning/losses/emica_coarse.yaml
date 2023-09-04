@@ -40,25 +40,40 @@ losses:
     predicted_key: predicted_image
     target_key: image_unmasked
 
+  emotion_loss:
+    # weight: 10.0 
+    weight: 1.0
+    # weight: 0.1
+    # weight: 0.01
+    # weight: 0.001
+    # weight: 0.0001
+    network_path: /is/cluster/work/rdanecek/emoca/emodeca/2021_11_09_05-15-38_-8198495972451127810_EmoCnn_resnet50_shake_samp-balanced_expr_Aug_early
+    # emo_feat_loss: mse_loss
+    emo_feat_loss: masked_mse_loss
+    trainable: false 
+    normalize_features: false 
+    target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex # trying to make emotion behave as emoca
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+    
+    predicted_key: predicted_image
+    target_key: image_unmasked
+
+  lip_reading_loss: 
+    type: lip_reading_loss
+    weight: 1.
+    # metric: l1
+    metric: cosine_similarity
+    mask_invalid: lip_reading
+    predicted_key: predicted_image
+    target_key: image_unmasked
+    predicted_landmarks: predicted_landmarks
+    target_landmarks: landmarks,fan
+
   expression_reg: 
     type: expression_reg
     weight: 1.
     metric: False
     predicted_key: expcode
-    target_key: False
-
-  tex_reg: 
-    type: tex_reg
-    weight: 1.
-    metric: False
-    predicted_key: texcode
-    target_key: False
-
-  light_reg: 
-    type: light_reg
-    weight: 1.
-    metric: False
-    predicted_key: lightcode
     target_key: False
 
 metrics: 

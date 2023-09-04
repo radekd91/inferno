@@ -98,7 +98,8 @@ def submit(cfg , bid=10):
 def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
-    coarse_conf = "mica_deca_pretrain"
+    # coarse_conf = "mica_deca_pretrain"
+    coarse_conf = "emica_emoca_stage"
 
 
     finetune_modes = [

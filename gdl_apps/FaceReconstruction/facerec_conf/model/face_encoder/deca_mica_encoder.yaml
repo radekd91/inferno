@@ -25,7 +25,6 @@ encoders:
       cam: orth 
       lightcode: spherical_harmonics
 
-
     trainable: true
 
   mica_encoder: 

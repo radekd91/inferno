@@ -31,8 +31,8 @@ class LandmarkLoss(object):
         # make mask have the same ndim as tensor by adding dimensions that are missing (if any)
         return masking(tensor, mask)
 
-
-    def to(self, *args, **kwargs):
+    def to(self, device, *args, **kwargs):
+        self.device = device
         return self
 
 
@@ -86,30 +86,37 @@ class MediaPipeMouthCornerLoss(object):
 
     def __init__(self, device, loss_type='l1'):
         assert loss_type == "l1"
-        super().__init__(device, loss_type) 
+        super().__init__() 
+        self.device = device
 
     def __call__(self, pred, target, *args, mask=None, **kwargs):
         # this landmark loss only corresponds to a subset of mediapipe landmarks, see mp_loss.EMBEDDING_INDICES
-        return mp_loss.mouth_corner_loss(pred, target, mask=mask)
+        if mask is not None:
+            pred = masking(pred, mask)
+            target = masking(target, mask)
+        return mp_loss.mouth_corner_loss(pred, target)
     
-    def to(self, *args, **kwargs):
-        pass
+    def to(self, device, *args, **kwargs):
+        self.device = device
+        return self
 
 
 class MediaPipleEyeDistanceLoss(object):
     
     def __init__(self, device, loss_type='l1'):
         assert loss_type == "l1"
-        super().__init__(device, loss_type) 
+        super().__init__() 
+        self.device = device
 
     def __call__(self, pred, target, *args, mask=None, **kwargs):
         if mask is not None:
             pred = masking(pred, mask)
             target = masking(target, mask)
         # this landmark loss only corresponds to a subset of mediapipe landmarks, see mp_loss.EMBEDDING_INDICES
-        return mp_loss.eyed_loss(pred, target, mask=mask)
+        return mp_loss.eyed_loss(pred, target)
 
-    def to(self, *args, **kwargs):
+    def to(self, device, *args, **kwargs):
+        self.device = device
         return self
 
 
@@ -117,7 +124,8 @@ class MediaPipeLipDistanceLoss(object):
 
     def __init__(self, device, loss_type='l1'):
         assert loss_type == "l1"
-        super().__init__(device, loss_type) 
+        super().__init__() 
+        self.device = device
 
     def __call__(self, pred, target, *args, mask=None, **kwargs):
         if mask is not None:
@@ -126,18 +134,22 @@ class MediaPipeLipDistanceLoss(object):
         # this landmark loss only corresponds to a subset of mediapipe landmarks, see mp_loss.EMBEDDING_INDICES
         return mp_loss.lipd_loss(pred, target)
     
-    def to(self, *args, **kwargs):
+    def to(self, device, *args, **kwargs):
+        self.device = device
         return self
 
 
 class PhotometricLoss(object):
 
     def __init__(self, device, loss_type='l2'):
+        super().__init__() 
         self.device = device
         self.loss_type = loss_type 
 
-    def to(self, *args, **kwargs):
-        pass
+    def to(self, device, *args, **kwargs):
+        self.device = device
+        return self
+
 
     def __call__(self, pred, target, *args, mask=None, **kwargs):
         if mask is not None:
@@ -155,6 +167,7 @@ class PhotometricLoss(object):
 class GaussianRegLoss(object): 
 
     def __init__(self) -> None:
+        super().__init__() 
         pass
 
     def __call__(self, pred, *args, **kwargs):
