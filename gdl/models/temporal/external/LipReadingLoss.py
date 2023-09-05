@@ -146,6 +146,9 @@ class LipReadingLoss(torch.nn.Module):
 
     def _forward_output(self, images):
         return self.model(images)
+    
+    def forward(self, *args, **kwargs):
+        return self.compute_loss(*args, **kwargs)
 
     def compute_loss(self, mouth_images_gt, mouth_images_pred, mask=None):
         lip_features_gt = self._forward_input(mouth_images_gt)

@@ -699,7 +699,7 @@ class VideoDatasetBase(AbstractVideoDataset):
                 landmark_validity = np.concatenate([landmark_validity, np.zeros((sequence_length - landmark_validity.shape[0], 1), 
                     dtype=landmark_validity.dtype)], axis=0)
 
-            landmark_dict[landmark_type] = landmarks
+            landmark_dict[landmark_type] = landmarks.astype(np.float32)
             landmark_validity_dict[landmark_type] = landmark_validity
 
 
@@ -1218,7 +1218,7 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         # split the augmented landmarks back to their original types
         for i, lmk_type in enumerate(sample["landmarks"].keys()):
-            sample["landmarks"][lmk_type] = landmarks_to_augment_aug[:, np.sum(lmk_counts[:i]):np.sum(lmk_counts[:i+1]), :]
+            sample["landmarks"][lmk_type] = landmarks_to_augment_aug[:, np.sum(lmk_counts[:i]):np.sum(lmk_counts[:i+1]), :].astype(np.float32)
         return sample
 
     def _occlude_sequence(self, index, images, segmentation, mediapipe_landmarks, mediapipe_landmarks_valid, region):

@@ -44,7 +44,7 @@ from skimage.transform import resize
 import gdl.utils.DecaUtils as util
 from gdl.datasets.AffectNetDataModule import AffectNetExpressions
 from gdl.datasets.AffWild2Dataset import Expression7
-from gdl.layers.losses.EmoNetLoss import (create_au_loss, create_emo_loss)
+from gdl.layers.losses.EmoNetLoss import (create_au_loss, create_emo_loss, EmoNetLoss)
 from gdl.layers.losses.VGGLoss import VGG19Loss
 from gdl.models.temporal.Bases import ShapeModel
 from gdl.models.temporal.external.LipReadingLoss import LipReadingLoss
@@ -197,51 +197,8 @@ class FaceReconstructionBase(LightningModule):
 
     def _setup_losses(self):
         # set up losses that need instantiation (such as loading a network, ...)
-        # losses_and_metrics = {**self.cfg.learning.losses, **self.cfg.learning.metrics}
-        # for loss_name, loss_cfg in self.cfg.learning.losses.items():
-        
         self.losses = losses_from_cfg(self.cfg.learning.losses, self.device)
         self.metrics = losses_from_cfg(self.cfg.learning.metrics, self.device)
-
-        # for loss_name, loss_cfg in losses_and_metrics.items():
-        #     loss_type = loss_name if 'loss_type' not in loss_cfg.keys() else loss_cfg['loss_type']
-        #     if loss_type == "emotion_loss":
-        #         assert 'emotion_loss' not in self.loss_functions.keys() # only allow one emotion loss
-        #         assert not loss_cfg.trainable # only fixed loss is supported
-        #         self.loss_functions.emotion_loss = create_emo_loss(self.device, 
-        #                                     emoloss=loss_cfg.network_path,
-        #                                     trainable=loss_cfg.trainable, 
-        #                                     emo_feat_loss=loss_cfg.emo_feat_loss,
-        #                                     normalize_features=loss_cfg.normalize_features, 
-        #                                     dual=False)
-        #         self.loss_functions.emotion_loss.eval()
-        #         self.loss_functions.emotion_loss.requires_grad_(False)
-        #     elif loss_type == "lip_reading_loss": 
-        #         from gdl.models.temporal.external.LipReadingLoss import LipReadingLoss
-        #         self.loss_functions.lip_reading_loss = LipReadingLoss(self.device, 
-        #             loss_cfg.get('metric', 'cosine_similarity'))
-        #         self.loss_functions.lip_reading_loss.eval()
-        #         self.loss_functions.lip_reading_loss.requires_grad_(False)
-        #     elif loss_type == "face_recognition":
-        #         self.face_recognition_loss = FaceRecognitionLoss(loss_cfg)
-        #     elif loss_type == "au_loss": 
-        #         raise NotImplementedError("TODO: implement AU loss")
-            
-        #     elif loss_type == "landmark_loss_mediapipe":
-        #         self.loss_functions.landmark_loss_mediapipe = MediaPipeLandmarkLoss(self.device, loss_cfg.loss_type)
-
-        #     elif loss_type == "landmark_loss_fan_contour": 
-        #         self.loss_functions.landmark_loss_fan_contour = FanContourLandmarkLoss(self.device, loss_cfg.loss_type)
-
-        #     elif loss_type == "landmark_loss_fan": 
-        #         self.loss_functions.landmark_loss_fan = LandmarkLoss(self.device, loss_cfg.loss_type)
-
-
-            # elif loss_type == "emotion_video_loss": 
-            #     self.neural_losses.video_emotion_loss = create_video_emotion_loss(loss_cfg)
-            #     self.neural_losses.video_emotion_loss.eval()
-            #     self.neural_losses.video_emotion_loss.requires_grad_(False)
-        # raise NotImplementedError("TODO: implement metrics")
 
 
     def to(self, device=None, **kwargs):
@@ -372,8 +329,12 @@ class FaceReconstructionBase(LightningModule):
     def forward(self, batch, training=True, validation=False, render=True, **kwargs):
         if training or validation:
             if "image" not in batch.keys():
-                batch["image"] = batch["video_masked"]
-                batch["original_image"] = batch["video"]
+                if "video_masked" in batch.keys():
+                    batch["image"] = batch["video_masked"]
+                    batch["image_original"] = batch["video"]
+                else:
+                    batch["image"] = batch["video"]
+                    batch["image_original"] = batch["video"]
                     
         if "image" not in batch.keys():
             raise ValueError("Batch must contain 'image' key")
@@ -475,7 +436,7 @@ class FaceReconstructionBase(LightningModule):
                     continue
                 if total_loss is None: 
                     total_loss = 0.
-                weighted_term =  (term * loss_cfg["weight"])
+                weighted_term =  term * loss_cfg["weight"]
                 total_loss = total_loss + weighted_term
                 losses["loss_" + loss_name + "_w"] = weighted_term
 
@@ -503,25 +464,63 @@ class FaceReconstructionBase(LightningModule):
             mask = None
         
         if not target_key: ## UNARY LOSSES
-            predicted = sample[target_key] 
+            predicted = sample[predicted_key] 
             loss_value = loss_func(predicted, mask=mask)
 
         else: ## BINARY LOSSES
             predicted = dict_get(sample, predicted_key)
             target = dict_get(sample, target_key )
 
+            # if is image-based loss 
+            if isinstance(loss_func, (PhotometricLoss, LipReadingLoss, VGG19Loss, EmoNetLoss)):
+                masking = loss_cfg.masking_type 
+
+                # retrieve the mask
+                if masking == "rendered": 
+                    image_mask = sample["predicted_mask"]
+                elif masking == 'none':
+                    image_mask = None
+                else:
+                    try:
+                        gt_mask = dict_get(sample, loss_cfg.get('mask_key', None)) 
+                    except Exception: 
+                        try:
+                            gt_mask = sample["segmentation"][loss_cfg.get('mask_key', None)]
+                        except Exception:
+                            gt_mask = sample["segmentation"] 
+                            assert isinstance(gt_mask, torch.Tensor)
+                    if masking == "gt":
+                        image_mask = gt_mask
+                    elif masking == "gt_rendered_union": 
+                        image_mask = torch.logical_or(gt_mask, sample["predicted_mask"])
+                    elif masking == "gt_rendered_intersection": 
+                        image_mask = torch.logical_and(gt_mask, sample["predicted_mask"])
+                    else: 
+                        raise ValueError(f"Unsupported masking type: '{masking}'")
+                        
+                
+                # apply mask
+                if image_mask is not None: 
+                    if image_mask.ndim != predicted.ndim: 
+                        # unsqueeze the channel dimension
+                        image_mask = image_mask.unsqueeze(-3)
+                        assert image_mask.ndim == predicted.ndim
+                    predicted = predicted * image_mask
+                    target = target * image_mask
+
             if isinstance(loss_func, LipReadingLoss):
                 # LipReadingLoss expects images of shape (B, T, C, H, W)
-                predicted = predicted.unsqueeze(1)
-                target = target.unsqueeze(1)
+                if predicted.ndim != 5:
+                    predicted = predicted.unsqueeze(1)
+                    target = target.unsqueeze(1)
+                assert predicted.ndim == 5
+                assert target.ndim == 5
 
                 predicted_mouth = loss_func.crop_mouth(predicted, 
                                     dict_get(sample, loss_cfg.get('predicted_landmarks', None)), 
-                                    convert_grayscale=True
                                     )
                 target_mouth = loss_func.crop_mouth(target,
                                         dict_get(sample, loss_cfg.get('target_landmarks', None)),
-                                        convert_grayscale=True
                                         )
                 sample[predicted_key + "_mouth"] = predicted_mouth
                 sample[target_key + "_mouth"] = target_mouth
@@ -529,6 +528,7 @@ class FaceReconstructionBase(LightningModule):
                 loss_value = loss_func(target_mouth, predicted_mouth, mask=mask)
             else:
                 loss_value = loss_func(predicted, target, mask=mask)
+                # loss_value = loss_func(predicted, target)
         return loss_value
 
 

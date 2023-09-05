@@ -112,8 +112,9 @@ class FlameRenderer(Renderer):
 
         self.render = SRenderY(cfg.image_size, obj_filename=cfg.topology_path,
                                uv_size=cfg.uv_size)  
-        
         self.project_landmarks = cfg.get("project_landmarks", True)
+        self.output_image_keyword = cfg.get("output_image_keyword", "video")
+
 
     def forward(self, sample): 
         verts = sample["verts"]
@@ -188,7 +189,7 @@ class FlameRenderer(Renderer):
                     predicted_landmarks_mediapipe = predicted_landmarks_mediapipe.view(B, T, *predicted_landmarks_mediapipe.shape[1:])
             trans_verts = trans_verts.view(B,T, *trans_verts.shape[1:])
 
-        sample["predicted_video"] = predicted_images 
+        sample["predicted_" + self.output_image_keyword] = predicted_images 
         sample["predicted_mask"] = predicted_mask
         if self.project_landmarks:
             if landmarks2d is not None:
@@ -340,7 +341,7 @@ class FixedViewFlameRenderer(FlameRenderer):
 
         rendering_sample = super().forward(rendering_sample)
         
-        out_vid_name = output_prefix + "video"
+        out_vid_name = output_prefix + self.output_image_keyword
         out_landmark_name = output_prefix + "landmarks_2d"
         # out_verts_name = output_prefix + "trans_verts"
         assert out_vid_name not in sample, f"Key '{out_vid_name}' already exists in sample. Please choose a different output_prefix to not overwrite and existing value"
@@ -348,11 +349,13 @@ class FixedViewFlameRenderer(FlameRenderer):
         sample[out_vid_name] = {}
         sample[out_landmark_name] = {}
         if self.cut_out_mouth: 
-            out_mouth_vid_name = output_prefix + "mouth_video"
+            # out_mouth_vid_name = output_prefix + "mouth_video"
+            out_mouth_vid_name = output_prefix + "mouth_" + self.output_image_keyword
             sample[out_mouth_vid_name] = {}
         # sample[out_verts_name] = {}
         for ci, cam_name in enumerate(self.cam_names):
-            predicted_vid =  rendering_sample["predicted_video"][:, ci::C, ...]
+            # predicted_vid =  rendering_sample["predicted_video"][:, ci::C, ...]
+            predicted_vid =  rendering_sample["predicted_" + self.output_image_keyword][:, ci::C, ...]
             if self.apply_mask: 
                 predicted_vid = predicted_vid * rendering_sample["predicted_mask"][:, ci::C, ...]
             sample[out_vid_name][cam_name] = predicted_vid
@@ -734,7 +737,11 @@ def cut_mouth_vectorized(images,
         center_x_t /= images.shape[-1] / 2
         center_y_t /= images.shape[-2] / 2
 
-        grid = grid + torch.cat([center_x_t, center_y_t ], dim=-1).unsqueeze(-2).unsqueeze(-2)
+        center_xy =  torch.cat([center_x_t, center_y_t ], dim=-1).unsqueeze(-2).unsqueeze(-2)
+        if center_xy.ndim != grid.ndim:
+            center_xy = center_xy.unsqueeze(-2)
+        assert grid.ndim == center_xy.ndim, f"grid and center_xy have different number of dimensions: {grid.ndim} and {center_xy.ndim}"
+        grid = grid + center_xy
     B, T = images.shape[:2]
     images = images.view(B*T, *images.shape[2:])
     grid = grid.view(B*T, *grid.shape[2:])

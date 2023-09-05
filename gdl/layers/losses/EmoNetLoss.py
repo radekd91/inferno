@@ -175,11 +175,11 @@ class EmoLossBase(torch.nn.Module):
     def _forward_input(self, images):
         # there is no need to keep gradients for input (even if we're finetuning, which we don't, it's the output image we'd wannabe finetuning on)
         with torch.no_grad():
-            result = self(images)
+            result = self.emonet_out(images)
         return result
 
     def _forward_output(self, images):
-        return self(images)
+        return self.emonet_out(images)
 
     def compute_loss(self, input_images, output_images, batch_size=None, ring_size=None, mask=None):
         # input_emotion = None
@@ -375,8 +375,10 @@ class EmoNetLoss(EmoLossBase):
             # for p in self.emonet.parameters():
             #     p.requires_grad = False
 
-    def forward(self, images):
-        return self.emonet_out(images)
+    def forward(self, *args, **kwargs):
+        res = self.compute_loss(*args, **kwargs)
+        feat_2_loss = res[1]
+        return feat_2_loss
 
     def emonet_out(self, images):
         images = F.interpolate(images, self.size, mode='bilinear')
@@ -413,8 +415,22 @@ class EmoBackboneLoss(EmoLossBase):
             params += list(self.backbone.parameters())
         return params
 
-    def forward(self, images):
-        return self.backbone._forward(images)
+    # def forward(self, images):
+    #     return self.backbone._forward(images)
+
+    def forward(self, *args, **kwargs):
+        res = self.compute_loss(*args, **kwargs)
+        feat_2_loss = res[1]
+        return feat_2_loss
+
+    def _forward_input(self, images):
+        # there is no need to keep gradients for input (even if we're finetuning, which we don't, it's the output image we'd wannabe finetuning on)
+        with torch.no_grad():
+            result = self.backbone({'image' : images})
+        return result
+
+    def _forward_output(self, images):
+        return self.backbone({'image' : images})
 
     def train(self, b = True):
         super().train(b)

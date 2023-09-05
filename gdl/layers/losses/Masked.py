@@ -22,7 +22,7 @@ class MaskedLoss(torch.nn.Module):
         if self.starting_dim_to_collapse > 1: # if temporal dimension (B, T, ...), make sure mask has T dimensions
             assert mask.shape[1] == input.shape[1]
         else: 
-            assert mask.ndim == 1 # for non temporal batching, the mask should be 1d (masking along the batch dimension only)
+            assert mask.ndim == 1 or (mask.ndim==2 and mask.shape[1] == 1) # for non temporal batching, the mask should be 1d (masking along the batch dimension only)
         
         loss = self.func(input, target, reduction='none')
 
