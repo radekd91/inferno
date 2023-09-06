@@ -54,7 +54,7 @@ def draw_mediapipe_landmarks(image, landmarks_mp, normalized_coords=True, subset
     if subset_to_draw is None:
         subset_to_draw = mp.solutions.face_mesh.FACEMESH_CONTOURS
 
-    image_with_landmarks_mp = np.copy(image)*255
+    image_with_landmarks_mp = np.ascontiguousarray( (np.copy(image)*255).astype(np.uint8))
     mp_drawing.draw_landmarks(
         image=image_with_landmarks_mp,
         landmark_list=landmarks_mp_proto,
