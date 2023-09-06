@@ -549,10 +549,6 @@ class FaceVideoDataModule(FaceDataModuleBase):
             # start = time.time()
             with torch.no_grad():
                 landmarks, landmark_scores = self.face_detector.landmarks_from_batch_no_face_detection(images)
-
-                orig_im_size = batch['orig_im_size'] # get the original image size (before resizing by the transforms)
-                landmarks = landmarks * orig_im_size[:, None, None, :] # scale the landmarks to the original image size
-
             # end = time.time()
 
             # import matplotlib.pyplot as plt 
