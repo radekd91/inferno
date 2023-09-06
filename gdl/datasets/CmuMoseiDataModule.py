@@ -247,7 +247,8 @@ class CmuMoseiDataModule(FaceVideoDataModule):
         if detect_aligned_landmarks:             
             if detect_landmarks: # if detecting both aligned and unaligned landmarks, we need the aligned detector to be the same as unaligned
                 assert self.face_detector_type != 'fan'
-            self.face_detector_type = 'fan'
+            # self.face_detector_type = 'fan'
+            self.face_detector_type = 'fan3d'
             self._instantiate_detector(overwrite=True)
 
         for i in range(start_idx, end_idx):

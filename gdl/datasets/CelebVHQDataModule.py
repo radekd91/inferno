@@ -237,7 +237,8 @@ class CelebVHQDataModule(FaceVideoDataModule):
         np.random.shuffle(idxs)
 
         if detect_aligned_landmarks: 
-            self.face_detector_type = 'fan'
+            # self.face_detector_type = 'fan'
+            self.face_detector_type = 'fan3d'
             self._instantiate_detector(overwrite=True)
 
         for i in range(start_idx, end_idx):

@@ -275,7 +275,8 @@ class EmotionalSpeechDataModule(FaceVideoDataModule):
             assert not detect_landmarks, \
                 "Cannot detect landmarks for aligned videos and original videos at the same time"  +\
                 " since this requries instantiation of a new face detector."
-            self.face_detector_type = 'fan'
+            # self.face_detector_type = 'fan'
+            self.face_detector_type = 'fan3d'
             self._instantiate_detector(overwrite=True)
 
         for i in range(start_idx, end_idx):

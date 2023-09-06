@@ -74,14 +74,20 @@ class FaceDetector(ABC):
 
 class FAN(FaceDetector):
 
-    def __init__(self, device = 'cuda', threshold=0.5):
+    def __init__(self, device = 'cuda', threshold=0.5, mode='2D'):
         import face_alignment
         self.face_detector = 'sfd'
         self.face_detector_kwargs = {
             "filter_threshold": threshold
         }
         self.flip_input = False
-        self.model = face_alignment.FaceAlignment(face_alignment.LandmarksType._2D,
+        if mode == '2D':
+            mode = face_alignment.LandmarksType._2D
+        elif mode == '3D':
+            mode = face_alignment.LandmarksType._3D
+        else:
+            raise ValueError('mode must be 2D or 3D')
+        self.model = face_alignment.FaceAlignment(mode,
                                                   device=str(device),
                                                   flip_input=self.flip_input,
                                                   face_detector=self.face_detector,

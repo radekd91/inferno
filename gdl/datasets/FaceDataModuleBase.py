@@ -116,7 +116,9 @@ class FaceDataModuleBase(pl.LightningDataModule):
                 return
             del self.face_detector
         if self.face_detector_type == 'fan':
-            self.face_detector = FAN(self.device, threshold=self.face_detector_threshold)
+            self.face_detector = FAN(self.device, threshold=self.face_detector_threshold, mode='2D')
+        if self.face_detector_type == 'fan3d':
+            self.face_detector = FAN(self.device, threshold=self.face_detector_threshold, mode='3D')
         elif self.face_detector_type == 'mtcnn':
             self.face_detector = MTCNN(self.device)
         elif self.face_detector_type == '3fabrec': 
