@@ -1,4 +1,3 @@
-
 # @package learning 
 losses: 
   landmark_loss_mediapipe: 
@@ -38,7 +37,10 @@ losses:
     weight: 1.
     metric: l1
     predicted_key: predicted_image
-    target_key: image_unmasked
+    target_key: image_original
+    mask_key: focus
+    masking_type: gt 
+
 
   expression_reg: 
     type: expression_reg

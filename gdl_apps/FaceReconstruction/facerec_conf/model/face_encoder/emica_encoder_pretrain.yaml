@@ -4,47 +4,55 @@ trainable: true
 
 encoders: 
 
-  emoca_encoder:
-    expression_encoder: 
-      type: ExpressionEncoder
-      backbone: ResNet50 
-      input_size: 224
-      predicts: 
-        expcode: 100
-        # jawpose: 3
+  expression_encoder: 
+    type: ExpressionEncoder
+    backbone: ResNet50 
+    input_size: 224
+    predicts: 
+      expcode: 100
+      # jawpose: 3
+    representations: 
+      expcode: flame
+      # jawpose: aa
+    trainable: true
 
-      trainable: true
+  mica_deca_encoder:
 
-    deca_encoder:
-      type: DecaEncoder
-      backbone: ResNet50 
+    encoders: 
 
-        texcode: 50
-        jawpose: 3
-        globalpose: 3
-        cam: 3 
-        lightcode: 27
+      deca_encoder:
+        type: DecaEncoder
+        backbone: ResNet50 
 
-      representations: 
-        expcode: flame
-        texcode: flame
-        jawpose: aa
-        globalpose: aa
-        cam: orth 
-        lightcode: spherical_harmonics
+        input_size: 224
+      
+        predicts: 
+          texcode: 50
+          jawpose: 3
+          globalpose: 3
+          cam: 3 
+          lightcode: 27
 
-      trainable: true
+        representations: 
+          expcode: flame
+          texcode: flame
+          jawpose: aa
+          globalpose: aa
+          cam: orth 
+          lightcode: spherical_harmonics
 
-    mica_encoder: 
-      type: MicaEncoder
-      backbone: ResNet50 
-      mica_model_path: 'MICA/model/mica.tar'
-      mica_preprocessing: ported_insightface
+        trainable: true
 
-      input_size: 224
+      mica_encoder: 
+        type: MicaEncoder
+        backbone: ResNet50 
+        mica_model_path: 'MICA/model/mica.tar'
+        mica_preprocessing: ported_insightface
 
-      predicts: 
-        shape: 300 
+        input_size: 224
 
-      trainable: false
+        predicts: 
+          shape: 300 
+
+        trainable: false
 

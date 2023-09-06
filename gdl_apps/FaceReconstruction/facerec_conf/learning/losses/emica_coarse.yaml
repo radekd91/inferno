@@ -38,7 +38,9 @@ losses:
     weight: 1.
     metric: l1
     predicted_key: predicted_image
-    target_key: image_unmasked
+    target_key: image_original
+    mask_key: focus
+    masking_type: gt 
 
   emotion_loss:
     # weight: 10.0 
@@ -56,18 +58,22 @@ losses:
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
     
     predicted_key: predicted_image
-    target_key: image_unmasked
+    target_key: image_original
+    mask_key: focus
+    masking_type: gt 
 
   lip_reading_loss: 
     type: lip_reading_loss
     weight: 1.
     # metric: l1
     metric: cosine_similarity
-    mask_invalid: lip_reading
+    mask_invalid: mediapipe_landmarks
     predicted_key: predicted_image
-    target_key: image_unmasked
+    target_key: image_original
     predicted_landmarks: predicted_landmarks
     target_landmarks: landmarks,fan
+    mask_key: focus
+    masking_type: gt 
 
   expression_reg: 
     type: expression_reg
