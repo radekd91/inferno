@@ -8,14 +8,6 @@ class FlameLandmarkProjector(Renderer):
 
     def __init__(self, cfg):
         super().__init__() 
-        # mask = imread(cfg.face_mask_path).astype(np.float32) / 255.
-        # mask = torch.from_numpy(mask[:, :, 0])[None, None, :, :].contiguous()
-        # uv_face_mask = F.interpolate(mask, [cfg.uv_size, cfg.uv_size])
-        # self.register_buffer('uv_face_mask', uv_face_mask)
-        # mask = imread(cfg.face_eye_mask_path).astype(np.float32) / 255.
-        # mask = torch.from_numpy(mask[:, :, 0])[None, None, :, :].contiguous()
-        # uv_face_eye_mask = F.interpolate(mask, [cfg.uv_size, cfg.uv_size])
-        # self.register_buffer('uv_face_eye_mask', uv_face_eye_mask)
         self.project_landmarks = cfg.get("project_landmarks", True)
 
     def forward(self, sample): 
