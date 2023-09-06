@@ -18,9 +18,11 @@ All rights reserved.
 """
 
 
-from gdl_apps.FaceReconstruction.training.training_pass import( single_stage_training_pass, 
-            get_checkpoint_with_kwargs, create_logger, configure_and_train, configure)
-# from gdl.datasets.DecaDataModule import DecaDataModule
+from gdl_apps.FaceReconstruction.training.training_pass import ( 
+    single_stage_training_pass, 
+    get_checkpoint_with_kwargs, 
+    create_logger, 
+    )
 from gdl.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase
 from gdl.datasets.LRS3DataModule import LRS3DataModule
 from gdl.datasets.CelebVHQDataModule import CelebVHQDataModule
@@ -199,7 +201,7 @@ def prepare_data(cfg):
 
 
 
-def create_experiment_name(cfg_coarse, cfg_detail, version=0):
+def create_experiment_name(cfg_coarse, version=0):
     # experiment_name = "ExpDECA"
     experiment_name = cfg_coarse.model.pl_module_class
     if version <= 2:
@@ -223,7 +225,10 @@ def create_experiment_name(cfg_coarse, cfg_detail, version=0):
     return experiment_name
 
 
-def train_model(cfg_coarse, cfg_detail=None, start_i=-1, resume_from_previous = True,
+def train_model(cfg_coarse, 
+                # cfg_detail=None, 
+                start_i=-1, 
+                resume_from_previous = True,
                force_new_location=False):
     # configs = [cfg_coarse, cfg_coarse, cfg_detail, cfg_detail]
     # stages = ["train", "test", "train", "test"]
@@ -232,10 +237,10 @@ def train_model(cfg_coarse, cfg_detail=None, start_i=-1, resume_from_previous = 
     stages = ["train", "test"]
     stages_prefixes = ["", "", ]
 
-    if cfg_detail is not None:
-        configs  += [cfg_detail, cfg_detail]
-        stages += ["train", "test"]
-        stages_prefixes += ["", "", ]
+    # if cfg_detail is not None:
+    #     configs  += [cfg_detail, cfg_detail]
+    #     stages += ["train", "test"]
+    #     stages_prefixes += ["", "", ]
 
     if start_i >= 0 or force_new_location:
         if resume_from_previous:
@@ -256,7 +261,7 @@ def train_model(cfg_coarse, cfg_detail=None, start_i=-1, resume_from_previous = 
             cfg_coarse.inout.previous_run_dir = cfg_coarse.inout.full_run_dir
         time = datetime.datetime.now().strftime("%Y_%m_%d_%H-%M-%S")
         random_id = str(hash(time))
-        experiment_name = create_experiment_name(cfg_coarse, cfg_detail)
+        experiment_name = create_experiment_name(cfg_coarse)
         full_run_dir = Path(configs[0].inout.output_dir) / (time + "_" + random_id + "_" + experiment_name)
         exist_ok = False # a path for a new experiment should not yet exist
     else:
@@ -287,16 +292,16 @@ def train_model(cfg_coarse, cfg_detail=None, start_i=-1, resume_from_previous = 
     cfg_coarse.inout.time = time
     cfg_coarse.inout.random_id = random_id
 
-    # if cfg_detail.inout.full_run_dir == 'todo':
-    if cfg_detail is not None:
-        detail_checkpoint_dir = full_run_dir / "detail" / "checkpoints"
-        detail_checkpoint_dir.mkdir(parents=True, exist_ok=exist_ok)
+    # # if cfg_detail.inout.full_run_dir == 'todo':
+    # if cfg_detail is not None:
+    #     detail_checkpoint_dir = full_run_dir / "detail" / "checkpoints"
+    #     detail_checkpoint_dir.mkdir(parents=True, exist_ok=exist_ok)
 
-        cfg_detail.inout.full_run_dir = str(detail_checkpoint_dir.parent)
-        cfg_detail.inout.checkpoint_dir = str(detail_checkpoint_dir)
-        cfg_detail.inout.name = experiment_name
-        cfg_detail.inout.time = time
-        cfg_detail.inout.random_id = random_id
+    #     cfg_detail.inout.full_run_dir = str(detail_checkpoint_dir.parent)
+    #     cfg_detail.inout.checkpoint_dir = str(detail_checkpoint_dir)
+    #     cfg_detail.inout.name = experiment_name
+    #     cfg_detail.inout.time = time
+    #     cfg_detail.inout.random_id = random_id
 
     # save config to target folder
     conf = DictConfig({})
@@ -304,8 +309,8 @@ def train_model(cfg_coarse, cfg_detail=None, start_i=-1, resume_from_previous = 
     # TODO: name the stages dynamically if possible
     conf.coarse = cfg_coarse 
     
-    if cfg_detail is not None:
-        conf.detail = cfg_detail
+    # if cfg_detail is not None:
+    #     conf.detail = cfg_detail
     with open(full_run_dir / "cfg.yaml", 'w') as outfile:
         OmegaConf.save(config=conf, f=outfile)
 
@@ -340,29 +345,45 @@ def train_model(cfg_coarse, cfg_detail=None, start_i=-1, resume_from_previous = 
 
 
 
-def configure_detail(detail_cfg_default, detail_overrides):
+# def configure_detail(detail_cfg_default, detail_overrides):
+#     from hydra.experimental import compose, initialize
+#     initialize(config_path="../tempface_conf", job_name="train_tempface")
+#     cfg_detail = compose(config_name=detail_cfg_default, overrides=detail_overrides)
+#     return cfg_detail
+
+def configure(coarse_cfg_default, coarse_overrides, detail_cfg_default=None, detail_overrides=None):
     from hydra.experimental import compose, initialize
-    initialize(config_path="../tempface_conf", job_name="train_tempface")
-    cfg_detail = compose(config_name=detail_cfg_default, overrides=detail_overrides)
-    return cfg_detail
+    initialize(config_path="../facerec_conf", job_name="FaceReconstruction")
+    cfg_coarse = compose(config_name=coarse_cfg_default, overrides=coarse_overrides)
+    return cfg_coarse
+    # if detail_cfg_default is not None and detail_overrides is not None:
+    #     cfg_detail = compose(config_name=detail_cfg_default, overrides=detail_overrides)
+    # else: 
+    #     cfg_detail = None
+    # return cfg_coarse, cfg_detail
+
 
 
 def configure_and_train(coarse_cfg_default, coarse_overrides,
-                        detail_cfg_default, detail_overrides):
-    cfg_coarse, cfg_detail = configure(coarse_cfg_default, coarse_overrides,
-                                       detail_cfg_default, detail_overrides)
-    train_model(cfg_coarse, cfg_detail)
+                        # detail_cfg_default, detail_overrides
+                        ):
+    # cfg_coarse, cfg_detail = configure(coarse_cfg_default, coarse_overrides,
+    #                                    detail_cfg_default, detail_overrides)
+    cfg_coarse = configure(coarse_cfg_default, coarse_overrides)
+    train_model(cfg_coarse)
 
 
 def configure_and_resume(run_path,
                          coarse_cfg_default, coarse_overrides,
-                         detail_cfg_default, detail_overrides,
+                        #  detail_cfg_default, detail_overrides,
                          start_at_stage):
-    cfg_coarse, cfg_detail = configure(
-                                       coarse_cfg_default, coarse_overrides,
-                                       detail_cfg_default, detail_overrides)
+    # cfg_coarse, cfg_detail = configure(
+    #                                    coarse_cfg_default, coarse_overrides,
+    #                                    detail_cfg_default, detail_overrides)
+    cfg_coarse = configure(coarse_cfg_default, coarse_overrides)
 
-    cfg_coarse_, cfg_detail_ = load_configs(run_path)
+    # cfg_coarse_, cfg_detail_ = load_configs(run_path)
+    cfg_coarse_ = load_configs(run_path)
 
     if start_at_stage < 2:
         raise RuntimeError("Resuming before stage 2 makes no sense, that would be training from scratch")
@@ -373,7 +394,7 @@ def configure_and_resume(run_path,
     else:
         raise RuntimeError(f"Cannot resume at stage {start_at_stage}")
 
-    train_model(cfg_coarse, cfg_detail,
+    train_model(cfg_coarse, 
                start_i=start_at_stage,
                resume_from_previous=True, #important, resume from previous stage's checkpoint
                force_new_location=True)
@@ -383,16 +404,17 @@ def load_configs(run_path):
     with open(Path(run_path) / "cfg.yaml", "r") as f:
         conf = OmegaConf.load(f)
     cfg_coarse = conf.coarse
-    cfg_detail = conf.detail
-    return cfg_coarse, cfg_detail
+    # cfg_detail = conf.detail
+    # return cfg_coarse, cfg_detail
+    return cfg_coarse
 
 
-def resume_training(run_path, start_at_stage, resume_from_previous, force_new_location):
-    cfg_coarse, cfg_detail = load_configs(run_path)
-    train_model(cfg_coarse, cfg_detail,
-               start_i=start_at_stage,
-               resume_from_previous=resume_from_previous,
-               force_new_location=force_new_location)
+# def resume_training(run_path, start_at_stage, resume_from_previous, force_new_location):
+#     cfg_coarse, cfg_detail = load_configs(run_path)
+#     train_model(cfg_coarse, cfg_detail,
+#                start_i=start_at_stage,
+#                resume_from_previous=resume_from_previous,
+#                force_new_location=force_new_location)
 
 
 def main():
@@ -404,23 +426,20 @@ def main():
             configured = True
             with open(sys.argv[1], 'r') as f:
                 coarse_conf = OmegaConf.load(f)
-            detail_conf = None
+            # detail_conf = None
             resume_from_previous = True
             force_new_location = False
             start_from = -1
         else:
             coarse_conf = sys.argv[1]
-            detail_conf = None
+            # detail_conf = None
             coarse_override = []
-            detail_override = []
+            # detail_override = []
     elif len(sys.argv) < 2:
-        # coarse_conf = "temporal_face"
-        # coarse_conf = "temporal_face_no_audio"
-        coarse_conf = "temporal_face_exp_jaw"
-        # coarse_conf = "temporal_face_exp_jaw_no_audio"
-        detail_conf = None
+        coarse_conf = "emica_deca_stage"
+        # detail_conf = None
         coarse_override = []
-        detail_override = []
+        # detail_override = []
 
         # coarse_conf = detail_conf
         # coarse_override = detail_override
@@ -433,9 +452,9 @@ def main():
                 coarse_conf = OmegaConf.load(f)
             # with open(sys.argv[2], 'r') as f:
             #     detail_conf = OmegaConf.load(f)
-            detail_conf = None
+            # detail_conf = None
             coarse_override = []
-            detail_override = []
+            # detail_override = []
         else:
             coarse_conf = sys.argv[1]
             # detail_conf = sys.argv[2]
@@ -454,60 +473,19 @@ def main():
             force_new_location = False
             start_from = -1
     else:
-        # coarse_conf = "temporal_face"
-        # coarse_conf = "temporal_face_no_audio"
-        coarse_conf = "temporal_face_exp_jaw"
-        # coarse_conf = "temporal_face_exp_jaw_no_audio"
-        # detail_conf = ""
-        detail_conf = None
+        coarse_conf = "emica_deca_stage"
         coarse_override = []
-        detail_override = []
+        # detail_override = []
 
-    # if len(sys.argv) > 4:
-    #     coarse_override = sys.argv[3]
-    #     detail_override = sys.argv[4]
-    # else:
-    #     coarse_override = []
-    #     detail_override = []
     if configured:
         print("Configured file loaded. Running training script")
-        train_model(coarse_conf, detail_conf,
-                      start_from, resume_from_previous, force_new_location)
+        train_model(coarse_conf, 
+                    # detail_conf,
+                    start_from, 
+                    resume_from_previous, force_new_location)
     else:
-        configure_and_train(coarse_conf, coarse_override, detail_conf, detail_override)
-
-
-# # @hydra.main(config_path="../emoca_conf", config_name="deca_finetune")
-# # def main(cfg : DictConfig):
-# def main():
-#     configured = False
-#     if len(sys.argv) >= 3:
-#         if Path(sys.argv[1]).is_file():
-#             configured = True
-#             with open(sys.argv[1], 'r') as f:
-#                 coarse_conf = OmegaConf.load(f)
-#             with open(sys.argv[2], 'r') as f:
-#                 detail_conf = OmegaConf.load(f)
-
-#         else:
-#             coarse_conf = sys.argv[1]
-#             detail_conf = sys.argv[2]
-#     else:
-#         coarse_conf = "temporal_face"
-#         # detail_conf = ""
-#         detail_conf = None
-        
-
-#     if len(sys.argv) >= 5:
-#         coarse_override = sys.argv[3]
-#         detail_override = sys.argv[4]
-#     else:
-#         coarse_override = []
-#         detail_override = []
-#     if configured:
-#         train_model(coarse_conf, detail_conf)
-#     else:
-#         configure_and_train(coarse_conf, coarse_override, detail_conf, detail_override)
+        configure_and_train(coarse_conf, coarse_override)
+        # configure_and_train(coarse_conf, coarse_override, detail_conf, detail_override)
 
 
 

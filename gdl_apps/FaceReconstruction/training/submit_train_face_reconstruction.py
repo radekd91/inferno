@@ -99,7 +99,8 @@ def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
     # coarse_conf = "mica_deca_pretrain"
-    coarse_conf = "emica_emoca_stage"
+    coarse_conf = "emica_deca_stage"
+    # coarse_conf = "emica_emoca_stage"
 
 
     finetune_modes = [
@@ -170,11 +171,11 @@ def submit_trainings():
         # coarse_overrides += [emonet_weight_override]
         # detail_overrides += [emonet_weight_override]
 
-        cfgs = script.configure(
+        conf = script.configure(
             coarse_conf, coarse_overrides,
             # detail_conf, detail_overrides
         )
-        cfgs = list(cfgs)
+        # cfgs = list(cfgs)
 
         GlobalHydra.instance().clear()
         # config_pairs += [cfgs]
@@ -205,8 +206,8 @@ def submit_trainings():
         # cfgs[0].model.val_check_interval = 1.0
         # cfgs[0].model.train_vis_frequency = 20
         # cfgs[0].model.val_vis_frequency = 10
-        OmegaConf.set_struct(cfgs[0], False)
-        with open_dict(cfgs[0]) as d:
+        OmegaConf.set_struct(conf, False)
+        with open_dict(conf) as d:
             tags = ["INITIAL_SMALL_TESTS"]
             tags += ["EMOCA_LIKE"]
             # tags += ["EMOCA_LIKE_NO_EMO"]
@@ -222,7 +223,7 @@ def submit_trainings():
                 tags += ["DEBUG_FROM_WORKSTATION"]
             if d.learning.tags is None:
                 d.learning.tags = tags
-        cfg = OmegaConf.to_container(cfgs[0])
+        cfg = OmegaConf.to_container(conf)
         # if not cfgs[0].model.output.predict_shapecode: 
         #     if 'shape_reg' in cfg["learning"]["losses"]: 
         #         del cfg["learning"]["losses"]["shape_reg"]
@@ -236,12 +237,12 @@ def submit_trainings():
         #     if 'light_reg' in cfg["learning"]["losses"]:
         #         del cfg["learning"]["losses"]["light_reg"]
 
-        cfgs[0] = OmegaConf.create(cfg)
+        conf = OmegaConf.create(cfg)
 
         if submit_:
-            submit(cfgs[0], bid=bid)
+            submit(conf, bid=bid)
         else:
-            script.train_model(cfgs[0], resume_from_previous=False)
+            script.train_model(conf, resume_from_previous=False)
 
 
 
