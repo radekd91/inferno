@@ -47,7 +47,8 @@ sampler: uniform
 split: "original"
 
 
-landmark_types: [mediapipe, fan]
+# landmark_types: [mediapipe, fan]
+landmark_types: [mediapipe, fan3d]
 landmark_sources: [original, aligned]
 
 segmentation_source: aligned

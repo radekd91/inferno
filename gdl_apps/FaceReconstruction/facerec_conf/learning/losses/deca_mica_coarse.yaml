@@ -1,5 +1,16 @@
 # @package learning 
 losses: 
+
+  landmark_loss_fan_contour:
+    type: landmark_loss_fan_contour
+    weight: 1.
+    metric: l1
+    mask_invalid: mediapipe_landmarks
+    # predicted_key: predicted_landmarks
+    predicted_key: predicted_landmarks_3d
+    # target_key: landmarks,fan
+    target_key: landmarks,fan3d
+
   landmark_loss_mediapipe: 
     type: landmark_loss_mediapipe
     weight: 1.

@@ -22,8 +22,10 @@ losses:
     weight: 1.
     metric: l1
     mask_invalid: mediapipe_landmarks
-    predicted_key: predicted_landmarks
-    target_key: landmarks,fan
+    # predicted_key: predicted_landmarks
+    predicted_key: predicted_landmarks_3d
+    # target_key: landmarks,fan
+    target_key: landmarks,fan3d
 
 metrics: 
   {}

@@ -44,7 +44,8 @@ occlusion_settings_test:
 drop_last: true
 sampler: uniform
 
-landmark_types: [mediapipe, fan]
+# landmark_types: [mediapipe, fan]
+landmark_types: [mediapipe, fan3d]
 landmark_sources: [original, aligned]
 
 split: "original"

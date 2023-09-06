@@ -42,7 +42,8 @@ occlusion_settings_test:
 
 
 
-landmark_types: [mediapipe, fan]
+# landmark_types: [mediapipe, fan]
+landmark_types: [mediapipe, fan3d]
 landmark_sources: [original, aligned]
 
 segmentation_source: aligned

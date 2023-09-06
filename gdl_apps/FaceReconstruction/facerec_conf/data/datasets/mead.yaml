@@ -51,7 +51,8 @@ ring_size: none
 drop_last: true
 training_sampler: uniform
 
-landmark_types: [mediapipe, fan]
+# landmark_types: [mediapipe, fan]
+landmark_types: [mediapipe, fan3d]
 landmark_sources: [original, aligned]
 
 # landmark_types: mediapipe
