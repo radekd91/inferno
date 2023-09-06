@@ -87,6 +87,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                  inflate_by_video_size = False,
                  read_video=True,
                  read_audio=True,
+                 align_images=True,
                  ):
         super().__init__(root_dir, output_dir,
                          processed_subfolder=processed_subfolder,
@@ -132,6 +133,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         self._must_include_audio = False
         self.read_video=read_video
         self.read_audio=read_audio
+        self.align_images = align_images # will align the images when data loading (use if videos not already aligned)
 
     @property
     def metadata_path(self):
@@ -547,6 +549,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
             # start = time.time()
             with torch.no_grad():
                 landmarks, landmark_scores = self.face_detector.landmarks_from_batch_no_face_detection(images)
+
+                orig_im_size = batch['orig_im_size'] # get the original image size (before resizing by the transforms)
+                landmarks = landmarks * orig_im_size[:, None, None, :] # scale the landmarks to the original image size
+
             # end = time.time()
 
             # import matplotlib.pyplot as plt 

@@ -872,6 +872,36 @@ def tensor_vis_landmarks(images, landmarks, gt_landmarks=None, color='g', isScal
     return vis_landmarks
 
 
+def tensor_vis_landmarks_single_image(image, landmarks, gt_landmarks=None, color='g', isScale=True, rgb2bgr=True, scale_colors=True):
+    if rgb2bgr:
+        color_idx = [2, 1, 0]
+    else:
+        color_idx = [0, 1, 2]
+    image = image[:, :, color_idx].copy()
+    if scale_colors:
+        image = image * 255
+    if isScale:
+        landmarks = landmarks * image.shape[0] / 2 + image.shape[0] / 2
+    else:
+        landmarks = landmarks
+
+    if landmarks.shape[0] == 68:
+        image_landmarks = plot_kpts(image, landmarks, color)
+        if gt_landmarks is not None:
+            image_landmarks = plot_verts(image_landmarks,
+                                            gt_landmarks * image.shape[0] / 2 + image.shape[0] / 2, 'r')
+    else:
+        image_landmarks = plot_verts(image, landmarks, color)
+        if gt_landmarks is not None:
+            image_landmarks = plot_verts(image_landmarks,
+                                            gt_landmarks * image.shape[0] / 2 + image.shape[0] / 2, 'r')
+
+    image_landmarks = image_landmarks[:, :, color_idx]
+    if scale_colors:
+        image_landmarks /= 255.  # , dtype=torch.float32)
+    return image_landmarks
+
+
 ####################
 def calc_aabb(ptSets):
     if not ptSets or len(ptSets) == 0:

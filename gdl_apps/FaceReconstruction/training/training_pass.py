@@ -23,7 +23,6 @@ from pathlib import Path
 
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-
 from gdl.models.temporal.AVFace import TemporalFace, instantiate
 from pytorch_lightning.loggers import WandbLogger
 import datetime
@@ -31,19 +30,21 @@ import time as t
 # import hydra
 from omegaconf import DictConfig, OmegaConf
 import copy
+from gdl.callbacks.FaceReconstructionImageCallback import FaceReconstructionImageCallback
 
 project_name = 'FaceReconstruction'
 
 
+def get_image_callback(cfg): 
+    callback =  FaceReconstructionImageCallback(training_frequency=cfg.learning.training_vis_frequency, 
+                                                validation_frequency=cfg.learning.validation_vis_frequency,
+                                                )
+    return callback
+
+
 def get_checkpoint_with_kwargs(cfg, prefix, checkpoint_mode=None):
     checkpoint = get_checkpoint(cfg, checkpoint_mode)
-    cfg.model.resume_training = False  # make sure the training is not magically resumed by the old code
-    checkpoint_kwargs = {
-        "model_params": cfg.model,
-        "learning_params": cfg.learning,
-        "inout_params": cfg.inout,
-        "stage_name": prefix
-    }
+    checkpoint_kwargs = {}
     return checkpoint, checkpoint_kwargs
 
 
@@ -324,6 +325,11 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
                                                 strict=True)
         callbacks += [early_stopping_callback]
 
+
+    if stage == 'train':
+        image_callback = get_image_callback(cfg)
+        if image_callback is not None:
+            callbacks += [image_callback]
 
     val_check_interval = 1.0
     if 'val_check_interval' in cfg.model.keys():

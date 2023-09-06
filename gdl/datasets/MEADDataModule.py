@@ -129,6 +129,7 @@ class MEADDataModule(FaceVideoDataModule):
             read_video=True,
             read_audio=True,
             shuffle_validation=False,
+            align_images=True,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, 
@@ -148,6 +149,7 @@ class MEADDataModule(FaceVideoDataModule):
             inflate_by_video_size=inflate_by_video_size,
             read_video=read_video,
             read_audio=read_audio,
+            align_images=align_images,
             )
         # self.detect_landmarks_on_restored_images = landmarks_from
         self.batch_size_train = batch_size_train
@@ -223,6 +225,7 @@ class MEADDataModule(FaceVideoDataModule):
                 # temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=False,
+                align_images=self.align_images,
                 )
         return dataset
 
@@ -723,6 +726,7 @@ class MEADDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
                 read_video=self.read_video,
                 read_audio=self.read_audio,
+                align_images=self.align_images,
               )
                     
         self.validation_set = MEADDataset(self.root_dir, self.output_dir, 
@@ -742,6 +746,7 @@ class MEADDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
                 read_video=self.read_video,
                 read_audio=self.read_audio,
+                align_images=self.align_images,
             )
         self.validation_set._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
 
@@ -761,6 +766,7 @@ class MEADDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
                 read_video=self.read_video,
                 read_audio=self.read_audio,
+                align_images=self.align_images,
                 )
         self.test_set._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
 
@@ -859,6 +865,7 @@ class MEADDataset(VideoDatasetBase):
             average_shape_decode = True,
             emotion_type=None,
             return_emotion_feature=False,
+            align_images = True,
     ) -> None:
         landmark_types = landmark_types or ["mediapipe", "fan"]
         super().__init__(
@@ -901,6 +908,7 @@ class MEADDataset(VideoDatasetBase):
             average_shape_decode = average_shape_decode,
             emotion_type=emotion_type,
             return_emotion_feature=return_emotion_feature,
+            align_images = align_images,
         )
         self._setup_identity_labels()
         self.read_gt_text = False
@@ -1056,8 +1064,9 @@ class MEADDataset(VideoDatasetBase):
                     landmarks, landmark_confidences = self.lmk_cache[index][landmark_type][landmark_source]
 
                 # scale by image size 
-                # landmarks = landmarks * sample["video"].shape[1]
-                landmarks = landmarks * self.image_size
+                original_image_size =  sample["video"].shape[1]
+                # landmarks = landmarks * self.image_size # do not use this one, this is the desired size (the video will be resized to this one)
+                landmarks = landmarks * original_image_size # use the original size
 
                 landmarks = landmarks[start_frame: sequence_length + start_frame]
                 # landmark_confidences = landmark_confidences[start_frame: sequence_length + start_frame]

@@ -16,7 +16,7 @@ import torch.nn.functional as F
 import subprocess 
 import traceback
 from gdl.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
-
+import cv2
 
 class AbstractVideoDataset(torch.utils.data.Dataset):
 
@@ -890,6 +890,21 @@ class VideoDatasetBase(AbstractVideoDataset):
                     sample["segmentation"][i] = seg_warped
                 for k,v in lmk_warped.items():
                     sample["landmarks"][k][i][:,:2] = v
+        else: 
+            # no alignment, just resize the images
+            video_frames = sample["video"]
+            sample["video"] = np.zeros((video_frames.shape[0], self.image_size, self.image_size, video_frames.shape[-1]), dtype=video_frames.dtype)
+            for i in range(video_frames.shape[0]):
+                sample["video"][i] = cv2.resize(video_frames[i], (self.image_size, self.image_size), interpolation=cv2.INTER_CUBIC)
+            if "segmentation" in sample.keys():
+                seg_frames = sample["segmentation"]
+                sample["segmentation"] = np.zeros((seg_frames.shape[0], self.image_size, self.image_size), dtype=seg_frames.dtype)
+                for i in range(seg_frames.shape[0]):
+                    sample["segmentation"][i] = cv2.resize(seg_frames[i], (self.image_size, self.image_size), interpolation=cv2.INTER_NEAREST)
+            if "landmarks" in sample.keys():
+                for k,v in sample["landmarks"].items():
+                    sample["landmarks"][k][...,:2] *= self.image_size / video_frames.shape[1]
+
         return sample
 
     def _get_reconstructions(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):

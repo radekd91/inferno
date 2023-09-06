@@ -70,3 +70,5 @@ val_subjects: []
 test_subjects: []
 
 read_video: True
+
+align_images: False

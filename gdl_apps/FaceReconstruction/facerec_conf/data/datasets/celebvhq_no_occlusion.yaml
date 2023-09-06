@@ -51,3 +51,4 @@ landmark_sources: [original, aligned]
 segmentation_source: aligned
 
 split: random_70_15_15
+align_images: False

@@ -52,7 +52,7 @@ from gdl.models.temporal.Renderers import Renderer
 from gdl.utils.lightning_logging import (_log_array_image, _log_wandb_image,
                                          _torch_image2np)
 from gdl.utils.other import class_from_str, get_path_to_assets
-
+from gdl.utils.MediaPipeLandmarkUtils import draw_mediapipe_landmarks, draw_mediapipe_landmark_flame_subset
 from .FaceEncoder import encoder_from_cfg
 from .Losses import (FanContourLandmarkLoss, LandmarkLoss,
                      MediaPipeLandmarkLoss, MediaPipeLipDistanceLoss,
@@ -262,8 +262,6 @@ class FaceReconstructionBase(LightningModule):
             schedulers += [scheduler]
         return opt_dict
 
-
-
     def training_step(self, batch, batch_idx, *args, **kwargs):
         training = True 
         # forward pass
@@ -281,7 +279,6 @@ class FaceReconstructionBase(LightningModule):
 
         return total_loss
 
-
     def validation_step(self, batch, batch_idx, *args, **kwargs): 
         training = False 
 
@@ -293,9 +290,12 @@ class FaceReconstructionBase(LightningModule):
         losses_and_metrics_to_log = {**losses, **metrics}
         # losses_and_metrics_to_log = {"val_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
         losses_and_metrics_to_log = {"val/" + k: v.item() if isinstance(v, (torch.Tensor)) else v if isinstance(v, float) else 0. for k, v in losses_and_metrics_to_log.items()}
-
+        
+        if self.logger is not None:
+            # self.log_dict(losses_and_metrics_to_log, on_step=False, on_epoch=True, sync_dist=True) # log per epoch, # recommended
+            self.log_dict(losses_and_metrics_to_log, on_step=True, on_epoch=True, sync_dist=True) # log per epoch, # recommended
+        
         return total_loss, losses_and_metrics_to_log
-
 
     def get_input_image_size(self): 
         return (self.cfg.model.image_size, self.cfg.model.image_size)
@@ -354,8 +354,68 @@ class FaceReconstructionBase(LightningModule):
         # 3) render
         if render and self.renderer is not None:
             batch = self.render(batch, training=training)
-        
+
         return batch
+
+
+    def visualize_batch(self, batch, batch_idx, prefix, in_batch_idx=None):
+        B = batch['image'].shape[0]
+        if in_batch_idx is None: 
+            in_batch_idx = list(range(B))
+        elif isinstance(in_batch_idx, int): 
+            in_batch_idx = [in_batch_idx]
+        
+        # here is where we select the images to visualize or create them if need be 
+
+        visdict = {}
+        visdict['image'] = []
+        visdict['image_original'] = []
+        if 'predicted_image' in batch.keys():
+            visdict['predicted_image'] = []
+        if 'predicted_mask' in batch.keys():
+            visdict['predicted_mask'] = []
+        visdict['shape_image'] = []
+
+        visdict['landmarks_gt_fan'] =  []
+        visdict['landmarks_gt_mediapipe'] = []
+        visdict['landmarks_pred_fan'] =  []
+        visdict['landmarks_pred_mediapipe'] = []
+        
+        verts = batch['verts']
+        trans_verts = batch['trans_verts']
+        shape_images = self.renderer.render.render_shape(verts, trans_verts)
+
+        for b in in_batch_idx:
+            image = _torch_image2np(batch['image'][b]).clip(0, 1)
+            visdict['image'] += [(image * 255.).astype(np.uint8)]
+            
+            image_original = _torch_image2np(batch['image_original'][b]).clip(0, 1) 
+            visdict['image_original'] += [(image_original* 255.).astype(np.uint8)]
+            if 'predicted_image' in batch.keys():
+                visdict['predicted_image'] += [(_torch_image2np(batch['predicted_image'][b]).clip(0, 1) * 255.).astype(np.uint8)]
+
+            if 'predicted_mask' in batch.keys():
+                visdict['predicted_mask'] += [(_torch_image2np(batch['predicted_mask'][b]).clip(0, 1) * 255.).astype(np.uint8)]
+
+            landmark_gt_fan = util.tensor_vis_landmarks_single_image(
+               image_original, batch['landmarks']['fan'][b].cpu().numpy()) 
+            visdict['landmarks_gt_fan'] += [(landmark_gt_fan * 255.).astype(np.uint8)]
+            
+            landmarks_gt_mediapipe = draw_mediapipe_landmarks(image_original, 
+                        batch['landmarks']['mediapipe'][b].cpu().numpy()).astype(np.uint8)
+            visdict['landmarks_gt_mediapipe'] += [landmarks_gt_mediapipe]
+            
+            landmarks_pred_fan = util.tensor_vis_landmarks_single_image(
+                image_original, batch['predicted_landmarks'][b].detach().cpu().numpy())
+            visdict['landmarks_pred_fan'] +=  [(landmarks_pred_fan * 255.).astype(np.uint8)]
+            landmarks_pred_mediapipe = draw_mediapipe_landmark_flame_subset(
+                image_original, batch['predicted_landmarks_mediapipe'][b].detach().cpu().numpy()).astype(np.uint8)
+            visdict['landmarks_pred_mediapipe'] += [landmarks_pred_mediapipe]
+        
+            visdict['shape_image'] += [(_torch_image2np(shape_images[b]) * 255.).astype(np.uint8)]
+
+        return visdict
+
 
     def unring(self, batch):
         """
@@ -604,7 +664,7 @@ class FaceReconstructionBase(LightningModule):
             # Log visualizations every once in a while
             if batch_idx % self.deca.config.test_vis_frequency == 0:
                 # if self.trainer.is_global_zero:
-                visualizations, grid_image = self._visualization_checkpoint(values['verts'], values['trans_verts'], values['ops'],
+                visualizations, grid_image = self.visualize_batch(values['verts'], values['trans_verts'], values['ops'],
                                                uv_detail_normals, values, self.global_step, stage_str[:-1], prefix)
                 visdict = self._create_visualizations_to_log(stage_str[:-1], visualizations, values, batch_idx, indices=0, dataloader_idx=dataloader_idx)
                 self.logger.log_metrics(visdict)
@@ -753,81 +813,6 @@ class FaceReconstructionBase(LightningModule):
                         name += "/dataloader_idx_" + str(dataloader_idx)
                     log_dict[name] = im2log
         return log_dict
-
-    def _visualization_checkpoint(self, verts, trans_verts, ops, uv_detail_normals, additional, batch_idx, stage, prefix,
-                                  save=False):
-        batch_size = verts.shape[0]
-        visind = np.arange(batch_size)
-        shape_images = self.deca.render.render_shape(verts, trans_verts)
-        if uv_detail_normals is not None:
-            detail_normal_images = F.grid_sample(uv_detail_normals.detach(), ops['grid'].detach(),
-                                                 align_corners=False)
-            shape_detail_images = self.deca.render.render_shape(verts, trans_verts,
-                                                           detail_normal_images=detail_normal_images)
-        else:
-            shape_detail_images = None
-
-        visdict = {}
-        if 'images' in additional.keys():
-            visdict['inputs'] = additional['images'][visind]
-
-        if 'images' in additional.keys() and 'lmk' in additional.keys():
-            visdict['landmarks_gt'] = util.tensor_vis_landmarks(additional['images'][visind], additional['lmk'][visind])
-
-        if 'images' in additional.keys() and 'predicted_landmarks' in additional.keys():
-            visdict['landmarks_predicted'] = util.tensor_vis_landmarks(additional['images'][visind],
-                                                                     additional['predicted_landmarks'][visind])
-
-        if 'predicted_images' in additional.keys():
-            visdict['output_images_coarse'] = additional['predicted_images'][visind]
-
-        if 'predicted_translated_image' in additional.keys() and additional['predicted_translated_image'] is not None:
-            visdict['output_translated_images_coarse'] = additional['predicted_translated_image'][visind]
-
-        visdict['geometry_coarse'] = shape_images[visind]
-        if shape_detail_images is not None:
-            visdict['geometry_detail'] = shape_detail_images[visind]
-
-        if 'albedo_images' in additional.keys():
-            visdict['albedo_images'] = additional['albedo_images'][visind]
-
-        if 'masks' in additional.keys():
-            visdict['mask'] = additional['masks'].repeat(1, 3, 1, 1)[visind]
-        if 'albedo' in additional.keys():
-            visdict['albedo'] = additional['albedo'][visind]
-
-        if 'predicted_detailed_image' in additional.keys() and additional['predicted_detailed_image'] is not None:
-            visdict['output_images_detail'] = additional['predicted_detailed_image'][visind]
-
-        if 'predicted_detailed_translated_image' in additional.keys() and additional['predicted_detailed_translated_image'] is not None:
-            visdict['output_translated_images_detail'] = additional['predicted_detailed_translated_image'][visind]
-
-        if 'shape_detail_images' in additional.keys():
-            visdict['shape_detail_images'] = additional['shape_detail_images'][visind]
-
-        if 'uv_detail_normals' in additional.keys():
-            visdict['uv_detail_normals'] = additional['uv_detail_normals'][visind] * 0.5 + 0.5
-
-        if 'uv_texture_patch' in additional.keys():
-            visdict['uv_texture_patch'] = additional['uv_texture_patch'][visind]
-
-        if 'uv_texture_gt' in additional.keys():
-            visdict['uv_texture_gt'] = additional['uv_texture_gt'][visind]
-
-        if 'translated_uv_texture' in additional.keys() and additional['translated_uv_texture'] is not None:
-            visdict['translated_uv_texture'] = additional['translated_uv_texture'][visind]
-
-        if 'uv_vis_mask_patch' in additional.keys():
-            visdict['uv_vis_mask_patch'] = additional['uv_vis_mask_patch'][visind]
-
-        if save:
-            savepath = f'{self.inout_params.full_run_dir}/{prefix}_{stage}/combined/{self.current_epoch:04d}_{batch_idx:04d}.png'
-            Path(savepath).parent.mkdir(exist_ok=True, parents=True)
-            visualization_image = self.deca.visualize(visdict, savepath)
-            return visdict, visualization_image[..., [2, 1, 0]]
-        else:
-            visualization_image = None
-            return visdict, None
 
 
     @classmethod
