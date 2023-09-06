@@ -183,7 +183,15 @@ class LightRegLoss(object):
         pass
 
     def __call__(self, lightcode, *args, **kwargs):
-        return ((torch.mean(lightcode, dim=2)[:, :, None] - lightcode) ** 2).mean()
+        if lightcode.ndim == 2:
+            B_ = lightcode.shape[0]
+        elif lightcode.ndim == 3: 
+            B, T = lightcode.shape[:2]
+            B_ = B * T
+        else: 
+            raise ValueError("lightcode must have ndim 2 or 3")
+        lightcode_ = lightcode.view(B_,  -1 ,3)
+        return ((torch.mean(lightcode_, dim=2, keepdim=True) - lightcode_) ** 2).mean()
     
     def to(self, *args, **kwargs):
         return self
