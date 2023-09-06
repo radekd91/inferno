@@ -52,7 +52,6 @@ losses:
     mask_key: focus
     masking_type: gt 
 
-
   expression_reg: 
     type: expression_reg
     weight: 1.
