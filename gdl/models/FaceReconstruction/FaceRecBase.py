@@ -397,9 +397,10 @@ class FaceReconstructionBase(LightningModule):
             if 'predicted_mask' in batch.keys():
                 visdict['predicted_mask'] += [(_torch_image2np(batch['predicted_mask'][b]).clip(0, 1) * 255.).astype(np.uint8)]
 
-            landmark_gt_fan = util.tensor_vis_landmarks_single_image(
-               image_original, batch['landmarks']['fan'][b].cpu().numpy()) 
-            visdict['landmarks_gt_fan'] += [(landmark_gt_fan * 255.).astype(np.uint8)]
+            if 'fan3d' in batch['landmarks'].keys():
+                landmark_gt_fan = util.tensor_vis_landmarks_single_image(
+                image_original, batch['landmarks']['fan3d'][b].cpu().numpy()) 
+                visdict['landmarks_gt_fan'] += [(landmark_gt_fan * 255.).astype(np.uint8)]
             
             landmarks_gt_mediapipe = draw_mediapipe_landmarks(image_original, 
                         batch['landmarks']['mediapipe'][b].cpu().numpy()).astype(np.uint8)

@@ -11,11 +11,20 @@ def masking(tensor, mask):
 
 class LandmarkLoss(object):
 
-    def __init__(self, device, loss_type='l2'):
+    def __init__(self, device, loss_type='l2', dim='2D'):
         self.device = device
         self.loss_type = loss_type
+        self.dim = dim
+        if self.dim == '2D':
+            self.dim_ = 2
+        elif self.dim == '3D':
+            self.dim_ = 3
+        else:
+            raise ValueError('Dimension not supported: {}'.format(self.dim))
 
     def __call__(self, pred, target, *args, mask=None, **kwargs):
+        pred = pred[..., :self.dim_]
+        target = target[..., :self.dim_]
         if mask is not None:
             pred = self.mask(pred, mask)
             target = self.mask(target, mask)

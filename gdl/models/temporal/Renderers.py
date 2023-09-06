@@ -23,9 +23,12 @@ class FlameLandmarkProjector(Renderer):
         albedo = sample["albedo"]
         if self.project_landmarks:
             landmarks2d = None 
+            landmarks3d = None
             landmarks2d_mediapipe = None
             if "predicted_landmarks2d_flame_space" in sample.keys():
                 landmarks2d = sample["predicted_landmarks2d_flame_space"]
+            if "predicted_landmarks3d_flame_space" in sample.keys():
+                landmarks3d = sample["predicted_landmarks3d_flame_space"]
             if "predicted_landmarks2d_mediapipe_flame_space" in sample.keys():
                 landmarks2d_mediapipe = sample["predicted_landmarks2d_mediapipe_flame_space"]
         cam = sample["cam"]
@@ -46,6 +49,8 @@ class FlameLandmarkProjector(Renderer):
             if self.project_landmarks:
                 if landmarks2d is not None:
                     landmarks2d = landmarks2d.view(B*T, *landmarks2d.shape[2:])
+                if landmarks3d is not None:
+                    landmarks3d = landmarks3d.view(B*T, *landmarks3d.shape[2:])
                 if landmarks2d_mediapipe is not None:
                     landmarks2d_mediapipe = landmarks2d_mediapipe.view(B*T, *landmarks2d_mediapipe.shape[2:])
             cam = cam.view(B*T, *cam.shape[2:])
@@ -60,6 +65,8 @@ class FlameLandmarkProjector(Renderer):
         if self.project_landmarks:
             if landmarks2d is not None:
                 predicted_landmarks = util.batch_orth_proj(landmarks2d, cam)[:, :, :2]
+            if landmarks3d is not None:
+                predicted_landmarks_3d = util.batch_orth_proj(landmarks3d, cam)[:, :, :2]
             if landmarks2d_mediapipe is not None:
                 predicted_landmarks_mediapipe = util.batch_orth_proj(landmarks2d_mediapipe, cam)[:, :, :2]
 
@@ -68,6 +75,8 @@ class FlameLandmarkProjector(Renderer):
         if self.project_landmarks:
             if landmarks2d is not None:
                 predicted_landmarks[:, :, 1:] = -predicted_landmarks[:, :, 1:]
+            if landmarks3d is not None:
+                predicted_landmarks_3d[:, :, 1:] = -predicted_landmarks_3d[:, :, 1:]
             if landmarks2d_mediapipe is not None:
                 predicted_landmarks_mediapipe[:, :, 1:] = -predicted_landmarks_mediapipe[:, :, 1:]
 
@@ -78,6 +87,8 @@ class FlameLandmarkProjector(Renderer):
             if self.project_landmarks:
                 if landmarks2d is not None:
                     predicted_landmarks = predicted_landmarks.view(B, T, *predicted_landmarks.shape[1:])
+                if landmarks3d is not None:
+                    predicted_landmarks_3d = predicted_landmarks_3d.view(B, T, *predicted_landmarks_3d.shape[1:])
                 if landmarks2d_mediapipe is not None:
                     predicted_landmarks_mediapipe = predicted_landmarks_mediapipe.view(B, T, *predicted_landmarks_mediapipe.shape[1:])
             trans_verts = trans_verts.view(B,T, *trans_verts.shape[1:])
@@ -85,6 +96,8 @@ class FlameLandmarkProjector(Renderer):
         if self.project_landmarks:
             if landmarks2d is not None:
                 sample["predicted_landmarks"] = predicted_landmarks
+            if landmarks3d is not None:
+                sample["predicted_landmarks_3d"] = predicted_landmarks_3d
             if landmarks2d_mediapipe is not None:
                 sample["predicted_landmarks_mediapipe"] = predicted_landmarks_mediapipe
         sample["trans_verts"] = trans_verts
@@ -92,7 +105,7 @@ class FlameLandmarkProjector(Renderer):
 
 
     def render_coarse_shape(self, sample, indices=None, **kwargs):
-        raise NotImplementedError("This method is not implemented for this renderer")
+        return None
 
 
 class FlameRenderer(Renderer):
@@ -121,9 +134,12 @@ class FlameRenderer(Renderer):
         albedo = sample["albedo"]
         if self.project_landmarks:
             landmarks2d = None 
+            landmarks3d = None
             landmarks2d_mediapipe = None
             if "predicted_landmarks2d_flame_space" in sample.keys():
                 landmarks2d = sample["predicted_landmarks2d_flame_space"]
+            if "predicted_landmarks3d_flame_space" in sample.keys():
+                landmarks3d = sample["predicted_landmarks3d_flame_space"]
             if "predicted_landmarks2d_mediapipe_flame_space" in sample.keys():
                 landmarks2d_mediapipe = sample["predicted_landmarks2d_mediapipe_flame_space"]
         cam = sample["cam"]
@@ -144,6 +160,8 @@ class FlameRenderer(Renderer):
             if self.project_landmarks:
                 if landmarks2d is not None:
                     landmarks2d = landmarks2d.view(B*T, *landmarks2d.shape[2:])
+                if landmarks3d is not None:
+                    landmarks3d = landmarks3d.view(B*T, *landmarks3d.shape[2:])
                 if landmarks2d_mediapipe is not None:
                     landmarks2d_mediapipe = landmarks2d_mediapipe.view(B*T, *landmarks2d_mediapipe.shape[2:])
             cam = cam.view(B*T, *cam.shape[2:])
@@ -158,6 +176,8 @@ class FlameRenderer(Renderer):
         if self.project_landmarks:
             if landmarks2d is not None:
                 predicted_landmarks = util.batch_orth_proj(landmarks2d, cam)[:, :, :2]
+            if landmarks3d is not None:
+                predicted_landmarks_3d = util.batch_orth_proj(landmarks3d, cam)[:, :, :2]
             if landmarks2d_mediapipe is not None:
                 predicted_landmarks_mediapipe = util.batch_orth_proj(landmarks2d_mediapipe, cam)[:, :, :2]
 
@@ -166,6 +186,8 @@ class FlameRenderer(Renderer):
         if self.project_landmarks:
             if landmarks2d is not None:
                 predicted_landmarks[:, :, 1:] = -predicted_landmarks[:, :, 1:]
+            if landmarks3d is not None:
+                predicted_landmarks_3d[:, :, 1:] = -predicted_landmarks_3d[:, :, 1:]
             if landmarks2d_mediapipe is not None:
                 predicted_landmarks_mediapipe[:, :, 1:] = -predicted_landmarks_mediapipe[:, :, 1:]
 
@@ -185,6 +207,8 @@ class FlameRenderer(Renderer):
             if self.project_landmarks:
                 if landmarks2d is not None:
                     predicted_landmarks = predicted_landmarks.view(B, T, *predicted_landmarks.shape[1:])
+                if landmarks3d is not None:
+                    predicted_landmarks_3d = predicted_landmarks_3d.view(B, T, *predicted_landmarks_3d.shape[1:])
                 if landmarks2d_mediapipe is not None:
                     predicted_landmarks_mediapipe = predicted_landmarks_mediapipe.view(B, T, *predicted_landmarks_mediapipe.shape[1:])
             trans_verts = trans_verts.view(B,T, *trans_verts.shape[1:])
@@ -194,6 +218,8 @@ class FlameRenderer(Renderer):
         if self.project_landmarks:
             if landmarks2d is not None:
                 sample["predicted_landmarks"] = predicted_landmarks
+            if landmarks3d is not None:
+                sample["predicted_landmarks_3d"] = predicted_landmarks_3d
             if landmarks2d_mediapipe is not None:
                 sample["predicted_landmarks_mediapipe"] = predicted_landmarks_mediapipe
         sample["trans_verts"] = trans_verts
