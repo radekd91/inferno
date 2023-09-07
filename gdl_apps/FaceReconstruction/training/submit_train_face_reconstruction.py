@@ -139,20 +139,29 @@ def submit_trainings():
     # batch_sizes = [4, 6, 8, 10]
     # batch_sizes = [64]
     # batch_sizes = [32]
-    batch_sizes = [2]
+    
+    batch_sizes = [32]
     new_finetune_modes = []
+
+    if not submit_:
+        batch_sizes = [2]
+        ring_size = 4
 
     for mode in finetune_modes: 
         for batch_size in batch_sizes:
             # num_workers = int(batch_size * 1)
-            # num_workers = 8
+            num_workers = 8
             # num_workers = 12
-            num_workers = 0
+            if not submit_:
+                num_workers = 0
             mode = copy.deepcopy(mode)
             mode[0] += [ 
                 f'learning.batching.batch_size_train={batch_size}',
                 f'learning.batching.batch_size_val={batch_size}',
                 f'learning.batching.batch_size_test={batch_size}',
+                f'learning.batching.ring_size_train={ring_size}',
+                f'learning.batching.ring_size_val={ring_size}',
+                f'learning.batching.ring_size_test={ring_size}',
                 f'data.num_workers={num_workers}'
             ]
             new_finetune_modes += [mode]
@@ -180,7 +189,8 @@ def submit_trainings():
         
         # ## MEAD 
         'data/datasets=mead', 
-        'data.split=specific_identity_sorted_80_20_M003',
+        # 'data.split=specific_identity_sorted_80_20_M003',
+        'data.split=random_by_sequence_sorted_70_15_15',
 
         # ## CelebV-Text
         # 'data/datasets=', 
@@ -189,7 +199,7 @@ def submit_trainings():
         ## CelebV-HQ 
         # 'data/datasets=celebvhq_no_occlusion', # training on a single video (and therefore identity)
         # # 'data.split=specific_video_temporal_eknCAJ0ik8c_0_0_80_10_10',
-        # 'data.split=specific_video_temporal_6jRVZQMKlxw_1_0_80_10_10',
+        # 'data.split=specific_video_temporal_6jRVZQMKlxw_1_0_80_10_10', 
         # 'data.preload_videos=true',
         # 'data.inflate_by_video_size=true',
     ]

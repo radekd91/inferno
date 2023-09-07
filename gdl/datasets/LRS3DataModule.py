@@ -56,6 +56,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 landmark_types = None,
                 landmark_sources=None,
                 segmentation_source=None,
+                segmentation_type =None,
                 ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, device, 
@@ -94,6 +95,7 @@ class LRS3DataModule(FaceVideoDataModule):
         self.landmark_types = landmark_types or ["mediapipe", "fan"]
         self.landmark_sources = landmark_sources or ["original", "aligned"]
         self.segmentation_source = segmentation_source or "aligned"
+        self.segmentation_type = segmentation_type or "bisenet"
 
     def prepare_data(self):
         # super().prepare_data()
@@ -578,6 +580,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 landmark_source=self.landmark_sources,
                 landmark_types=self.landmark_types,
                 segmentation_source=self.segmentation_source,
+                segmentation_type=self.segmentation_type,
             )
 
         return dataset
@@ -599,6 +602,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 landmark_source=self.landmark_sources,
                 landmark_types=self.landmark_types,
                 segmentation_source=self.segmentation_source,
+                segmentation_type=self.segmentation_type,
               )
 
 
@@ -616,6 +620,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 landmark_source=self.landmark_sources,
                 landmark_types=self.landmark_types,
                 segmentation_source=self.segmentation_source,
+                segmentation_type=self.segmentation_type,
             )
 
 
@@ -632,6 +637,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 landmark_source=self.landmark_sources,
                 landmark_types=self.landmark_types,
                 segmentation_source=self.segmentation_source,
+                segmentation_type=self.segmentation_type,
                 )
 
         if "specific_identity" in self.split: 
@@ -650,6 +656,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 landmark_source=self.landmark_sources,
                 landmark_types=self.landmark_types,
                 segmentation_source=self.segmentation_source,
+                segmentation_type=self.segmentation_type,
             )
 
         # if self.mode in ['all', 'manual']:

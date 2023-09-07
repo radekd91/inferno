@@ -59,6 +59,7 @@ landmark_sources: [original, aligned]
 # landmark_sources: original
 
 segmentation_source: aligned
+segmentation_type: focus
 
 # split: random_70_15_15
 # split: random_by_identity_70_15_15
