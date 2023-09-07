@@ -152,13 +152,16 @@ def unring_view_dict(value, shape):
         return [unring_view_dict(v, shape) for v in value]
 
 
-def rering_view_dict(value, batch_size, ring_size): 
+def rering_view_dict(value, ring_size): 
     if isinstance(value, torch.Tensor):
+        B = value.shape[0] 
+        batch_size = B // ring_size 
+        assert B % ring_size == 0, f"Batch size must be divisible by ring size but {B} mod {ring_size} == {B%ring_size}"
         return value.view(batch_size, ring_size, *value.shape[1:])
     elif isinstance(value, dict):
-        return {k: unring_view_dict(v, batch_size, ring_size) for k, v in value.items()}
+        return {k: rering_view_dict(v, ring_size) for k, v in value.items()}
     elif isinstance(value, list):
-        return [unring_view_dict(v, batch_size, ring_size) for v in value]
+        return [rering_view_dict(v, batch_size, ring_size) for v in value]
 
 
 def dict_get(d, key): 
@@ -355,10 +358,15 @@ class FaceReconstructionBase(LightningModule):
         if render and self.renderer is not None:
             batch = self.render(batch, training=training)
 
+        # 4) rering 
+        batch = self.rering(batch, ring_size)
+
         return batch
 
 
     def visualize_batch(self, batch, batch_idx, prefix, in_batch_idx=None):
+        batch, ring_size = self.unring(batch)
+        
         B = batch['image'].shape[0]
         if in_batch_idx is None: 
             in_batch_idx = list(range(B))
@@ -454,6 +462,17 @@ class FaceReconstructionBase(LightningModule):
                 # if value.shape[0] == B and value.shape[1] == K: 
                 #     batch[key] = value.view(B*K, *value.shape[2:]) 
         return batch, ring_size
+    
+    def rering(self, batch, ring_size):
+        """
+        This is where the "ring" dimension (if any) would get restored, etc. 
+        """
+        # for every entry in batch (that corresponds to each image), undo the ring dimension
+        for key, value in batch.items():
+            if isinstance(value, torch.Tensor) and value.ndim <= 1:
+                continue
+            batch[key] = rering_view_dict(value, ring_size)
+        return batch
 
     def exchange(self, batch, ring_size, training, validation, **kwargs):
         """
