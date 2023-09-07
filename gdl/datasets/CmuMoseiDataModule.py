@@ -377,6 +377,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+                original_image_size=self.processed_video_size,
               )
                     
         self.validation_set = CmuMoseiDataset(self.root_dir, self.output_dir, 
@@ -394,6 +395,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+                original_image_size=self.processed_video_size,
             )
 
         self.test_set = CmuMoseiDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
@@ -410,6 +412,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+                original_image_size=self.processed_video_size,
                 )
 
     def get_single_video_dataset(self, i):
@@ -431,6 +434,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 # temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=False,
+                original_image_size=self.processed_video_size,
                 )
         dataset._allow_alignment_fail = False
         return dataset
@@ -513,6 +517,7 @@ class CmuMoseiDataset(VideoDatasetBase):
             preload_videos=False,
             inflate_by_video_size=False,
             include_filename=False, # if True includes the filename of the video in the sample
+            original_image_size=None,
     ) -> None:
         landmark_types = landmark_types or ["mediapipe", "fan"]
         super().__init__(
@@ -547,6 +552,7 @@ class CmuMoseiDataset(VideoDatasetBase):
             preload_videos=preload_videos,
             inflate_by_video_size=inflate_by_video_size,
             include_filename=include_filename,
+            original_image_size=original_image_size,
         )
 
 
