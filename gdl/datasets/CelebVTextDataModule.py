@@ -363,7 +363,7 @@ class CelebVTextDataModule(FaceVideoDataModule):
     def setup(self, stage=None):
         train, val, test = self._get_subsets(self.split)
         training_augmenter = create_image_augmenter(self.image_size, self.augmentation)
-        self.training_set = CelebVTextDataModule(self.root_dir, self.output_dir, self.video_list, self.video_metas, train, 
+        self.training_set = CelebVTextDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, train, 
                 self.audio_metas, self.sequence_length_train, image_size=self.image_size, 
                 transforms=training_augmenter,
                 **self.occlusion_settings_train,
@@ -378,9 +378,10 @@ class CelebVTextDataModule(FaceVideoDataModule):
                 temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+                original_image_size=self.processed_video_size,
               )
                     
-        self.validation_set = CelebVTextDataModule(self.root_dir, self.output_dir, 
+        self.validation_set = CelebVTextDataset(self.root_dir, self.output_dir, 
                 self.video_list, self.video_metas, val, self.audio_metas, 
                 self.sequence_length_val, image_size=self.image_size,  
                 **self.occlusion_settings_val,
@@ -395,9 +396,10 @@ class CelebVTextDataModule(FaceVideoDataModule):
                 temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+                original_image_size=self.processed_video_size,
             )
 
-        self.test_set = CelebVTextDataModule(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
+        self.test_set = CelebVTextDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
                 self.sequence_length_test, image_size=self.image_size, 
                 **self.occlusion_settings_test,
                 hack_length=False, 
@@ -411,6 +413,7 @@ class CelebVTextDataModule(FaceVideoDataModule):
                 temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=self.inflate_by_video_size,
+                original_image_size=self.processed_video_size,
                 )
 
     def get_single_video_dataset(self, i):
@@ -432,6 +435,7 @@ class CelebVTextDataModule(FaceVideoDataModule):
                 # temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
                 inflate_by_video_size=False,
+                original_image_size=self.processed_video_size,
                 )
         dataset._allow_alignment_fail = False
         return dataset
@@ -514,6 +518,7 @@ class CelebVTextDataset(VideoDatasetBase):
             preload_videos=False,
             inflate_by_video_size=False,
             include_filename=False, # if True includes the filename of the video in the sample
+            original_image_size=None,
     ) -> None:
         landmark_types = landmark_types or ["mediapipe", "fan"]
         super().__init__(
@@ -548,6 +553,7 @@ class CelebVTextDataset(VideoDatasetBase):
             preload_videos=preload_videos,
             inflate_by_video_size=inflate_by_video_size,
             include_filename=include_filename,
+            original_image_size=original_image_size,
         )
 
 

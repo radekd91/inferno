@@ -17,6 +17,7 @@ import subprocess
 import traceback
 from gdl.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
 import cv2
+from decord import VideoReader, cpu
 
 class AbstractVideoDataset(torch.utils.data.Dataset):
 
@@ -53,7 +54,7 @@ class VideoDatasetBase(AbstractVideoDataset):
             occlusion_probability_left_eye = 0.0,
             occlusion_probability_right_eye = 0.0,
             occlusion_probability_face = 0.0,
-            image_size=None, 
+            image_size=None, ## the image size that the dataset will output
             transforms : imgaug.augmenters.Augmenter = None,
             hack_length=False,
             use_original_video=True,
@@ -74,6 +75,7 @@ class VideoDatasetBase(AbstractVideoDataset):
             return_emotion_feature=False,
             read_video=True,
             read_audio=True,
+            original_image_size=None, ## the processed videos may be different in size and if they are, the landmarks will be, too. This is to remember
         ) -> None:
         super().__init__()
         self.root_path = root_path
@@ -86,6 +88,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         self.audio_metas = audio_metas
         self.audio_noise_prob = audio_noise_prob
         self.image_size = image_size
+        self.original_image_size = original_image_size or image_size
         self.scale = 1.25
         # if the video is 25 fps and the audio is 16 kHz, stack_order_audio corresponds to 4 
         # (i.e. 4 consecutive filterbanks will be concatenated to sync with the visual frame) 
@@ -492,11 +495,23 @@ class VideoDatasetBase(AbstractVideoDataset):
             num_read_frames = 0
             try:
                 if not self.preload_videos:
-                    frames = vread(video_path.as_posix())
+                    # import timeit
+                    # start_time = timeit.default_timer()
+                    # frames = vread(video_path.as_posix())
+                    # end_time = timeit.default_timer()
+                    # print(f"Video read time: {end_time - start_time:.2f} s")
+                    # from decord import VideoReader
+                    # from decord import cpu, gpu
+                    # start_time = timeit.default_timer()
+                    vr = VideoReader(video_path.as_posix(), ctx=cpu(0), width=self.image_size, height=self.image_size) 
+                    frames = vr.get_batch(range(start_frame,(start_frame + sequence_length)))  # get frames 10-19
+                    frames = frames.asnumpy()
+                    # end_time = timeit.default_timer()
+                    # print(f"Video read time: {end_time - start_time:.2f} s")
                 else: 
                     frames = self.video_cache[video_path.as_posix()]
-                assert len(frames) == num_frames, f"Video {video_path} has {len(frames)} frames, but meta says it has {num_frames}"
-                frames = frames[start_frame:(start_frame + sequence_length)] 
+                    assert len(frames) == num_frames, f"Video {video_path} has {len(frames)} frames, but meta says it has {num_frames}"
+                    frames = frames[start_frame:(start_frame + sequence_length)] 
                 num_read_frames = frames.shape[0]
                 if frames.shape[0] < sequence_length:
                     # pad with zeros if video shorter than sequence length
@@ -785,6 +800,24 @@ class VideoDatasetBase(AbstractVideoDataset):
                     np.zeros((sequence_length - segmentations.shape[0], segmentations.shape[1], segmentations.shape[2]),
                         dtype=segmentations.dtype)], axis=0)
 
+        # ## resize segmentation to the expected image size
+        # if segmentations.shape[1] != self.image_size and segmentations.shape[2] != self.image_size:
+        #     # sample["segmentation"] = np.zeros((seg_frames.shape[0], self.image_size, self.image_size), dtype=seg_frames.dtype)
+        #     # for i in range(seg_frames.shape[0]):
+        #     #     sample["segmentation"][i] = cv2.resize(seg_frames[i], (self.image_size, self.image_size), interpolation=cv2.INTER_NEAREST)
+
+        #     # do the interpolation with pytorch functional instead: 
+        #     seg_frames = torch.from_numpy(segmentations) 
+        #     channel_added = False
+        #     if seg_frames.ndim == 3: 
+        #         # add the channel dim 
+        #         seg_frames = seg_frames.unsqueeze(1)
+        #         channel_added = True
+        #     seg_frames = F.interpolate(seg_frames, size=(self.image_size, self.image_size), mode="nearest")
+        #     if channel_added:
+        #         seg_frames = seg_frames.squeeze(1)
+        #     segmentations = seg_frames.numpy()
+
         sample["segmentation"] = segmentations
         return sample
 
@@ -893,17 +926,42 @@ class VideoDatasetBase(AbstractVideoDataset):
         else: 
             # no alignment, just resize the images
             video_frames = sample["video"]
-            sample["video"] = np.zeros((video_frames.shape[0], self.image_size, self.image_size, video_frames.shape[-1]), dtype=video_frames.dtype)
-            for i in range(video_frames.shape[0]):
-                sample["video"][i] = cv2.resize(video_frames[i], (self.image_size, self.image_size), interpolation=cv2.INTER_CUBIC)
+            if sample["video"].shape[1] != self.image_size and sample["video"].shape[2] != self.image_size:
+                sample["video"] = np.zeros((video_frames.shape[0], self.image_size, self.image_size, video_frames.shape[-1]), dtype=video_frames.dtype)
+                # resize with pytorch 
+                video_frames = torch.from_numpy(video_frames)
+                channel_added = False
+                if video_frames.ndim == 3:
+                    video_frames = video_frames.unsqueeze(1)
+                    channel_added = True
+                video_frames = F.interpolate(video_frames, size=(self.image_size, self.image_size), mode="bilinear")
+                if channel_added:
+                    video_frames = video_frames.squeeze(1)
+                sample["video"] = video_frames.numpy()
+                # for i in range(video_frames.shape[0]):
+                #     sample["video"][i] = cv2.resize(video_frames[i], (self.image_size, self.image_size), interpolation=cv2.INTER_CUBIC)
+            
             if "segmentation" in sample.keys():
                 seg_frames = sample["segmentation"]
-                sample["segmentation"] = np.zeros((seg_frames.shape[0], self.image_size, self.image_size), dtype=seg_frames.dtype)
-                for i in range(seg_frames.shape[0]):
-                    sample["segmentation"][i] = cv2.resize(seg_frames[i], (self.image_size, self.image_size), interpolation=cv2.INTER_NEAREST)
+                if seg_frames.shape[1] != self.image_size and seg_frames.shape[2] != self.image_size:
+                    # sample["segmentation"] = np.zeros((seg_frames.shape[0], self.image_size, self.image_size), dtype=seg_frames.dtype)
+                    # for i in range(seg_frames.shape[0]):
+                    #     sample["segmentation"][i] = cv2.resize(seg_frames[i], (self.image_size, self.image_size), interpolation=cv2.INTER_NEAREST)
+
+                    # do the interpolation with pytorch functional instead: 
+                    seg_frames = torch.from_numpy(seg_frames) 
+                    channel_added = False
+                    if seg_frames.ndim == 3: 
+                        # add the channel dim 
+                        seg_frames = seg_frames.unsqueeze(1)
+                        channel_added = True
+                    seg_frames = F.interpolate(seg_frames, size=(self.image_size, self.image_size), mode="nearest")
+                    if channel_added:
+                        seg_frames = seg_frames.squeeze(1)
+                    sample["segmentation"] = seg_frames.numpy()
             if "landmarks" in sample.keys():
                 for k,v in sample["landmarks"].items():
-                    sample["landmarks"][k][...,:2] *= self.image_size / video_frames.shape[1]
+                    sample["landmarks"][k][...,:2] *= self.image_size / self.original_image_size
 
         return sample
 
