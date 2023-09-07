@@ -3,7 +3,8 @@
 losses: 
   landmark_loss_mediapipe: 
     type: landmark_loss_mediapipe
-    weight: 1.
+    # weight: 1.
+    weight: 32.
     metric: l1
     mask_invalid: mediapipe_landmarks
     predicted_key: predicted_landmarks_mediapipe
@@ -11,7 +12,8 @@ losses:
 
   lip_distance_mediapipe: 
     type: lip_distance_mediapipe
-    weight: 1.
+    # weight: 1.
+    weight: 36.
     metric: l1
     mask_invalid: mediapipe_landmarks
     predicted_key: predicted_landmarks_mediapipe
@@ -19,7 +21,7 @@ losses:
   
   mouth_corner_distance_mediapipe:
     type: mouth_corner_distance_mediapipe
-    weight: 1.
+    weight: 36.
     metric: l1
     mask_invalid: mediapipe_landmarks
     predicted_key: predicted_landmarks_mediapipe
@@ -27,7 +29,7 @@ losses:
 
   eye_distance_mediapipe: 
     type: eye_distance_mediapipe
-    weight: 1.
+    weight: 36.
     metric: l1
     mask_invalid: mediapipe_landmarks
     predicted_key: predicted_landmarks_mediapipe
@@ -35,7 +37,7 @@ losses:
 
   photometric_loss: 
     type: photometric_loss
-    weight: 1.
+    weight: 2.
     metric: l1
     predicted_key: predicted_image
     target_key: image_original
@@ -54,7 +56,6 @@ losses:
     emo_feat_loss: masked_mse_loss
     trainable: false 
     normalize_features: false 
-    target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex # trying to make emotion behave as emoca
     mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
     
     predicted_key: predicted_image
@@ -66,7 +67,10 @@ losses:
     type: lip_reading_loss
     weight: 1.
     # metric: l1
-    metric: cosine_similarity
+    # metric: cosine_similarity
+    weight: 20.0
+    metric: masked_mse_loss
+
     mask_invalid: mediapipe_landmarks
     predicted_key: predicted_image
     target_key: image_original
@@ -77,7 +81,7 @@ losses:
 
   expression_reg: 
     type: expression_reg
-    weight: 1.
+    weight: 1e-4
     metric: False
     predicted_key: expcode
     target_key: False
