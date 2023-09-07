@@ -161,7 +161,8 @@ class CelebVTextDataModule(FaceVideoDataModule):
         return self.face_detector_type
 
     def _get_segmentation_method(self):
-        return "bisenet"
+        # return "bisenet"
+        return "focus"
 
     def _detect_faces(self):
         return super()._detect_faces( )

@@ -271,10 +271,15 @@ class FaceDataModuleBase(pl.LightningDataModule):
                                                 centers_all, sizes_all, fid)
 
 
+    def _get_segmentation_method(self): 
+        return "focus"
+        # return "bisenet"
+
 
     def _segment_images(self, detection_fnames_or_ims, out_segmentation_folder, path_depth = 0, landmarks=None, segmentation_net=None):
         import time
-        segmentation_net = segmentation_net or "bisenet"
+        # segmentation_net = segmentation_net or "bisenet"
+        segmentation_net = segmentation_net or self._get_segmentation_method()
         if self.save_landmarks_one_file: 
             overwrite = False 
             single_out_file = out_segmentation_folder / "segmentations.pkl"

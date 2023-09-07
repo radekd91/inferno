@@ -299,7 +299,8 @@ class MEADDataModule(FaceVideoDataModule):
         return self.face_detector_type
 
     def _get_segmentation_method(self):
-        return "bisenet"
+        # return "bisenet"
+        return "focus"
 
     def _detect_faces(self):
         return super()._detect_faces( )
@@ -348,7 +349,12 @@ class MEADDataModule(FaceVideoDataModule):
         # if cut_out_faces: 
         #     self._cut_out_detected_faces_in_sequence(idx)
         if segment_videos:
-            self._segment_faces_in_sequence(idx, use_aligned_videos=True)
+            if segment_videos:
+                # seg_methods = ['bisenet', 'focus']
+                seg_methods = ['focus']
+                for seg_method in seg_methods:
+                    self._segment_faces_in_sequence(idx, use_aligned_videos=True, segmentation_net=seg_method)
+            # self._segment_faces_in_sequence(idx, use_aligned_videos=True)
             # raise NotImplementedError()
         if detect_aligned_landmarks: 
             self._detect_landmarkes_in_aligned_sequence(idx)
