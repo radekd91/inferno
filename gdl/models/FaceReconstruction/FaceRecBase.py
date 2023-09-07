@@ -381,6 +381,12 @@ class FaceReconstructionBase(LightningModule):
         visdict['landmarks_pred_fan'] =  []
         visdict['landmarks_pred_mediapipe'] = []
         
+        if isinstance(batch['segmentation'], torch.Tensor):
+            visdict["mask"] = []
+        else:
+            for key, value in batch["segmentation"].items():
+                visdict["mask_" + key] = []
+
         verts = batch['verts']
         trans_verts = batch['trans_verts']
         shape_images = self.renderer.render.render_shape(verts, trans_verts)
@@ -391,6 +397,17 @@ class FaceReconstructionBase(LightningModule):
             
             image_original = _torch_image2np(batch['image_original'][b]).clip(0, 1) 
             visdict['image_original'] += [(image_original* 255.).astype(np.uint8)]
+
+            if isinstance(batch['segmentation'], torch.Tensor):
+                mask = batch['segmentation'][b].cpu().numpy().clip(0, 1)
+                mask = (mask * 255.).astype(np.uint8)
+                visdict['mask'] += [mask]
+            else: 
+                for key, value in batch["segmentation"].items():
+                    mask = value[b].cpu().numpy().clip(0, 1)
+                    mask = (mask * 255.).astype(np.uint8)
+                    visdict["mask_" + key] = [mask]
+
             if 'predicted_image' in batch.keys():
                 visdict['predicted_image'] += [(_torch_image2np(batch['predicted_image'][b]).clip(0, 1) * 255.).astype(np.uint8)]
 
