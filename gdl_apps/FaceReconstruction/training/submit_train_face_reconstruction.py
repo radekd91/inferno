@@ -23,13 +23,34 @@ import datetime
 from omegaconf import DictConfig, OmegaConf, open_dict
 import time as t
 import copy
+import sys
+
+
+submit_ = False
+# submit_ = True
+
+if submit_ or __name__ != "__main__":
+    config_path = Path(__file__).parent / "submission_settings.yaml"
+    if not config_path.exists():
+        cfg = DictConfig({})
+        cfg.cluster_repo_path = "todo"
+        cfg.submission_dir_local_mount = "todo"
+        cfg.submission_dir_cluster_side = "todo"
+        cfg.python_bin = "todo"
+        cfg.username = "todo"
+        OmegaConf.save(config=cfg, f=config_path)
+        
+    user_config = OmegaConf.load(config_path)
+    for key, value in user_config.items():
+        if value == 'todo': 
+            print("Please fill in the settings.yaml file")
+            sys.exit(0)
 
 
 def submit(cfg , bid=10):
-    cluster_repo_path = "/home/rdanecek/workspace/repos/gdl"
-
-    submission_dir_local_mount = "/is/cluster/work/rdanecek/face_reconstruction/submission"
-    submission_dir_cluster_side = "/is/cluster/work/rdanecek/face_reconstruction/submission"
+    cluster_repo_path = user_config.cluster_repo_path
+    submission_dir_local_mount = user_config.submission_dir_local_mount
+    submission_dir_cluster_side = user_config.submission_dir_cluster_side
 
     time = datetime.datetime.now().strftime("%Y_%m_%d_%H-%M-%S")
     submission_folder_name = time + "_" + str(hash(time)) + "_" + "submission"
@@ -50,10 +71,10 @@ def submit(cfg , bid=10):
     # with open(detail_file, 'w') as outfile:
     #     OmegaConf.save(config=cfg_detail, f=outfile)
 
-
-    # python_bin = 'python'
-    python_bin = '/home/rdanecek/anaconda3/envs/<<ENV>>/bin/python'
-    username = 'rdanecek'
+    # python_bin = '/home/rdanecek/anaconda3/envs/<<ENV>>/bin/python'
+    python_bin = user_config.python_bin
+    # username = 'rdanecek'
+    username = user_config.username
     gpu_mem_requirement_mb = cfg.learning.batching.gpu_memory_min_gb * 1024
     gpu_mem_requirement_mb_max = cfg.learning.batching.get('gpu_mem_requirement_mb_max', None)
     # gpu_mem_requirement_mb = None
@@ -71,6 +92,8 @@ def submit(cfg , bid=10):
     args = f"{coarse_file.name}"
     # args = f"{str(Path(result_dir_cluster_side) / resume_folder)} 
     # {stage} {int(resume_from_previous)} {int(force_new_location)}"
+
+    env="/is/cluster/fast/rdanecek/envs/work38_fast_clone" 
 
     execute_on_cluster(str(cluster_script_path),
                        args,
@@ -90,7 +113,7 @@ def submit(cfg , bid=10):
                        max_price=max_price,
                        job_name=job_name,
                        cuda_capability_requirement=cuda_capability_requirement,
-                       env="work38",
+                       env=env,
                        )
     # t.sleep(2)
 
@@ -98,8 +121,8 @@ def submit(cfg , bid=10):
 def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
-    # coarse_conf = "mica_deca_pretrain"
-    coarse_conf = "emica_deca_stage"
+    coarse_conf = "emica_pretrain_stage" 
+    # coarse_conf = "emica_deca_stage"
     # coarse_conf = "emica_emoca_stage"
 
 
@@ -114,12 +137,16 @@ def submit_trainings():
     # 1. What batch size/sequence length is optimal for 32GB, 40GB and 80GB GPUs? 
     #  - 4 for 32GB, 6 for 40GB,  10 or maybe 12 for 80GB (these numbers are for 20-frame sequence length)
     # batch_sizes = [4, 6, 8, 10]
-    batch_sizes = [12]
+    # batch_sizes = [64]
+    # batch_sizes = [32]
+    batch_sizes = [2]
     new_finetune_modes = []
 
     for mode in finetune_modes: 
         for batch_size in batch_sizes:
             # num_workers = int(batch_size * 1)
+            # num_workers = 8
+            # num_workers = 12
             num_workers = 0
             mode = copy.deepcopy(mode)
             mode[0] += [ 
@@ -151,9 +178,13 @@ def submit_trainings():
         # # 'data.split=random_by_identity_pretrain_80_20',
         # 'data.split=specific_identity_80_20_pretrain/0af00UcTOSc', # training on a single identity 
         
-        ## MEAD 
+        # ## MEAD 
         'data/datasets=mead', 
         'data.split=specific_identity_sorted_80_20_M003',
+
+        # ## CelebV-Text
+        # 'data/datasets=', 
+        # 'data.split=specific_identity_sorted_80_20_M003',
 
         ## CelebV-HQ 
         # 'data/datasets=celebvhq_no_occlusion', # training on a single video (and therefore identity)
@@ -181,9 +212,7 @@ def submit_trainings():
         # config_pairs += [cfgs]
 
 
-        bid = 1000
-        submit_ = False
-        # submit_ = True
+        bid = 150
         if not submit_: 
             bs = 2
             seq_len = 10
@@ -209,16 +238,6 @@ def submit_trainings():
         OmegaConf.set_struct(conf, False)
         with open_dict(conf) as d:
             tags = ["INITIAL_SMALL_TESTS"]
-            tags += ["EMOCA_LIKE"]
-            # tags += ["EMOCA_LIKE_NO_EMO"]
-            # tags = ["PREDICT_EJ"]
-            # tags += ["PREDICT_ALL"]
-            # tags += ["PREDICT_EJG"]
-            # tags += ["PREDICT_EJGC"]
-            # tags += ["PREDICT_G"]
-            # tags += ["PREDICT_C"]
-            # tags += ["PREDICT_GC"]
-            # tags += ["EMOCA_REG"]
             if not submit_:
                 tags += ["DEBUG_FROM_WORKSTATION"]
             if d.learning.tags is None:
