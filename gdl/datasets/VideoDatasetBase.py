@@ -319,7 +319,8 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         # 3) LANDMARKS 
         sample = self._get_landmarks(index, start_frame, num_read_frames, video_fps, num_frames, sample)
-        lmk_read_time = timeit.default_timer() - start_time - video_read_time - audio_read_time
+        if time:
+            lmk_read_time = timeit.default_timer() - start_time - video_read_time - audio_read_time
 
         # 4) SEGMENTATIONS
         if self.read_video:
