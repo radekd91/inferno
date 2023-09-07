@@ -79,6 +79,7 @@ def create_single_dm(cfg, data_class):
                 # test_condition_settings=condition_settings,
                 
                 read_video=cfg.data.get('read_video', True),
+                read_audio=cfg.data.get('read_audio', False),
                 align_images = cfg.data.get('align_images', True),
                 # reconstruction_type=cfg.data.get('reconstruction_type', None),
                 # return_appearance=cfg.data.get('return_appearance', None),
@@ -172,6 +173,7 @@ def create_single_dm(cfg, data_class):
                 # test_condition_source=condition_source,
                 # test_condition_settings=condition_settings,
                 read_video=cfg.data.get('read_video', True),
+                read_audio=cfg.data.get('read_audio', False),
                 align_images = cfg.data.get('align_images', True),
                 # read_audio=cfg.data.get('read_audio', True),
                 # reconstruction_type=cfg.data.get('reconstruction_type', None),

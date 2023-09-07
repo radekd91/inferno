@@ -18,7 +18,7 @@ face_detector_threshold: 0.05
 # landmarks_from: sr_res
 
 include_processed_audio: False
-include_raw_audio: True
+include_raw_audio: False
 preload_videos: False
 # preload_videos: True
 inflate_by_video_size: False
