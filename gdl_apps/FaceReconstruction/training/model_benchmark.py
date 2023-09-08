@@ -55,8 +55,12 @@ def main():
         if same_batch:
             batch_ = copy.deepcopy(batch)
         else:
+            time = timeit.default_timer()
             batch_ = next(dataiter)
             batch_ = dict_to_device(batch_, device)
+            time_batch = timeit.default_timer() - time
+            print(f"Time batch:\t{time_batch:0.05f}")
+
         time = timeit.default_timer()
         total_loss = model.training_step(batch_, 0)
         time_taken = timeit.default_timer() - time
