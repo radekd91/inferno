@@ -121,7 +121,18 @@ class MicaEncoder(FaceEncoderBase):
             mica_image = batch['mica_images']
         else:
             time = timeit.default_timer()
-            mica_image = self.mica_preprocessor(image)
+            fan_landmarks = None
+            if "landmarks" in batch.keys():
+                if isinstance(batch["landmarks"], dict):
+                    if "fan3d" in batch["landmarks"].keys():
+                        fan_landmarks = batch["landmarks"]["fan3d"]
+                    elif "fan" in batch["landmarks"].keys():
+                        fan_landmarks = batch["landmarks"]["fan"]
+                elif isinstance(batch["landmarks"], (np.ndarray, torch.Tensor)):
+                    if batch["landmarks"].shape[1] == 68:
+                        fan_landmarks = batch["landmarks"]
+                
+            mica_image = self.mica_preprocessor(image, fan_landmarks)
             time_preproc = timeit.default_timer()
             print(f"Time preprocessing:\t{time_preproc - time:0.05f}")
         mica_code = self.E_mica.encode(image, mica_image) 

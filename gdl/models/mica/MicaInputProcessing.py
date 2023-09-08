@@ -3,13 +3,18 @@ import torch.nn.functional as F
 import numpy as np
 from skimage.transform import resize
 from torch.utils.data import Dataset
+from insightface.utils import face_align
+import cv2
+
+input_mean = 127.5
+input_std = 127.5
 
 
 class MicaInputProcessor(object):
 
     def __init__(self, mode, crash_on_no_detection=False):
         super().__init__()
-        assert mode in ['default', 'ported_insightface', 'none'], "mode must be one of 'default', 'ported_insightface', 'none'"
+        assert mode in ['default', 'ported_insightface', 'none', 'fan'], "mode must be one of 'default', 'ported_insightface', 'none'"
         self.mode = mode
         self.crash_on_no_detection = crash_on_no_detection
         
@@ -21,13 +26,15 @@ class MicaInputProcessor(object):
             from .FaceAnalysisAppTorch import FaceAnalysis as FaceAnalysisTorch
             self.app = FaceAnalysisTorch(name='antelopev2')
             self.app.prepare(det_size=(224, 224))
+        elif mode == 'fan': 
+            self.app = None
         
     def to(self, *args, device=None, **kwargs):
         if device is not None:
             if self.mode == 'ported_insightface':
                 self.app.det_model = self.app.det_model.to(device)
 
-    def __call__(self, input_image):
+    def __call__(self, input_image, fan_landmarks=None):
         batched = len(input_image.shape) == 4
         if not batched:
             input_image = input_image.unsqueeze(0)
@@ -37,11 +44,69 @@ class MicaInputProcessor(object):
             mica_image = self._dirty_image_preprocessing(input_image)
         elif self.mode in [False, 'none']: 
             mica_image = F.interpolate(input_image, (112,112), mode='bilinear', align_corners=False)
+        elif self.mode == 'fan':
+            mica_image = self._fan_image_preprocessing(input_image, fan_landmarks)
         else: 
             raise ValueError(f"Invalid mica_preprocessing option: '{self.mode}'")
         if not batched:
             mica_image = mica_image.squeeze(0)
         return mica_image
+
+    def _fan_image_preprocessing(self, input_image, fan_landmarks):
+        # landmarks_torch = False
+        if isinstance(fan_landmarks, torch.Tensor):
+            fan_landmarks = fan_landmarks.detach().cpu().numpy()
+            # landmarks_torch = True
+
+        image_torch = False
+        if isinstance(input_image, torch.Tensor):
+            dev = input_image.device
+            input_image = input_image.detach().cpu().numpy()
+            # b,c,h,w to b,h,w,c
+            input_image = input_image.transpose((0,2,3,1))
+            image_torch = True
+
+        is_float=False
+        if input_image.dtype == np.float32:
+            is_float=True
+            input_image = (input_image * 255).astype(np.uint8)
+
+
+        lmk51 = fan_landmarks[:, 17:, :]
+        kpss = lmk51[:, [20, 27, 13, 43, 47], :]  # left eye, right eye, nose, left mouth, right mouth
+        kpss[:, 0, :] = lmk51[:, [21, 24], :].mean(1)  # center of eye
+        kpss[:, 1, :] = lmk51[:, [27, 29], :].mean(1)
+        
+
+        B = input_image.shape[0]
+        # norm_crop_images = norm_crop(input_image, torch.tensor(kpss), image_size=112, mode='arcface')
+        
+        # blobs = blob_from_tensor_images(norm_crop_images, scalefactor=1.0 / input_std, size=(112, 112), mean=(input_mean, input_mean, input_mean), swapRB=True)
+        # blobs = cv2.dnn.blobFromImages([aimg], 1.0 / input_std, (112, 112), (input_mean, input_mean, input_mean), swapRB=True)
+        
+        aligned_image_list = []
+        for i in range(B): 
+            aimg = face_align.norm_crop(input_image[i], landmark=kpss[i])
+            aligned_image_list.append(aimg)
+            # blob = cv2.dnn.blobFromImages([aimg], 1.0 / input_std, (112, 112), (input_mean, input_mean, input_mean), swapRB=False)
+            # aligned_image_list.append(blob)
+        
+        blob = cv2.dnn.blobFromImages(aligned_image_list, 1.0 / input_std, (112, 112), (input_mean, input_mean, input_mean), swapRB=False)
+            
+        
+        # stack the images 
+        if is_float:
+            blob = blob.astype(np.float32) / 255.
+        
+        if image_torch:
+            # to torch to correct device 
+            blob = torch.from_numpy(blob).to(dev)
+        
+        
+        # if landmarks_torch:
+        #     kpss = torch.from_numpy(kpss).to(input_image.device)
+        #     # return aligned_images, kpss
+        return blob
 
     def _dirty_image_preprocessing(self, input_image): 
         # breaks whatever gradient flow that may have gone into the image creation process
@@ -84,6 +149,70 @@ class MicaInputProcessor(object):
         aligned_images = torch.from_numpy(aligned_images).to(input_image.device)
         return aligned_images
     
+
+# # Assuming arcface_src and src_map are defined somewhere else in your code
+# arcface_src = torch.tensor(face_align.arcface_src, dtype=torch.float32, device='cuda:0' if torch.cuda.is_available() else 'cpu')
+# src_map = torch.tensor(face_align.src_map, dtype=torch.float32, device='cuda:0' if torch.cuda.is_available() else 'cpu')
+
+# def estimate_norm(lmk_batch, image_size=112, mode='arcface'):
+#     batch_size = lmk_batch.size(0)
+#     assert lmk_batch.size(1) == 5 and lmk_batch.size(2) == 2
+    
+#     lmk_tran_batch = torch.cat((lmk_batch, torch.ones(batch_size, 5, 1).to(lmk_batch.device)), dim=2)
+
+#     if mode == 'arcface':
+#         if image_size == 112:
+#             src = arcface_src
+#         else:
+#             src = float(image_size) / 112 * arcface_src
+#     else:
+#         src = src_map[image_size]
+
+#     src = torch.tensor(src, dtype=torch.float32)
+#     A = torch.cat([lmk_batch, torch.ones(batch_size, 5, 1).to(lmk_batch.device)], dim=2)
+#     A = A.unsqueeze(1).repeat(1, src.size(0), 1, 1)
+
+#     # Solve the least squares problem for each src[i]
+#     M_lst, _, _, _ = torch.lstsq(src.view(-1, 1), A.view(-1, A.size(-1)))
+#     M_lst = M_lst[:, 0].view(batch_size, src.size(0), 2, 3)
+    
+#     # Calculate results for each M
+#     results = torch.einsum('bik,bkij->bkj', lmk_tran_batch, M_lst)
+    
+#     # Calculate errors
+#     errors = torch.sum(torch.sqrt(torch.sum((results - src) ** 2, dim=2)), dim=2)
+    
+#     # Find min error and corresponding M for each item in the batch
+#     min_error, min_indices = torch.min(errors, dim=1)
+#     min_M = torch.stack([M_lst[i, min_indices[i]] for i in range(batch_size)])
+
+#     return min_M, min_indices
+
+# def norm_crop(img_batch, landmark_batch, image_size=112, mode='arcface'):
+#     batch_size = img_batch.size(0)
+#     M_batch, _ = estimate_norm(landmark_batch, image_size, mode)
+#     theta_batch = M_batch
+#     grid = torch.nn.functional.affine_grid(theta_batch, torch.Size((batch_size, img_batch.size(1), image_size, image_size)))
+#     warped = torch.nn.functional.grid_sample(img_batch, grid)
+#     return warped
+
+# def blob_from_tensor_images(image_tensor, scalefactor=1.0, size=(224, 224), mean=(0, 0, 0), swapRB=False):
+#     # Assuming image_tensor is of shape [N, H, W, C] or [N, C, H, W]
+
+#     # Resize images
+#     if size != (image_tensor.shape[2], image_tensor.shape[3]):
+#         image_tensor = torch.nn.functional.interpolate(image_tensor, size=size, mode='bilinear', align_corners=False)
+    
+#     # Swap RB channels if needed
+#     if swapRB:
+#         image_tensor = image_tensor[:, [2, 1, 0], :, :]
+    
+#     # Subtract mean and scale
+#     mean_tensor = torch.tensor(mean).view(1, 3, 1, 1)
+#     image_tensor = (image_tensor - mean_tensor) * scalefactor
+
+#     return image_tensor
+
 
 
 class MicaDatasetWrapper(Dataset): 
