@@ -5,6 +5,7 @@ from ..DecaEncoder import ResnetEncoder, SwinEncoder
 from pathlib import Path
 import copy
 from omegaconf import OmegaConf
+import timeit
 
 
 class FaceEncoderBase(torch.nn.Module):
@@ -52,8 +53,13 @@ class DecaEncoder(FaceEncoderBase):
 
     def encode(self, batch):
         image = batch['image']
+        time = timeit.default_timer()
         code_vec = self.encoder(image)
+        time_enc = timeit.default_timer()
         batch = self._decompose_code(batch, code_vec)
+        time_decomp = timeit.default_timer()
+        print(f"Time encoding:\t\t{time_enc - time:0.05f}")
+        print(f"Time decomposing:\t{time_decomp - time_enc:0.05f}")
         return batch
     
     def _decompose_code(self, batch, code):
@@ -114,7 +120,10 @@ class MicaEncoder(FaceEncoderBase):
         if 'mica_images' in batch.keys():
             mica_image = batch['mica_images']
         else:
+            time = timeit.default_timer()
             mica_image = self.mica_preprocessor(image)
+            time_preproc = timeit.default_timer()
+            print(f"Time preprocessing:\t{time_preproc - time:0.05f}")
         mica_code = self.E_mica.encode(image, mica_image) 
         mica_code = self.E_mica.decode(mica_code, predict_vertices=False)
         mica_shapecode = mica_code['pred_shape_code']
