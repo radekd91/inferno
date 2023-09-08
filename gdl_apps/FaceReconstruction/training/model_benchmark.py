@@ -47,10 +47,16 @@ def main():
     model = model.to(device)
     batch = dict_to_device(batch, device)
 
+    same_batch = False
+
     times_forward = []
     times_backward = []
     for i in auto.tqdm(range(100)):
-        batch_ = copy.deepcopy(batch)
+        if same_batch:
+            batch_ = copy.deepcopy(batch)
+        else:
+            batch_ = next(dataiter)
+            batch_ = dict_to_device(batch_, device)
         time = timeit.default_timer()
         total_loss = model.training_step(batch_, 0)
         time_taken = timeit.default_timer() - time
