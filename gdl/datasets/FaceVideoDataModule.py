@@ -46,7 +46,7 @@ from skimage.io import imread
 from skvideo.io import vreader, vread
 import skvideo.io
 import torch.nn.functional as F
-
+from gdl.utils.batch import dict_to_device
 from gdl.datasets.VideoFaceDetectionDataset import VideoFaceDetectionDataset
 import types
 
@@ -3472,14 +3472,3 @@ class TestFaceVideoDM(FaceVideoDataModule):
     def test_dataloader(self, *args, **kwargs) -> Union[DataLoader, List[DataLoader]]:
         return DataLoader(self.testdata, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False)
 
-
-
-def dict_to_device(d, device): 
-    for k, v in d.items():
-        if isinstance(v, torch.Tensor):
-            d[k] = v.to(device)
-        elif isinstance(v, dict):
-            d[k] = dict_to_device(v, device)
-        else: 
-            pass
-    return d

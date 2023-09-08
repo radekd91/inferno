@@ -59,6 +59,7 @@ from .Losses import (FanContourLandmarkLoss, LandmarkLoss,
                      MediaPipeMouthCornerLoss, MediaPipleEyeDistanceLoss,
                      PhotometricLoss, GaussianRegLoss, LightRegLoss)
 
+from gdl.utils.batch import dict_get
 
 def shape_model_from_cfg(cfg): 
     cfg_shape = cfg.model.shape_model
@@ -162,13 +163,6 @@ def rering_view_dict(value, ring_size):
         return {k: rering_view_dict(v, ring_size) for k, v in value.items()}
     elif isinstance(value, list):
         return [rering_view_dict(v, batch_size, ring_size) for v in value]
-
-
-def dict_get(d, key): 
-    if "," not in key: 
-        return d[key]
-    newkey = key.split(",")[0]
-    return dict_get(d[newkey], ",".join(key.split(",")[1:]))
 
 
 class FaceReconstructionBase(LightningModule):
@@ -853,7 +847,7 @@ class FaceReconstructionBase(LightningModule):
 
 
     @classmethod
-    def instantiate(cls, cfg, stage, prefix, checkpoint, checkpoint_kwargs) -> 'FaceReconstructionBase':
+    def instantiate(cls, cfg, stage=None, prefix=None, checkpoint=None, checkpoint_kwargs=None) -> 'FaceReconstructionBase':
         """
         Function that instantiates the model from checkpoint or config
         """
