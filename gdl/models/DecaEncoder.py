@@ -25,6 +25,7 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 import gdl.models.ResNet as resnet
+import timeit
 
 try:
     from .Swin import create_swin_backbone, swin_cfg_from_name
@@ -57,8 +58,13 @@ class BaseEncoder(nn.Module):
         return parameters
 
     def forward(self, inputs, output_features=False):
+        time = timeit.default_timer()
         features = self.forward_features(inputs)
+        time_features = timeit.default_timer() 
         parameters = self.forward_features_to_output(features)
+        time_output = timeit.default_timer() 
+        print(f"Time features:\t{time_features - time:0.05f}")
+        print(f"Time output:\t{time_output - time_features:0.05f}")
         if not output_features:
             return parameters
         return parameters, features
