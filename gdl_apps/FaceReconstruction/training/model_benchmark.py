@@ -43,6 +43,7 @@ def main():
     batch = next(dataiter)
 
     device = torch.device( "cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+    print("Device:", device)
     model = model.to(device)
     batch = dict_to_device(batch, device)
 

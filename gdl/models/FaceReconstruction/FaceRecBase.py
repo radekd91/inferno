@@ -60,6 +60,7 @@ from .Losses import (FanContourLandmarkLoss, LandmarkLoss,
                      PhotometricLoss, GaussianRegLoss, LightRegLoss)
 
 from gdl.utils.batch import dict_get
+import timeit
 
 def shape_model_from_cfg(cfg): 
     cfg_shape = cfg.model.shape_model
@@ -264,7 +265,10 @@ class FaceReconstructionBase(LightningModule):
         # forward pass
         sample = self.forward(batch, train=training, validation=False, **kwargs)
         # loss 
+        time = timeit.default_timer()
         total_loss, losses, metrics = self.compute_loss(sample, training=training, validation=False, **kwargs)
+        time_loss = timeit.default_timer() - time
+        print(f"Time loss:\t{time_loss:0.05f}")
 
         losses_and_metrics_to_log = {**losses, **metrics}
         # losses_and_metrics_to_log = {"train_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
@@ -337,24 +341,38 @@ class FaceReconstructionBase(LightningModule):
             raise ValueError("Batch must contain 'image' key")
         
         # 0) "unring" the ring dimension if need be 
+        time = timeit.default_timer()
         batch, ring_size = self.unring(batch)
-        
+        time_unring =  timeit.default_timer()
+
         # 1) encode images 
         batch = self.encode(batch, training=training)
-        
+        time_encode =   timeit.default_timer()
+
         # 2) exchange/disenanglement step (if any)
         batch = self.exchange(batch, ring_size, training=training, validation=validation, **kwargs)
+        time_exchange =   timeit.default_timer()
 
         # 2) decode latents
         batch = self.decode(batch, training=training)
+        time_decode =   timeit.default_timer()
         
         # 3) render
         if render and self.renderer is not None:
             batch = self.render(batch, training=training)
+            time_render =  timeit.default_timer()
 
         # 4) rering 
         batch = self.rering(batch, ring_size)
+        time_rering =  timeit.default_timer()
 
+        
+        print(f"Time unring:\t{time_unring - time:0.05f}")
+        print(f"Time encode:\t{time_encode - time_unring:0.05f}")
+        print(f"Time exchange:\t{time_exchange - time_encode:0.05f}")
+        print(f"Time decode:\t{time_decode - time_exchange:0.05f}")
+        print(f"Time render:\t{time_render - time_decode:0.05f}")
+        print(f"Time rering:\t{time_rering - time_render:0.05f}")
         return batch
 
 
