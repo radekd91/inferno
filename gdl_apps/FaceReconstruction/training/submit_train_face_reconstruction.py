@@ -133,27 +133,21 @@ def submit_trainings():
         ],
     ]
     
-    # QUESTIONS TO ANSWER 
-    # 1. What batch size/sequence length is optimal for 32GB, 40GB and 80GB GPUs? 
-    #  - 4 for 32GB, 6 for 40GB,  10 or maybe 12 for 80GB (these numbers are for 20-frame sequence length)
-    # batch_sizes = [4, 6, 8, 10]
-    # batch_sizes = [64]
-    # batch_sizes = [32]
-    
-    batch_sizes = [32]
+    batch_sizes = [8]
+    ring_size = 8
     new_finetune_modes = []
 
     if not submit_:
-        batch_sizes = [2]
-        ring_size = 4
+        batch_sizes = [8]
+        ring_size = 1
 
     for mode in finetune_modes: 
         for batch_size in batch_sizes:
             # num_workers = int(batch_size * 1)
             num_workers = 8
             # num_workers = 12
-            if not submit_:
-                num_workers = 0
+            # if not submit_:
+            #     num_workers = 0
             mode = copy.deepcopy(mode)
             mode[0] += [ 
                 f'learning.batching.batch_size_train={batch_size}',
