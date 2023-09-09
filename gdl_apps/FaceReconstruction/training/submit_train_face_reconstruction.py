@@ -86,7 +86,7 @@ def submit(cfg , bid=10):
     max_price = 10000
     job_name = "train_face_reconstruction"
     cuda_capability_requirement = 7
-    mem_gb = 40
+    mem_gb = 60
 
     # args = f"{coarse_file.name} {detail_file.name}"
     args = f"{coarse_file.name}"
@@ -133,7 +133,7 @@ def submit_trainings():
         ],
     ]
     
-    batch_sizes = [8]
+    batch_sizes = [20]
     ring_size = 8
     new_finetune_modes = []
 
@@ -144,8 +144,8 @@ def submit_trainings():
     for mode in finetune_modes: 
         for batch_size in batch_sizes:
             # num_workers = int(batch_size * 1)
-            num_workers = 8
-            # num_workers = 12
+            # num_workers = 8
+            num_workers = 10
             # if not submit_:
             #     num_workers = 0
             mode = copy.deepcopy(mode)
@@ -217,28 +217,6 @@ def submit_trainings():
 
 
         bid = 150
-        if not submit_: 
-            bs = 2
-            seq_len = 10
-        else:
-            # bs = 4
-            # seq_len = 20
-            bs = 1
-            # seq_len = 100
-            seq_len = 80
-        # cfgs[0].learning.batching.batch_size_train = bs
-        # cfgs[0].learning.batching.batch_size_val = bs
-        # cfgs[0].learning.batching.batch_size_test = bs
-        # cfgs[0].learning.batching.sequence_length_train = seq_len
-        # cfgs[0].learning.batching.sequence_length_test = seq_len
-        # cfgs[0].learning.batching.sequence_length_val = seq_len
-        # # cfgs[0].learning.batching.sequence_length_train = 10
-        # # cfgs[0].learning.batching.sequence_length_test = 10
-        # # cfgs[0].learning.batching.sequence_length_val = 10
-        # cfgs[0].model.max_epochs = 200    
-        # cfgs[0].model.val_check_interval = 1.0
-        # cfgs[0].model.train_vis_frequency = 20
-        # cfgs[0].model.val_vis_frequency = 10
         OmegaConf.set_struct(conf, False)
         with open_dict(conf) as d:
             tags = ["INITIAL_SMALL_TESTS"]
@@ -247,18 +225,6 @@ def submit_trainings():
             if d.learning.tags is None:
                 d.learning.tags = tags
         cfg = OmegaConf.to_container(conf)
-        # if not cfgs[0].model.output.predict_shapecode: 
-        #     if 'shape_reg' in cfg["learning"]["losses"]: 
-        #         del cfg["learning"]["losses"]["shape_reg"]
-        # if not cfgs[0].model.output.predict_expcode: 
-        #     if 'expression_reg' in cfg["learning"]["losses"]: 
-        #         del cfg["learning"]["losses"]["expression_reg"]
-        # if not cfgs[0].model.output.predict_texcode: 
-        #     if 'tex_reg' in cfg["learning"]["losses"]:
-        #         del cfg["learning"]["losses"]["tex_reg"]
-        # if not cfgs[0].model.output.predict_light: 
-        #     if 'light_reg' in cfg["learning"]["losses"]:
-        #         del cfg["learning"]["losses"]["light_reg"]
 
         conf = OmegaConf.create(cfg)
 
