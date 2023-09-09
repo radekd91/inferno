@@ -120,7 +120,7 @@ class MicaEncoder(FaceEncoderBase):
         if 'mica_images' in batch.keys():
             mica_image = batch['mica_images']
         else:
-            time = timeit.default_timer()
+            # time = timeit.default_timer()
             fan_landmarks = None
             if "landmarks" in batch.keys():
                 if isinstance(batch["landmarks"], dict):
@@ -131,10 +131,11 @@ class MicaEncoder(FaceEncoderBase):
                 elif isinstance(batch["landmarks"], (np.ndarray, torch.Tensor)):
                     if batch["landmarks"].shape[1] == 68:
                         fan_landmarks = batch["landmarks"]
-                
+            print("[WARNING] Processing MICA image in forward pass. This is very inefficient for training."\
+                  " Please precompute the MICA images in the data loader.")
             mica_image = self.mica_preprocessor(image, fan_landmarks)
-            time_preproc = timeit.default_timer()
-            print(f"Time preprocessing:\t{time_preproc - time:0.05f}")
+            # time_preproc = timeit.default_timer()
+            # print(f"Time preprocessing:\t{time_preproc - time:0.05f}")
         mica_code = self.E_mica.encode(image, mica_image) 
         mica_code = self.E_mica.decode(mica_code, predict_vertices=False)
         mica_shapecode = mica_code['pred_shape_code']
@@ -152,19 +153,10 @@ class MicaDecaEncoder(FaceEncoderBase):
         self.mica_encoder = MicaEncoder(cfg=self.cfg.encoders.mica_encoder)
         self.deca_encoder = DecaEncoder(cfg=self.cfg.encoders.deca_encoder)
 
-        self.trainable = self.cfg.trainable
-        if not self.trainable:
-            self.mica_encoder.requires_grad_(False)
-            self.deca_encoder.requires_grad_(False)
-
     def get_trainable_parameters(self):
-        if self.trainable:
-            return self.mica_encoder.get_trainable_parameters() + self.deca_encoder.get_trainable_parameters()
-        return []
+        return self.mica_encoder.get_trainable_parameters() + self.deca_encoder.get_trainable_parameters()
 
     def train(self, mode: bool = True):
-        if not self.trainable:
-            return super().train(False)
         return super().train(mode)
 
     def encode(self, batch):
