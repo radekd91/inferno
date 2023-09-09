@@ -69,7 +69,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
                  save_landmarks_one_file=False, # only use for large scale video datasets (that would produce too many files otherwise)
                  save_segmentation_frame_by_frame=True, # default
                  save_segmentation_one_file=False, # only use for large scale video datasets (that would produce too many files otherwise)
-                 mica_processing=None,
+                 return_mica_images=False,
                  ):
         super().__init__()
         self.root_dir = root_dir
@@ -100,7 +100,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
 
         self.image_size = image_size
         self.scale = scale
-        self.mica_processing = mica_processing
+        self.return_mica_images = return_mica_images
 
     def _get_max_faces_per_image(self): 
         return 1

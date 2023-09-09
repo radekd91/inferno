@@ -88,6 +88,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                  read_video=True,
                  read_audio=True,
                  align_images=True,
+                 return_mica_images = False,
                  ):
         super().__init__(root_dir, output_dir,
                          processed_subfolder=processed_subfolder,
@@ -103,6 +104,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                          save_segmentation_one_file=save_segmentation_one_file, # only use for large scale video datasets (that would produce too many files otherwise)
                          bb_center_shift_x=bb_center_shift_x, # in relative numbers
                          bb_center_shift_y=bb_center_shift_y, # in relative numbers (i.e. -0.1 for 10% shift upwards, ...)
+                         return_mica_images = return_mica_images,
                          )
         self.unpack_videos = unpack_videos
         self.detect_landmarks_on_restored_images = None

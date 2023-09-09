@@ -57,6 +57,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 landmark_sources=None,
                 segmentation_source=None,
                 segmentation_type =None,
+                return_mica_images=False,
                 ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, device, 
@@ -71,6 +72,7 @@ class LRS3DataModule(FaceVideoDataModule):
             include_raw_audio = include_raw_audio,
             preload_videos=preload_videos,
             inflate_by_video_size=inflate_by_video_size,
+            return_mica_images=return_mica_images,
             )
         self.detect_landmarks_on_restored_images = landmarks_from
         self.batch_size_train = batch_size_train
@@ -581,6 +583,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 landmark_types=self.landmark_types,
                 segmentation_source=self.segmentation_source,
                 segmentation_type=self.segmentation_type,
+                return_mica_images=self.return_mica_images,
             )
 
         return dataset
@@ -603,6 +606,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 landmark_types=self.landmark_types,
                 segmentation_source=self.segmentation_source,
                 segmentation_type=self.segmentation_type,
+                return_mica_images=self.return_mica_images,
               )
 
 
@@ -621,6 +625,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 landmark_types=self.landmark_types,
                 segmentation_source=self.segmentation_source,
                 segmentation_type=self.segmentation_type,
+                return_mica_images=self.return_mica_images,
             )
 
 
@@ -638,6 +643,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 landmark_types=self.landmark_types,
                 segmentation_source=self.segmentation_source,
                 segmentation_type=self.segmentation_type,
+                return_mica_images=self.return_mica_images,
                 )
 
         if "specific_identity" in self.split: 
@@ -657,6 +663,7 @@ class LRS3DataModule(FaceVideoDataModule):
                 landmark_types=self.landmark_types,
                 segmentation_source=self.segmentation_source,
                 segmentation_type=self.segmentation_type,
+                return_mica_images=self.return_mica_images,
             )
 
         # if self.mode in ['all', 'manual']:
@@ -772,6 +779,7 @@ class LRS3Dataset(VideoDatasetBase):
             average_shape_decode = True,
             emotion_type=None,
             return_emotion_feature=False,
+            return_mica_images=False,
     ) -> None:
         landmark_types = landmark_types or "mediapipe"
         super().__init__(
@@ -814,6 +822,7 @@ class LRS3Dataset(VideoDatasetBase):
             average_shape_decode = average_shape_decode,
             emotion_type = emotion_type,
             return_emotion_feature = return_emotion_feature,
+            return_mica_images = return_mica_images,
         )
 
 

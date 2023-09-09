@@ -336,6 +336,12 @@ class FaceReconstructionBase(LightningModule):
                 else:
                     batch["image"] = batch["video"]
                     batch["image_original"] = batch["video"]
+
+            if "mica_video_masked" in batch.keys():
+                batch["mica_images"] = batch["mica_video_masked"]
+                batch["mica_images_original"]  = batch["mica_video"]
+            elif "mica_video" in batch.keys():
+                batch["mica_images"] = batch["mica_video"]
                     
         if "image" not in batch.keys():
             raise ValueError("Batch must contain 'image' key")

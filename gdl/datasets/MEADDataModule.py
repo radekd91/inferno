@@ -131,6 +131,7 @@ class MEADDataModule(FaceVideoDataModule):
             read_audio=True,
             shuffle_validation=False,
             align_images=True,
+            return_mica_images=False,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, 
@@ -151,6 +152,7 @@ class MEADDataModule(FaceVideoDataModule):
             read_video=read_video,
             read_audio=read_audio,
             align_images=align_images,
+            return_mica_images=return_mica_images,
             )
         # self.detect_landmarks_on_restored_images = landmarks_from
         self.batch_size_train = batch_size_train
@@ -230,6 +232,7 @@ class MEADDataModule(FaceVideoDataModule):
                 inflate_by_video_size=False,
                 align_images=self.align_images,
                 original_image_size=self.processed_video_size,
+                return_mica_images=self.return_mica_images,
                 )
         return dataset
 
@@ -740,6 +743,7 @@ class MEADDataModule(FaceVideoDataModule):
                 read_audio=self.read_audio,
                 align_images=self.align_images,
                 original_image_size=self.processed_video_size,
+                return_mica_images=self.return_mica_images,
               )
                     
         self.validation_set = MEADDataset(self.root_dir, self.output_dir, 
@@ -762,6 +766,7 @@ class MEADDataModule(FaceVideoDataModule):
                 read_audio=self.read_audio,
                 align_images=self.align_images,
                 original_image_size=self.processed_video_size,
+                return_mica_images=self.return_mica_images,
             )
         self.validation_set._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
 
@@ -784,6 +789,7 @@ class MEADDataModule(FaceVideoDataModule):
                 read_audio=self.read_audio,
                 align_images=self.align_images,
                 original_image_size=self.processed_video_size,
+                return_mica_images=self.return_mica_images,
                 )
         self.test_set._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
 
@@ -884,6 +890,7 @@ class MEADDataset(VideoDatasetBase):
             return_emotion_feature=False,
             align_images = True,
             original_image_size = None,
+            return_mica_images = False,
     ) -> None:
         landmark_types = landmark_types or ["mediapipe", "fan"]
         super().__init__(
@@ -928,6 +935,7 @@ class MEADDataset(VideoDatasetBase):
             return_emotion_feature=return_emotion_feature,
             align_images = align_images,
             original_image_size = original_image_size,
+            return_mica_images = return_mica_images,
         )
         self._setup_identity_labels()
         self.read_gt_text = False

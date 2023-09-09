@@ -76,6 +76,7 @@ class VideoDatasetBase(AbstractVideoDataset):
             read_video=True,
             read_audio=True,
             original_image_size=None, ## the processed videos may be different in size and if they are, the landmarks will be, too. This is to remember
+            return_mica_images=False,
         ) -> None:
         super().__init__()
         self.root_path = root_path
@@ -182,6 +183,16 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         # if True, face alignment will not crash if invalid. By default this should be False to avoid silent data errors
         self._allow_alignment_fail = False 
+
+        self.return_mica_image = return_mica_images
+        if not self.read_video:
+            assert not bool(self.return_mica_image), "return_mica_image is only supported when read_video is True"
+
+        if bool(self.return_mica_image):
+            from gdl.models.mica.MicaInputProcessing import MicaInputProcessor
+            if self.return_mica_image is True: 
+                self.return_mica_image = "fan"
+            self.mica_preprocessor = MicaInputProcessor(self.return_mica_image)
 
 
     @property
@@ -356,7 +367,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         sample = to_torch(sample)
 
 
-        # AUDIO NORMALIZATION (if any)
+        # AUDIO NORMALIZATION (if any), this is a remnant from av-hubert and is not being used anywhere, will be removed in the future
         if self.read_audio:
             if self.include_processed_audio:
                 if self.audio_normalization is not None:
@@ -373,6 +384,21 @@ class VideoDatasetBase(AbstractVideoDataset):
                 sample["video_masked"] = sample["video_masked"].permute(0, 3, 1, 2)
             # sample["segmenation"] = sample["segmenation"].permute(0, 2, 1)
             # sample["segmentation_masked"] = sample["segmentation_masked"].permute(0, 2, 1)
+
+            if self.return_mica_image: 
+                fan_landmarks = None
+                if "landmarks" in sample.keys():
+                    if isinstance(sample["landmarks"], dict):
+                        if "fan3d" in sample["landmarks"].keys():
+                            fan_landmarks = sample["landmarks"]["fan3d"]
+                        elif "fan" in sample["landmarks"].keys():
+                            fan_landmarks = sample["landmarks"]["fan"]
+                    elif isinstance(sample["landmarks"], (np.ndarray, torch.Tensor)):
+                        if sample["landmarks"].shape[1] == 68:
+                            fan_landmarks = sample["landmarks"]
+                
+                sample["mica_video"] = self.mica_preprocessor(sample["video"], fan_landmarks)
+                sample["mica_video_masked"] = self.mica_preprocessor(sample["video_masked"], fan_landmarks)
 
 
         # # normalize landmarks 

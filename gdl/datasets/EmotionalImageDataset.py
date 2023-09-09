@@ -362,7 +362,7 @@ class EmotionalImageDataset(EmotionalImageDatasetBase):
                  segmentation_discarded_lables=None,
                  K=None,
                  K_policy=None, 
-                 mica_processing=None,
+                 return_mica_images=None,
                  ):
         self.image_list = image_list
         self.annotations = annotations
@@ -401,9 +401,9 @@ class EmotionalImageDataset(EmotionalImageDatasetBase):
                                        if self.labels[i] == label]
             
         self.mica_processor = None
-        if mica_processing is not None:
+        if return_mica_images is not None:
             from gdl.models.mica.MicaInputProcessing import MicaInputProcessor
-            self.mica_processor = MicaInputProcessor(mica_processing)
+            self.mica_processor = MicaInputProcessor(return_mica_images)
 
     def __len__(self):
         # return 10 #TODO: REMOVE TESTING HACK

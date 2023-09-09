@@ -77,6 +77,8 @@ class MicaInputProcessor(object):
         kpss[:, 0, :] = lmk51[:, [21, 24], :].mean(1)  # center of eye
         kpss[:, 1, :] = lmk51[:, [27, 29], :].mean(1)
         
+        ## from [-1, 1] to [o, input_image_size]
+        kpss = (kpss + 1) * (input_image.shape[1] / 2)
 
         B = input_image.shape[0]
         # norm_crop_images = norm_crop(input_image, torch.tensor(kpss), image_size=112, mode='arcface')
@@ -89,14 +91,22 @@ class MicaInputProcessor(object):
             aimg = face_align.norm_crop(input_image[i], landmark=kpss[i])
             aligned_image_list.append(aimg)
             # blob = cv2.dnn.blobFromImages([aimg], 1.0 / input_std, (112, 112), (input_mean, input_mean, input_mean), swapRB=False)
-            # aligned_image_list.append(blob)
+
+            # # plot original image and aligned image
+            # import matplotlib.pyplot as plt
+            # plt.figure()
+            # plt.subplot(121)
+            # plt.imshow(input_image[i])
+            # plt.subplot(122)
+            # plt.imshow(aimg)
+            # plt.show()
         
         blob = cv2.dnn.blobFromImages(aligned_image_list, 1.0 / input_std, (112, 112), (input_mean, input_mean, input_mean), swapRB=False)
             
         
-        # stack the images 
-        if is_float:
-            blob = blob.astype(np.float32) / 255.
+        # don't do this, blob is already returned as float
+        # if is_float:
+        #     blob = blob.astype(np.float32) / 255.
         
         if image_torch:
             # to torch to correct device 
