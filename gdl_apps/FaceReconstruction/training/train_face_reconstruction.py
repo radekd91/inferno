@@ -86,6 +86,7 @@ def create_single_dm(cfg, data_class):
                 # average_shape_decode=cfg.data.get('average_shape_decode', None),
                 # emotion_type=cfg.data.get('emotion_type', None),
                 # return_emotion_feature=cfg.data.get('return_emotion_feature', None),
+                return_mica_images=cfg.data.get('return_mica_images', False),
         )
         dataset_name = "CelebVHQ"
     elif data_class == "LRS3DataModule":
@@ -133,6 +134,7 @@ def create_single_dm(cfg, data_class):
                 # average_shape_decode=cfg.data.get('average_shape_decode', None),
                 # emotion_type=cfg.data.get('emotion_type', None),
                 # return_emotion_feature=cfg.data.get('return_emotion_feature', None),
+                return_mica_images=cfg.data.get('return_mica_images', False),
         )
 
         dataset_name = "LRS3"
@@ -182,6 +184,7 @@ def create_single_dm(cfg, data_class):
                 # emotion_type=cfg.data.get('emotion_type', None),
                 # return_emotion_feature=cfg.data.get('return_emotion_feature', None),
                 # shuffle_validation=cfg.model.get('disentangle_type', False) == 'condition_exchange',
+                return_mica_images=cfg.data.get('return_mica_images', False),
         )
         dataset_name = "MEAD"
     else:

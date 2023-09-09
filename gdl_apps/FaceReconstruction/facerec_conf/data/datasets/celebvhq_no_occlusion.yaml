@@ -53,3 +53,5 @@ segmentation_source: aligned
 
 split: random_70_15_15
 align_images: False
+
+return_mica_images: "fan"

@@ -8,7 +8,8 @@ defaults:
   - model/renderer@model/renderer: deca_renderer
   - learning/losses: deca_coarse_pretrain
   - learning/optimizer: adam
-  - learning/batching@learning/batching: gpu32gb
+  # - learning/batching@learning/batching: gpu32gb
+  - learning/batching@learning/batching: gpu80gb
   # - learning/callbacks: early_stopping
   - learning/callbacks: none
   - learning/logging: wandb

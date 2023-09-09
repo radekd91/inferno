@@ -49,3 +49,4 @@ landmark_types: [mediapipe, fan3d]
 landmark_sources: [original, aligned]
 
 split: "original"
+return_mica_images: "fan"

@@ -53,3 +53,4 @@ drop_last: true
 sampler: uniform
 
 split: "original"
+return_mica_images: "fan"
