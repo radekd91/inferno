@@ -49,6 +49,10 @@ def create_single_dm(cfg, data_class):
     else:
         augmentation = None
 
+    occlusion_settings_train = OmegaConf.to_container(cfg.data.occlusion_settings_train) if 'occlusion_settings_train' in cfg.data.keys() else None 
+    occlusion_settings_val = OmegaConf.to_container(cfg.data.occlusion_settings_val) if 'occlusion_settings_val' in cfg.data.keys() else None
+    occlusion_settings_test = OmegaConf.to_container(cfg.data.occlusion_settings_test) if 'occlusion_settings_test' in cfg.data.keys() else None
+
     if data_class == "CelebVHQDataModule":
         # condition_source, condition_settings = get_condition_string_from_config(cfg)
         dm = CelebVHQDataModule(
@@ -66,9 +70,9 @@ def create_single_dm(cfg, data_class):
                 sequence_length_train=cfg.learning.batching.sequence_length_train or cfg.learning.batching.ring_size_train, 
                 sequence_length_val=cfg.learning.batching.sequence_length_val or cfg.learning.batching.ring_size_val, 
                 sequence_length_test=cfg.learning.batching.sequence_length_test or cfg.learning.batching.ring_size_test, 
-                # occlusion_settings_train = OmegaConf.to_container(cfg.data.occlusion_settings_train), 
-                # occlusion_settings_val = OmegaConf.to_container(cfg.data.occlusion_settings_val), 
-                # occlusion_settings_test = OmegaConf.to_container(cfg.data.occlusion_settings_test), 
+                occlusion_settings_train = occlusion_settings_train,
+                occlusion_settings_val = occlusion_settings_val,
+                occlusion_settings_test = occlusion_settings_test,
                 split = cfg.data.split,
                 num_workers=cfg.data.num_workers,
                 include_processed_audio = cfg.data.include_processed_audio,
@@ -115,9 +119,10 @@ def create_single_dm(cfg, data_class):
                 sequence_length_train=cfg.learning.batching.sequence_length_train or cfg.learning.batching.ring_size_train, 
                 sequence_length_val=cfg.learning.batching.sequence_length_val or cfg.learning.batching.ring_size_val, 
                 sequence_length_test=cfg.learning.batching.sequence_length_test or cfg.learning.batching.ring_size_test, 
-                # occlusion_settings_train = OmegaConf.to_container(cfg.data.occlusion_settings_train), 
-                # occlusion_settings_val = OmegaConf.to_container(cfg.data.occlusion_settings_val), 
-                # occlusion_settings_test = OmegaConf.to_container(cfg.data.occlusion_settings_test), 
+                occlusion_settings_train = occlusion_settings_train,
+                occlusion_settings_val = occlusion_settings_val,
+                occlusion_settings_test = occlusion_settings_test,
+                
                 split = cfg.data.split,
                 num_workers=cfg.data.num_workers,
                 # include_processed_audio = cfg.data.include_processed_audio,
@@ -165,9 +170,9 @@ def create_single_dm(cfg, data_class):
                 sequence_length_train=cfg.learning.batching.sequence_length_train or cfg.learning.batching.ring_size_train, 
                 sequence_length_val=cfg.learning.batching.sequence_length_val or cfg.learning.batching.ring_size_val, 
                 sequence_length_test=cfg.learning.batching.sequence_length_test or cfg.learning.batching.ring_size_test, 
-                # occlusion_settings_train = OmegaConf.to_container(cfg.data.occlusion_settings_train), 
-                # occlusion_settings_val = OmegaConf.to_container(cfg.data.occlusion_settings_val), 
-                # occlusion_settings_test = OmegaConf.to_container(cfg.data.occlusion_settings_test), 
+                occlusion_settings_train = occlusion_settings_train,
+                occlusion_settings_val = occlusion_settings_val,
+                occlusion_settings_test = occlusion_settings_test,
                 split = cfg.data.split,
                 num_workers=cfg.data.num_workers,
                 include_processed_audio = cfg.data.include_processed_audio,
@@ -214,9 +219,9 @@ def create_single_dm(cfg, data_class):
             sequence_length_train=cfg.learning.batching.sequence_length_train or cfg.learning.batching.ring_size_train, 
             sequence_length_val=cfg.learning.batching.sequence_length_val or cfg.learning.batching.ring_size_val, 
             sequence_length_test=cfg.learning.batching.sequence_length_test or cfg.learning.batching.ring_size_test, 
-            occlusion_settings_train = OmegaConf.to_container(cfg.data.occlusion_settings_train), 
-            occlusion_settings_val = OmegaConf.to_container(cfg.data.occlusion_settings_val), 
-            occlusion_settings_test = OmegaConf.to_container(cfg.data.occlusion_settings_test), 
+            occlusion_settings_train = occlusion_settings_train,
+            occlusion_settings_val = occlusion_settings_val,
+            occlusion_settings_test = occlusion_settings_test,
             split = cfg.data.split,
             num_workers=cfg.data.num_workers,
             # include_processed_audio = cfg.data.include_processed_audio,
