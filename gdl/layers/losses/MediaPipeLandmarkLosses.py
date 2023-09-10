@@ -129,8 +129,8 @@ def landmark_loss(predicted_landmarks, landmarks_gt, weights=None):
     #     landmarks_gt[..., EMBEDDING_INDICES, :], 
     #     # real_2d[..., get_mediapipe_indices(), :], 
     #     predicted_landmarks[..., :, :])
-    assert predicted_landmarks[..., :2].isnan().sum() == 0
-    assert landmarks_gt[..., :2].isnan().sum() == 0
+    assert predicted_landmarks[..., :2].isnan().sum() == 0, "Found NaN in predicted landmarks."
+    assert landmarks_gt[..., :2].isnan().sum() == 0, "Found NaN in ground truth landmarks."
     loss_lmk_2d = (predicted_landmarks[..., :2] - landmarks_gt[..., EMBEDDING_INDICES, :2]).abs()
     if loss_lmk_2d.ndim == 3:
         loss_lmk_2d= loss_lmk_2d.mean(dim=2)
