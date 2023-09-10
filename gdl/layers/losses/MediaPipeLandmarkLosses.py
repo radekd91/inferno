@@ -252,3 +252,116 @@ def eyed_loss(predicted_landmarks, landmarks_gt, weights=None):
     w = weights / torch.sum(weights)
     loss = w * loss
     return loss.sum()
+
+## Second version of the losses here: getting rid of the .sqrt() call which can cause NaNs in training
+def compute_rel_distance(subset1, subset2, metric):
+    """
+    Computes the relative distance between two sets of landmarks.
+    Inputs:
+    subset1: B x ... x K x 2
+    subset2: B x ... x K x 2
+    metric: 'l1' or 'l2'
+    Output:
+    dist: B x ... x K
+    """
+    dif = (subset1 - subset2)
+    if metric == 'l2':
+        return (dif ** 2).sum(-1)
+    elif metric == 'l1':
+        return dif.abs().sum(-1)
+    else:
+        raise ValueError(f"Metric {metric} not supported.")
+
+
+def lipd_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='l1'):
+    # if torch.is_tensor(landmarks_gt) is not True:
+    #     real_2d = torch.cat(landmarks_gt)
+    # else:
+    #     real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).to(device=predicted_landmarks.device) #.cuda()
+    #                          ], dim=-1)
+    pred_lipd = compute_rel_distance(predicted_landmarks[...,  np.concatenate([UPPER_OUTTER_LIP_LINE_EM, UPPER_INNER_LIP_LINE_EM]), :2] , 
+                        predicted_landmarks[...,  np.concatenate([LOWER_OUTTER_LIP_LINE_EM, LOWER_INNER_LIP_LINE_EM]), :2], metric=metric)
+    gt_lipd = compute_rel_distance(landmarks_gt[...,  UPPER_OUTTER_LIP_LINE + UPPER_INNER_LIP_LINE, :2] , 
+                      landmarks_gt[...,  LOWER_OUTTER_LIP_LINE + LOWER_INNER_LIP_LINE, :2], metric=metric)
+
+    # gt_lipd = lip_dis(real_2d[... :2])
+
+    loss = (pred_lipd - gt_lipd).abs()
+    if weights is None: 
+        return loss.mean()
+    if weights.sum().abs() < 1e-8:
+        return torch.tensor(0)
+    if loss.ndim == 3:
+        loss = loss.mean(dim=2)
+    elif loss.ndim == 4: 
+        loss = loss.mean(dim=(2,3))
+    w = weights / torch.sum(weights)
+    loss = w * loss
+    return loss.sum()
+
+
+
+def eyed_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='l1'):
+    # if torch.is_tensor(landmarks_gt) is not True:
+    #     real_2d = torch.cat(landmarks_gt)
+    # else:
+    #     real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).to(device=landmarks_gt.device) #.cuda()
+    #                          ], dim=-1)
+    pred_eyed = compute_rel_distance(predicted_landmarks[..., UPPER_EYELIDS_EM , :2], 
+                        predicted_landmarks[..., LOWER_EYELIDS_EM , :2], 
+                        metric=metric)
+    gt_eyed = compute_rel_distance(landmarks_gt[..., UPPER_EYELIDS, :2], 
+                        landmarks_gt[..., LOWER_EYELIDS, :2], 
+                        metric=metric)
+    # gt_eyed = eye_dis(real_2d[:, :, :2])
+
+    loss = (pred_eyed - gt_eyed).abs().mean()
+    if weights is None: 
+        return loss.mean()
+    if weights.sum().abs() < 1e-8:
+        return torch.tensor(0)
+    if loss.ndim == 3:
+        loss = loss.mean(dim=2)
+    elif loss.ndim == 4: 
+        loss = loss.mean(dim=(2,3))
+    w = weights / torch.sum(weights)
+    loss = w * loss
+    return loss.sum()
+
+
+
+def mouth_corner_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='l1'):
+    # if torch.is_tensor(landmarks_gt) is not True:
+    #     real_2d = torch.cat(landmarks_gt)
+    # else:
+    #     real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).to(device=predicted_landmarks.device) #.cuda()
+    #                          ], dim=-1)
+
+    pred_corner_d = compute_rel_distance(
+            predicted_landmarks[...,  np.concatenate([RIGHT_INNER_LIP_CORNER_EM, RIGHT_OUTTER_LIP_CORNER_EM]) , :2],
+            predicted_landmarks[...,  np.concatenate([LEFT_INNER_LIP_CORNER_EM, LEFT_OUTTER_LIP_CORNER_EM]) , :2],
+            metric=metric
+            )
+    gt_corner_d = compute_rel_distance(
+            landmarks_gt[...,  [RIGHT_INNER_LIP_CORNER, RIGHT_OUTTER_LIP_CORNER] , :2],
+            landmarks_gt[...,  [LEFT_INNER_LIP_CORNER, LEFT_OUTTER_LIP_CORNER] , :2], 
+            metric=metric)
+
+    if metric == 'l1':
+        loss = (pred_corner_d - gt_corner_d).abs()
+    elif metric == 'l2':
+        loss = (pred_corner_d - gt_corner_d) ** 2
+    else:
+        raise ValueError(f"Metric {metric} not supported.")
+    if weights is None: 
+        return loss.mean()
+    if weights.sum().abs() < 1e-8:
+        return torch.tensor(0)
+    if loss.ndim == 3:
+        loss = loss.mean(dim=2)
+    elif loss.ndim == 4: 
+        loss = loss.mean(dim=(2,3))
+    w = weights / torch.sum(weights)
+    loss = w * loss
+    return loss.sum()
+

@@ -75,7 +75,6 @@ class FanContourLandmarkLoss(SubsetLandmarkLoss):
     def __call__(self, pred, target, *args, mask=None, **kwargs):
         return super().__call__(pred, target, mask=mask)
 
-    
 
 class MediaPipeLandmarkLoss(LandmarkLoss):
 
@@ -91,57 +90,71 @@ class MediaPipeLandmarkLoss(LandmarkLoss):
         return mp_loss.landmark_loss(pred, target)
 
 
-class MediaPipeMouthCornerLoss(object):
+class MediaPipeRelativeLoss(object):
 
     def __init__(self, device, loss_type='l1'):
         assert loss_type == "l1"
         super().__init__() 
         self.device = device
+        self.loss_type = loss_type
+
+
+    def to(self, device, *args, **kwargs):
+        self.device = device
+        return self
+
+    def __call__(self, pred, target, *args, mask=None, **kwargs):
+        raise NotImplementedError("MediaPipeRelativeLoss not implemented yet")
+
+
+class MediaPipeMouthCornerLoss(MediaPipeRelativeLoss):
+
+    def __init__(self, device, loss_type='l1'):
+        super().__init__(device, loss_type)
 
     def __call__(self, pred, target, *args, mask=None, **kwargs):
         # this landmark loss only corresponds to a subset of mediapipe landmarks, see mp_loss.EMBEDDING_INDICES
         if mask is not None:
             pred = masking(pred, mask)
             target = masking(target, mask)
-        return mp_loss.mouth_corner_loss(pred, target)
+        return mp_loss.mouth_corner_loss_v2(pred, target)
+        # return mp_loss.mouth_corner_loss(pred, target)
     
     def to(self, device, *args, **kwargs):
         self.device = device
         return self
 
 
-class MediaPipleEyeDistanceLoss(object):
+class MediaPipleEyeDistanceLoss(MediaPipeRelativeLoss):
     
     def __init__(self, device, loss_type='l1'):
-        assert loss_type == "l1"
-        super().__init__() 
-        self.device = device
+        super().__init__(device, loss_type)
 
     def __call__(self, pred, target, *args, mask=None, **kwargs):
         if mask is not None:
             pred = masking(pred, mask)
             target = masking(target, mask)
         # this landmark loss only corresponds to a subset of mediapipe landmarks, see mp_loss.EMBEDDING_INDICES
-        return mp_loss.eyed_loss(pred, target)
+        return mp_loss.eyed_loss_v2(pred, target)
+        # return mp_loss.eyed_loss(pred, target)
 
     def to(self, device, *args, **kwargs):
         self.device = device
         return self
 
 
-class MediaPipeLipDistanceLoss(object):
+class MediaPipeLipDistanceLoss(MediaPipeRelativeLoss):
 
     def __init__(self, device, loss_type='l1'):
-        assert loss_type == "l1"
-        super().__init__() 
-        self.device = device
+        super().__init__(device, loss_type)
 
     def __call__(self, pred, target, *args, mask=None, **kwargs):
         if mask is not None:
             pred = masking(pred, mask)
             target = masking(target, mask)
         # this landmark loss only corresponds to a subset of mediapipe landmarks, see mp_loss.EMBEDDING_INDICES
-        return mp_loss.lipd_loss(pred, target)
+        return mp_loss.lipd_loss_v2(pred, target)
+        # return mp_loss.lipd_loss(pred, target)
     
     def to(self, device, *args, **kwargs):
         self.device = device
