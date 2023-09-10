@@ -121,8 +121,8 @@ def submit(cfg , bid=10):
 def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
-    # coarse_conf = "emica_pretrain_stage" 
-    coarse_conf = "emica_deca_stage"
+    coarse_conf = "emica_pretrain_stage" 
+    # coarse_conf = "emica_deca_stage"
     # coarse_conf = "emica_emoca_stage"
 
 
@@ -181,14 +181,15 @@ def submit_trainings():
         # # 'data.split=random_by_identity_pretrain_80_20',
         # 'data.split=specific_identity_80_20_pretrain/0af00UcTOSc', # training on a single identity 
         
-        # ## MEAD 
-        'data/datasets=mead', 
-        # 'data.split=specific_identity_sorted_80_20_M003',
-        'data.split=random_by_sequence_sorted_70_15_15',
+        # # ## MEAD 
+        # 'data/datasets=mead', 
+        # # 'data.split=specific_identity_sorted_80_20_M003',
+        # 'data.split=random_by_sequence_sorted_70_15_15',
 
         # ## CelebV-Text
-        # 'data/datasets=', 
-        # 'data.split=specific_identity_sorted_80_20_M003',
+        'data/datasets=celebvtext', 
+        'data.split=random_70_15_15',
+        'data/augmentations=default',
 
         ## CelebV-HQ 
         # 'data/datasets=celebvhq_no_occlusion', # training on a single video (and therefore identity)
