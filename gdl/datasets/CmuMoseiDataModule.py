@@ -56,6 +56,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
             read_video = True,
             read_audio = True,
             return_mica_images = False,
+            align_images= True,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
             face_detector, face_detector_threshold, image_size, scale, 
@@ -75,6 +76,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
             inflate_by_video_size=inflate_by_video_size,
             read_video = read_video,
             read_audio = read_audio,
+            align_images= align_images,
             return_mica_images = return_mica_images,
             )
         # self.detect_landmarks_on_restored_images = landmarks_from
@@ -381,6 +383,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
                 original_image_size=self.processed_video_size,
                 return_mica_images = self.return_mica_images,
+                align_images=self.align_images
               )
                     
         self.validation_set = CmuMoseiDataset(self.root_dir, self.output_dir, 
@@ -400,6 +403,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
                 original_image_size=self.processed_video_size,
                 return_mica_images = self.return_mica_images,
+                align_images=self.align_images
             )
 
         self.test_set = CmuMoseiDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
@@ -418,6 +422,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
                 original_image_size=self.processed_video_size,
                 return_mica_images = self.return_mica_images,
+                align_images=self.align_images
                 )
 
     def get_single_video_dataset(self, i):
@@ -441,6 +446,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 inflate_by_video_size=False,
                 original_image_size=self.processed_video_size,
                 return_mica_images = self.return_mica_images,
+                align_images=self.align_images
                 )
         dataset._allow_alignment_fail = False
         return dataset
@@ -487,9 +493,10 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                           batch_size=self.batch_size_test, drop_last=self.drop_last)
 
 import imgaug
-from gdl.datasets.VideoDatasetBase import VideoDatasetBase
+from gdl.datasets.VideoDatasetBase import VideoDatasetBaseV2
 
-class CmuMoseiDataset(VideoDatasetBase):
+# class CmuMoseiDataset(VideoDatasetBase):
+class CmuMoseiDataset(VideoDatasetBaseV2):
 
     def __init__(self,
             root_path,
@@ -525,6 +532,7 @@ class CmuMoseiDataset(VideoDatasetBase):
             include_filename=False, # if True includes the filename of the video in the sample
             original_image_size=None,
             return_mica_images = False,
+            align_images = True,
     ) -> None:
         landmark_types = landmark_types or ["mediapipe", "fan"]
         super().__init__(
@@ -561,121 +569,12 @@ class CmuMoseiDataset(VideoDatasetBase):
             include_filename=include_filename,
             original_image_size=original_image_size,
             return_mica_images = return_mica_images,
+            align_images=align_images,
         )
 
 
     def _path_to_landmarks(self, index, landmark_type, landmark_source): 
         return (Path(self.output_dir) / f"landmarks_{landmark_source}/{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
-
-
-    def _read_landmarks(self, index, landmark_type, landmark_source):
-        landmarks_dir = self._path_to_landmarks(index, landmark_type, landmark_source)
-        
-        if landmark_source == "original":
-            landmark_list_file = landmarks_dir / f"landmarks_aligned_video_smoothed.pkl"
-            landmark_list = FaceDataModuleBase.load_landmark_list(landmark_list_file)  
-            landmark_valid_indices = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_alignment_used_frame_indices.pkl")  
-        elif landmark_source == "aligned": 
-            landmark_list, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
-            landmark_valid_indices = landmark_confidences
-        else: 
-            raise ValueError(f"Unknown landmark source {landmark_source}")
-        return landmark_list, landmark_valid_indices
-
-
-    def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
-        sequence_length = self._get_sample_length(index)
-        landmark_dict = {}
-        landmark_validity_dict = {}
-        for lti, landmark_type in enumerate(self.landmark_types):
-            landmark_source = self.landmark_source[lti]
-            # landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}" / landmark_type /  self.video_list[self.video_indices[index]]).with_suffix("")
-            landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}/{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
-            landmarks = []
-            if landmark_source == "original":
-                # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{landmark_source}.pkl")  
-                # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_aligned_video.pkl")  
-                landmark_list_file = landmarks_dir / f"landmarks_aligned_video_smoothed.pkl"
-                if landmark_list_file.exists():
-                    if not self.preload_videos:
-                        landmark_list, landmark_valid_indices = self._read_landmarks(index, landmark_type, landmark_source)
-                    else:
-                        landmark_list, landmark_valid_indices = self.lmk_cache[index][landmark_type][landmark_source]
-                        
-                    # landmark_list = FaceDataModuleBase.load_landmark_list(landmark_list_file)  
-                    # landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
-                    landmarks = landmark_list[start_frame: sequence_length + start_frame] 
-                    landmarks = np.stack(landmarks, axis=0)
-
-                    # landmark_valid_indices = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_alignment_used_frame_indices.pkl")  
-                    landmark_validity = np.zeros((len(landmark_list), 1), dtype=np.float32)
-                    landmark_validity[landmark_valid_indices] = 1.0
-                    landmark_validity = landmark_validity[start_frame: sequence_length + start_frame]
-                else:
-                    if landmark_type == "mediapipe":
-                        num_landmarks = MEDIAPIPE_LANDMARK_NUMBER
-                    elif landmark_type in ["fan", "kpt68"]:
-                        num_landmarks = 68
-                    landmarks = np.zeros((sequence_length, num_landmarks, 2), dtype=np.float32)
-                    landmark_validity = np.zeros((sequence_length, 1), dtype=np.float32)
-                    # landmark_validity = landmark_validity.squeeze(-1)
-
-
-            elif landmark_source == "aligned":
-                if not self.preload_videos:
-                    landmarks, landmark_confidences = self._read_landmarks(index, landmark_type, landmark_source)
-                    # landmarks, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
-                else: 
-                    landmarks, landmark_confidences = self.lmk_cache[index][landmark_type][landmark_source]
-
-                # scale by image size 
-                landmarks = landmarks * sample["video"].shape[1]
-
-                landmarks = landmarks[start_frame: sequence_length + start_frame]
-                # landmark_confidences = landmark_confidences[start_frame: sequence_length + start_frame]
-                # landmark_validity = landmark_confidences #TODO: something is wrong here, the validity is not correct and has different dimensions
-                landmark_validity = None 
-            
-            else: 
-                raise ValueError(f"Invalid landmark source: '{landmark_source}'")
-
-            # landmark_validity = np.ones(len(landmarks), dtype=np.bool)
-            # for li in range(len(landmarks)): 
-            #     if len(landmarks[li]) == 0: # dropped detection
-            #         if landmark_type == "mediapipe":
-            #             # [WARNING] mediapipe landmarks coordinates are saved in the scale [0.0-1.0] (for absolute they need to be multiplied by img size)
-            #             landmarks[li] = np.zeros((478, 3))
-            #         elif landmark_type in ["fan", "kpt68"]:
-            #             landmarks[li] = np.zeros((68, 2))
-            #         else: 
-            #             raise ValueError(f"Unknown landmark type '{landmark_type}'")
-            #         landmark_validity[li] = False
-            #     elif len(landmarks[li]) > 1: # multiple faces detected
-            #         landmarks[li] = landmarks[li][0] # just take the first one for now
-            #     else: \
-            #         landmarks[li] = landmarks[li][0] 
-
-            # landmarks = np.stack(landmarks, axis=0)
-
-            # pad landmarks with zeros if necessary to match the desired video length
-            if landmarks.shape[0] < sequence_length:
-                landmarks = np.concatenate([landmarks, np.zeros(
-                    (sequence_length - landmarks.shape[0], *landmarks.shape[1:]), 
-                    dtype=landmarks.dtype)], axis=0)
-                if landmark_validity is not None:
-                    landmark_validity = np.concatenate([landmark_validity, np.zeros((sequence_length - landmark_validity.shape[0], landmark_validity.shape[1]), 
-                        dtype=landmark_validity.dtype)], axis=0)
-                else: 
-                    landmark_validity = np.zeros((sequence_length, 1), dtype=np.float32)
-
-            landmark_dict[landmark_type] = landmarks
-            if landmark_validity is not None:
-                landmark_validity_dict[landmark_type] = landmark_validity
-
-        sample["landmarks"] = landmark_dict
-        sample["landmarks_validity"] = landmark_validity_dict
-        return sample
-
 
     def _path_to_segmentations(self, index): 
         return (Path(self.output_dir) / f"segmentations_{self.segmentation_source}/{self.segmentation_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
@@ -684,7 +583,6 @@ class CmuMoseiDataset(VideoDatasetBase):
     def _path_to_reconstructions(self, index, rec_type): 
         return (Path(self.output_dir) / f"reconstructions/{rec_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
         # return (Path(self.output_dir) / f"reconstructions_{self.reconstruction_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
-
 
     def _path_to_emotions(self, index): 
         return (Path(self.output_dir) / f"emotions/{self.emotion_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")

@@ -56,6 +56,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
             segmentation_type=None,
             read_video = True,
             read_audio = True,
+            align_images = True,
             return_mica_images = False,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, 
@@ -77,6 +78,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
             read_video = read_video,
             read_audio = read_audio,
             return_mica_images = return_mica_images,
+            align_images=align_images,
             )
         # self.detect_landmarks_on_restored_images = landmarks_from
         self.batch_size_train = batch_size_train
@@ -377,6 +379,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
                 original_image_size=self.processed_video_size,
                 return_mica_images=self.return_mica_images,
+                align_images=self.align_images,
               )
                     
         self.validation_set = CelebVHQDataset(self.root_dir, self.output_dir, 
@@ -397,6 +400,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
                 original_image_size=self.processed_video_size,
                 return_mica_images=self.return_mica_images,
+                align_images=self.align_images,
             )
 
         self.test_set = CelebVHQDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
@@ -416,6 +420,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
                 original_image_size=self.processed_video_size,
                 return_mica_images=self.return_mica_images,
+                align_images=self.align_images,
                 )
 
     def get_single_video_dataset(self, i):
@@ -440,6 +445,7 @@ class CelebVHQDataModule(FaceVideoDataModule):
                 inflate_by_video_size=False,
                 original_image_size=self.processed_video_size,
                 return_mica_images=self.return_mica_images,
+                align_images=self.align_images,
                 )
         dataset._allow_alignment_fail = False
         return dataset
@@ -524,6 +530,7 @@ class CelebVHQDataset(VideoDatasetBase):
             include_filename=False, # if True includes the filename of the video in the sample
             original_image_size=None,
             return_mica_images=False,
+            align_images=True,
     ) -> None:
         landmark_types = landmark_types or ["mediapipe", "fan"]
         super().__init__(
@@ -560,6 +567,7 @@ class CelebVHQDataset(VideoDatasetBase):
             include_filename=include_filename,
             original_image_size=original_image_size,
             return_mica_images=return_mica_images,
+            align_images=align_images,
         )
 
 

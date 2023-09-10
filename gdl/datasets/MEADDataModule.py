@@ -844,9 +844,10 @@ class MEADDataModule(FaceVideoDataModule):
 
 
 import imgaug
-from gdl.datasets.VideoDatasetBase import VideoDatasetBase
+from gdl.datasets.VideoDatasetBase import VideoDatasetBaseV2
 
-class MEADDataset(VideoDatasetBase):
+# class MEADDataset(VideoDatasetBase):
+class MEADDataset(VideoDatasetBaseV2):
 
     def __init__(self,
             root_path,
@@ -985,19 +986,6 @@ class MEADDataset(VideoDatasetBase):
     def _setup_identity_rng(self):
         self._identity_rng = np.random.default_rng(12345)
 
-    def _read_landmarks(self, index, landmark_type, landmark_source):
-        landmarks_dir = self._path_to_landmarks(index, landmark_type, landmark_source)
-        if landmark_source == "original":
-            landmark_list_file = landmarks_dir / f"landmarks_aligned_video_smoothed.pkl"
-            landmark_list = FaceDataModuleBase.load_landmark_list(landmark_list_file)  
-            landmark_valid_indices = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_alignment_used_frame_indices.pkl")  
-        elif landmark_source == "aligned": 
-            landmark_list, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
-            landmark_valid_indices = landmark_confidences
-        else: 
-            raise ValueError(f"Unknown landmark source {landmark_source}")
-        return landmark_list, landmark_valid_indices
-
     def _video_expression(self, index): 
         expr = self.video_list[self.video_indices[index]].parts[3] 
         if expr in ["front", "down", "top", "left_30",  "left_60", "right_30", "right_60", "1", "2"]: # a hack for MORONIC inconsistency in the paths of the MEAD dataset
@@ -1033,112 +1021,6 @@ class MEADDataset(VideoDatasetBase):
         sample["gt_expression_identity"] = np.array(sample["gt_expression_identity"])
         sample["gt_expression_label_with_intensity"] = np.array(sample["gt_expression_label_with_intensity"])
         sample["gt_expression_label_with_intensity_identity"] = np.array(sample["gt_expression_label_with_intensity_identity"])
-        return sample
-
-    def _get_landmarks(self, index, start_frame, num_read_frames, video_fps, num_frames, sample): 
-        sequence_length = self._get_sample_length(index)
-        landmark_dict = {}
-        landmark_validity_dict = {}
-        for lti, landmark_type in enumerate(self.landmark_types):
-            landmark_source = self.landmark_source[lti]
-            # landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}" / landmark_type /  self.video_list[self.video_indices[index]]).with_suffix("")
-            # landmarks_dir = (Path(self.output_dir) / f"landmarks_{landmark_source}/{landmark_type}" /  self.video_list[self.video_indices[index]]).with_suffix("")
-            landmarks_dir = self._path_to_landmarks(index, landmark_type, landmark_source)
-            landmarks = []
-            if landmark_source == "original":
-                # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_{landmark_source}.pkl")  
-                # landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / f"landmarks_aligned_video.pkl")  
-                landmark_list_file = landmarks_dir / f"landmarks_aligned_video_smoothed.pkl"
-
-                # if not self.preload_videos: 
-                #     # landmark_list = FaceDataModuleBase.load_landmark_list(landm?arks_dir / f"landmarks_{landmark_source}.pkl")  
-                #     landmark_list = self._read_landmarks(index, landmark_type, landmark_source)
-                #     # landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
-                # else: 
-                #     landmark_list = self.lmk_cache[index][landmark_type]
-                #     # landmark_types = self.lmk_cache[index]["landmark_types"]
-
-                if landmark_list_file.exists():
-                    if not self.preload_videos:
-                        landmark_list, landmark_valid_indices = self._read_landmarks(index, landmark_type, landmark_source)
-                    else:
-                        landmark_list, landmark_valid_indices = self.lmk_cache[index][landmark_type][landmark_source]
-                        
-                    # landmark_list = FaceDataModuleBase.load_landmark_list(landmark_list_file)  
-                    # landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
-                    landmarks = landmark_list[start_frame: sequence_length + start_frame] 
-                    landmarks = np.stack(landmarks, axis=0)
-
-                    # landmark_valid_indices = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_alignment_used_frame_indices.pkl")  
-                    landmark_validity = np.zeros((len(landmark_list), 1), dtype=np.float32)
-                    landmark_validity[landmark_valid_indices] = 1.0
-                    landmark_validity = landmark_validity[start_frame: sequence_length + start_frame]
-                else:
-                    if landmark_type == "mediapipe":
-                        num_landmarks = MEDIAPIPE_LANDMARK_NUMBER
-                    elif landmark_type in ["fan", "kpt68"]:
-                        num_landmarks = 68
-                    landmarks = np.zeros((sequence_length, num_landmarks, 2), dtype=np.float32)
-                    landmark_validity = np.zeros((sequence_length, 1), dtype=np.float32)
-                    # landmark_validity = landmark_validity.squeeze(-1)
-
-
-            elif landmark_source == "aligned":
-                if not self.preload_videos:
-                    landmarks, landmark_confidences = self._read_landmarks(index, landmark_type, landmark_source)
-                    # landmarks, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
-                else: 
-                    landmarks, landmark_confidences = self.lmk_cache[index][landmark_type][landmark_source]
-
-                # scale by image size 
-                original_image_size =  self.original_image_size
-                # landmarks = landmarks * self.image_size # do not use this one, this is the desired size (the video will be resized to this one)
-                landmarks = landmarks * original_image_size # use the original size
-
-                landmarks = landmarks[start_frame: sequence_length + start_frame]
-                # landmark_confidences = landmark_confidences[start_frame: sequence_length + start_frame]
-                # landmark_validity = landmark_confidences #TODO: something is wrong here, the validity is not correct and has different dimensions
-                # landmark_validity = None # this line craashes the code if FAN landmarks used (sometimes they are missing)
-                # a potentially dangerous hack (we don't know how valid the landmakrs are but MEAD is an easy dataset so it should be OK)
-                landmark_validity = np.ones((len(landmarks), 1), dtype=np.float32) 
-            else: 
-                raise ValueError(f"Invalid landmark source: '{landmark_source}'")
-
-            # landmark_validity = np.ones(len(landmarks), dtype=np.bool)
-            # for li in range(len(landmarks)): 
-            #     if len(landmarks[li]) == 0: # dropped detection
-            #         if landmark_type == "mediapipe":
-            #             # [WARNING] mediapipe landmarks coordinates are saved in the scale [0.0-1.0] (for absolute they need to be multiplied by img size)
-            #             landmarks[li] = np.zeros((478, 3))
-            #         elif landmark_type in ["fan", "kpt68"]:
-            #             landmarks[li] = np.zeros((68, 2))
-            #         else: 
-            #             raise ValueError(f"Unknown landmark type '{landmark_type}'")
-            #         landmark_validity[li] = False
-            #     elif len(landmarks[li]) > 1: # multiple faces detected
-            #         landmarks[li] = landmarks[li][0] # just take the first one for now
-            #     else: \
-            #         landmarks[li] = landmarks[li][0] 
-
-            # landmarks = np.stack(landmarks, axis=0)
-
-            # pad landmarks with zeros if necessary to match the desired video length
-            if landmarks.shape[0] < sequence_length:
-                landmarks = np.concatenate([landmarks, np.zeros(
-                    (sequence_length - landmarks.shape[0], *landmarks.shape[1:]), 
-                    dtype=landmarks.dtype)], axis=0)
-                if landmark_validity is not None:
-                    landmark_validity = np.concatenate([landmark_validity, np.zeros((sequence_length - landmark_validity.shape[0], landmark_validity.shape[1]), 
-                        dtype=landmark_validity.dtype)], axis=0)
-                else: 
-                    landmark_validity = np.zeros((sequence_length, 1), dtype=np.float32)
-
-            landmark_dict[landmark_type] = landmarks
-            if landmark_validity is not None:
-                landmark_validity_dict[landmark_type] = landmark_validity
-
-        sample["landmarks"] = landmark_dict
-        sample["landmarks_validity"] = landmark_validity_dict
         return sample
 
     def _get_video_path(self, index):
