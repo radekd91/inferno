@@ -581,7 +581,7 @@ class CelebVTextDataset(VideoDatasetBaseV2):
             include_filename=include_filename,
             original_image_size=original_image_size,
             return_mica_images=return_mica_images,
-            align_images=align_images
+            align_images=align_images,
             read_video=read_video,
             read_audio=read_audio,
         )
