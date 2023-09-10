@@ -56,8 +56,8 @@ def benchmark_data_loading():
         for batch_size in batch_sizes:
             # num_workers = int(batch_size * 1)
             # num_workers = 8
-            # num_workers = 12
-            num_workers = 0
+            num_workers = 15
+            # num_workers = 0
             mode = copy.deepcopy(mode)
             mode[0] += [ 
                 f'learning.batching.batch_size_train={batch_size}',
@@ -160,7 +160,7 @@ def benchmark_data_loading():
                 batch = next(dataiter)
                 end_time = timeit.default_timer()
                 
-                print("---------- Time taken to load a batch:", end_time - start_time, "-------------")
+                print(f"---------- Time taken to load a batch: {end_time - start_time:0.04f} -------------")
                 
             except StopIteration:
                 print("End of dataset")
