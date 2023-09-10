@@ -53,6 +53,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
             landmark_types = None,
             landmark_sources=None,
             segmentation_source=None,
+            segmentation_type=None,
             read_video = True,
             read_audio = True,
             return_mica_images = False,
@@ -106,6 +107,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
         self.landmark_types = landmark_types or ["mediapipe", "fan"]
         self.landmark_sources = landmark_sources or ["original", "aligned"]
         self.segmentation_source = segmentation_source or "aligned"
+        self.segmentation_type = segmentation_type or "focus"
         self.use_original_video = False
 
     def prepare_data(self):
@@ -377,6 +379,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 landmark_types=self.landmark_types,
                 landmark_source=self.landmark_sources,
                 segmentation_source=self.segmentation_source,
+                segmentation_type=self.segmentation_type,
                 temporal_split_start= 0 if self.temporal_split is not None else None,
                 temporal_split_end=self.temporal_split[0] if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
@@ -399,6 +402,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 landmark_types=self.landmark_types,
                 landmark_source=self.landmark_sources,
                 segmentation_source=self.segmentation_source,
+                segmentation_type=self.segmentation_type,
                 temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
                 temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
@@ -420,6 +424,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 landmark_types=self.landmark_types,
                 landmark_source=self.landmark_sources,
                 segmentation_source=self.segmentation_source,
+                segmentation_type=self.segmentation_type,
                 temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
@@ -446,6 +451,7 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 landmark_types=self.landmark_types,
                 landmark_source=self.landmark_sources,
                 segmentation_source=self.segmentation_source,
+                segmentation_type=self.segmentation_type,
                 # temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 # temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
