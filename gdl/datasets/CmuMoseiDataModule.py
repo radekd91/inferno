@@ -383,7 +383,9 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
                 original_image_size=self.processed_video_size,
                 return_mica_images = self.return_mica_images,
-                align_images=self.align_images
+                align_images=self.align_images, 
+                read_video=self.read_video,
+                read_audio=self.read_audio,
               )
                     
         self.validation_set = CmuMoseiDataset(self.root_dir, self.output_dir, 
@@ -403,7 +405,9 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
                 original_image_size=self.processed_video_size,
                 return_mica_images = self.return_mica_images,
-                align_images=self.align_images
+                align_images=self.align_images, 
+                read_video=self.read_video,
+                read_audio=self.read_audio,
             )
 
         self.test_set = CmuMoseiDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, test, self.audio_metas, 
@@ -422,7 +426,9 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 inflate_by_video_size=self.inflate_by_video_size,
                 original_image_size=self.processed_video_size,
                 return_mica_images = self.return_mica_images,
-                align_images=self.align_images
+                align_images=self.align_images, 
+                read_video=self.read_video,
+                read_audio=self.read_audio,
                 )
 
     def get_single_video_dataset(self, i):
@@ -446,7 +452,9 @@ class CmuMoseiDataModule(FaceVideoDataModule):
                 inflate_by_video_size=False,
                 original_image_size=self.processed_video_size,
                 return_mica_images = self.return_mica_images,
-                align_images=self.align_images
+                align_images=self.align_images,
+                read_video=self.read_video,
+                read_audio=self.read_audio,
                 )
         dataset._allow_alignment_fail = False
         return dataset
