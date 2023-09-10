@@ -1198,9 +1198,11 @@ class VideoDatasetBase(AbstractVideoDataset):
             landmark_t = landmark[t:t+1, ..., :2] if landmark is not None else None
 
             if self.transforms is not None:
-                res = transform_det(image=img_t.astype(np.float32),
-                                    segmentation_maps=seg_image_t,
-                                    keypoints=landmark_t)
+                res = transform_det(
+                    # image=img_t.astype(np.float32),
+                    image=img_t,
+                    segmentation_maps=seg_image_t,
+                    keypoints=landmark_t)
                 if seg_image_t is not None and landmark is not None:
                     img_t, seg_image_t, landmark_t = res
                 elif seg_image_t is not None:
@@ -1285,7 +1287,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         #             None, images.shape[2:])
 
 
-        images_aug = np.concatenate([images, images_masked], axis=0) * 255.0
+        images_aug = (np.concatenate([images, images_masked], axis=0) * 255.0).astype(np.uint8)
         segmentation_aug = [] 
         if segmentation is not None:
             segmentation_aug += [segmentation]
@@ -1311,6 +1313,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         #                     mediapipe_landmarks_aug, images.shape[2:])
         images_aug, segmentation_aug, mediapipe_landmarks_aug = self._augment(images_aug, segmentation_aug, 
                     landmarks_to_augment_aug, images.shape[2:])
+        images_aug = images_aug.astype(np.float32) / 255.0 # back to float
         images = images_aug[:images_aug.shape[0]//2]
 
         if segmentation is not None:
@@ -1322,8 +1325,10 @@ class VideoDatasetBase(AbstractVideoDataset):
         if segmentation_masked is not None:
             segmentation_masked = segmentation_aug[segmentation_aug.shape[0]//2 :]
 
-        sample["video"] = images / 255.0
-        sample["video_masked"] = images_masked / 255.0
+        # sample["video"] = images / 255.0
+        # sample["video_masked"] = images_masked / 255.0
+        sample["video"] = images 
+        sample["video_masked"] = images_masked 
         if segmentation is not None:
             sample["segmentation"] = segmentation
         if segmentation_masked is not None:

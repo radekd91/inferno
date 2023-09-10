@@ -27,6 +27,7 @@ from gdl.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase
 from gdl.datasets.LRS3DataModule import LRS3DataModule
 from gdl.datasets.CelebVHQDataModule import CelebVHQDataModule
 from gdl.datasets.MEADDataModule import MEADDataModule
+from gdl.datasets.CelebVTextDataModule import CelebVTextDataModule
 
 from gdl.datasets.CombinedDataModule import CombinedDataModule
 from omegaconf import DictConfig, OmegaConf
@@ -36,12 +37,18 @@ from pytorch_lightning.loggers import WandbLogger
 import datetime
 from gdl.utils.other import class_from_str
 import torch 
+from munch import Munch, munchify
 # torch.autograd.set_detect_anomaly(True)
 
 project_name = 'FaceReconstruction'
 
 
 def create_single_dm(cfg, data_class):
+    if 'augmentation' in cfg.data.keys() and len(cfg.data.augmentation) > 0:
+        augmentation = munchify(OmegaConf.to_container(cfg.data.augmentation))
+    else:
+        augmentation = None
+
     if data_class == "CelebVHQDataModule":
         # condition_source, condition_settings = get_condition_string_from_config(cfg)
         dm = CelebVHQDataModule(
@@ -88,6 +95,7 @@ def create_single_dm(cfg, data_class):
                 # emotion_type=cfg.data.get('emotion_type', None),
                 # return_emotion_feature=cfg.data.get('return_emotion_feature', None),
                 return_mica_images=cfg.data.get('return_mica_images', False),
+                augmentation=augmentation,
         )
         dataset_name = "CelebVHQ"
     elif data_class == "LRS3DataModule":
@@ -136,6 +144,7 @@ def create_single_dm(cfg, data_class):
                 # emotion_type=cfg.data.get('emotion_type', None),
                 # return_emotion_feature=cfg.data.get('return_emotion_feature', None),
                 return_mica_images=cfg.data.get('return_mica_images', False),
+                augmentation=augmentation,
         )
 
         dataset_name = "LRS3"
@@ -186,8 +195,56 @@ def create_single_dm(cfg, data_class):
                 # return_emotion_feature=cfg.data.get('return_emotion_feature', None),
                 # shuffle_validation=cfg.model.get('disentangle_type', False) == 'condition_exchange',
                 return_mica_images=cfg.data.get('return_mica_images', False),
+                augmentation=augmentation,
         )
         dataset_name = "MEAD"
+    elif data_class == "CelebVTextDataModule":
+        dm = CelebVTextDataModule(
+            cfg.data.input_dir, 
+            cfg.data.output_dir, 
+            processed_subfolder=cfg.data.processed_subfolder, 
+            face_detector=cfg.data.face_detector,
+            landmarks_from=cfg.data.get('landmarks_from', None),
+            face_detector_threshold=cfg.data.face_detector_threshold, 
+            image_size=cfg.data.image_size, 
+            scale=cfg.data.scale, 
+            batch_size_train=cfg.learning.batching.batch_size_train,
+            batch_size_val=cfg.learning.batching.batch_size_val, 
+            batch_size_test=cfg.learning.batching.batch_size_test, 
+            sequence_length_train=cfg.learning.batching.sequence_length_train or cfg.learning.batching.ring_size_train, 
+            sequence_length_val=cfg.learning.batching.sequence_length_val or cfg.learning.batching.ring_size_val, 
+            sequence_length_test=cfg.learning.batching.sequence_length_test or cfg.learning.batching.ring_size_test, 
+            occlusion_settings_train = OmegaConf.to_container(cfg.data.occlusion_settings_train), 
+            occlusion_settings_val = OmegaConf.to_container(cfg.data.occlusion_settings_val), 
+            occlusion_settings_test = OmegaConf.to_container(cfg.data.occlusion_settings_test), 
+            split = cfg.data.split,
+            num_workers=cfg.data.num_workers,
+            # include_processed_audio = cfg.data.include_processed_audio,
+            # include_raw_audio = cfg.data.include_raw_audio,
+            drop_last=cfg.data.drop_last,
+            ## end args of FaceVideoDataModule
+            ## begin CelebVTextDataModule specific params
+            # training_sampler=cfg.data.training_sampler,
+            landmark_types = cfg.data.landmark_types,
+            landmark_sources=cfg.data.landmark_sources,
+            segmentation_source=cfg.data.segmentation_source,
+            segmentation_type = cfg.data.segmentation_type,
+            include_processed_audio = cfg.data.include_processed_audio,
+            include_raw_audio = cfg.data.include_raw_audio,
+            inflate_by_video_size = cfg.data.inflate_by_video_size,
+            preload_videos = cfg.data.preload_videos,
+            align_images = cfg.data.get('align_images', False),
+            read_video=cfg.data.get('read_video', True),
+            read_audio=cfg.data.get('read_audio', False),
+            # reconstruction_type=cfg.data.get('reconstruction_type', None),
+            # return_appearance=cfg.data.get('return_appearance', None),
+            # average_shape_decode=cfg.data.get('average_shape_decode', None),
+            # emotion_type=cfg.data.get('emotion_type', None),
+            # return_emotion_feature=cfg.data.get('return_emotion_feature', None),
+            return_mica_images=cfg.data.get('return_mica_images', False),
+            augmentation=augmentation,
+        )
+        dataset_name = "CelebVT"
     else:
         raise ValueError(f"Unknown data class: {data_class}")
 
