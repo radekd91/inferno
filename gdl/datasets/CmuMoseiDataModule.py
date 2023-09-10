@@ -541,6 +541,8 @@ class CmuMoseiDataset(VideoDatasetBaseV2):
             original_image_size=None,
             return_mica_images = False,
             align_images = True,
+            read_video = True,
+            read_audio = True,
     ) -> None:
         landmark_types = landmark_types or ["mediapipe", "fan"]
         super().__init__(
@@ -578,6 +580,8 @@ class CmuMoseiDataset(VideoDatasetBaseV2):
             original_image_size=original_image_size,
             return_mica_images = return_mica_images,
             align_images=align_images,
+            read_video=read_video,
+            read_audio=read_audio,
         )
 
 
