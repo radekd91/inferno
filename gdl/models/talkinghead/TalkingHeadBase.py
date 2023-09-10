@@ -6,6 +6,7 @@ from gdl.models.temporal.Bases import *
 from gdl.models.temporal.BlockFactory import norm_from_cfg
 import random
 import omegaconf
+from gdl.utils.batch import check_nan, detach_dict
 
 
 class TalkingHeadBase(pl.LightningModule): 
@@ -633,28 +634,3 @@ def expand_sequence_batch(sample, factor=2, how='cat', indices_permuted=None) ->
         raise ValueError(f"Invalid type '{type(sample)}' for key '{key}'")
     return sample_value_expanded
 
-
-def check_nan(sample: Dict): 
-    ok = True
-    nans = []
-    for key, value in sample.items():
-        if isinstance(value, torch.Tensor):
-            if torch.isnan(value).any():
-                print(f"NaN found in '{key}'")
-                nans.append(key)
-                ok = False
-                # raise ValueError("Nan found in sample")
-    if len(nans) > 0:
-        raise ValueError(f"NaN found in {nans}")
-    return ok
-
-
-def detach_dict(d): 
-    for k, v in d.items():
-        if isinstance(v, torch.Tensor):
-            d[k] = v.detach()
-        elif isinstance(v, dict):
-            d[k] = detach_dict(v)
-        else: 
-            pass
-    return d

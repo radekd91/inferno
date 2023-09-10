@@ -59,7 +59,7 @@ from .Losses import (FanContourLandmarkLoss, LandmarkLoss,
                      MediaPipeMouthCornerLoss, MediaPipleEyeDistanceLoss,
                      PhotometricLoss, GaussianRegLoss, LightRegLoss)
 
-from gdl.utils.batch import dict_get
+from gdl.utils.batch import dict_get, check_nan
 # import timeit
 
 def shape_model_from_cfg(cfg): 
@@ -483,6 +483,7 @@ class FaceReconstructionBase(LightningModule):
                 batch[key] = unring_view_dict(value, B*K)
                 # if value.shape[0] == B and value.shape[1] == K: 
                 #     batch[key] = value.view(B*K, *value.shape[2:]) 
+        check_nan(batch)
         return batch, ring_size
     
     def rering(self, batch, ring_size):
@@ -494,6 +495,7 @@ class FaceReconstructionBase(LightningModule):
             if isinstance(value, torch.Tensor) and value.ndim <= 1:
                 continue
             batch[key] = rering_view_dict(value, ring_size)
+        check_nan(batch)
         return batch
 
     def exchange(self, batch, ring_size, training, validation, **kwargs):
@@ -512,6 +514,7 @@ class FaceReconstructionBase(LightningModule):
         :param training: Whether the forward pass is for training or testing.
         """
         batch = self.face_encoder(batch)
+        check_nan(batch)
         return batch
 
     def decode(self, batch, training=True, validation=False):
@@ -519,6 +522,7 @@ class FaceReconstructionBase(LightningModule):
         Decodes the predicted latents into the predicted shape
         """
         batch = self.shape_model(batch)
+        check_nan(batch)
         return batch
     
     def render(self, batch, training=True, validation=False):
@@ -526,6 +530,7 @@ class FaceReconstructionBase(LightningModule):
         Renders the predicted shape
         """
         batch = self.renderer(batch)
+        check_nan(batch)
         return batch
 
     def compute_loss(self, sample, training, validation): 
@@ -560,6 +565,7 @@ class FaceReconstructionBase(LightningModule):
                 losses["loss_" + loss_name + "_w"] = weighted_term
 
         losses["loss_total"] = total_loss
+        check_nan(losses)
         return total_loss, losses, metrics
 
     
