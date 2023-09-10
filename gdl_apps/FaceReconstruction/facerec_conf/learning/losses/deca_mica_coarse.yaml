@@ -61,7 +61,7 @@ losses:
 
   tex_reg: 
     type: tex_reg
-    weight: 1e-7
+    weight: 1e-4
     metric: False
     predicted_key: texcode
     target_key: False

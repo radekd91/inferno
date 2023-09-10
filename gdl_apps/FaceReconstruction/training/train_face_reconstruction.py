@@ -35,7 +35,8 @@ from pathlib import Path
 from pytorch_lightning.loggers import WandbLogger
 import datetime
 from gdl.utils.other import class_from_str
-
+import torch 
+torch.autograd.set_detect_anomaly(True)
 
 project_name = 'FaceReconstruction'
 
