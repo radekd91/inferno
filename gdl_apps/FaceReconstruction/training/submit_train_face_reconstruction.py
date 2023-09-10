@@ -121,8 +121,8 @@ def submit(cfg , bid=10):
 def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
-    coarse_conf = "emica_pretrain_stage" 
-    # coarse_conf = "emica_deca_stage"
+    # coarse_conf = "emica_pretrain_stage" 
+    coarse_conf = "emica_deca_stage"
     # coarse_conf = "emica_emoca_stage"
 
 
@@ -215,15 +215,46 @@ def submit_trainings():
         GlobalHydra.instance().clear()
         # config_pairs += [cfgs]
 
+        init_from = None
+        if coarse_conf == "emica_deca_stage":
+            if conf.data.data_class == "MEADDataModule":
+                init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_09_22-58-35_-2919259285031416864_FaceReconstructionBase_MEADDEmicaEncoder_Aug/cfg.yaml"
+            elif conf.data.data_class == "lrs3":
+                init_from = "todo"
+            elif conf.data.data_class == "celebvhq":
+                init_from = "todo"
+            elif conf.data.data_class == "celebvtext":
+                init_from = "todo"
+            elif conf.data.data_class == "cmumosei":
+                init_from = "todo"
+            else:
+                raise ValueError(f"Unknown data class {conf.data.data_class}")
+        elif coarse_conf == "emica_emoca_stage":
+            if conf.data.data_class == "MEADDataModule":
+                init_from = "emica_pretrain_stage"
+            elif conf.data.data_class == "lrs3":
+                init_from = "todo"
+            elif conf.data.data_class == "celebvhq":
+                init_from = "todo"
+            elif conf.data.data_class == "celebvtext":
+                init_from = "todo"
+            elif conf.data.data_class == "cmumosei":
+                init_from = "todo"
+            else:
+                raise ValueError(f"Unknown data class {conf.data.data_class}")
+
 
         bid = 150
         OmegaConf.set_struct(conf, False)
         with open_dict(conf) as d:
             tags = ["INITIAL_SMALL_TESTS"]
+            tags += [coarse_conf]
             if not submit_:
                 tags += ["DEBUG_FROM_WORKSTATION"]
             if d.learning.tags is None:
                 d.learning.tags = tags
+            if init_from is not None:
+                d.model.init_from = init_from
         cfg = OmegaConf.to_container(conf)
 
         conf = OmegaConf.create(cfg)

@@ -253,7 +253,15 @@ def train_model(cfg_coarse,
     #     stages += ["train", "test"]
     #     stages_prefixes += ["", "", ]
 
-    if start_i >= 0 or force_new_location:
+    init_from = cfg_coarse.model.get('init_from', None)
+    if init_from is not None:
+        # load the cfg from init_from 
+        resume_i = start_i - 1 
+        init_from_cfg = OmegaConf.load(init_from)
+        checkpoint_mode = init_from_cfg.coarse.learning.checkpoint_after_training  # loads latest or best based on cfg
+        checkpoint, checkpoint_kwargs = get_checkpoint_with_kwargs(init_from_cfg.coarse, "", checkpoint_mode)
+            
+    elif start_i >= 0 or force_new_location or init_from is not None:
         if resume_from_previous:
             resume_i = start_i - 1
             checkpoint_mode = None # loads latest or best based on cfg
@@ -339,7 +347,8 @@ def train_model(cfg_coarse,
                          save_dir=full_run_dir)
 
     model = None
-    if start_i >= 0 or force_new_location:
+    # if start_i >= 0 or force_new_location:
+    if checkpoint is not None:
         print(f"Loading a checkpoint: {checkpoint} and starting from stage {start_i}")
     if start_i == -1:
         start_i = 0
