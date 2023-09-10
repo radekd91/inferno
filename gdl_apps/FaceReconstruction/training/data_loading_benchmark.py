@@ -91,10 +91,16 @@ def benchmark_data_loading():
         # # 'data.split=random_by_identity_pretrain_80_20',
         # 'data.split=specific_identity_80_20_pretrain/0af00UcTOSc', # training on a single identity 
         
-        # ## MEAD 
-        'data/datasets=mead', 
-        # 'data.split=specific_identity_sorted_80_20_M003',
-        'data.split=random_by_sequence_sorted_70_15_15',
+        # # ## MEAD 
+        # 'data/datasets=mead', 
+        # # 'data.split=specific_identity_sorted_80_20_M003',
+        # # 'data.split=random_by_sequence_sorted_70_15_15',
+        # 'data.split=random_by_identityV2_sorted_70_15_15',
+        
+        # ## CelebV-Text
+        'data/datasets=celebvtext', 
+        'data.split=random_70_15_15',
+        # 'data/augmentations=default',
 
         # ## CelebV-Text
         # 'data/datasets=', 
