@@ -146,8 +146,8 @@ def submit_trainings():
             # num_workers = int(batch_size * 1)
             # num_workers = 8
             num_workers = 10
-            # if not submit_:
-            #     num_workers = 0
+            if not submit_:
+                num_workers = 0
             mode = copy.deepcopy(mode)
             mode[0] += [ 
                 f'learning.batching.batch_size_train={batch_size}',
