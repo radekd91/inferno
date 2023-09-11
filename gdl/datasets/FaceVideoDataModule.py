@@ -39,7 +39,8 @@ from gdl.datasets.ImageDatasetHelpers import point2bbox, bbpoint_warp
 from gdl.datasets.UnsupervisedImageDataset import UnsupervisedImageDataset
 from facenet_pytorch import InceptionResnetV1
 from collections import OrderedDict
-from gdl.datasets.IO import save_emotion, save_segmentation_list, save_reconstruction_list, save_emotion_list
+from gdl.datasets.IO import (save_emotion, save_segmentation_list, save_reconstruction_list, 
+                             save_reconstruction_list_v2, save_emotion_list, save_emotion_list_v2)
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 from skimage.io import imread
@@ -604,8 +605,6 @@ class FaceVideoDataModule(FaceDataModuleBase):
         
         # Save the video
 
-        
-
 
 
     def _get_emotion_net(self, device):
@@ -615,6 +614,28 @@ class FaceVideoDataModule(FaceDataModuleBase):
         net = net.to(device)
 
         return net, "emo_net"
+
+    def _segmentations_to_hdf5(self, sequence_id, segmentation_net, use_aligned_videos):
+        """
+        Converts the segmentation pickle file to hdf5 format such that it can be used by the dataloader for random access
+        """
+        out_segmentation_folder = self._get_path_to_sequence_segmentations(sequence_id, 
+                                                                           use_aligned_videos=use_aligned_videos, 
+                                                                           segmentation_net=segmentation_net)
+        old_file = out_segmentation_folder / "segmentations.pkl"
+        new_file = out_segmentation_folder / "segmentations.hdf5"
+
+        if new_file.is_file():
+            print("[WARNING] HDF5 segmentation file already exists. Skipping segmentations_to_hdf5")
+            return
+        
+        if not old_file.is_file():
+            print("[WARNING] PKL segmentation file does not exist. Skipping segmentations_to_hdf5")
+            return
+        
+        from gdl.datasets.IO import load_segmentation_list, save_segmentation_list_v2
+        seg_images, seg_types, seg_names = load_segmentation_list(old_file)
+        save_segmentation_list_v2(new_file, seg_images, seg_types, seg_names, overwrite=False, compression_level=1)
 
     def _segment_faces_in_sequence(self, sequence_id, use_aligned_videos=False, segmentation_net=None):
         video_file = self.video_list[sequence_id]
@@ -1394,8 +1415,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
         out_file_appearance = {}
         for rec_method in rec_methods:
             out_folder[rec_method] = self._get_path_to_sequence_reconstructions(sequence_id, rec_method=rec_method, suffix=suffix)
-            out_file_shape[rec_method] = out_folder[rec_method] / f"shape_pose_cam.pkl"
-            out_file_appearance[rec_method] = out_folder[rec_method] / f"appearance.pkl"
+            # out_file_shape[rec_method] = out_folder[rec_method] / f"shape_pose_cam.pkl"
+            # out_file_appearance[rec_method] = out_folder[rec_method] / f"appearance.pkl"
+            out_file_shape[rec_method] = out_folder[rec_method] / f"shape_pose_cam.hdf5"
+            out_file_appearance[rec_method] = out_folder[rec_method] / f"appearance.hdf5"
             out_folder[rec_method].mkdir(exist_ok=True, parents=True)
 
         if retarget_from is not None:
@@ -1463,9 +1486,18 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     #     hkl.dump(appearance, f)
                     # hkl.dump(shape_pose, out_file_shape[rec_method])
                     # hkl.dump(appearance, out_file_appearance[rec_method])
-
-                    save_reconstruction_list(out_file_shape[rec_method], shape_pose)
-                    save_reconstruction_list(out_file_appearance[rec_method], appearance)
+                    if out_file_shape[rec_method].suffix == '.hdf5':
+                        save_reconstruction_list_v2(out_file_shape[rec_method], shape_pose)
+                    elif out_file_shape[rec_method].suffix == '.pkl':
+                        save_reconstruction_list(out_file_shape[rec_method], shape_pose)
+                    else: 
+                        raise ValueError(f"Unknown file format {out_file_shape[rec_method].suffix}")
+                    if out_file_appearance[rec_method].suffix == '.hdf5':
+                        save_reconstruction_list_v2(out_file_appearance[rec_method], appearance)
+                    elif out_file_appearance[rec_method].suffix == '.pkl':
+                        save_reconstruction_list(out_file_appearance[rec_method], appearance)
+                    else:
+                        raise ValueError(f"Unknown file format {out_file_appearance[rec_method].suffix}")
 
         print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
 
@@ -1483,8 +1515,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
         out_file_features = {}
         for emo_method in emo_methods:
             out_folder[emo_method] = self._get_path_to_sequence_emotions(sequence_id, emo_method=emo_method)
-            out_file_emotion[emo_method] = out_folder[emo_method] / f"emotions.pkl"
-            out_file_features[emo_method] = out_folder[emo_method] / f"features.pkl"
+            # out_file_emotion[emo_method] = out_folder[emo_method] / f"emotions.pkl"
+            # out_file_features[emo_method] = out_folder[emo_method] / f"features.pkl"
+            out_file_emotion[emo_method] = out_folder[emo_method] / f"emotions.hdf5"
+            out_file_features[emo_method] = out_folder[emo_method] / f"features.hdf5"
             out_folder[emo_method].mkdir(exist_ok=True, parents=True)
 
         exists = True
@@ -1524,9 +1558,17 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     
                     # hkl.dump(emotion_labels, out_file_emotion[emo_method])
                     # hkl.dump(emotion_features, out_file_features[emo_method])
-
-                    save_emotion_list(out_file_emotion[emo_method], emotion_labels)
-                    save_emotion_list(out_file_features[emo_method], emotion_features)
+                    if out_file_emotion[emo_method].suffix == '.hdf5':
+                        save_emotion_list_v2(out_file_emotion[emo_method], emotion_labels)
+                    elif out_file_emotion[emo_method].suffix == '.pkl':
+                        save_emotion_list(out_file_emotion[emo_method], emotion_labels)
+                    else: 
+                        raise ValueError(f"Unknown file format {out_file_emotion[emo_method].suffix}")
+                    
+                    if out_file_features[emo_method].suffix == '.hdf5':
+                        save_emotion_list_v2(out_file_emotion[emo_method], emotion_labels)
+                    elif out_file_features[emo_method].suffix == '.pkl':
+                        save_emotion_list(out_file_features[emo_method], emotion_labels)
 
         print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
 

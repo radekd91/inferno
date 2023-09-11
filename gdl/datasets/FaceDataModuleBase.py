@@ -33,7 +33,7 @@ from torchvision.transforms import Resize, Compose, Normalize
 from tqdm import tqdm
 
 # from gdl.datasets.FaceVideoDataset import FaceVideoDataModule
-from gdl.datasets.IO import save_segmentation, save_segmentation_list
+from gdl.datasets.IO import save_segmentation, save_segmentation_list, save_segmentation_list_v2
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 from gdl.datasets.UnsupervisedImageDataset import UnsupervisedImageDataset
 from gdl.utils.FaceDetector import FAN, MTCNN, save_landmark
@@ -282,7 +282,8 @@ class FaceDataModuleBase(pl.LightningDataModule):
         segmentation_net = segmentation_net or self._get_segmentation_method()
         if self.save_landmarks_one_file: 
             overwrite = False 
-            single_out_file = out_segmentation_folder / "segmentations.pkl"
+            # single_out_file = out_segmentation_folder / "segmentations.pkl"
+            single_out_file = out_segmentation_folder / "segmentations.hdf5"
             if single_out_file.is_file() and not overwrite:
                 print(f"Segmentation already found in {single_out_file}, skipping")
                 return
@@ -387,7 +388,10 @@ class FaceDataModuleBase(pl.LightningDataModule):
                 out_segmentation_types += [seg_type] * len(segmentation_names)
 
         if self.save_landmarks_one_file: 
-            save_segmentation_list(single_out_file, out_segmentations, out_segmentation_types, out_segmentation_names)
+            if single_out_file.suffix == ".pkl":
+                save_segmentation_list(single_out_file, out_segmentations, out_segmentation_types, out_segmentation_names)
+            elif single_out_file.suffix == ".hdf5":
+                save_segmentation_list_v2(single_out_file, out_segmentations, out_segmentation_types, out_segmentation_names)
             print("Segmentation saved to %s" % single_out_file)
 
 

@@ -7,7 +7,11 @@ from pathlib import Path
 from scipy.io import wavfile 
 from python_speech_features import logfbank
 from gdl.datasets.FaceDataModuleBase import FaceDataModuleBase
-from gdl.datasets.IO import load_and_process_segmentation, process_segmentation, load_segmentation, load_segmentation_list, load_reconstruction_list, load_emotion_list
+from gdl.datasets.IO import (load_and_process_segmentation, process_segmentation, 
+                             load_segmentation, load_segmentation_list, load_segmentation_list_v2,
+                             load_reconstruction_list, load_emotion_list, 
+                             load_reconstruction_list_v2, load_emotion_list_v2,
+                             )
 from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 from gdl.utils.FaceDetector import load_landmark
 import pandas as pd
@@ -767,44 +771,97 @@ class VideoDatasetBase(AbstractVideoDataset):
     def _path_to_segmentations(self, index): 
         return (Path(self.output_dir) / f"segmentations_{self.segmentation_source}" / self.segmentation_type /  self.video_list[self.video_indices[index]]).with_suffix("")
 
-    def _read_segmentations(self, index):
+    def _read_segmentations(self, index, start_frame=None, end_frame=None):
         segmentations_dir = self._path_to_segmentations(index)
-        seg_images, seg_types, seg_names = load_segmentation_list(segmentations_dir / "segmentations.pkl")
-        segmentations = np.stack(seg_images, axis=0)[:,0,...]
+        if (segmentations_dir / "segmentations.hdf5").exists(): # if random access hdf5 exists (newest), let's use it
+            segmentations, seg_types, seg_names = load_segmentation_list_v2(segmentations_dir / "segmentations.hdf5", start_frame, end_frame)
+        elif (segmentations_dir / "segmentations.pkl").exists(): # segmentations are saved in a single pickle (no random access)
+            segmentations, seg_types, seg_names = load_segmentation_list(segmentations_dir / "segmentations.pkl")
+            if start_frame is not None and end_frame is not None:
+                segmentations = segmentations[start_frame: end_frame]
+                seg_types = seg_types[start_frame: end_frame]
+                seg_names = seg_names[start_frame: end_frame]
+        if isinstance(segmentations, list):
+            segmentations = np.stack(segmentations, axis=0)
+        if segmentations.ndim == 4: # T, C=1, W, H
+            segmentations = segmentations[:,0,...]
         return segmentations, seg_types, seg_names
 
-    def _retrieve_segmentations(self, index):
+    def _retrieve_segmentations(self, index, start_frame, end_frame):
         if not self.preload_videos:
-            segmentations_dir = self._path_to_segmentations(index)
-            seg_images, seg_types, seg_names = load_segmentation_list(segmentations_dir / "segmentations.pkl")
-            segmentations = np.stack(seg_images, axis=0)[:,0,...]
+            # segmentations_dir = self._path_to_segmentations(index)
+            # if (segmentations_dir / "segmentations.hdf5").exists(): # random access hdf5 exists, let's use it
+            #     segmentations, seg_types, seg_names = load_segmentation_list_v2(segmentations_dir / "segmentations.hdf5", start_frame, end_frame)
+            # elif (segmentations_dir / "segmentations.pkl").exists(): # segmentations are saved in a single pickle
+            #     seg_images, seg_types, seg_names = load_segmentation_list(segmentations_dir / "segmentations.pkl")
+            #     segmentations = seg_images[start_frame: end_frame]
+            # if isinstance(seg_images, list):
+            #     segmentations = np.stack(seg_images, axis=0)
+            # if seg_images.ndim == 4: # T, C=1, W, H
+            #     segmentations = segmentations[:,0,...]
+            segmentations, seg_types, seg_names = self._read_segmentations(index, start_frame, end_frame)
+
             return segmentations, seg_types, seg_names
         else:
             video_path = str(self._get_video_path(index))
-            return self.seg_cache[video_path]
+            segmentations, seg_types, seg_names = self.seg_cache[video_path]
+            segmentations = segmentations[start_frame: end_frame]
+            seg_types = seg_types[start_frame: end_frame]
+            seg_names = seg_names[start_frame: end_frame]
+            return segmentations, seg_types, seg_names
 
-    def _load_reconstructions(self, index, rec_type, appearance=False): 
+    def _load_reconstructions(self, index, rec_type, appearance=False, start_frame=None, end_frame=None): 
         reconstructions_dir = self._path_to_reconstructions(index, rec_type)
-        shape_pose_cam = load_reconstruction_list(reconstructions_dir / "shape_pose_cam.pkl")
+        if (reconstructions_dir / "shape_pose_cam.hdf5").exists(): # random access hdf5 exists, let's use it
+            shape_pose_cam = load_reconstruction_list_v2(reconstructions_dir / "shape_pose_cam.hdf5", 
+                                                         start_frame=start_frame, end_frame=end_frame)
+            if appearance:
+                appearance = load_reconstruction_list_v2(reconstructions_dir / "appearance.hdf5", 
+                                                         start_frame=start_frame, end_frame=end_frame)
+            else: 
+                appearance = None
+        elif (reconstructions_dir / "shape_pose_cam.pkl").exists(): # reconstructions are saved in a single pickle
+            shape_pose_cam = load_reconstruction_list(reconstructions_dir / "shape_pose_cam.pkl")
+            if appearance:
+                appearance = load_reconstruction_list(reconstructions_dir / "appearance.pkl")
+            else: 
+                appearance = None
+
+            if start_frame is not None and end_frame is not None:
+                shape_pose_cam = {key: shape_pose_cam[key][start_frame: end_frame] for key in shape_pose_cam.keys()}
+                if appearance is not None:
+                    appearance = {key: appearance[key][start_frame: end_frame] for key in appearance.keys()}
+        else: 
+            raise RuntimeError(f"Reconstruction file not found in {reconstructions_dir}")
         # for key in shape_pose_cam.keys():
         #     shape_pose_cam[key] = np.copy(shape_pose_cam[key])
-        if appearance:
-            appearance = load_reconstruction_list(reconstructions_dir / "appearance.pkl")
             # for key in appearance.keys():
             #     appearance[key] = np.copy(appearance[key])
-        else: 
-            appearance = None
         return shape_pose_cam, appearance
 
-    def _load_emotions(self, index, features=False): 
+    def _load_emotions(self, index, features=False, start_frame=None, end_frame=None): 
         emotions_dir = self._path_to_emotions(index)
-        emotions = load_emotion_list(emotions_dir / "emotions.pkl")
-        if features:
-            features = load_emotion_list(emotions_dir / "features.pkl")
-            assert "feature" in features.keys(), "Features not found in emotion file. This is likely due to a bug in emotions saving. " \
-                "Please delete the emotion feature file and recompute them."
+
+        if (emotions_dir / "emotions.hdf5").exists(): # random access hdf5 exists, let's use it
+            emotions = load_emotion_list_v2(emotions_dir / "emotions.hdf5", start_frame, end_frame)
+            if features:
+                features = load_emotion_list_v2(emotions_dir / "features.hdf5", start_frame, end_frame)
+            else:
+                features = None
+        elif (emotions_dir / "emotions.pkl").exists(): # emotions are saved in a single pickle
+            emotions = load_emotion_list(emotions_dir / "emotions.pkl")
+            if features:
+                features = load_emotion_list(emotions_dir / "features.pkl")
+                assert "feature" in features.keys(), "Features not found in emotion file. This is likely due to a bug in emotions saving. " \
+                    "Please delete the emotion feature file and recompute them."
+            else: 
+                features = None
+            if start_frame is not None and end_frame is not None:
+                emotions = emotions[start_frame: end_frame]
+                if features is not None:
+                    features = features[start_frame: end_frame]
         else: 
-            features = None
+            raise RuntimeError(f"Emotion file not found in {emotions_dir}")
         return emotions, features
         
     def _path_to_reconstructions(self, index, rec_type): 
@@ -820,15 +877,15 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         sequence_length = self._get_sample_length(index)
 
-        if (segmentations_dir / "segmentations.pkl").exists(): # segmentations are saved in a single file-per video 
+        if (segmentations_dir / "segmentations.pkl").exists() or (segmentations_dir / "segmentations.hdf5").exists(): # segmentations are saved in a single file-per video 
             # seg_images, seg_types, seg_names = load_segmentation_list(segmentations_dir / "segmentations.pkl")
             # segmentations = seg_images[start_frame: sequence_length + start_frame]
             # segmentations = np.stack(segmentations, axis=0)[:,0,...]
-            segmentations, seg_types, seg_names  = self._retrieve_segmentations(index)
-            segmentations = segmentations[start_frame: sequence_length + start_frame]
+            segmentations, seg_types, seg_names  = self._retrieve_segmentations(index, start_frame, sequence_length + start_frame)
+            # segmentations = segmentations[start_frame: sequence_length + start_frame]
             segmentations = process_segmentation(segmentations, seg_types[0]).astype(np.uint8)
             # assert segmentations.shape[0] == sequence_length
-        else: # segmentations are saved per-frame
+        else: # segmentations are saved per-frame (old deprecated options)
             for i in range(start_frame, sequence_length + start_frame):
                 segmentation_path = segmentations_dir / f"{i:05d}.pkl"
                 seg_image, seg_type = load_segmentation(segmentation_path)
@@ -1017,7 +1074,8 @@ class VideoDatasetBase(AbstractVideoDataset):
         if self.reconstruction_type is None:
             return sample
         if not self.preload_videos:
-            shape_pose_cam, appearance = self._load_reconstructions(index, rec_type, self.return_appearance)
+            shape_pose_cam, appearance = self._load_reconstructions(index, rec_type, self.return_appearance, 
+                                                                    start_frame=start_frame, end_frame=start_frame+num_read_frames)
         else: 
             shape_pose_cam_ = self.rec_cache[index][rec_type]["shape_pose_cam"]
             appearance_ = self.rec_cache[index][rec_type]["appearance"]
@@ -1027,10 +1085,10 @@ class VideoDatasetBase(AbstractVideoDataset):
             else:
                 appearance = None
         for key in shape_pose_cam.keys():
-            shape_pose_cam[key] = shape_pose_cam[key][0][start_frame:start_frame+num_read_frames]
+            shape_pose_cam[key] = shape_pose_cam[key][0]
         if appearance is not None:
             for key in appearance.keys():
-                appearance[key] = appearance[key][0][start_frame:start_frame+num_read_frames]
+                appearance[key] = appearance[key][0]
             
         weights = sample["landmarks_validity"]["mediapipe"] / sample["landmarks_validity"]["mediapipe"].sum(axis=0, keepdims=True)
         assert np.isnan(weights).any() == False, "NaN in weights"
@@ -1078,7 +1136,9 @@ class VideoDatasetBase(AbstractVideoDataset):
         else:
             shape = shape_pose_cam['shape']
             if shape_pose_cam['exp'].shape[0] < sequence_length:    # pad with zero to be the same length as the sequence
-                shape_pose_cam['shape'] = np.concatenate([shape_pose_cam['shape'], np.zeros((sequence_length - shape_pose_cam['shape'].shape[0], shape_pose_cam['exp'].shape[1]))], axis=0)
+                shape_pose_cam['shape'] = np.concatenate([shape_pose_cam['shape'], 
+                                                          np.zeros((sequence_length - shape_pose_cam['shape'].shape[0], shape_pose_cam['exp'].shape[1]))], 
+                                                          axis=0)
                 # shape = np.concatenate([shape, np.tile(shape[-1], (sequence_length - shape.shape[0], 1))], axis=0)
 
 
@@ -1089,7 +1149,9 @@ class VideoDatasetBase(AbstractVideoDataset):
             else:
                 appearance = appearance['tex']
                 if  shape_pose_cam['exp'].shape[0] < sequence_length:
-                    appearance['tex'] = np.concatenate([appearance['tex'], np.zeros((sequence_length - appearance['tex'].shape[0], appearance['tex'].shape[1]))], axis=0)
+                    appearance['tex'] = np.concatenate([appearance['tex'], 
+                                                        np.zeros((sequence_length - appearance['tex'].shape[0], appearance['tex'].shape[1]))], 
+                                                        axis=0)
                     # appearance = np.concatenate([appearance, np.tile(appearance[-1], (sequence_length - appearance.shape[0], 1))], axis=0)
         
         # # intialize emtpy dicts if they don't exist
@@ -1150,34 +1212,35 @@ class VideoDatasetBase(AbstractVideoDataset):
         if self.emotion_type is None:
             return sample
         if not self.preload_videos:
-            emotions, features = self._load_emotions(index, self.return_emotion_feature)
+            emotions, features = self._load_emotions(index, self.return_emotion_feature, 
+                                                     start_frame=start_frame, end_frame=start_frame+num_read_frames)
         else: 
             emotions = self.emo_cache[index]["emotions"].copy() 
+            emotions = emotions[start_frame:start_frame+num_read_frames]
             features = self.emo_cache[index]["features"]
             if features is not None:
                 features = features.copy()
+                features = features[start_frame:start_frame+num_read_frames]
         if features is not None:
             features = {"emo_" + key: features[key] for key in features.keys()} # just add the emo_ prefix to the keys
         for key in emotions.keys():
             assert key not in sample.keys(), f"Key {key} already exists in sample."
-            sample['gt_' + key] = emotions[key][0][start_frame:start_frame+num_read_frames].astype(np.float32)
+            sample['gt_' + key] = emotions[key][0].astype(np.float32)
             
             # if shorter than the sequence, pad with zeros
             if sample['gt_' + key].shape[0] < sequence_length:
                 sample['gt_' + key] = np.concatenate([sample['gt_' + key], np.zeros((sequence_length - sample['gt_' + key].shape[0], sample['gt_' + key].shape[1]))], axis=0).astype(np.float32)
 
-            # emotions[key] = emotions[key][0][start_frame:start_frame+num_read_frames]
         
         if features is not None:
             for key in features.keys():
                 assert key not in sample.keys(), f"Key {key} already exists in sample."
-                sample['gt_' + key] = features[key][0][start_frame:start_frame+num_read_frames].astype(np.float32)
+                sample['gt_' + key] = features[key][0].astype(np.float32)
 
                 # if shorter than the sequence, pad with zeros
                 if sample['gt_' + key].shape[0] < sequence_length:
                     sample['gt_' + key] = np.concatenate([sample['gt_' + key], np.zeros((sequence_length - sample['gt_' + key].shape[0], sample['gt_' + key].shape[1]))], axis=0).astype(np.float32)
 
-            # features[key] = features[key][0][start_frame:start_frame+num_read_frames]
         return sample
 
 

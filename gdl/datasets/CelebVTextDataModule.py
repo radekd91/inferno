@@ -177,7 +177,6 @@ class CelebVTextDataModule(FaceVideoDataModule):
         num_shards = int(np.ceil( self.num_sequences / videos_per_shard))
         return num_shards
 
-
     def _process_video(self, idx, extract_audio=True, 
             restore_videos=True, 
             detect_landmarks=True, 
@@ -188,6 +187,7 @@ class CelebVTextDataModule(FaceVideoDataModule):
             reconstruct_faces=False,
             recognize_emotions=False,
             create_video=False,
+            segmentations_to_hdf5=False,
             ):
         if extract_audio: 
             self._extract_audio_for_video(idx)
@@ -233,6 +233,11 @@ class CelebVTextDataModule(FaceVideoDataModule):
         if create_video:
             self._create_video_from_sequence(idx)
 
+        if segmentations_to_hdf5:
+            seg_methods = ['bisenet', 'focus']
+            for seg_method in seg_methods:
+                self._segmentations_to_hdf5(idx, segmentation_net=seg_method, use_aligned_videos=True)
+
 
     def _process_shard(self, videos_per_shard, shard_idx, extract_audio=True,
         restore_videos=True, detect_landmarks=True, segment_videos=True, 
@@ -240,6 +245,7 @@ class CelebVTextDataModule(FaceVideoDataModule):
         reconstruct_faces=False,
         recognize_emotions=False,
         create_video=False,
+        segmentations_to_hdf5=False,
     ):
         num_shards = self._get_num_shards(videos_per_shard)
         start_idx = shard_idx * videos_per_shard
@@ -269,6 +275,7 @@ class CelebVTextDataModule(FaceVideoDataModule):
                 reconstruct_faces=reconstruct_faces, 
                 recognize_emotions=recognize_emotions,
                 create_video=create_video,
+                segmentations_to_hdf5=segmentations_to_hdf5,
                 )
             
         print("Done processing shard")

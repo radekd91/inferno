@@ -86,7 +86,8 @@ def submit(cfg , bid=10):
     max_price = 10000
     job_name = "train_face_reconstruction"
     cuda_capability_requirement = 7
-    mem_gb = 60
+    # mem_gb = 60
+    mem_gb = 70
 
     # args = f"{coarse_file.name} {detail_file.name}"
     args = f"{coarse_file.name}"
@@ -173,31 +174,42 @@ def submit_trainings():
     #         new_finetune_modes += [mode]
     # finetune_modes = new_finetune_modes
 
-    # 3.
+    ## DATASET OPTIONS 
+    
+    # # LRS3
+    # dataset_options = [
+    #     'data.split=random_by_identity_pretrain_80_20',
+    #     'data.split=specific_identity_80_20_pretrain/0af00UcTOSc', # training on a single identity 
+    # ]
    
+    # # MEAD 
+    # dataset_options = [
+    #     'data/datasets=mead', 
+    #     # 'data.split=specific_identity_sorted_80_20_M003',
+    #     'data.split=random_by_sequence_sorted_70_15_15',
+    # ]
 
-    fixed_overrides_coarse = [
-        ## LRS3
-        # # 'data.split=random_by_identity_pretrain_80_20',
-        # 'data.split=specific_identity_80_20_pretrain/0af00UcTOSc', # training on a single identity 
-        
-        # # ## MEAD 
-        # 'data/datasets=mead', 
-        # # 'data.split=specific_identity_sorted_80_20_M003',
-        # 'data.split=random_by_sequence_sorted_70_15_15',
-
-        # ## CelebV-Text
-        'data/datasets=celebvtext', 
+    # CelebV-Text
+    dataset_options = [
+        'data/datasets=celebvtext',
         'data.split=random_70_15_15',
         'data/augmentations=default',
-
-        ## CelebV-HQ 
-        # 'data/datasets=celebvhq_no_occlusion', # training on a single video (and therefore identity)
-        # # 'data.split=specific_video_temporal_eknCAJ0ik8c_0_0_80_10_10',
-        # 'data.split=specific_video_temporal_6jRVZQMKlxw_1_0_80_10_10', 
-        # 'data.preload_videos=true',
-        # 'data.inflate_by_video_size=true',
     ]
+
+    # ##  CelebV-HQ
+    # dataset_options = [
+    #     'data/datasets=celebvhq_no_occlusion', # training on a single video (and therefore identity)
+    #     # 'data.split=specific_video_temporal_eknCAJ0ik8c_0_0_80_10_10',
+    #     'data.split=specific_video_temporal_6jRVZQMKlxw_1_0_80_10_10',
+    # ]
+
+    fixed_overrides_coarse = []
+    fixed_overrides_coarse += dataset_options
+
+    if not submit_: 
+        fixed_overrides_coarse += [
+            'inout.output_dir= /is/cluster/work/rdanecek/face_reconstruction/debug_trainings/',
+        ]
 
     # config_pairs = []
     for fmode in finetune_modes:
