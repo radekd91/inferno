@@ -16,8 +16,8 @@ All rights reserved.
 # For comments or questions, please email us at emoca@tue.mpg.de
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
-
-
+import os,sys 
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE" # enable if you get an error about file locking
 from gdl_apps.FaceReconstruction.training.training_pass import ( 
     single_stage_training_pass, 
     get_checkpoint_with_kwargs, 
