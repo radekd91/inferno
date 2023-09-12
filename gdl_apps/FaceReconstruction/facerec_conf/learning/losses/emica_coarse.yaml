@@ -65,17 +65,16 @@ losses:
 
   lip_reading_loss: 
     type: lip_reading_loss
-    weight: 1.
     # metric: l1
     # metric: cosine_similarity
     weight: 20.0
-    metric: masked_mse_loss
+    metric: mse_loss
 
     mask_invalid: mediapipe_landmarks
     predicted_key: predicted_image
     target_key: image_original
     predicted_landmarks: predicted_landmarks
-    target_landmarks: landmarks,fan
+    target_landmarks: landmarks,fan3d
     mask_key: focus
     masking_type: gt 
 

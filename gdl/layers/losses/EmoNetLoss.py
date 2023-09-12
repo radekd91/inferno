@@ -214,6 +214,8 @@ class EmoLossBase(torch.nn.Module):
 
         input_emofeat_2 = input_emotion['emo_feat_2']
         output_emofeat_2 = output_emotion['emo_feat_2']
+        if mask is not None:
+            mask = mask.view(input_emofeat_2.shape[0], *mask.shape[2:])
 
         if self.normalize_features:
             input_emofeat_2 = input_emofeat_2 / input_emofeat_2.view(input_images.shape[0], -1).norm(dim=1).view(-1, *((len(input_emofeat_2.shape)-1)*[1]) )
