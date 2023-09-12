@@ -785,6 +785,10 @@ class VideoDatasetBase(AbstractVideoDataset):
             segmentations = np.stack(segmentations, axis=0)
         if segmentations.ndim == 4: # T, C=1, W, H
             segmentations = segmentations[:,0,...]
+        if isinstance(seg_types[0], bytes):
+            seg_types = [seg_type.decode("utf-8") for seg_type in seg_types]
+        if isinstance(seg_names[0], bytes):
+            seg_names = [seg_name.decode("utf-8") for seg_name in seg_names]
         return segmentations, seg_types, seg_names
 
     def _retrieve_segmentations(self, index, start_frame, end_frame):
