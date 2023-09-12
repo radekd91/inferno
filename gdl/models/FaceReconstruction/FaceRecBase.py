@@ -649,6 +649,13 @@ class FaceReconstructionBase(LightningModule):
                                         )
                 sample[predicted_key + "_mouth"] = predicted_mouth
                 sample[target_key + "_mouth"] = target_mouth
+
+                if loss_cfg.get('per_frame', True): 
+                    # if True, loss is computed per frame (no temporal context)
+                    
+                    predicted_mouth = predicted_mouth.view(-1, *predicted_mouth.shape[2:])
+                    target_mouth = target_mouth.view(-1, *target_mouth.shape[2:])
+                    mask = mask.view(-1, *mask.shape[2:])
             
                 loss_value = loss_func(target_mouth, predicted_mouth, mask=mask)
             else:

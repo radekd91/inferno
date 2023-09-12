@@ -77,6 +77,8 @@ losses:
     target_landmarks: landmarks,fan3d
     mask_key: focus
     masking_type: gt 
+    per_frame: False ## if False, loss is computed per with temporal context, for that, the ring images need to be in sequence 
+    # per_frame: True ## if True, loss is computed per frame (no temporal context)
 
   expression_reg: 
     type: expression_reg
