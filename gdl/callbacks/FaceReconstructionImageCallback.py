@@ -85,7 +85,7 @@ class FaceReconstructionImageCallback(pl.Callback):
                 else:
                     im2log = _log_array_image(None, image, caption)
 
-                log_dict[key] = im2log 
+                log_dict[prefix + key] = im2log 
 
         if isinstance(pl_module.logger, WandbLogger):
             pl_module.logger.experiment.log(log_dict)
