@@ -52,6 +52,12 @@ class DecaEncoder(FaceEncoderBase):
         return [p for p in self.parameters() if p.requires_grad]
 
     def encode(self, batch):
+        if self.trainable: 
+            return self._encode(batch)
+        with torch.no_grad():
+            return self._encode(batch)
+
+    def _encode(self, batch):
         image = batch['image']
         # time = timeit.default_timer()
         code_vec = self.encoder(image)
@@ -116,31 +122,32 @@ class MicaEncoder(FaceEncoderBase):
         return super().train(False) # always in eval mode
 
     def encode(self, batch):
-        image = batch['image']
-        if 'mica_images' in batch.keys():
-            mica_image = batch['mica_images']
-        else:
-            # time = timeit.default_timer()
-            fan_landmarks = None
-            if "landmarks" in batch.keys():
-                if isinstance(batch["landmarks"], dict):
-                    if "fan3d" in batch["landmarks"].keys():
-                        fan_landmarks = batch["landmarks"]["fan3d"]
-                    elif "fan" in batch["landmarks"].keys():
-                        fan_landmarks = batch["landmarks"]["fan"]
-                elif isinstance(batch["landmarks"], (np.ndarray, torch.Tensor)):
-                    if batch["landmarks"].shape[1] == 68:
-                        fan_landmarks = batch["landmarks"]
-            print("[WARNING] Processing MICA image in forward pass. This is very inefficient for training."\
-                  " Please precompute the MICA images in the data loader.")
-            mica_image = self.mica_preprocessor(image, fan_landmarks)
-            # time_preproc = timeit.default_timer()
-            # print(f"Time preprocessing:\t{time_preproc - time:0.05f}")
-        mica_code = self.E_mica.encode(image, mica_image) 
-        mica_code = self.E_mica.decode(mica_code, predict_vertices=False)
-        mica_shapecode = mica_code['pred_shape_code']
-        batch['shapecode'] = mica_shapecode
-        return batch
+        with torch.no_grad(): ## MICA is never trainable, no need for gradients
+            image = batch['image']
+            if 'mica_images' in batch.keys():
+                mica_image = batch['mica_images']
+            else:
+                # time = timeit.default_timer()
+                fan_landmarks = None
+                if "landmarks" in batch.keys():
+                    if isinstance(batch["landmarks"], dict):
+                        if "fan3d" in batch["landmarks"].keys():
+                            fan_landmarks = batch["landmarks"]["fan3d"]
+                        elif "fan" in batch["landmarks"].keys():
+                            fan_landmarks = batch["landmarks"]["fan"]
+                    elif isinstance(batch["landmarks"], (np.ndarray, torch.Tensor)):
+                        if batch["landmarks"].shape[1] == 68:
+                            fan_landmarks = batch["landmarks"]
+                print("[WARNING] Processing MICA image in forward pass. This is very inefficient for training."\
+                    " Please precompute the MICA images in the data loader.")
+                mica_image = self.mica_preprocessor(image, fan_landmarks)
+                # time_preproc = timeit.default_timer()
+                # print(f"Time preprocessing:\t{time_preproc - time:0.05f}")
+            mica_code = self.E_mica.encode(image, mica_image) 
+            mica_code = self.E_mica.decode(mica_code, predict_vertices=False)
+            mica_shapecode = mica_code['pred_shape_code']
+            batch['shapecode'] = mica_shapecode
+            return batch
     
     def _get_num_shape_params(self): 
         return self.mica_cfg.model.n_shape   
