@@ -899,7 +899,7 @@ class FaceReconstructionBase(LightningModule):
             model = FaceReconstructionBase.load_from_checkpoint(
                 checkpoint_path=checkpoint, 
                 cfg=cfg, 
-                strict=False, 
+                strict=True, 
                 **checkpoint_kwargs
             )
         return model
