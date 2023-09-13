@@ -38,7 +38,14 @@ class DecaEncoder(FaceEncoderBase):
 
     def __init__(self, cfg, *args, **kwargs) -> None:
         super().__init__(cfg, *args, **kwargs)
-        self.encoder = ResnetEncoder(self._get_codevector_dim(), None)
+        if self.cfg.backbone == "ResNet50":
+            self.encoder = ResnetEncoder(self._get_codevector_dim(), None)
+        elif self.cfg.backbone == "Swin":
+            self.encoder = SwinEncoder(cfg.swin_type, cfg.input_size, self._get_codevector_dim(), None)
+        else:
+            raise NotImplementedError(f"Backbone type '{self.cfg.backbone}' not implemented.")
+        if self.cfg.last_layer_init_zero:
+            self.encoder.reset_last_layer()
         self.trainable = self.cfg.trainable
         if not self.trainable:
             self.encoder.requires_grad_(False)
