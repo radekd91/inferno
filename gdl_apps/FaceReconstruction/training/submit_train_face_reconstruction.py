@@ -26,8 +26,8 @@ import copy
 import sys
 import torch
 
-submit_ = False
-# submit_ = True
+# submit_ = False
+submit_ = True
 
 if submit_ or __name__ != "__main__":
     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -122,7 +122,12 @@ def submit(cfg , bid=10):
 def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
-    coarse_conf = "emica_pretrain_stage" 
+
+    coarse_conf = "emica_pretrain_jaw_stage" 
+    # coarse_conf = "emica_deca_jaw_stage"
+    # coarse_conf = "emica_emoca_jaw_stage"
+
+    # coarse_conf = "emica_pretrain_stage" 
     # coarse_conf = "emica_deca_stage"
     # coarse_conf = "emica_emoca_stage"
 
@@ -139,8 +144,8 @@ def submit_trainings():
     new_finetune_modes = []
 
     if not submit_:
-        batch_sizes = [8]
-        ring_size = 1
+        batch_sizes = [4]
+        ring_size = 4
 
     for mode in finetune_modes: 
         for batch_size in batch_sizes:
@@ -182,19 +187,22 @@ def submit_trainings():
     #     'data.split=specific_identity_80_20_pretrain/0af00UcTOSc', # training on a single identity 
     # ]
    
-    # # MEAD 
-    # dataset_options = [
-    #     'data/datasets=mead', 
-    #     # 'data.split=specific_identity_sorted_80_20_M003',
-    #     'data.split=random_by_sequence_sorted_70_15_15',
-    # ]
-
-    # CelebV-Text
+    # MEAD 
     dataset_options = [
-        'data/datasets=celebvtext',
-        'data.split=random_70_15_15',
-        'data/augmentations=default',
+        'data/datasets=mead', 
+        # 'data.split=specific_identity_sorted_80_20_M003',
+        'data.split=random_by_sequence_sorted_70_15_15',
+        # 'data/augmentations=default',
+        'data/augmentations=default_no_jpeg',
+        # 'data/augmentations=none',
     ]
+
+    # # CelebV-Text
+    # dataset_options = [
+    #     'data/datasets=celebvtext',
+    #     'data.split=random_70_15_15',
+    #     'data/augmentations=default',
+    # ]
 
     # ##  CelebV-HQ
     # dataset_options = [
@@ -236,20 +244,20 @@ def submit_trainings():
                 init_from = "todo"
             elif conf.data.data_class == "celebvhq":
                 init_from = "todo"
-            elif conf.data.data_class == "celebvtext":
-                init_from = "todo"
+            elif conf.data.data_class == "CelebVTextDataModule":
+                init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_11_10-38-21_-5536342182286255904_FaceReconstructionBase_CelebEmicaEncoder_Aug/cfg.yaml"
             elif conf.data.data_class == "cmumosei":
                 init_from = "todo"
             else:
                 raise ValueError(f"Unknown data class {conf.data.data_class}")
         elif coarse_conf == "emica_emoca_stage":
             if conf.data.data_class == "MEADDataModule":
-                init_from = "emica_pretrain_stage"
+                init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_10_19-43-50_-8627699022373962674_FaceReconstructionBase_MEADDEmicaEncoder_Aug/cfg.yaml"
             elif conf.data.data_class == "lrs3":
                 init_from = "todo"
             elif conf.data.data_class == "celebvhq":
                 init_from = "todo"
-            elif conf.data.data_class == "celebvtext":
+            elif conf.data.data_class == "CelebVTextDataModule":
                 init_from = "todo"
             elif conf.data.data_class == "cmumosei":
                 init_from = "todo"
@@ -260,7 +268,7 @@ def submit_trainings():
         bid = 150
         OmegaConf.set_struct(conf, False)
         with open_dict(conf) as d:
-            tags = ["INITIAL_SMALL_TESTS"]
+            tags = []
             tags += [coarse_conf]
             if not submit_:
                 tags += ["DEBUG_FROM_WORKSTATION"]

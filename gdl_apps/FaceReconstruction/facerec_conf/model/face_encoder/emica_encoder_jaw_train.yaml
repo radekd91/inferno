@@ -6,16 +6,16 @@ encoders:
 
   expression_encoder: 
     type: ExpressionEncoder
-    backbone: ResNet50     
+    backbone: ResNet50 
     # backbone: Swin
     # swin_type: swin_tiny_patch4_window7_224
     input_size: 224
     predicts: 
       expcode: 100
-      # jawpose: 3
+      jawpose: 3
     representations: 
       expcode: flame
-      # jawpose: aa
+      jawpose: aa
     trainable: true
     last_layer_init_zero: True # ininitializes the last layer of the backbone with zeros
 
@@ -28,25 +28,24 @@ encoders:
         backbone: ResNet50 
         # backbone: Swin
         # swin_type: swin_tiny_patch4_window7_224
-
         input_size: 224
       
         predicts: 
           texcode: 50
-          jawpose: 3
+          # jawpose: 3
           globalpose: 3
           cam: 3 
           lightcode: 27
 
         representations: 
           expcode: flame
+          # jawpose: aa
           texcode: flame
-          jawpose: aa
           globalpose: aa
           cam: orth 
           lightcode: spherical_harmonics
 
-        trainable: true
+        trainable: false
         last_layer_init_zero: True # ininitializes the last layer of the backbone with zeros
 
       mica_encoder: 
@@ -55,7 +54,7 @@ encoders:
         mica_model_path: 'MICA/model/mica.tar'
         # mica_preprocessing: ported_insightface
         mica_preprocessing: fan
-        
+
         input_size: 224
 
         predicts: 

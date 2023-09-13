@@ -7,6 +7,8 @@ encoders:
   expression_encoder: 
     type: ExpressionEncoder
     backbone: ResNet50 
+    # backbone: Swin
+    # swin_type: swin_tiny_patch4_window7_224
     input_size: 224
     predicts: 
       expcode: 100
@@ -15,6 +17,7 @@ encoders:
       expcode: flame
       # jawpose: aa
     trainable: true
+    last_layer_init_zero: True # ininitializes the last layer of the backbone with zeros
 
   mica_deca_encoder:
 
@@ -23,7 +26,8 @@ encoders:
       deca_encoder:
         type: DecaEncoder
         backbone: ResNet50 
-
+        # backbone: Swin
+        # swin_type: swin_tiny_patch4_window7_224
         input_size: 224
       
         predicts: 
@@ -42,6 +46,7 @@ encoders:
           lightcode: spherical_harmonics
 
         trainable: false
+        last_layer_init_zero: True # ininitializes the last layer of the backbone with zeros
 
       mica_encoder: 
         type: MicaEncoder
