@@ -283,8 +283,11 @@ def create_experiment_name(cfg_coarse, version=0):
         if cfg_coarse.data.data_class:
             experiment_name += '_' + cfg_coarse.data.data_class[:5]
 
-        face_encoder_name = cfg_coarse.model.face_encoder.type
-        experiment_name += face_encoder_name
+        face_encoder_name = cfg_coarse.model.face_encoder.encoders.expression_encoder.backbone
+        experiment_name += "_" + face_encoder_name
+        predicts = list(cfg_coarse.model.face_encoder.encoders.expression_encoder.predicts.keys())
+        predicts = ''.join([p[0] for p in predicts if len(p) > 0])
+        experiment_name += "_P" + predicts 
 
         if 'augmentation' in cfg_coarse.data.keys() and len(cfg_coarse.data.augmentation) > 0:
             experiment_name += "_Aug"
