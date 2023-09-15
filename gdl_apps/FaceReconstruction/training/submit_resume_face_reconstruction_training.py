@@ -29,8 +29,8 @@ from omegaconf import DictConfig, OmegaConf, open_dict
 import sys
 import shutil
 
-submit_ = False
-# submit_ = True
+# submit_ = False
+submit_ = True
 
 if submit_:
     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -77,11 +77,14 @@ def submit(resume_folder,
 
     with open(config_file, 'r') as f:
         cfg = OmegaConf.load(f)
+    cfg = cfg.coarse
 
     python_bin = user_config.python_bin
     username = user_config.username
     gpu_mem_requirement_mb = cfg.learning.batching.gpu_memory_min_gb * 1024
-    gpu_mem_requirement_mb_max = cfg.learning.batching.get('gpu_memory_max_gb' , None)
+    gpu_mem_requirement_mb_max = cfg.learning.batching.get('gpu_memory_max_gb' , None) 
+    if gpu_mem_requirement_mb_max is not None:
+        gpu_mem_requirement_mb_max *= 1024
     # gpu_mem_requirement_mb = None
     cpus = cfg.data.num_workers + 2 # 1 for the training script, 1 for wandb or other loggers (and other stuff), the rest of data loading
     # cpus = 2 # 1 for the training script, 1 for wandb or other loggers (and other stuff), the rest of data loading
