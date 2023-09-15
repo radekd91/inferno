@@ -267,22 +267,30 @@ def compute_rel_distance(subset1, subset2, metric):
     dif = (subset1 - subset2)
     if metric == 'l2':
         return (dif ** 2).sum(-1)
+    elif metric == 'euclidean':
+        d = (dif ** 2).sum(-1) 
+        d = d.clip(min=1e-8)
+        return torch.sqrt(d)
     elif metric == 'l1':
         return dif.abs().sum(-1)
     else:
         raise ValueError(f"Metric {metric} not supported.")
 
 
-def lipd_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='l1'):
+def lipd_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='euclidean'):
     # if torch.is_tensor(landmarks_gt) is not True:
     #     real_2d = torch.cat(landmarks_gt)
     # else:
     #     real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).to(device=predicted_landmarks.device) #.cuda()
     #                          ], dim=-1)
-    pred_lipd = compute_rel_distance(predicted_landmarks[...,  np.concatenate([UPPER_OUTTER_LIP_LINE_EM, UPPER_INNER_LIP_LINE_EM]), :2] , 
-                        predicted_landmarks[...,  np.concatenate([LOWER_OUTTER_LIP_LINE_EM, LOWER_INNER_LIP_LINE_EM]), :2], metric=metric)
-    gt_lipd = compute_rel_distance(landmarks_gt[...,  UPPER_OUTTER_LIP_LINE + UPPER_INNER_LIP_LINE, :2] , 
-                      landmarks_gt[...,  LOWER_OUTTER_LIP_LINE + LOWER_INNER_LIP_LINE, :2], metric=metric)
+    pred_lipd = compute_rel_distance(
+        predicted_landmarks[...,  np.concatenate([UPPER_OUTTER_LIP_LINE_EM, UPPER_INNER_LIP_LINE_EM]), :2] , 
+        predicted_landmarks[...,  np.concatenate([LOWER_OUTTER_LIP_LINE_EM, LOWER_INNER_LIP_LINE_EM]), :2], 
+        metric=metric)
+    gt_lipd = compute_rel_distance(
+        landmarks_gt[...,  UPPER_OUTTER_LIP_LINE + UPPER_INNER_LIP_LINE, :2],                            
+        landmarks_gt[...,  LOWER_OUTTER_LIP_LINE + LOWER_INNER_LIP_LINE, :2], 
+        metric=metric)
 
     # gt_lipd = lip_dis(real_2d[... :2])
 
@@ -301,7 +309,7 @@ def lipd_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='l1'):
 
 
 
-def eyed_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='l1'):
+def eyed_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='euclidean'):
     # if torch.is_tensor(landmarks_gt) is not True:
     #     real_2d = torch.cat(landmarks_gt)
     # else:
@@ -309,7 +317,9 @@ def eyed_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='l1'):
     #                          ], dim=-1)
     pred_eyed = compute_rel_distance(predicted_landmarks[..., UPPER_EYELIDS_EM , :2], 
                         predicted_landmarks[..., LOWER_EYELIDS_EM , :2], 
-                        metric=metric)
+                        metric=metric
+                        # metric=metric
+                        )
     gt_eyed = compute_rel_distance(landmarks_gt[..., UPPER_EYELIDS, :2], 
                         landmarks_gt[..., LOWER_EYELIDS, :2], 
                         metric=metric)
@@ -330,7 +340,7 @@ def eyed_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='l1'):
 
 
 
-def mouth_corner_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='l1'):
+def mouth_corner_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='euclidean'):
     # if torch.is_tensor(landmarks_gt) is not True:
     #     real_2d = torch.cat(landmarks_gt)
     # else:
@@ -340,12 +350,15 @@ def mouth_corner_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric
     pred_corner_d = compute_rel_distance(
             predicted_landmarks[...,  np.concatenate([RIGHT_INNER_LIP_CORNER_EM, RIGHT_OUTTER_LIP_CORNER_EM]) , :2],
             predicted_landmarks[...,  np.concatenate([LEFT_INNER_LIP_CORNER_EM, LEFT_OUTTER_LIP_CORNER_EM]) , :2],
-            metric=metric
+            # metric=metric
+            metric='euclidean',
             )
     gt_corner_d = compute_rel_distance(
             landmarks_gt[...,  [RIGHT_INNER_LIP_CORNER, RIGHT_OUTTER_LIP_CORNER] , :2],
             landmarks_gt[...,  [LEFT_INNER_LIP_CORNER, LEFT_OUTTER_LIP_CORNER] , :2], 
-            metric=metric)
+            # metric=metric,
+            metric='euclidean',
+            )
 
     if metric == 'l1':
         loss = (pred_corner_d - gt_corner_d).abs()
