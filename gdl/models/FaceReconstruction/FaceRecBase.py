@@ -664,21 +664,7 @@ class FaceReconstructionBase(LightningModule):
         return loss_value
 
 
-    def _val_to_be_logged(self, d):
-        if not hasattr(self, 'val_dict_list'):
-            self.val_dict_list = []
-        self.val_dict_list += [d]
-
-    def _train_to_be_logged(self, d):
-        if not hasattr(self, 'train_dict_list'):
-            self.train_dict_list = []
-        self.train_dict_list += [d]
-
-    def _get_logging_prefix(self):
-        prefix = self.stage_name + str(self.mode.name).lower()
-        return prefix
-
-    def test_step(self, batch, batch_idx, dataloader_idx=None):
+    def test_step(self, batch, batch_idx, dataloader_idx=None, **kwargs):
         """
         Testing step override of pytorch lightning module. It makes the encoding, decoding passes, computes the loss and logs the losses/visualizations
         without gradient  
@@ -686,60 +672,27 @@ class FaceReconstructionBase(LightningModule):
         For a training forward pass, additional corresponding data are necessery such as 'landmarks' and 'masks'. 
         :batch_idx batch index
         """
-        prefix = self._get_logging_prefix()
-        losses_and_metrics_to_log = {}
+        training = False
+        # forward pass
+        sample = self.forward(batch, train=training, validation=False, **kwargs)
+        
+        # loss 
+        
+        # time = timeit.default_timer()
+        
+        total_loss, losses, metrics = self.compute_loss(sample, training=training, validation=False, **kwargs)
+        
+        # time_loss = timeit.default_timer() - time
+        # print(f"Time loss:\t{time_loss:0.05f}")
 
-        # if dataloader_idx is not None:
-        #     dataloader_str = str(dataloader_idx) + "_"
-        # else:
-        dataloader_str = ''
-        stage_str = dataloader_str + 'test_'
-
-        with torch.no_grad():
-            training = False
-            testing = True
-            values = self.encode(batch, training=training)
-            values = self.decode(values, training=training)
-            if 'mask' in batch.keys():
-                losses_and_metrics = self.compute_loss(values, batch, training=False, testing=testing)
-                # losses_and_metrics_to_log = {prefix + '_' + stage_str + key: value.detach().cpu() for key, value in losses_and_metrics.items()}
-                losses_and_metrics_to_log = {prefix + '_' + stage_str + key: value.detach().cpu().item() for key, value in losses_and_metrics.items()}
-            else:
-                losses_and_metric = None
-
-        # losses_and_metrics_to_log[prefix + '_' + stage_str + 'epoch'] = self.current_epoch
-        # losses_and_metrics_to_log[prefix + '_' + stage_str + 'epoch'] = torch.tensor(self.current_epoch, device=self.device)
-        # losses_and_metrics_to_log[prefix + '_' + stage_str + 'step'] = torch.tensor(self.global_step, device=self.device)
-        # losses_and_metrics_to_log[prefix + '_' + stage_str + 'batch_idx'] = torch.tensor(batch_idx, device=self.device)
-        # losses_and_metrics_to_log[stage_str + 'epoch'] = torch.tensor(self.current_epoch, device=self.device)
-        # losses_and_metrics_to_log[stage_str + 'step'] = torch.tensor(self.global_step, device=self.device)
-        # losses_and_metrics_to_log[stage_str + 'batch_idx'] = torch.tensor(batch_idx, device=self.device)
-        losses_and_metrics_to_log[prefix + '_' + stage_str + 'epoch'] = self.current_epoch
-        losses_and_metrics_to_log[prefix + '_' + stage_str + 'step'] = self.global_step
-        losses_and_metrics_to_log[prefix + '_' + stage_str + 'batch_idx'] = batch_idx
-        losses_and_metrics_to_log[prefix + '_' + stage_str + 'mem_usage'] = self.process.memory_info().rss
-        losses_and_metrics_to_log[stage_str + 'epoch'] = self.current_epoch
-        losses_and_metrics_to_log[stage_str + 'step'] = self.global_step
-        losses_and_metrics_to_log[stage_str + 'batch_idx'] = batch_idx
-        losses_and_metrics_to_log[stage_str + 'mem_usage'] = self.process.memory_info().rss
-
+        losses_and_metrics_to_log = {**losses, **metrics}
+        # losses_and_metrics_to_log = {"train_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
+        losses_and_metrics_to_log = {"test/" + k: v.item() if isinstance(v, (torch.Tensor)) else v if isinstance(v, float) else 0. for k, v in losses_and_metrics_to_log.items()}
+        
         if self.logger is not None:
-            # self.logger.log_metrics(losses_and_metrics_to_log)
-            self.log_dict(losses_and_metrics_to_log, sync_dist=True, on_step=False, on_epoch=True)
+            # self.log_dict(losses_and_metrics_to_log, on_step=False, on_epoch=True, sync_dist=True) # log per epoch, # recommended
+            self.log_dict(losses_and_metrics_to_log, on_step=True, on_epoch=True, sync_dist=True) # log per epoch, # recommended
 
-        # if self.global_step % 200 == 0:
-        uv_detail_normals = None
-        if 'uv_detail_normals' in values.keys():
-            uv_detail_normals = values['uv_detail_normals']
-
-        if self.deca.config.test_vis_frequency > 0:
-            # Log visualizations every once in a while
-            if batch_idx % self.deca.config.test_vis_frequency == 0:
-                # if self.trainer.is_global_zero:
-                visualizations, grid_image = self.visualize_batch(values['verts'], values['trans_verts'], values['ops'],
-                                               uv_detail_normals, values, self.global_step, stage_str[:-1], prefix)
-                visdict = self._create_visualizations_to_log(stage_str[:-1], visualizations, values, batch_idx, indices=0, dataloader_idx=dataloader_idx)
-                self.logger.log_metrics(visdict)
         return None
 
     @property
@@ -785,106 +738,6 @@ class FaceReconstructionBase(LightningModule):
         if expr7 is not None and not np.isnan(expr7).any():
             caption += prefix +"expression= %s \n" % Expression7(expr7).name
         return caption
-
-
-    def _create_visualizations_to_log(self, stage, visdict, values, step, indices=None,
-                                      dataloader_idx=None, output_dir=None):
-        mode_ = str(self.mode.name).lower()
-        prefix = self._get_logging_prefix()
-
-        output_dir = output_dir or self.inout_params.full_run_dir
-
-        log_dict = {}
-        for key in visdict.keys():
-            images = _torch_image2np(visdict[key])
-            if images.dtype == np.float32 or images.dtype == np.float64 or images.dtype == np.float16:
-                images = np.clip(images, 0, 1)
-            if indices is None:
-                indices = np.arange(images.shape[0])
-            if isinstance(indices, int):
-                indices = [indices,]
-            if isinstance(indices, str) and indices == 'all':
-                image = np.concatenate([images[i] for i in range(images.shape[0])], axis=1)
-                savepath = Path(f'{output_dir}/{prefix}_{stage}/{key}/{self.current_epoch:04d}_{step:04d}_all.png')
-                # im2log = Image(image, caption=key)
-                if isinstance(self.logger, WandbLogger):
-                    im2log = _log_wandb_image(savepath, image)
-                else:
-                    im2log = _log_array_image(savepath, image)
-                name = prefix + "_" + stage + "_" + key
-                if dataloader_idx is not None:
-                    name += "/dataloader_idx_" + str(dataloader_idx)
-                log_dict[name] = im2log
-            else:
-                for i in indices:
-                    caption = key + f" batch_index={step}\n"
-                    caption += key + f" index_in_batch={i}\n"
-                    if self.emonet_loss is not None:
-                        if key == 'inputs':
-                            if mode_ + "_valence_input" in values.keys():
-                                caption += self.vae_2_str(
-                                    values[mode_ + "_valence_input"][i].detach().cpu().item(),
-                                    values[mode_ + "_arousal_input"][i].detach().cpu().item(),
-                                    np.argmax(values[mode_ + "_expression_input"][i].detach().cpu().numpy()),
-                                    prefix="emonet") + "\n"
-                            if 'va' in values.keys() and mode_ + "valence_gt" in values.keys():
-                                # caption += self.vae_2_str(
-                                #     values[mode_ + "_valence_gt"][i].detach().cpu().item(),
-                                #     values[mode_ + "_arousal_gt"][i].detach().cpu().item(),
-                                caption += self.vae_2_str(
-                                    values[mode_ + "valence_gt"][i].detach().cpu().item(),
-                                    values[mode_ + "arousal_gt"][i].detach().cpu().item(),
-                                    prefix="gt") + "\n"
-                            if 'expr7' in values.keys() and mode_ + "_expression_gt" in values.keys():
-                                caption += "\n" + self.vae_2_str(
-                                    expr7=values[mode_ + "_expression_gt"][i].detach().cpu().numpy(),
-                                    prefix="gt") + "\n"
-                            if 'affectnetexp' in values.keys() and mode_ + "_expression_gt" in values.keys():
-                                caption += "\n" + self.vae_2_str(
-                                    affnet_expr=values[mode_ + "_expression_gt"][i].detach().cpu().numpy(),
-                                    prefix="gt") + "\n"
-                        elif 'geometry_detail' in key:
-                            if "emo_mlp_valence" in values.keys():
-                                caption += self.vae_2_str(
-                                    values["emo_mlp_valence"][i].detach().cpu().item(),
-                                    values["emo_mlp_arousal"][i].detach().cpu().item(),
-                                    prefix="mlp")
-                            if 'emo_mlp_expr_classification' in values.keys():
-                                caption += "\n" + self.vae_2_str(
-                                    affnet_expr=values["emo_mlp_expr_classification"][i].detach().cpu().argmax().numpy(),
-                                    prefix="mlp") + "\n"
-                        elif key == 'output_images_' + mode_:
-                            if mode_ + "_valence_output" in values.keys():
-                                caption += self.vae_2_str(values[mode_ + "_valence_output"][i].detach().cpu().item(),
-                                                                 values[mode_ + "_arousal_output"][i].detach().cpu().item(),
-                                                                 np.argmax(values[mode_ + "_expression_output"][i].detach().cpu().numpy())) + "\n"
-
-                        elif key == 'output_translated_images_' + mode_:
-                            if mode_ + "_translated_valence_output" in values.keys():
-                                caption += self.vae_2_str(values[mode_ + "_translated_valence_output"][i].detach().cpu().item(),
-                                                                 values[mode_ + "_translated_arousal_output"][i].detach().cpu().item(),
-                                                                 np.argmax(values[mode_ + "_translated_expression_output"][i].detach().cpu().numpy())) + "\n"
-
-
-                        # elif key == 'output_images_detail':
-                        #     caption += "\n" + self.vae_2_str(values["detail_output_valence"][i].detach().cpu().item(),
-                        #                                  values["detail_output_valence"][i].detach().cpu().item(),
-                        #                                  np.argmax(values["detail_output_expression"][
-                        #                                                i].detach().cpu().numpy()))
-                    savepath = Path(f'{output_dir}/{prefix}_{stage}/{key}/{self.current_epoch:04d}_{step:04d}_{i:02d}.png')
-                    image = images[i]
-                    # im2log = Image(image, caption=caption)
-                    if isinstance(self.logger, WandbLogger):
-                        im2log = _log_wandb_image(savepath, image, caption)
-                    elif self.logger is not None:
-                        im2log = _log_array_image(savepath, image, caption)
-                    else:
-                        im2log = _log_array_image(None, image, caption)
-                    name = prefix + "_" + stage + "_" + key
-                    if dataloader_idx is not None:
-                        name += "/dataloader_idx_" + str(dataloader_idx)
-                    log_dict[name] = im2log
-        return log_dict
 
 
     @classmethod

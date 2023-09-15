@@ -320,7 +320,7 @@ def train_model(cfg_coarse,
     #     stages_prefixes += ["", "", ]
 
     init_from = cfg_coarse.model.get('init_from', None)
-    if init_from is not None:
+    if start_i < 0 and init_from is not None:
         # load the cfg from init_from 
         resume_i = start_i - 1 
         init_from_cfg = OmegaConf.load(init_from)
@@ -431,11 +431,6 @@ def train_model(cfg_coarse,
 
 
 
-# def configure_detail(detail_cfg_default, detail_overrides):
-#     from hydra.experimental import compose, initialize
-#     initialize(config_path="../tempface_conf", job_name="train_tempface")
-#     cfg_detail = compose(config_name=detail_cfg_default, overrides=detail_overrides)
-#     return cfg_detail
 
 def configure(coarse_cfg_default, coarse_overrides, detail_cfg_default=None, detail_overrides=None):
     from hydra.experimental import compose, initialize
@@ -490,17 +485,15 @@ def load_configs(run_path):
     with open(Path(run_path) / "cfg.yaml", "r") as f:
         conf = OmegaConf.load(f)
     cfg_coarse = conf.coarse
-    # cfg_detail = conf.detail
-    # return cfg_coarse, cfg_detail
     return cfg_coarse
 
 
-# def resume_training(run_path, start_at_stage, resume_from_previous, force_new_location):
-#     cfg_coarse, cfg_detail = load_configs(run_path)
-#     train_model(cfg_coarse, cfg_detail,
-#                start_i=start_at_stage,
-#                resume_from_previous=resume_from_previous,
-#                force_new_location=force_new_location)
+def resume_training(run_path, start_at_stage, resume_from_previous, force_new_location):
+    cfg = load_configs(run_path)
+    train_model(cfg, 
+               start_i=start_at_stage,
+               resume_from_previous=resume_from_previous,
+               force_new_location=force_new_location)
 
 
 def main():

@@ -123,13 +123,15 @@ def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
 
-    coarse_conf = "emica_pretrain_jaw_stage" 
-    # coarse_conf = "emica_deca_jaw_stage"
-    # coarse_conf = "emica_emoca_jaw_stage"
+    # coarse_conf = "emica_jaw_pretrain_stage" 
+    coarse_conf = "emica_jaw_deca_stage"
+    # coarse_conf = "emica_jaw_emoca_stage"
 
     # coarse_conf = "emica_pretrain_stage" 
     # coarse_conf = "emica_deca_stage"
     # coarse_conf = "emica_emoca_stage"
+    
+    jaw = 'jaw' in coarse_conf
 
 
     finetune_modes = [
@@ -138,9 +140,16 @@ def submit_trainings():
             ]
         ],
     ]
-    
-    batch_sizes = [20]
+    # good for resnet
+    batch_sizes = [20] 
     ring_size = 8
+    swin = False
+
+    # ## good for swin
+    # swin = True
+    # batch_sizes = [18] 
+    # ring_size = 8
+
     new_finetune_modes = []
 
     if not submit_:
@@ -187,7 +196,7 @@ def submit_trainings():
     #     'data.split=specific_identity_80_20_pretrain/0af00UcTOSc', # training on a single identity 
     # ]
    
-    # MEAD 
+    # # MEAD 
     dataset_options = [
         'data/datasets=mead', 
         # 'data.split=specific_identity_sorted_80_20_M003',
@@ -239,30 +248,71 @@ def submit_trainings():
         init_from = None
         if coarse_conf == "emica_deca_stage":
             if conf.data.data_class == "MEADDataModule":
-                init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_09_22-58-35_-2919259285031416864_FaceReconstructionBase_MEADDEmicaEncoder_Aug/cfg.yaml"
+                if not swin:
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_09_22-58-35_-2919259285031416864_FaceReconstructionBase_MEADDEmicaEncoder_Aug/cfg.yaml"    
+                else:
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_12-27-27_-4587188938616529107_FaceReconstructionBase_MEADD_Swin_Pe_Aug/cfg.yaml"
             elif conf.data.data_class == "lrs3":
                 init_from = "todo"
             elif conf.data.data_class == "celebvhq":
                 init_from = "todo"
             elif conf.data.data_class == "CelebVTextDataModule":
-                init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_11_10-38-21_-5536342182286255904_FaceReconstructionBase_CelebEmicaEncoder_Aug/cfg.yaml"
+                if not swin:
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_11_10-38-21_-5536342182286255904_FaceReconstructionBase_CelebEmicaEncoder_Aug/cfg.yaml"
+                else:
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_12-31-43_-2250655239062560418_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
             elif conf.data.data_class == "cmumosei":
                 init_from = "todo"
             else:
                 raise ValueError(f"Unknown data class {conf.data.data_class}")
         elif coarse_conf == "emica_emoca_stage":
             if conf.data.data_class == "MEADDataModule":
-                init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_10_19-43-50_-8627699022373962674_FaceReconstructionBase_MEADDEmicaEncoder_Aug/cfg.yaml"
+                if not swin:
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_10_19-43-50_-8627699022373962674_FaceReconstructionBase_MEADDEmicaEncoder_Aug/cfg.yaml"
+                else:
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_12-31-43_-2250655239062560418_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
             elif conf.data.data_class == "lrs3":
                 init_from = "todo"
             elif conf.data.data_class == "celebvhq":
                 init_from = "todo"
             elif conf.data.data_class == "CelebVTextDataModule":
-                init_from = "todo"
+                if not swin:
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_12_17-07-09_-2989978127745211316_FaceReconstructionBase_CelebEmicaEncoder_Aug/cfg.yaml"
+                else: 
+                    raise ValueError("No pretrained model for swin")
             elif conf.data.data_class == "cmumosei":
                 init_from = "todo"
             else:
                 raise ValueError(f"Unknown data class {conf.data.data_class}")
+
+        elif coarse_conf == "emica_jaw_deca_stage":
+            if conf.data.data_class == "MEADDataModule":
+                if not swin:
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_11-33-41_-6795290146162890555_FaceReconstructionBase_MEADD_ResNet50_Pej_Aug/cfg.yaml"
+                else: 
+                    raise ValueError("No pretrained model for swin")
+            elif conf.data.data_class == "CelebVTextDataModule":
+                if not swin:
+                    raise ValueError("No pretrained model for swin")
+                else: 
+                    raise ValueError("No pretrained model for swin")
+            else: 
+                raise ValueError(f"Unknown data class {conf.data.data_class}")
+        elif coarse_conf == "emica_jaw_emoca_stage":
+            if conf.data.data_class == "MEADDataModule":
+                if not swin:
+                    init_from = ""
+                    raise ValueError("No pretrained model for swin")
+                else: 
+                    raise ValueError("No pretrained model for swin")
+            elif conf.data.data_class == "CelebVTextDataModule":
+                if not swin:
+                    raise ValueError("No pretrained model for swin")
+                else: 
+                    raise ValueError("No pretrained model for swin")
+            else: 
+                raise ValueError(f"Unknown data class {conf.data.data_class}")
+                    
 
 
         bid = 150
