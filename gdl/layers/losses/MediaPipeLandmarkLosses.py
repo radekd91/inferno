@@ -286,11 +286,15 @@ def lipd_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='euclid
     pred_lipd = compute_rel_distance(
         predicted_landmarks[...,  np.concatenate([UPPER_OUTTER_LIP_LINE_EM, UPPER_INNER_LIP_LINE_EM]), :2] , 
         predicted_landmarks[...,  np.concatenate([LOWER_OUTTER_LIP_LINE_EM, LOWER_INNER_LIP_LINE_EM]), :2], 
-        metric=metric)
+        # metric=metric,
+        metric='euclidean',
+        )
     gt_lipd = compute_rel_distance(
         landmarks_gt[...,  UPPER_OUTTER_LIP_LINE + UPPER_INNER_LIP_LINE, :2],                            
         landmarks_gt[...,  LOWER_OUTTER_LIP_LINE + LOWER_INNER_LIP_LINE, :2], 
-        metric=metric)
+        # metric=metric, 
+        metric='euclidean',
+        )
 
     # gt_lipd = lip_dis(real_2d[... :2])
 
@@ -317,12 +321,14 @@ def eyed_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='euclid
     #                          ], dim=-1)
     pred_eyed = compute_rel_distance(predicted_landmarks[..., UPPER_EYELIDS_EM , :2], 
                         predicted_landmarks[..., LOWER_EYELIDS_EM , :2], 
-                        metric=metric
                         # metric=metric
+                        metric='euclidean',
                         )
     gt_eyed = compute_rel_distance(landmarks_gt[..., UPPER_EYELIDS, :2], 
                         landmarks_gt[..., LOWER_EYELIDS, :2], 
-                        metric=metric)
+                        # metric=metric, 
+                        metric='euclidean',
+                        )
     # gt_eyed = eye_dis(real_2d[:, :, :2])
 
     loss = (pred_eyed - gt_eyed).abs().mean()
@@ -340,7 +346,7 @@ def eyed_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='euclid
 
 
 
-def mouth_corner_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='euclidean'):
+def mouth_corner_loss_v2(predicted_landmarks, landmarks_gt, weights=None, metric='l1'):
     # if torch.is_tensor(landmarks_gt) is not True:
     #     real_2d = torch.cat(landmarks_gt)
     # else:
