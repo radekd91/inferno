@@ -3,10 +3,10 @@ defaults:
   - data/datasets: lrs3_heavier_occlusion
   - data/augmentations: default_no_jpeg
   - model/settings : facerecon_base
-  - model/face_encoder@model/face_encoder : emica_encoder_jaw_pretrain_swin
+  - model/face_encoder@model/face_encoder : emica_encoder_pretrain_swin
   - model/shape_model@model/shape_model: flametex
   - model/renderer@model/renderer: deca_renderer
-  - learning/losses: deca_coarse_pretrain
+  - learning/losses: deca_mica_coarse
   - learning/optimizer: adam
   # - learning/batching@learning/batching: gpu32gb
   - learning/batching@learning/batching: gpu80gb

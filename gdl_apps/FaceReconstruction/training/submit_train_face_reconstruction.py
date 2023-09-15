@@ -26,8 +26,8 @@ import copy
 import sys
 import torch
 
-# submit_ = False
-submit_ = True
+submit_ = False
+# submit_ = True
 
 if submit_ or __name__ != "__main__":
     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -124,15 +124,23 @@ def submit_trainings():
 
 
     # coarse_conf = "emica_jaw_pretrain_stage" 
-    coarse_conf = "emica_jaw_deca_stage"
+    # coarse_conf = "emica_jaw_deca_stage"
     # coarse_conf = "emica_jaw_emoca_stage"
 
     # coarse_conf = "emica_pretrain_stage" 
     # coarse_conf = "emica_deca_stage"
     # coarse_conf = "emica_emoca_stage"
+
+    # coarse_conf = "emica_jaw_pretrain_stage_swin"
+    # coarse_conf = "emica_jaw_deca_stage_swin"
+    # coarse_conf = "emica_jaw_emoca_stage_swin"
+
+    # coarse_conf = "emica_pretrain_stage_swin"
+    # coarse_conf = "emica_deca_stage_swin"
+    coarse_conf = "emica_emoca_stage_swin"
     
     jaw = 'jaw' in coarse_conf
-
+    swin = 'swin' in coarse_conf
 
     finetune_modes = [
         [ 
@@ -141,14 +149,14 @@ def submit_trainings():
         ],
     ]
     # good for resnet
-    batch_sizes = [20] 
-    ring_size = 8
-    swin = False
 
-    # ## good for swin
-    # swin = True
-    # batch_sizes = [18] 
-    # ring_size = 8
+    if not swin:
+        batch_sizes = [20] 
+        ring_size = 8
+    else:
+        # ## good for swin
+        batch_sizes = [18] 
+        ring_size = 8
 
     new_finetune_modes = []
 
@@ -196,22 +204,22 @@ def submit_trainings():
     #     'data.split=specific_identity_80_20_pretrain/0af00UcTOSc', # training on a single identity 
     # ]
    
-    # # MEAD 
-    dataset_options = [
-        'data/datasets=mead', 
-        # 'data.split=specific_identity_sorted_80_20_M003',
-        'data.split=random_by_sequence_sorted_70_15_15',
-        # 'data/augmentations=default',
-        'data/augmentations=default_no_jpeg',
-        # 'data/augmentations=none',
-    ]
-
-    # # CelebV-Text
+    # # # MEAD 
     # dataset_options = [
-    #     'data/datasets=celebvtext',
-    #     'data.split=random_70_15_15',
-    #     'data/augmentations=default',
+    #     'data/datasets=mead', 
+    #     # 'data.split=specific_identity_sorted_80_20_M003',
+    #     'data.split=random_by_sequence_sorted_70_15_15',
+    #     # 'data/augmentations=default',
+    #     'data/augmentations=default_no_jpeg',
+    #     # 'data/augmentations=none',
     # ]
+
+    # CelebV-Text
+    dataset_options = [
+        'data/datasets=celebvtext',
+        'data.split=random_70_15_15',
+        'data/augmentations=default',
+    ]
 
     # ##  CelebV-HQ
     # dataset_options = [
@@ -246,7 +254,7 @@ def submit_trainings():
         # config_pairs += [cfgs]
 
         init_from = None
-        if coarse_conf == "emica_deca_stage":
+        if "emica_deca_stage" in coarse_conf:
             if conf.data.data_class == "MEADDataModule":
                 if not swin:
                     init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_09_22-58-35_-2919259285031416864_FaceReconstructionBase_MEADDEmicaEncoder_Aug/cfg.yaml"    
@@ -265,7 +273,7 @@ def submit_trainings():
                 init_from = "todo"
             else:
                 raise ValueError(f"Unknown data class {conf.data.data_class}")
-        elif coarse_conf == "emica_emoca_stage":
+        elif "emica_emoca_stage" in coarse_conf:
             if conf.data.data_class == "MEADDataModule":
                 if not swin:
                     init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_10_19-43-50_-8627699022373962674_FaceReconstructionBase_MEADDEmicaEncoder_Aug/cfg.yaml"
@@ -279,13 +287,16 @@ def submit_trainings():
                 if not swin:
                     init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_12_17-07-09_-2989978127745211316_FaceReconstructionBase_CelebEmicaEncoder_Aug/cfg.yaml"
                 else: 
-                    raise ValueError("No pretrained model for swin")
+                    # # no relative
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_23-45-03_-9205535432843645416_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
+                    # # relative 
+                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_23-44-48_-4367144990188847988_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
             elif conf.data.data_class == "cmumosei":
                 init_from = "todo"
             else:
                 raise ValueError(f"Unknown data class {conf.data.data_class}")
 
-        elif coarse_conf == "emica_jaw_deca_stage":
+        elif "emica_jaw_deca_stage" in coarse_conf:
             if conf.data.data_class == "MEADDataModule":
                 if not swin:
                     init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_11-33-41_-6795290146162890555_FaceReconstructionBase_MEADD_ResNet50_Pej_Aug/cfg.yaml"
@@ -295,10 +306,10 @@ def submit_trainings():
                 if not swin:
                     raise ValueError("No pretrained model for swin")
                 else: 
-                    raise ValueError("No pretrained model for swin")
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_23-46-01_-1656100747510451883_FaceReconstructionBase_Celeb_Swin_Pej_Aug/cfg.yaml"
             else: 
                 raise ValueError(f"Unknown data class {conf.data.data_class}")
-        elif coarse_conf == "emica_jaw_emoca_stage":
+        elif "emica_jaw_emoca_stage" in coarse_conf:
             if conf.data.data_class == "MEADDataModule":
                 if not swin:
                     init_from = ""
