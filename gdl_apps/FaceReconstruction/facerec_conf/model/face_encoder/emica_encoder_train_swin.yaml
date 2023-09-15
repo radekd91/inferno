@@ -24,8 +24,9 @@ encoders:
 
       deca_encoder:
         type: DecaEncoder
-        backbone: Swin
-        swin_type: swin_tiny_patch4_window7_224
+        backbone: ResNet50
+        # backbone: Swin
+        # swin_type: swin_tiny_patch4_window7_224
         input_size: 224
       
         predicts: 
@@ -50,6 +51,7 @@ encoders:
         type: MicaEncoder
         backbone: ResNet50 
         mica_model_path: 'MICA/model/mica.tar'
+        # mica_model_path: 'MICA/model/mica2023.tar'
         # mica_preprocessing: ported_insightface
         mica_preprocessing: fan
 

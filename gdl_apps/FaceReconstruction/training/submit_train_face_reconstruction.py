@@ -135,16 +135,29 @@ def submit_trainings():
     # coarse_conf = "emica_jaw_deca_stage_swin"
     # coarse_conf = "emica_jaw_emoca_stage_swin"
 
-    # coarse_conf = "emica_pretrain_stage_swin"
+    coarse_conf = "emica_pretrain_stage_swin"
     # coarse_conf = "emica_deca_stage_swin"
-    coarse_conf = "emica_emoca_stage_swin"
+    # coarse_conf = "emica_emoca_stage_swin"
     
     jaw = 'jaw' in coarse_conf
     swin = 'swin' in coarse_conf
 
     finetune_modes = [
+        # [ 
+        #     [
+        #     ]
+        # ],
+
+        # [ 
+        #     [ ## FLAME 2023
+        #         '+model/shape_model@model.shape_model=flametex2023',
+        #         'model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path=MICA/model/mica_2023.tar',
+        #     ]
+        # ], 
         [ 
-            [
+            [ ## FLAME 2023, no jaw
+                '+model/shape_model@model.shape_model=flametex2023_no_jaw',
+                'model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path=MICA/model/mica_2023.tar',
             ]
         ],
     ]
@@ -204,22 +217,22 @@ def submit_trainings():
     #     'data.split=specific_identity_80_20_pretrain/0af00UcTOSc', # training on a single identity 
     # ]
    
-    # # # MEAD 
-    # dataset_options = [
-    #     'data/datasets=mead', 
-    #     # 'data.split=specific_identity_sorted_80_20_M003',
-    #     'data.split=random_by_sequence_sorted_70_15_15',
-    #     # 'data/augmentations=default',
-    #     'data/augmentations=default_no_jpeg',
-    #     # 'data/augmentations=none',
-    # ]
-
-    # CelebV-Text
+    # # MEAD 
     dataset_options = [
-        'data/datasets=celebvtext',
-        'data.split=random_70_15_15',
-        'data/augmentations=default',
+        'data/datasets=mead', 
+        # 'data.split=specific_identity_sorted_80_20_M003',
+        'data.split=random_by_sequence_sorted_70_15_15',
+        # 'data/augmentations=default',
+        'data/augmentations=default_no_jpeg',
+        # 'data/augmentations=none',
     ]
+
+    # # CelebV-Text
+    # dataset_options = [
+    #     'data/datasets=celebvtext',
+    #     'data.split=random_70_15_15',
+    #     'data/augmentations=default',
+    # ]
 
     # ##  CelebV-HQ
     # dataset_options = [
@@ -287,6 +300,7 @@ def submit_trainings():
                 if not swin:
                     init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_12_17-07-09_-2989978127745211316_FaceReconstructionBase_CelebEmicaEncoder_Aug/cfg.yaml"
                 else: 
+                    #### mixed up backbones
                     # # no relative
                     init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_23-45-03_-9205535432843645416_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
                     # # relative 

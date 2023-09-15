@@ -309,6 +309,9 @@ def train_model(cfg_coarse,
                force_new_location=False):
     # configs = [cfg_coarse, cfg_coarse, cfg_detail, cfg_detail]
     # stages = ["train", "test", "train", "test"]
+
+
+
     # stages_prefixes = ["", "", "", ""]
     configs = [cfg_coarse, cfg_coarse]
     stages = ["train", "test"]
@@ -319,11 +322,23 @@ def train_model(cfg_coarse,
     #     stages += ["train", "test"]
     #     stages_prefixes += ["", "", ]
 
+    ## FLAME sanity check
+    flame23 = '2023' in  Path(cfg_coarse.model.shape_model.flame.flame_model_path).name
+    mica23 = '2023' in Path(cfg_coarse.model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path).name
+    assert flame23 == mica23, "The mica and flame models must be both 2023 or both 2020"
+
     init_from = cfg_coarse.model.get('init_from', None)
     if start_i < 0 and init_from is not None:
         # load the cfg from init_from 
         resume_i = start_i - 1 
         init_from_cfg = OmegaConf.load(init_from)
+
+        assert init_from_cfg.coarse.model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path == cfg_coarse.model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path, \
+            "The mica model path must be the same in the init_from config and the current config"
+        
+        assert init_from_cfg.coarse.model.shape_model.flame.flame_model_path == cfg_coarse.model.shape_model.flame.flame_model_path, \
+            "The mica model path must be the same in the init_from config and the current config"
+
         checkpoint_mode = init_from_cfg.coarse.learning.checkpoint_after_training  # loads latest or best based on cfg
         checkpoint, checkpoint_kwargs = get_checkpoint_with_kwargs(init_from_cfg.coarse, "", checkpoint_mode)
             

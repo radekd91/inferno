@@ -15,6 +15,7 @@ losses:
     # weight: 1.
     weight: 36.
     metric: l1
+    # metric: l2
     mask_invalid: mediapipe_landmarks
     predicted_key: predicted_landmarks_mediapipe
     target_key: landmarks,mediapipe
@@ -23,6 +24,7 @@ losses:
     type: mouth_corner_distance_mediapipe
     weight: 36.
     metric: l1
+    # metric: l2
     mask_invalid: mediapipe_landmarks
     predicted_key: predicted_landmarks_mediapipe
     target_key: landmarks,mediapipe
@@ -31,6 +33,7 @@ losses:
     type: eye_distance_mediapipe
     weight: 36.
     metric: l1
+    # metric: l2
     mask_invalid: mediapipe_landmarks
     predicted_key: predicted_landmarks_mediapipe
     target_key: landmarks,mediapipe 

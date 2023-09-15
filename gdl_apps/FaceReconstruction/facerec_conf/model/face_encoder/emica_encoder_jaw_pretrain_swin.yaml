@@ -51,6 +51,8 @@ encoders:
         type: MicaEncoder
         backbone: ResNet50 
         mica_model_path: 'MICA/model/mica.tar'
+        # mica_model_path: 'MICA/model/mica2023.tar'
+
         # mica_preprocessing: ported_insightface
         mica_preprocessing: fan
         
