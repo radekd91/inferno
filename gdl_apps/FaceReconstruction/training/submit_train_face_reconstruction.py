@@ -135,32 +135,55 @@ def submit_trainings():
     # coarse_conf = "emica_jaw_deca_stage_swin"
     # coarse_conf = "emica_jaw_emoca_stage_swin"
 
-    coarse_conf = "emica_pretrain_stage_swin"
+    # coarse_conf = "emica_pretrain_stage_swin"
     # coarse_conf = "emica_deca_stage_swin"
     # coarse_conf = "emica_emoca_stage_swin"
+
+
+    ## FLAME 2023, no jaw
+    coarse_conf = "emica_pretrain_stage_swin_no_jaw"
+    # coarse_conf = "emica_deca_stage_swin_no_jaw"
+    # coarse_conf = "emica_emoca_stage_swin_no_jaw"
     
     jaw = 'jaw' in coarse_conf
     swin = 'swin' in coarse_conf
 
-    finetune_modes = [
-        # [ 
-        #     [
-        #     ]
-        # ],
+    finetune_modes = [] 
 
+    finetune_modes += [
+        [ 
+            [
+            ]
+        ],
+    ]
+
+    ## FLAME 2023
+    # finetune_modes += [
         # [ 
-        #     [ ## FLAME 2023
+        #     [ 
         #         '+model/shape_model@model.shape_model=flametex2023',
         #         'model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path=MICA/model/mica_2023.tar',
         #     ]
         # ], 
-        [ 
-            [ ## FLAME 2023, no jaw
-                '+model/shape_model@model.shape_model=flametex2023_no_jaw',
-                'model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path=MICA/model/mica_2023.tar',
-            ]
-        ],
-    ]
+    # ]
+
+    #  ## FLAME 2023, no jaw
+    # if 'emoca_stage' in coarse_conf: 
+    #     encoder = 'emica_encoder_pretrain_swin_no_jaw' if swin else 'emica_encoder_pretrain_no_jaw'
+    # else: 
+    #     encoder = 'emica_encoder_train_swin_no_jaw' if swin else 'emica_encoder_train_no_jaw'
+    # finetune_modes += [
+    #     [ 
+    #         [
+    #             '+model/shape_model@model.shape_model=flametex2023_no_jaw',
+    #             f'+model/face_encoder@model.face_encoder={encoder}',
+    #             # 'model.face_encoder.encoders.mica_deca_encoder.encoders.deca_encoder.predicts.jawpose=-',
+    #             'model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path=MICA/model/mica_2023.tar',
+    #         ]
+    #     ],
+    # ]
+
+
     # good for resnet
 
     if not swin:
@@ -218,21 +241,21 @@ def submit_trainings():
     # ]
    
     # # MEAD 
-    dataset_options = [
-        'data/datasets=mead', 
-        # 'data.split=specific_identity_sorted_80_20_M003',
-        'data.split=random_by_sequence_sorted_70_15_15',
-        # 'data/augmentations=default',
-        'data/augmentations=default_no_jpeg',
-        # 'data/augmentations=none',
-    ]
-
-    # # CelebV-Text
     # dataset_options = [
-    #     'data/datasets=celebvtext',
-    #     'data.split=random_70_15_15',
-    #     'data/augmentations=default',
+    #     'data/datasets=mead', 
+    #     # 'data.split=specific_identity_sorted_80_20_M003',
+    #     'data.split=random_by_sequence_sorted_70_15_15',
+    #     # 'data/augmentations=default',
+    #     'data/augmentations=default_no_jpeg',
+    #     # 'data/augmentations=none',
     # ]
+
+    # CelebV-Text 
+    dataset_options = [
+        'data/datasets=celebvtext',
+        'data.split=random_70_15_15',
+        'data/augmentations=default',
+    ]
 
     # ##  CelebV-HQ
     # dataset_options = [
@@ -272,7 +295,12 @@ def submit_trainings():
                 if not swin:
                     init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_09_22-58-35_-2919259285031416864_FaceReconstructionBase_MEADDEmicaEncoder_Aug/cfg.yaml"    
                 else:
-                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_12-27-27_-4587188938616529107_FaceReconstructionBase_MEADD_Swin_Pe_Aug/cfg.yaml"
+                    ## old flame
+                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_12-27-27_-4587188938616529107_FaceReconstructionBase_MEADD_Swin_Pe_Aug/cfg.yaml"
+                    ## flame 2023 with jaw
+                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_15_16-49-27_4353790877397815112_FaceReconstructionBase_MEADD_Swin_Pe_Aug/cfg.yaml"
+                    ## flame 2023 without jaw
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_15_16-49-38_1892552007605304224_FaceReconstructionBase_MEADD_Swin_Pe_Aug/cfg.yaml"
             elif conf.data.data_class == "lrs3":
                 init_from = "todo"
             elif conf.data.data_class == "celebvhq":
@@ -281,7 +309,12 @@ def submit_trainings():
                 if not swin:
                     init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_11_10-38-21_-5536342182286255904_FaceReconstructionBase_CelebEmicaEncoder_Aug/cfg.yaml"
                 else:
-                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_12-31-43_-2250655239062560418_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
+                    ## old flame
+                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_12-31-43_-2250655239062560418_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
+                    ## flame 2023 with jaw
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_15_18-04-48_-7123981511244310949_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
+                    ## flame 2023 without jaw 
+                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_15_18-04-48_4189258590173907260_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
             elif conf.data.data_class == "cmumosei":
                 init_from = "todo"
             else:
@@ -291,7 +324,13 @@ def submit_trainings():
                 if not swin:
                     init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_10_19-43-50_-8627699022373962674_FaceReconstructionBase_MEADDEmicaEncoder_Aug/cfg.yaml"
                 else:
-                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_12-31-43_-2250655239062560418_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
+                    ## old flame
+                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_12-31-43_-2250655239062560418_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
+                    ## flame 2023 with jaw
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_15_22-09-48_5056076481827759078_FaceReconstructionBase_MEADD_Swin_Pe_Aug/cfg.yaml"
+
+                    ## flame 2023 without jaw
+                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_15_22-12-45_2968646682376037339_FaceReconstructionBase_MEADD_Swin_Pe_Aug/cfg.yaml"
             elif conf.data.data_class == "lrs3":
                 init_from = "todo"
             elif conf.data.data_class == "celebvhq":
@@ -300,11 +339,18 @@ def submit_trainings():
                 if not swin:
                     init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_12_17-07-09_-2989978127745211316_FaceReconstructionBase_CelebEmicaEncoder_Aug/cfg.yaml"
                 else: 
-                    #### mixed up backbones
-                    # # no relative
-                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_23-45-03_-9205535432843645416_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
-                    # # relative 
-                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_23-44-48_-4367144990188847988_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
+                    # #### mixed up backbones
+                    # # # no relative
+                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_23-45-03_-9205535432843645416_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
+                    # # # relative 
+                    # # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_23-44-48_-4367144990188847988_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
+                    
+                    ## flame 2023 with jaw
+                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_15_22-23-43_-7479990913435329425_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
+
+                    ## flame 2023 without jaw
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_15_22-25-57_179462316877087924_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
+                    
             elif conf.data.data_class == "cmumosei":
                 init_from = "todo"
             else:
@@ -313,14 +359,19 @@ def submit_trainings():
         elif "emica_jaw_deca_stage" in coarse_conf:
             if conf.data.data_class == "MEADDataModule":
                 if not swin:
+                    ## old flame
                     init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_11-33-41_-6795290146162890555_FaceReconstructionBase_MEADD_ResNet50_Pej_Aug/cfg.yaml"
                 else: 
-                    raise ValueError("No pretrained model for swin")
+                    ## flame 2023
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_15_19-33-39_-4790262499280179166_FaceReconstructionBase_MEADD_Swin_Pej_Aug/cfg.yaml"
             elif conf.data.data_class == "CelebVTextDataModule":
                 if not swin:
                     raise ValueError("No pretrained model for swin")
                 else: 
-                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_23-46-01_-1656100747510451883_FaceReconstructionBase_Celeb_Swin_Pej_Aug/cfg.yaml"
+                    ## old flame
+                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_23-46-01_-1656100747510451883_FaceReconstructionBase_Celeb_Swin_Pej_Aug/cfg.yaml"
+                    ## flame 2023 
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_15_19-33-15_1591369140996179512_FaceReconstructionBase_Celeb_Swin_Pej_Aug/cfg.yaml"
             else: 
                 raise ValueError(f"Unknown data class {conf.data.data_class}")
         elif "emica_jaw_emoca_stage" in coarse_conf:
@@ -347,6 +398,11 @@ def submit_trainings():
             tags += [coarse_conf]
             if not submit_:
                 tags += ["DEBUG_FROM_WORKSTATION"]
+            if '2023' in Path(conf.model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path).name: 
+                tags += ["MICA_2023"]
+            if "no_jaw" in Path(conf.model.shape_model.flame.flame_model_path).name: 
+                # tags += ["FLAME_NO_JAW"]
+                tags += ["FLAME_NO_JAW_v2"]
             if d.learning.tags is None:
                 d.learning.tags = tags
             if init_from is not None:

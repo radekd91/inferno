@@ -337,7 +337,7 @@ def train_model(cfg_coarse,
             "The mica model path must be the same in the init_from config and the current config"
         
         assert init_from_cfg.coarse.model.shape_model.flame.flame_model_path == cfg_coarse.model.shape_model.flame.flame_model_path, \
-            "The mica model path must be the same in the init_from config and the current config"
+            "The FLAME model path must be the same in the init_from config and the current config"
 
         checkpoint_mode = init_from_cfg.coarse.learning.checkpoint_after_training  # loads latest or best based on cfg
         checkpoint, checkpoint_kwargs = get_checkpoint_with_kwargs(init_from_cfg.coarse, "", checkpoint_mode)

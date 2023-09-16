@@ -26,8 +26,12 @@ class FlameShapeModel(ShapeModel):
         expcode = sample["expcode"]
         texcode = sample["texcode"]
         # posecode = sample["posecode"]
-        jawpose = sample["jawpose"]
         globpose = sample["globalpose"]
+        if "jawpose" in sample.keys():
+            jawpose = sample["jawpose"]
+        else:
+            jawpose = torch.zeros_like(globpose)
+        
         posecode = torch.cat([globpose, jawpose], dim=-1)
 
         if shapecode.ndim == 3:
