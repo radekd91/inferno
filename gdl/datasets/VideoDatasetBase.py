@@ -931,10 +931,10 @@ class VideoDatasetBase(AbstractVideoDataset):
             sequence_length = self._get_sample_length(index)
 
             landmarks_for_alignment = "mediapipe"
-            left = sample["landmarks"][landmarks_for_alignment][:,:,0].min(axis=1)
-            top =  sample["landmarks"][landmarks_for_alignment][:,:,1].min(axis=1)
-            right =  sample["landmarks"][landmarks_for_alignment][:,:,0].max(axis=1)
-            bottom = sample["landmarks"][landmarks_for_alignment][:,:,1].max(axis=1)
+            left = sample["landmarks"][landmarks_for_alignment][:,:,0].min(axis=1) / self.original_image_size * self.image_size
+            top =  sample["landmarks"][landmarks_for_alignment][:,:,1].min(axis=1)  / self.original_image_size * self.image_size
+            right =  sample["landmarks"][landmarks_for_alignment][:,:,0].max(axis=1)  / self.original_image_size * self.image_size
+            bottom = sample["landmarks"][landmarks_for_alignment][:,:,1].max(axis=1)  / self.original_image_size * self.image_size
 
             invalid_frames = np.logical_and(left == 0., np.logical_and(right == 0., np.logical_and(top == 0., bottom == 0.)))
             invalid_indices = np.where(invalid_frames)[0]
@@ -994,22 +994,36 @@ class VideoDatasetBase(AbstractVideoDataset):
                 right = right_pd.to_numpy()
                 bottom = bottom_pd.to_numpy()
 
+            seg_left = left * self.original_image_size / self.image_size
+            seg_top = top * self.original_image_size / self.image_size
+            seg_right = right * self.original_image_size / self.image_size
+            seg_bottom = bottom * self.original_image_size / self.image_size
+
             old_size, center = bbox2point(left, right, top, bottom, type=landmarks_for_alignment)
             size = (old_size * self.scale).astype(np.int32)
+
+
+            old_size_seg, center_seg = bbox2point(seg_left, seg_right, seg_top, seg_bottom, type=landmarks_for_alignment)
+            size_seg = (old_size_seg * self.scale).astype(np.int32)
 
             video_frames = sample["video"]
             sample["video"] = np.zeros((video_frames.shape[0], self.image_size, self.image_size, video_frames.shape[-1]), dtype=video_frames.dtype)
             
             if "segmentation" in sample.keys():
                 seg_frames = sample["segmentation"]
+
                 sample["segmentation"] = np.zeros((seg_frames.shape[0], self.image_size, self.image_size), dtype=seg_frames.dtype)
+
+            for key in sample["landmarks"].keys():
+                sample["landmarks"][key] *= self.image_size / self.original_image_size
 
             for i in range(sequence_length):
                 lmk_to_warp = {k: v[i] for k,v in sample["landmarks"].items()}
+                
                 img_warped, lmk_warped = bbpoint_warp(video_frames[i], center[i], size[i], self.image_size, landmarks=lmk_to_warp)
                 
                 if "segmentation" in sample.keys():
-                    seg_warped = bbpoint_warp(seg_frames[i], center[i], size[i], self.image_size, 
+                    seg_warped = bbpoint_warp(seg_frames[i], center_seg[i], size_seg[i], self.image_size, 
                         order=0 # nearest neighbor interpolation for segmentation
                         )
                 # img_warped *= 255.
