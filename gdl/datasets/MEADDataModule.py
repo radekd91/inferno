@@ -209,31 +209,54 @@ class MEADDataModule(FaceVideoDataModule):
 
 
     def get_single_video_dataset(self, i):
-        dataset = MEADDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
-                [i], 
+        # dataset = MEADDataset(self.root_dir, self.output_dir, self.video_list, self.video_metas, 
+        #         [i], 
+        #         self.audio_metas, 
+        #         # self.sequence_length_test, 
+        #         "all", 
+        #         image_size=self.image_size, 
+        #         # **self.occlusion_settings_test,
+        #         hack_length=False, 
+        #         use_original_video=self.use_original_video,
+        #         include_processed_audio = self.include_processed_audio,
+        #         include_raw_audio = self.include_raw_audio,
+        #         landmark_types=self.landmark_types,
+        #         # landmark_types="mediapipe",
+        #         landmark_source=self.landmark_sources,
+        #         # landmark_source="original",
+        #         segmentation_source=self.segmentation_source,
+        #         segmentation_type= self.segmentation_type,
+        #         # temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
+        #         # temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
+        #         preload_videos=self.preload_videos,
+        #         inflate_by_video_size=False,
+        #         align_images=self.align_images,
+        #         original_image_size=self.processed_video_size,
+        #         return_mica_images=self.return_mica_images,
+        #         )
+        dataset = MEADDataset(self.root_dir, self.output_dir, 
+                self.video_list, self.video_metas, [i],
                 self.audio_metas, 
-                # self.sequence_length_test, 
                 "all", 
-                image_size=self.image_size, 
-                # **self.occlusion_settings_test,
+                image_size=self.image_size,  
                 hack_length=False, 
                 use_original_video=self.use_original_video,
                 include_processed_audio = self.include_processed_audio,
                 include_raw_audio = self.include_raw_audio,
-                # landmark_types=self.landmark_types,
-                landmark_types="mediapipe",
-                # landmark_source=self.landmark_sources,
-                landmark_source="original",
+                landmark_types=self.landmark_types,
+                landmark_source=self.landmark_sources,
                 segmentation_source=self.segmentation_source,
                 segmentation_type= self.segmentation_type,
-                # temporal_split_start=self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
-                # temporal_split_end= sum(self.temporal_split) if self.temporal_split is not None else None,
+                # temporal_split_start=self.temporal_split[0] if self.temporal_split is not None else None,
+                # temporal_split_end= self.temporal_split[0] + self.temporal_split[1] if self.temporal_split is not None else None,
                 preload_videos=self.preload_videos,
-                inflate_by_video_size=False,
+                inflate_by_video_size=self.inflate_by_video_size,
+                read_video=self.read_video,
+                read_audio=self.read_audio,
                 align_images=self.align_images,
                 original_image_size=self.processed_video_size,
                 return_mica_images=self.return_mica_images,
-                )
+            )
         return dataset
 
    
@@ -454,7 +477,8 @@ class MEADDataModule(FaceVideoDataModule):
             assert file_type in ['videos', 'videos_aligned', 'detections', 
                 "landmarks", "landmarks_original", "landmarks_aligned",
                 "segmentations", "segmentations_aligned",
-                "emotions", "reconstructions", "audio"]
+                "emotions", "reconstructions", "audio", "rec_videos"], \
+                f"Unknown file type: {file_type}"
         video_file = self.video_list[sequence_id]
         if len(method) > 0:
             file_type += "/" + method 

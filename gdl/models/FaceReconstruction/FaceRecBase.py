@@ -172,10 +172,6 @@ class FaceReconstructionBase(LightningModule):
     """
 
     def __init__(self, cfg, 
-                # face_encoder : FaceEncoderBase = None,
-                # shape_model: ShapeModel = None,
-                # # preprocessor: Optional[Preprocessor] = None,
-                # renderer: Optional[Renderer] = None,
                 *args: Any, 
                 **kwargs: Any) -> None:
         """
@@ -490,6 +486,8 @@ class FaceReconstructionBase(LightningModule):
         """
         This is where the "ring" dimension (if any) would get restored, etc. 
         """
+        if ring_size == -1:
+            return batch
         # for every entry in batch (that corresponds to each image), undo the ring dimension
         for key, value in batch.items():
             if isinstance(value, torch.Tensor) and value.ndim <= 1:

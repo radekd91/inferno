@@ -183,6 +183,128 @@ def nested_dict_set(dictionary, first_key, key, value):
         dictionary[key] = value
 
 
+
+class FaceRecPreprocessor(Preprocessor): 
+
+    def __init__(self, cfg, **kwargs):
+        from gdl.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase 
+        from gdl.models.IO import locate_checkpoint
+
+        self.cfg = cfg
+        if not Path(cfg.model_name).is_absolute():
+            self.model_name = get_path_to_assets() / "FaceReconstruction/models"
+        else:
+            self.model_name = Path(cfg.model_name)
+        self.return_global_pose = cfg.get('return_global_pose', False)
+        face_rec_cfg = omegaconf.OmegaConf.load(self.model_name / "cfg.yaml")
+
+        checkpoint = locate_checkpoint(face_rec_cfg.coarse, mode = "best")
+        self.model = FaceReconstructionBase.instantiate(face_rec_cfg.coarse, checkpoint=checkpoint)
+        
+        for p in self.model.parameters():
+            p.requires_grad = False
+        self.model = self.model.eval()
+
+        self.with_global_pose = cfg.get('with_global_pose', False)
+        self.average_shape_decode = cfg.get('average_shape_decode', True)
+        self.return_appearance = cfg.get('return_appearance', False)
+        self.render = cfg.get('render', False)
+        self.crash_on_invalid = cfg.get('crash_on_invalid', True)
+        self.max_b = cfg.get('max_b', 100)
+
+    def to(self, device):
+        self.model = self.model.to(device)
+        return self
+    
+    def forward(self, batch, input_key, *args, output_prefix="gt_", test_time=False, **kwargs):
+        if test_time: # if we are at test time
+            if not self.test_time: # and the preprocessor is not needed for test time 
+                # just return
+                return batch
+        # from gdl_apps.EMOCA.utils.io import test
+        images = batch[input_key]
+
+        B, T, C, H, W = images.shape
+        batch_ = {} 
+        BT = B*T
+
+        if BT < self.max_b:
+            batch_['image'] = images.view(B*T, C, H, W)
+            batch_['landmarks'] = {}
+            for key in batch['landmarks'].keys():
+                batch_['landmarks'][key] = batch['landmarks'][key].view(B*T, -1, 2)
+            
+            values = self.model(batch_, training=False, validation=False)
+        else:
+            outputs = []
+            for i in range(0, BT, self.max_b):
+                batch_ = {} 
+                batch_['image'] = images.view(B*T, C, H, W)[i:i+self.max_b]
+                batch_['landmarks'] = {}
+                for key in batch['landmarks'].keys():
+                    batch_['landmarks'][key] = batch['landmarks'][key].view(B*T, -1, 2)[i:i+self.max_b]
+                out = self.model(batch_, training=False, validation=False)
+                outputs.append(out)
+            
+            # combine into a single output
+            values = cat_tensor_or_dict(outputs, dim=0)
+
+
+        if not self.with_global_pose:
+            values['posecode'][..., :3] = 0
+
+        # # compute the the shapecode only from frames where landmarks are valid
+        weights = batch["landmarks_validity"]["mediapipe"] / batch["landmarks_validity"]["mediapipe"].sum(axis=1, keepdims=True)
+        if self.crash_on_invalid:
+            assert weights.isnan().any() == False, "NaN in weights"
+        else: 
+            if weights.isnan().any():
+                print("[WARNING] NaN in weights")
+        avg_shapecode = (weights * values['shapecode'].view(B, T, -1)).sum(axis=1, keepdims=False)
+
+        if self.average_shape_decode:
+            # set the shape to be equal to the average shape (so that the shape is not changing over time)
+            # values['shapecode'] = avg_shapecode.view(B, 1, -1).repeat(1, T, 1).view(B*T, -1)
+            values['shapecode'] = avg_shapecode.view(B, 1, -1)
+            values['shapecode'] = values['shapecode'].expand(B, T, values['shapecode'].shape[2]).view(B*T, -1)
+
+
+        _flame_res = self.model.shape_model.flame(
+            shape_params=avg_shapecode, 
+            expression_params=torch.zeros(device = avg_shapecode.device, dtype = avg_shapecode.dtype, 
+                size = (avg_shapecode.shape[0], values['expcode'].shape[-1])),
+            pose_params=None
+        )
+
+        if len(_flame_res) == 3:
+            verts, landmarks2d, landmarks3d = _flame_res
+        elif len(_flame_res) == 4:
+            verts, landmarks2d, landmarks3d, landmarks2d_mediapipe = _flame_res
+        else:
+            raise NotImplementedError("Not implemented for len(_flame_res) = {}".format(len(_flame_res)))
+
+        batch["template"] = verts.contiguous().view(B, -1)
+
+        batch[output_prefix + "vertices"] = values['verts'].contiguous().view(B, T, -1)
+        if self.average_shape_decode:
+            batch[output_prefix + 'shape'] = avg_shapecode
+        else:
+            batch[output_prefix + 'shape'] = values['shapecode'].view(B, T, -1)
+        batch[output_prefix + 'exp'] =  values['expcode'].view(B, T, -1)
+        batch[output_prefix + 'jaw'] = values['jawpose'].view(B, T, -1)
+        if self.return_global_pose:
+            batch[output_prefix + 'global_pose'] = values['globalpose'].view(B, T, -1)
+            batch[output_prefix + 'cam'] = values['cam'].view(B, T, -1)
+        if self.return_appearance: 
+            batch[output_prefix + 'tex'] = values['texcode'].view(B, T, -1)
+            batch[output_prefix + 'light'] = values['lightcode'].view(B, T, -1)
+            if 'detailcode' in values:
+                batch[output_prefix + 'detail'] = values['detailcode'].view(B, T, -1)
+        return batch
+
+
+
+
 class EmocaPreprocessor(Preprocessor): 
 
     def __init__(self, cfg, **kwargs):
@@ -518,7 +640,6 @@ def cat_tensor_or_dict(dicts, dim=0):
     for k in dicts[0].keys():
         if isinstance(dicts[0][k], torch.Tensor):
             outputs[k] = torch.cat([o[k] for o in dicts], dim=dim)
-        
         elif isinstance(dicts[0][k], dict):
             outputs[k] = cat_tensor_or_dict([o[k] for o in dicts], dim=dim)
         else: 

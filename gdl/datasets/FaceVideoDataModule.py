@@ -40,7 +40,9 @@ from gdl.datasets.UnsupervisedImageDataset import UnsupervisedImageDataset
 from facenet_pytorch import InceptionResnetV1
 from collections import OrderedDict
 from gdl.datasets.IO import (save_emotion, save_segmentation_list, save_reconstruction_list, 
-                             save_reconstruction_list_v2, save_emotion_list, save_emotion_list_v2)
+                             save_reconstruction_list_v2, save_emotion_list, save_emotion_list_v2, 
+                             load_reconstruction_list_v2
+                             )
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 from skimage.io import imread
@@ -238,10 +240,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
     def _get_path_to_sequence_files(self, sequence_id, file_type, method="", suffix="", assert_=True): 
         if assert_:
             assert file_type in ['videos', 'detections', "landmarks", "segmentations", 
-                "emotions", "reconstructions"]
+                "emotions", "reconstructions", "rec_videos"]
         video_file = self.video_list[sequence_id]
         if len(method) > 0:
-            file_type += "_" + method 
+            if Path(method).is_absolute():
+                file_type += "_" + Path(method).name
+            else:
+                file_type += "_" + method 
         if len(suffix) > 0:
             file_type += suffix
 
@@ -327,10 +332,14 @@ class FaceVideoDataModule(FaceDataModuleBase):
         
         if rec_method == 'deca':
             return self._get_path_to_sequence_files(sequence_id, "reconstructions", "", suffix)
-        else:
-            assert rec_method in ['emoca', 'deep3dface', 'spectre'] or \
-                rec_method.lower().startswith('emoca') or rec_method.lower().startswith('emica')
+        # else:
+        elif 'FaceReconstruction' not in rec_method and (rec_method in ['emoca', 'deep3dface', 'spectre'] or \
+            rec_method.lower().startswith('emoca') or rec_method.lower().startswith('emica')):
             return self._get_path_to_sequence_files(sequence_id, "reconstructions", rec_method, suffix)
+        else: 
+            rec_method_path = Path(rec_method)
+            return self._get_path_to_sequence_files(sequence_id, "reconstructions", rec_method_path.name, suffix)
+            # raise ValueError("Unknown reconstruction method '%s'" % rec_method)
         # video_file = self.video_list[sequence_id]
         # if rec_method == 'deca':
         #     suffix = Path(self._video_category(sequence_id)) / f'reconstructions{suffix}' /self._video_set(sequence_id) / video_file.stem
@@ -344,6 +353,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # return out_folder
 
     
+    def _get_path_to_sequence_reconstructions_videos(self, sequence_id, rec_method='emoca', suffix=''):
+        return self._get_path_to_sequence_files(sequence_id, "rec_videos", rec_method, suffix)
 
     # @profile
     def _detect_faces_in_sequence(self, sequence_id):
@@ -978,6 +989,29 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
     def _get_reconstruction_net_v2(self, device, rec_method="emoca"): 
         device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        if "FaceReconstruction" in rec_method:
+            if hasattr(self, '_facerecon') and self._facerecon is not None and rec_method in self._facerecon.keys(): 
+                return self._facerecon[rec_method].to(device)
+            else: 
+                if not hasattr(self, '_facerecon') or self._facerecon is not None:
+                    self._facerecon = {}
+
+            from gdl.models.temporal.Preprocessors import FaceRecPreprocessor
+            from munch import Munch
+            cfg = Munch()
+            cfg.with_global_pose = True
+            cfg.return_global_pose = True
+            cfg.average_shape_decode = False
+            cfg.return_appearance = True
+            cfg.model_name = rec_method
+            cfg.max_b = 16
+            cfg.render = False
+            cfg.crash_on_invalid = False
+            # cfg.render = True
+            face_rec = FaceRecPreprocessor(cfg).to(device)
+            self._facerecon[rec_method] = face_rec
+            return face_rec
+
         if "emoca" in rec_method.lower():
             if hasattr(self, '_emoca'): 
                 if rec_method in self._emoca.keys() :
@@ -1415,6 +1449,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         out_file_appearance = {}
         for rec_method in rec_methods:
             out_folder[rec_method] = self._get_path_to_sequence_reconstructions(sequence_id, rec_method=rec_method, suffix=suffix)
+
             # out_file_shape[rec_method] = out_folder[rec_method] / f"shape_pose_cam.pkl"
             # out_file_appearance[rec_method] = out_folder[rec_method] / f"appearance.pkl"
             out_file_shape[rec_method] = out_folder[rec_method] / f"shape_pose_cam.hdf5"
@@ -1467,6 +1502,15 @@ class FaceVideoDataModule(FaceDataModuleBase):
             with torch.no_grad():
                 batch = dict_to_device(batch, device)
                 for rec_method in rec_methods:
+
+                    # import matplotlib.pyplot as plt
+                    # plt.figure()
+
+                    # im = batch['video'][0, 0].cpu().numpy() 
+                    # im = np.transpose(im, (1, 2, 0))
+                    # plt.imshow(im)
+                    # plt.show()
+
                     if out_file_shape[rec_method].is_file() and  out_file_appearance[rec_method].is_file(): 
                         continue
                     batch_ = batch.copy()
@@ -1571,6 +1615,226 @@ class FaceVideoDataModule(FaceDataModuleBase):
                         save_emotion_list(out_file_features[emo_method], emotion_labels)
 
         print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
+
+
+    def _reconstruction_video_of_sequence(self, 
+                                          sequence_id, 
+                                          rec_methods, 
+                                          device=None,
+                                     ):
+        from gdl.models.DecaFLAME import FLAME_mediapipe
+        from gdl.utils.PyRenderMeshSequenceRenderer import PyRenderMeshSequenceRenderer
+        from gdl.models.Renderer import SRenderY
+        import gdl.utils.DecaUtils as util
+        from gdl.utils.video import combine_video_audio, concatenate_videos
+
+
+        device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+        if not hasattr(self, 'torch_renderer_'):
+            obj_filename = "/ps/scratch/rdanecek/data/FLAME/geometry/head_template.obj"
+            self.torch_renderer_ = SRenderY(image_size=224, obj_filename=obj_filename, uv_size=256)
+            self.torch_renderer_ = self.torch_renderer_.to(device=device)
+
+        if not hasattr(self, 'py_renderer_'):
+            flame_template_path = Path("/ps/scratch/rdanecek/data/FLAME/geometry/FLAME_sample.ply")
+            self.py_renderer_ = PyRenderMeshSequenceRenderer(flame_template_path)
+
+
+        if not isinstance(rec_methods, list):
+            rec_methods = [rec_methods]
+
+        print("Creating reconstruction video for '%s'" % self.video_list[sequence_id])
+
+        in_folder = {}
+        in_file_reconstruction = {}
+        out_file_video = {}
+        for rec_method in rec_methods:
+            rec_method_name = rec_method
+            if Path(rec_method).is_absolute:
+                rec_method_name = Path(rec_method).stem
+            in_folder[rec_method] = self._get_path_to_sequence_reconstructions(sequence_id, rec_method=rec_method_name)
+            in_file_reconstruction[rec_method] = in_folder[rec_method] / f"shape_pose_cam.hdf5"
+            # in_file_reconstruction[rec_method] = in_folder[rec_method] / f"shape_pose_cam.pkl"
+            if not in_file_reconstruction[rec_method].is_file():
+                in_file_reconstruction[rec_method] = in_folder[rec_method] / f"shape_pose_cam.pkl" 
+                if not in_file_reconstruction[rec_method].is_file():
+                    raise ValueError(f"File {in_file_reconstruction[rec_method]} does not exist.")
+            in_folder[rec_method].mkdir(exist_ok=True, parents=True)
+            out_file_video[rec_method] = self._get_path_to_sequence_reconstructions_videos(sequence_id, rec_method=rec_method_name) \
+                / f"rec_video.mp4" 
+            out_file_video[rec_method].parent.mkdir(exist_ok=True, parents=True)
+
+        exists = True
+        for rec_method in rec_methods:
+            if not in_file_reconstruction[rec_method].is_file(): 
+                exists = False
+                break
+            if not out_file_video[rec_method].is_file():
+                exists = False
+                break
+        # if exists: 
+        #     return
+        # emotion_net = emotion_net or self._get_emotion_recognition_net(device, rec_method=emo_method)
+             
+        dataset = self.get_single_video_dataset(sequence_id)
+        batch_size = 32
+        # batch_size = 64
+        loader = DataLoader(dataset, batch_size=batch_size, num_workers=0, shuffle=False)
+
+        for i, batch in enumerate(tqdm(loader)):
+            with torch.no_grad():
+                batch = dict_to_device(batch, device)
+                for rec_method in rec_methods:
+                    # if in_file_reconstruction[rec_method].is_file() and out_file_video[rec_method].is_file(): 
+                    #     continue
+                    assert batch['video'].shape[0] == 1
+                    T = batch['video'].shape[1]
+                    
+                    if in_file_reconstruction[rec_method].suffix == '.hdf5':
+                        reconstruction = load_reconstruction_list_v2(in_file_reconstruction[rec_method])
+                    elif in_file_reconstruction[rec_method].suffix == '.pkl':
+                        reconstruction = load_reconstruction_list_v2(in_file_reconstruction[rec_method])
+                    else: 
+                        raise ValueError(f"Unknown file format {in_file_reconstruction[rec_method].suffix}")
+
+                    reconstruction_net = self._get_reconstruction_net_v2(device, rec_method=rec_method)
+
+
+                    if reconstruction_net.__class__.__name__ == "EmocaPreprocessor": ## old f or backwards compatibility 
+                        flame = reconstruction_net.model.deca.flame 
+                    elif "FaceRecPreprocessor" in reconstruction_net.__class__.__name__: ## new
+                        flame = reconstruction_net.model.shape_model.flame
+                    else: 
+                        raise ValueError(f"Unknown reconstruction net {reconstruction_net.__class__.__name__}")
+                    
+                    global_pose = torch.from_numpy(reconstruction['global_pose']).float().to(device).squeeze(0)
+                    if 'jaw' in reconstruction.keys():
+                        jaw = torch.from_numpy(reconstruction['jaw']).float().to(device).squeeze(0)
+                    else:
+                        jaw = torch.zeros_like(global_pose).to(device)
+                    pose = torch.cat([global_pose, jaw], dim=-1)
+                    pose_jaw_only = torch.cat([torch.zeros_like(global_pose), jaw], dim=-1)
+                    vertices, _, _, _ = flame(
+                        shape_params=torch.from_numpy( reconstruction['shape']).float().to(device).squeeze(0), 
+                        expression_params=torch.from_numpy( reconstruction['exp']).float().to(device).squeeze(0), 
+                        pose_params=pose,
+                        eye_pose_params=None)
+                    
+                    unposed_vertices, _, _, _ = flame(
+                        shape_params=torch.from_numpy( reconstruction['shape']).float().to(device).squeeze(0), 
+                        expression_params=torch.from_numpy( reconstruction['exp']).float().to(device).squeeze(0), 
+                        pose_params=pose_jaw_only,
+                        eye_pose_params=None)
+                    
+                    trans_verts = util.batch_orth_proj(vertices, 
+                                                       torch.from_numpy(reconstruction['cam']).float().to(device).squeeze(0), 
+                                                       )
+                    trans_verts[:, :, 1:] = -trans_verts[:, :, 1:]
+                    shape_im = self.torch_renderer_.render_shape(vertices, trans_verts, images=None, detail_normal_images=None, lights=None)
+
+                    ## add alpha channel 
+                    shape_im = torch.cat([shape_im, torch.zeros_like(shape_im[:, :1, ...])], dim=1)
+                    # binary map of black pixels
+                    mask = torch.logical_and(shape_im[:, 0, ...] == 0, shape_im[:, 1, ...] == 0).logical_and(shape_im[:, 2, ...] == 0)[:, None, ...]
+
+                    image = batch['video'][0]
+                    ## add alpha channel 
+                    image = torch.cat([image, torch.ones_like(image[:, :1,...])], dim=1)
+
+                    # set alpha channel to 1 for all non-black pixels
+                    shape_im[:, 3:4, ...] = (1.- mask.float()) * 2
+                    image_blended = alpha_blend(image, shape_im)
+
+                    shape_im[:, 3:4, ...] = (1.- mask.float()) * 10
+                    image_blended2 = alpha_blend(image, shape_im)
+
+                    # concatenate image, image_blended and shape_image 
+                    final_video = torch.cat([image[:,:3, ...], image_blended[:,:3, ...], image_blended2[:,:3, ...], shape_im[:,:3, ...]], dim=2)
+
+                    # save video into the final path 
+                    if not out_file_video[rec_method].is_file():
+                        video_writer = None
+                        if out_file_video[rec_method].suffix == '.mp4':
+                            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                            video_writer = cv2.VideoWriter(str(out_file_video[rec_method]),
+                                                        fourcc, int(self.video_metas[sequence_id]['fps'].split('/')[0]),
+                                                        (final_video.shape[3], final_video.shape[2]))
+                        elif out_file_video[rec_method].suffix == '.avi':
+                            fourcc = cv2.VideoWriter_fourcc(*'XVID')
+                            video_writer = cv2.VideoWriter(str(out_file_video[rec_method]),
+                                                        fourcc, int(self.video_metas[sequence_id]['fps'].split('/')[0]),
+                                                        (final_video.shape[3], final_video.shape[2]))
+                        else:
+                            raise ValueError(f"Unknown file format {out_file_video[rec_method].suffix}")
+
+                        for j in auto.tqdm(range(final_video.shape[0])):
+                            vis_im = util.tensor2image(final_video[j])
+                            vis_im_shape = util.tensor2image(shape_im[j])
+
+                            ## plot image
+                            # import matplotlib.pyplot as plt
+                            # plt.figure() 
+                            # plt.imshow(vis_im)
+                            # plt.show()
+
+                            if video_writer is not None:
+                                video_writer.write(vis_im)
+                        if video_writer is not None:
+                            video_writer.release()
+                        video_writer = None
+
+
+                    # add audio to the video
+
+                    ## write an ffmpeg command that adds audio to the generated video 
+                    out_vid_torch = out_file_video[rec_method].parent / f"rec_video_audio.mp4"
+
+                    if not out_vid_torch.is_file():
+                        audio_path = self._get_path_to_sequence_audio(sequence_id)
+                        combine_video_audio(str(out_vid_torch), str(out_file_video[rec_method]), str(audio_path))
+                    
+
+
+                    out_vid = out_file_video[rec_method].parent / f"rec_unposed.mp4"
+                    if not out_vid.is_file():
+                        if out_file_video[rec_method].suffix == '.mp4':
+                            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                            video_writer = cv2.VideoWriter(str(out_vid),
+                                                        fourcc, int(self.video_metas[sequence_id]['fps'].split('/')[0]),
+                                                        (2 * final_video.shape[2], final_video.shape[2]))
+                        for j in auto.tqdm(range(final_video.shape[0])):
+                            verts = vertices[j].cpu().numpy()
+                            py_render_image_global = self.py_renderer_.render(verts)
+                            
+                            unposed_verts = unposed_vertices[j].cpu().numpy()
+                            py_render_image_unposed = self.py_renderer_.render(unposed_verts)
+
+                            ## reshape image to final_video.shape[3] x final_video.shape[3] 
+                            py_render_image_global = cv2.resize(py_render_image_global, (final_video.shape[2], final_video.shape[2]), 
+                                                        interpolation=cv2.INTER_AREA)
+                            py_render_image_unposed = cv2.resize(py_render_image_unposed, (final_video.shape[2], final_video.shape[2]),
+                                                            interpolation=cv2.INTER_AREA)
+                            
+                            # concatenate side by side
+                            py_render_image = np.concatenate([py_render_image_global, py_render_image_unposed], axis=1)
+
+                            video_writer.write(py_render_image)
+                            
+                        if video_writer:
+                            video_writer.release()
+                        video_writer = None
+
+                    output_path = out_file_video[rec_method].parent / f"rec_unposed_audio.mp4"
+
+                    if not output_path.is_file():
+                        audio_path = self._get_path_to_sequence_audio(sequence_id)
+                        concatenate_videos([ str(out_vid_torch), str(out_vid), ], output_path)
+                        
+
+        print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
+
+
 
     # def _gather_data(self, exist_ok=False):
     def _gather_data(self, exist_ok=True, **kwargs):
@@ -3516,3 +3780,33 @@ class TestFaceVideoDM(FaceVideoDataModule):
     def test_dataloader(self, *args, **kwargs) -> Union[DataLoader, List[DataLoader]]:
         return DataLoader(self.testdata, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False)
 
+
+def alpha_blend(self, A, B):
+    """
+    Perform alpha blending on two batched 4-channel images A and B.
+    
+    Parameters:
+        A, B: torch.Tensor
+            Input images of shape (batch_size, 4, height, width)
+            The channels are in the order [R, G, B, A].
+            
+    Returns:
+        torch.Tensor: blended image of shape (batch_size, 4, height, width)
+    """
+    
+    # Normalize the alpha channel to make sure they sum up to 1
+    sum_alpha = A[:, 3:4, :, :] + B[:, 3:4, :, :]
+    A_alpha_norm = A[:, 3:4, :, :] / (sum_alpha + 1e-8)
+    B_alpha_norm = 1 - A_alpha_norm
+    
+    # Perform alpha blending for the RGB channels
+    blended_rgb = A[:, :3, :, :] * A_alpha_norm + B[:, :3, :, :] * B_alpha_norm
+    
+    # Assuming the resulting image to be completely opaque (alpha = 1)
+    # You can adjust this part based on your requirements
+    blended_alpha = torch.ones_like(A[:, :1, :, :])
+    
+    # Combine RGB and alpha to get the final blended image
+    blended_image = torch.cat([blended_rgb, blended_alpha], dim=1)
+    
+    return blended_image
