@@ -3781,7 +3781,7 @@ class TestFaceVideoDM(FaceVideoDataModule):
         return DataLoader(self.testdata, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False)
 
 
-def alpha_blend(self, A, B):
+def alpha_blend(A, B):
     """
     Perform alpha blending on two batched 4-channel images A and B.
     

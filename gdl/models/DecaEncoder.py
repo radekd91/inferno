@@ -78,6 +78,9 @@ class BaseEncoder(nn.Module):
         torch.nn.init.constant_(self.layers[-1].weight, 0)
         torch.nn.init.constant_(self.layers[-1].bias, 0)
 
+    def get_feature_size(self):
+        return self.feature_size
+
 
 class ResnetEncoder(BaseEncoder):
     def __init__(self, outsize, last_op=None):
@@ -139,6 +142,8 @@ class SecondHeadResnet(nn.Module):
         torch.nn.init.constant_(self.layers[-1].weight, 0)
         torch.nn.init.constant_(self.layers[-1].bias, 0)
 
+    def get_feature_size(self): 
+        return self.resnet.feature_size
 
 
 class SwinEncoder(BaseEncoder):
@@ -152,7 +157,7 @@ class SwinEncoder(BaseEncoder):
         swin_cfg = swin_cfg_from_name(self.swin_type)
         self.encoder = create_swin_backbone(
             swin_cfg, self.feature_size, self.img_size, load_pretrained_swin=True, pretrained_model=self.swin_type)
-
+        
 # class ResnetEncoder(nn.Module):
 #     def __init__(self, append_layers = None):
 #         super(ResnetEncoder, self).__init__()

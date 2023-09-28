@@ -73,5 +73,6 @@ test_subjects: []
 
 read_video: True
 
-align_images: False
+# align_images: False
+align_images: True
 return_mica_images: "fan"

@@ -72,7 +72,8 @@ class MICA(BaseModel):
         if not model_cfg.use_pretrained:
             pretrained_path = model_cfg.arcface_pretrained_model
         self.arcface = Arcface(pretrained_path=pretrained_path).to(self.device)
-        self.flameModel = Generator(512, 300, self.cfg.model.n_shape, mapping_layers, model_cfg, self.device, 
+        self.arcface_feture_size = self.arcface.features.weight.shape[0]
+        self.flameModel = Generator(self.arcface_feture_size, 300, self.cfg.model.n_shape, mapping_layers, model_cfg, self.device, 
             instantiate_flame=self.instantiate_flame)
 
     def load_model(self):
@@ -153,6 +154,9 @@ class MICA(BaseModel):
 
         return losses
 
+
+    def get_feature_size(self):
+        return self.arcface_feture_size
 
 # class Mica(nn.Module):
 #     def __init__(self, device='cuda:0', model_path=None, instantiate_flame=True):

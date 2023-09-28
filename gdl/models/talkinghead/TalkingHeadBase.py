@@ -79,13 +79,6 @@ class TalkingHeadBase(pl.LightningModule):
                 trainable_params,
                 lr=self.cfg.learning.learning_rate,
                 amsgrad=False)
-        elif self.cfg.learning.optimizer == 'AdaBound':
-            opt = adabound.AdaBound(
-                trainable_params,
-                lr=self.cfg.learning.learning_rate,
-                final_lr=self.cfg.learning.final_learning_rate
-            )
-
         elif self.cfg.learning.optimizer == 'SGD':
             opt = torch.optim.SGD(
                 trainable_params,

@@ -24,7 +24,10 @@ class FlameShapeModel(ShapeModel):
     def forward(self, sample):
         shapecode = sample["shapecode"]
         expcode = sample["expcode"]
-        texcode = sample["texcode"]
+        if "texcode" not in sample.keys():
+            texcode = None
+        else:
+            texcode = sample["texcode"]
         # posecode = sample["posecode"]
         globpose = sample["globalpose"]
         if "jawpose" in sample.keys():
@@ -45,7 +48,8 @@ class FlameShapeModel(ShapeModel):
         if T is not None:
             shapecode = shapecode.view(B*T, *shapecode.shape[2:])
             expcode = expcode.view(B*T, *expcode.shape[2:])
-            texcode = texcode.view(B*T, *texcode.shape[2:])
+            if texcode is not None:
+                texcode = texcode.view(B*T, *texcode.shape[2:])
             posecode = posecode.view(B*T, *posecode.shape[2:])
 
         out = self.flame(
@@ -63,12 +67,14 @@ class FlameShapeModel(ShapeModel):
             raise ValueError(f"Unknown FLAME output shape: {len(out)}")
 
         if self.uses_texture():
+            assert texcode is not None, "Texture code must be provided if using texture"
             albedo = self.flametex(texcode)
         else: 
             # if not using texture, default to gray
             effective_batch_size = shapecode.shape[0]
-            albedo = torch.ones([effective_batch_size, 3, self.deca.config.uv_size, 
-                self.deca.config.uv_size], device=shapecode.device) * 0.5
+            # albedo = torch.ones([effective_batch_size, 3, self.deca.config.uv_size, 
+            #     self.deca.config.uv_size], device=shapecode.device) * 0.5
+            albedo = torch.ones([effective_batch_size, 3, 256, 256], device=shapecode.device) * 0.5
 
         # batch temporal unsqueeze
         if T is not None:

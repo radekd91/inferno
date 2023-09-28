@@ -14,8 +14,8 @@ class FaceEncoderBase(torch.nn.Module):
         super().__init__()
         self.cfg = cfg
 
-    def forward(self, batch):
-        return self.encode(batch)
+    def forward(self, batch, return_features=False):
+        return self.encode(batch, return_features=return_features)
     
     def get_trainable_parameters(self):
         raise NotImplementedError("Abstract method")
@@ -24,15 +24,19 @@ class FaceEncoderBase(torch.nn.Module):
         raise NotImplementedError("Abstract method")
     
     def _prediction_code_dict(self):
+        if self.cfg.predicts is None:
+            return {}
         prediction_code_dict = OmegaConf.to_container(self.cfg.predicts) 
         return prediction_code_dict
 
-    
     def _get_codevector_dim(self):
         prediction_code_dict = self._prediction_code_dict()
         return sum([dim for _, dim in prediction_code_dict.items()])
     
-
+    def get_dimentionality(self):
+        code_vector_dim = self._prediction_code_dict()
+        return code_vector_dim
+    
 
 class DecaEncoder(FaceEncoderBase):
 
@@ -58,16 +62,21 @@ class DecaEncoder(FaceEncoderBase):
     def get_trainable_parameters(self):
         return [p for p in self.parameters() if p.requires_grad]
 
-    def encode(self, batch):
+    def encode(self, batch, return_features=False):
         if self.trainable: 
-            return self._encode(batch)
+            return self._encode(batch, return_features=return_features)
         with torch.no_grad():
-            return self._encode(batch)
+            return self._encode(batch, return_features=return_features)
 
-    def _encode(self, batch):
+    def _encode(self, batch, return_features=False):
         image = batch['image']
         # time = timeit.default_timer()
-        code_vec = self.encoder(image)
+        if bool(return_features):
+            code_vec, features = self.encoder(image, output_features=True)
+            feature_key = return_features if isinstance(return_features, str) else "deca_feature"
+            batch[feature_key] = features
+        else: 
+            code_vec = self.encoder(image, output_features=False)
         # time_enc = timeit.default_timer()
         batch = self._decompose_code(batch, code_vec)
         # time_decomp = timeit.default_timer()
@@ -92,6 +101,11 @@ class DecaEncoder(FaceEncoderBase):
 
     def _get_num_shape_params(self): 
         return self.config.n_shape
+    
+    def get_dimentionality(self):
+        code_vector_dim = self._prediction_code_dict()
+        code_vector_dim['deca_feature'] = self.encoder.get_feature_size()
+        return code_vector_dim
     
 
 
@@ -128,7 +142,7 @@ class MicaEncoder(FaceEncoderBase):
     def train(self, mode: bool = True):
         return super().train(False) # always in eval mode
 
-    def encode(self, batch):
+    def encode(self, batch, return_features=False):
         with torch.no_grad(): ## MICA is never trainable, no need for gradients
             image = batch['image']
             if 'mica_images' in batch.keys():
@@ -150,15 +164,24 @@ class MicaEncoder(FaceEncoderBase):
                 mica_image = self.mica_preprocessor(image, fan_landmarks)
                 # time_preproc = timeit.default_timer()
                 # print(f"Time preprocessing:\t{time_preproc - time:0.05f}")
-            mica_code = self.E_mica.encode(image, mica_image) 
-            mica_code = self.E_mica.decode(mica_code, predict_vertices=False)
-            mica_shapecode = mica_code['pred_shape_code']
+            mica_encoding = self.E_mica.encode(image, mica_image) 
+            mica_decoding = self.E_mica.decode(mica_encoding, predict_vertices=False)
+            mica_shapecode = mica_decoding['pred_shape_code']
             batch['shapecode'] = mica_shapecode
+            if return_features:
+                feature_key = return_features if isinstance(return_features, str) else "mica_feature"
+                batch[feature_key] = mica_encoding['arcface']
             return batch
     
     def _get_num_shape_params(self): 
         return self.mica_cfg.model.n_shape   
 
+
+    def get_dimentionality(self):
+        code_vector_dim = self._prediction_code_dict()
+        code_vector_dim['mica_feature'] = self.E_mica.get_feature_size()
+        return code_vector_dim
+    
 
 class MicaDecaEncoder(FaceEncoderBase): 
 
@@ -173,10 +196,16 @@ class MicaDecaEncoder(FaceEncoderBase):
     def train(self, mode: bool = True):
         return super().train(mode)
 
-    def encode(self, batch):
-        batch = self.mica_encoder.encode(batch)
-        batch = self.deca_encoder.encode(batch)
+    def encode(self, batch, return_features=False):
+        batch = self.mica_encoder.encode(batch, return_features=return_features)
+        batch = self.deca_encoder.encode(batch, return_features="deca_feature" if return_features else False)
         return batch
+
+    def get_dimentionality(self):
+        dims = super()._prediction_code_dict()
+        dims.update(self.mica_encoder.get_dimentionality())
+        dims.update(self.deca_encoder.get_dimentionality())
+        return dims
 
 
 class ExpressionEncoder(DecaEncoder): 
@@ -208,6 +237,12 @@ class EmocaEncoder(FaceEncoderBase):
     def get_trainable_parameters(self):
         return self.deca_encoder.get_trainable_parameters() + self.deca_encoder.get_trainable_parameters()
 
+    def get_dimentionality(self):
+        dims = super().get_dimentionality()
+        dims.update(self.deca_encoder.get_dimentionality())
+        dims.update(self.expression_encoder.get_dimentionality())
+        return dims
+
 
 class EmicaEncoder(FaceEncoderBase): 
 
@@ -220,14 +255,22 @@ class EmicaEncoder(FaceEncoderBase):
     def initialize_expression_encoder(self, other_encoder):
         self.expression_encoder.initialize_from(other_encoder)
 
-    def encode(self, batch):
-        batch = self.mica_deca_encoder.encode(batch)
-        batch = self.expression_encoder.encode(batch)
+    def encode(self, batch, return_features=False):
+        batch = self.mica_deca_encoder.encode(batch, return_features=return_features)
+        batch = self.expression_encoder.encode(batch, return_features="expression_feature" if return_features else False)
         return batch
     
     def get_trainable_parameters(self):
         return self.mica_deca_encoder.get_trainable_parameters() + self.expression_encoder.get_trainable_parameters()
     
+    def get_dimentionality(self):
+        dims = super().get_dimentionality()
+        dims.update(self.mica_deca_encoder.get_dimentionality())
+        exp_dims = self.expression_encoder.get_dimentionality() 
+        exp_dims["expression_feature"] = exp_dims.pop("deca_feature")
+        dims.update(exp_dims)
+        return dims
+
 
 def encoder_from_cfg(cfg):
     enc_cfg = cfg.model.face_encoder

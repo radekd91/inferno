@@ -62,6 +62,7 @@ from .Losses import (FanContourLandmarkLoss, LandmarkLoss,
 from gdl.utils.batch import dict_get, check_nan
 # import timeit
 
+
 def shape_model_from_cfg(cfg): 
     cfg_shape = cfg.model.shape_model
 
@@ -71,6 +72,7 @@ def shape_model_from_cfg(cfg):
     else: 
         raise ValueError(f"Unsupported shape model type: '{cfg_shape.type}'")
     return shape_model
+
 
 def renderer_from_cfg(cfg):
     cfg_renderer = cfg.model.renderer
@@ -503,7 +505,7 @@ class FaceReconstructionBase(LightningModule):
         """
         return batch
 
-    def encode(self, batch, training=True, validation=False):
+    def encode(self, batch, training=True, validation=False, return_features=False):
         """
         Forward encoding pass of the model. Takes a batch of images and returns the corresponding latent codes for each image.
         :param batch: Batch of images to encode. batch['image'] [batch_size, ring_size, 3, image_size, image_size]. 
@@ -511,7 +513,7 @@ class FaceReconstructionBase(LightningModule):
         For a testing pass, the images suffice. 
         :param training: Whether the forward pass is for training or testing.
         """
-        batch = self.face_encoder(batch)
+        batch = self.face_encoder(batch, return_features=return_features)
         check_nan(batch)
         return batch
 

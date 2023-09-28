@@ -25,6 +25,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from gdl.models.temporal.AVFace import TemporalFace, instantiate
 from pytorch_lightning.loggers import WandbLogger
+from gdl.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase
 import datetime
 import time as t
 # import hydra
@@ -272,7 +273,7 @@ def single_stage_training_pass(model, cfg, stage, prefix, dm=None, logger=None,
                       # num_sanity_val_steps=0
                       )
 
-    pl_module_class = TemporalFace # TODO: make configurable
+    pl_module_class = FaceReconstructionBase # TODO: make configurable
 
 
     if stage == "train":

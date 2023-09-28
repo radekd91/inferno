@@ -54,7 +54,7 @@ segmentation_source: aligned
 segmentation_type: focus
 
 split: random_70_15_15
-# align_images: True
-align_images: False
+align_images: True
+# align_images: False
 
 return_mica_images: "fan"

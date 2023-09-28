@@ -455,7 +455,7 @@ class FaceFormer(TalkingHeadBase):
 
 
     @classmethod
-    def instantiate(cls, cfg, stage, prefix, checkpoint, checkpoint_kwargs) -> 'FaceFormer':
+    def instantiate(cls, cfg, stage=None, prefix=None, checkpoint=None, checkpoint_kwargs=None) -> 'FaceFormer':
         """
         Function that instantiates the model from checkpoint or config
         """

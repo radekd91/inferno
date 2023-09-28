@@ -29,8 +29,8 @@ from omegaconf import DictConfig, OmegaConf, open_dict
 import sys
 import shutil
 
-# submit_ = False
-submit_ = True
+submit_ = False
+# submit_ = True
 
 if submit_:
     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -140,8 +140,7 @@ def train_emodeca_on_cluster():
     
 
     resume_folders = []
-    resume_folders += ['2023_09_14_12-08-02_803026180622496885_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug']
-
+    # resume_folders += ['2023_09_14_12-08-02_803026180622496885_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug']
     # bid = 2000
     bid = 150
     # bid = 28

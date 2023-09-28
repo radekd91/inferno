@@ -70,7 +70,15 @@ losses:
     type: lip_reading_loss
     # metric: l1
     # metric: cosine_similarity
+    # weight: 1.5
+    # weight: 3.0
+    # weight: 6.0
+    # weight: 10.0
+    # weight: 15.0
     weight: 20.0
+    # weight: 20.0
+    # weight: 30.0
+    # weight: 50.0
     metric: mse_loss
 
     mask_invalid: mediapipe_landmarks
