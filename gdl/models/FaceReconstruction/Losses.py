@@ -184,6 +184,31 @@ class PhotometricLoss(object):
         else:
             raise ValueError('Loss type not supported: {}'.format(self.loss_type))
         return loss
+    
+
+class VertexLoss(object):
+
+    def __init__(self, device, loss_type='l2'):
+        super().__init__() 
+        self.device = device
+        self.loss_type = loss_type 
+
+    def to(self, device, *args, **kwargs):
+        self.device = device
+        return self
+
+    def __call__(self, pred, target, *args, mask=None, **kwargs):
+        ## pred and target are both B x N x 3 or B x T x N x 3
+        if mask is not None:
+            pred = masking(pred, mask)
+            target = masking(target, mask)
+        if self.loss_type == 'l2':
+            loss = torch.mean(torch.norm(pred - target, dim=-1))
+        elif self.loss_type == 'l1':
+            loss = torch.mean(torch.abs(pred - target))
+        else:
+            raise ValueError('Loss type not supported: {}'.format(self.loss_type))
+        return loss
 
 
 class GaussianRegLoss(object): 

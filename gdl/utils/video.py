@@ -4,6 +4,7 @@ import cv2
 from pathlib import Path
 import os, sys
 from skimage.io import imread, imsave
+from skvideo.io import vread
 
 
 def combine_video_audio(filename_out, video_in, audio_in):
@@ -11,7 +12,12 @@ def combine_video_audio(filename_out, video_in, audio_in):
     video = ffmpeg.input(video_in)
     audio = ffmpeg.input(audio_in)
     out = ffmpeg.output(video, audio, filename_out, vcodec='copy', acodec='aac', strict='experimental')
-    out.run()
+    try:
+        out.run()
+    except ffmpeg.Error as e:
+        pass
+        # print(e.stderr, file=sys.stderr)
+        # raise e
 
 
 def save_video_with_audio(video_path, audio_path, video_tensor, fourcc='mp4v', fps=25):
@@ -75,7 +81,7 @@ def concatenate_videos(video_list, output_path, horizontal=True, with_audio=True
     else:
         keyword = "vstack"
     if with_audio:
-        audio = "-map 1:a"
+        audio = "-map 0:a"
     else: 
         audio = ""
     if overwrite is True: 
@@ -202,3 +208,51 @@ def dump_video_frames(input_video_file, output_folder):
     cmd = f"ffmpeg -i {input_video_file} {output_folder}/frame_%05d.png"
     print(cmd)
     os.system(cmd)
+
+
+def robust_video_read(video_path : Path, start_frame : int, num_frames : int, sequence_length : int): 
+    """
+    """
+    num_read_frames = 0
+    try:
+        # if not self.preload_videos:
+        frames = vread(video_path.as_posix())
+        # else: 
+            # frames = self.video_cache[video_path.as_posix()]
+        assert len(frames) == num_frames, f"Video {video_path} has {len(frames)} frames, but meta says it has {num_frames}"
+        frames = frames[start_frame:(start_frame + sequence_length)] 
+        num_read_frames = frames.shape[0]
+        if frames.shape[0] < sequence_length:
+            # pad with zeros if video shorter than sequence length
+            frames = np.concatenate([frames, np.zeros((sequence_length - frames.shape[0], frames.shape[1], frames.shape[2]), dtype=frames.dtype)])
+    except ValueError: 
+        # reader = vreader(video_path.as_posix())
+        # create an opencv video reader 
+        import cv2
+        reader = cv2.VideoCapture(video_path.as_posix())
+        fi = 0 
+        frames = []
+        while fi < start_frame:
+            fi += 1
+            # _ = next(reader) 
+            _, frame = reader.read()
+        for i in range(sequence_length):
+            # frames.append(next(reader))
+            if reader.isOpened():
+                _, frame = reader.read()
+                if frame is None: 
+                    # frame = np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
+                    frame = np.zeros_like(frames[0])
+                    frames.append(frame)
+                    continue
+                num_read_frames += 1
+                # bgr to rgb 
+                frame = frame[:, :, ::-1]
+            else: 
+                # if we ran out of frames, pad with black
+                frame = np.zeros_like(frames[0])
+            frames.append(frame)
+        reader.release()
+        frames = np.stack(frames, axis=0)
+    frames = frames.astype(np.float32) / 255.0
+    return frames

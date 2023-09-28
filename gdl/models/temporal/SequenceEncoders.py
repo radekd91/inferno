@@ -118,7 +118,7 @@ class SimpleTransformerSequenceEncoder(SequenceEncoder):
         self.pos_encoder = pe_type(d_model=cfg.feature_dim, **pe_kwargs)
 
         self.input_feature_dim_ = self.cfg.get('input_feature_dim', None) or self.cfg.feature_dim 
-        if self.input_feature_dim_ is not None and self.input_feature_dim != self.cfg.feature_dim:
+        if self.input_feature_dim_ is not None and self.input_feature_dim() != self.cfg.feature_dim:
             self.input_projection = torch.nn.Linear(self.input_feature_dim_, self.cfg.feature_dim)
         else:
             self.input_projection = None
@@ -128,14 +128,16 @@ class SimpleTransformerSequenceEncoder(SequenceEncoder):
                     dropout=cfg.dropout, batch_first=True, )        
         self.transformer_encoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=cfg.num_layers)
 
-    def forward(self, sample, input_key='fused_feature'):
+    def forward(self, sample, input_key=None, output_key=None, training=False, validation=False):
+        input_key = input_key or self.cfg.input_key or 'fused_feature'
+        output_key = output_key or self.cfg.output_key or "seq_encoder_output"
         feat = sample[input_key] 
         if self.input_projection is not None:
             feat = self.input_projection(feat)
         if self.pos_encoder is not None:
             feat = self.pos_encoder(feat.transpose(1, 0)).transpose(0,1)
         out = self.transformer_encoder.forward(feat) 
-        sample["seq_encoder_output"] = out 
+        sample[output_key] = out 
         return sample
 
     def get_trainable_parameters(self): 
