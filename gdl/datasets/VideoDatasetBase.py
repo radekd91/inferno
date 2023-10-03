@@ -825,16 +825,19 @@ class VideoDatasetBase(AbstractVideoDataset):
             else: 
                 appearance = None
         elif (reconstructions_dir / "shape_pose_cam.pkl").exists(): # reconstructions are saved in a single pickle
-            shape_pose_cam = load_reconstruction_list(reconstructions_dir / "shape_pose_cam.pkl")
+            shape_pose_cam = load_reconstruction_list(reconstructions_dir / "shape_pose_cam.pkl", 
+                                                         start_frame=start_frame, end_frame=end_frame)
             if appearance:
-                appearance = load_reconstruction_list(reconstructions_dir / "appearance.pkl")
+                appearance = load_reconstruction_list(reconstructions_dir / "appearance.pkl", 
+                                                         start_frame=start_frame, end_frame=end_frame)
             else: 
                 appearance = None
 
-            if start_frame is not None and end_frame is not None:
-                shape_pose_cam = {key: shape_pose_cam[key][start_frame: end_frame] for key in shape_pose_cam.keys()}
-                if appearance is not None:
-                    appearance = {key: appearance[key][start_frame: end_frame] for key in appearance.keys()}
+            ## should no longer be necessary as the start/end frame is now handled in the load_reconstruction_list function
+            # if start_frame is not None and end_frame is not None:
+            #     shape_pose_cam = {key: shape_pose_cam[key][:, start_frame: end_frame] for key in shape_pose_cam.keys()}
+            #     if appearance is not None:
+            #         appearance = {key: appearance[key][:, start_frame: end_frame] for key in appearance.keys()}
         else: 
             raise RuntimeError(f"Reconstruction file not found in {reconstructions_dir}")
         # for key in shape_pose_cam.keys():

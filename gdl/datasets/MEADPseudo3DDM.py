@@ -42,7 +42,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 landmark_types = None,
                 landmark_sources = None,
                 segmentation_source = None,
-
+                segmentation_type=None,
                 preload_videos=False,
                 read_video=True,
                 read_audio=True,
@@ -53,6 +53,8 @@ class MEADPseudo3DDM(MEADDataModule):
                 emotion_type=None,
                 return_emotion_feature=False,
                 shuffle_validation=False,
+                align_images=False,
+                return_mica_images=False,
             ):
         super().__init__(root_dir, output_dir, processed_subfolder, face_detector, 
             landmarks_from, 
@@ -80,9 +82,12 @@ class MEADPseudo3DDM(MEADDataModule):
             landmark_types=landmark_types,
             landmark_sources=landmark_sources,
             segmentation_source=segmentation_source,
+            segmentation_type=segmentation_type,
             read_video=read_video,
             read_audio=read_audio,
             shuffle_validation=shuffle_validation,
+            align_images=align_images,
+            return_mica_images=return_mica_images,
             )
         self.test_condition_source = test_condition_source or "original"
         self.test_condition_settings = test_condition_settings
@@ -164,6 +169,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 average_shape_decode=self.average_shape_decode,
                 emotion_type=self.emotion_type,
                 return_emotion_feature=self.return_emotion_feature,
+                return_mica_images=self.return_mica_images,
             )
         validation_set._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
         return validation_set
@@ -199,6 +205,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 average_shape_decode=self.average_shape_decode,
                 emotion_type=self.emotion_type,
                 return_emotion_feature=self.return_emotion_feature,
+                return_mica_images=self.return_mica_images,
               )           
         self.validation_set = self._get_validation_set(val)
 
@@ -286,6 +293,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 average_shape_decode=self.average_shape_decode,
                 emotion_type=self.emotion_type,
                 return_emotion_feature=self.return_emotion_feature,
+                return_mica_images=self.return_mica_images,
                 )
 
         self.test_set_train_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
@@ -329,6 +337,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 average_shape_decode=self.average_shape_decode,
                 emotion_type=self.emotion_type,
                 return_emotion_feature=self.return_emotion_feature,
+                return_mica_images=self.return_mica_images,
                 )
         
         self.test_set_val_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
@@ -410,6 +419,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     average_shape_decode=self.average_shape_decode,
                     emotion_type=self.emotion_type,
                     return_emotion_feature=self.return_emotion_feature,
+                    return_mica_images=self.return_mica_images,
                     )
             
             self.test_set_train_cond_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
@@ -451,6 +461,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     average_shape_decode=self.average_shape_decode,
                     emotion_type=self.emotion_type,
                     return_emotion_feature=self.return_emotion_feature,
+                    return_mica_images=self.return_mica_images,
                     )
 
             self.test_set_val_cond_neutral_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
@@ -507,6 +518,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     average_shape_decode=self.average_shape_decode,
                     emotion_type=self.emotion_type,
                     return_emotion_feature=self.return_emotion_feature,
+                    return_mica_images=self.return_mica_images,
                     )
 
             self.test_set_val_cond_happy_3_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
@@ -545,6 +557,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     average_shape_decode=self.average_shape_decode,
                     emotion_type=self.emotion_type,
                     return_emotion_feature=self.return_emotion_feature,
+                    return_mica_images=self.return_mica_images,
                     )
             self.test_set_val_cond_sad_1_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
             self.test_set_val_cond_sad_1 = ConditionedVideoTestDatasetWrapper(
@@ -584,6 +597,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     average_shape_decode=self.average_shape_decode,
                     emotion_type=self.emotion_type,
                     return_emotion_feature=self.return_emotion_feature,
+                    return_mica_images=self.return_mica_images,
                     )
             self.test_set_val_cond_sad_2_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
             self.test_set_val_cond_sad_2 = ConditionedVideoTestDatasetWrapper(
@@ -622,6 +636,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     average_shape_decode=self.average_shape_decode,
                     emotion_type=self.emotion_type,
                     return_emotion_feature=self.return_emotion_feature,
+                    return_mica_images=self.return_mica_images,
                     )
 
             self.test_set_val_cond_sad_3_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
@@ -848,6 +863,7 @@ class MEADPseudo3dDataset(MEADDataset):
             include_raw_audio=True,
             emotion_type=None,
             return_emotion_feature=False,
+            return_mica_images=False,
             ) -> None:
         super().__init__(root_path, output_dir, video_list, 
             video_metas, video_indices, audio_metas, sequence_length, audio_noise_prob, stack_order_audio, audio_normalization, 
@@ -878,6 +894,7 @@ class MEADPseudo3dDataset(MEADDataset):
             average_shape_decode = average_shape_decode,
             emotion_type = emotion_type,
             return_emotion_feature = return_emotion_feature,
+            return_mica_images = return_mica_images,
             )
         # self.read_video = read_video
 

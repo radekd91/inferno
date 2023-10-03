@@ -120,7 +120,7 @@ class MEADDataModule(FaceVideoDataModule):
             preload_videos=False,
             inflate_by_video_size=False,
             ## end args of FaceVideoDataModule
-            ## begin CelebVHQDataModule specific params
+            ## begin MEADDataModule specific params
             training_sampler="uniform",
             landmark_types = None,
             landmark_sources=None,
