@@ -24,6 +24,16 @@ class FlameShapeModel(ShapeModel):
     def forward(self, sample):
         shapecode = sample["shapecode"]
         expcode = sample["expcode"]
+        if shapecode.shape[-1] < self.flame.cfg.n_shape:
+            # pad with zeros 
+            missing = self.flame.cfg.n_shape - shapecode.shape[-1]
+            shapecode = torch.cat([shapecode, torch.zeros([*shapecode.shape[:-1], missing], device=shapecode.device, dtype=shapecode.dtype)], dim=-1)
+        if expcode.shape[-1] < self.flame.cfg.n_exp:
+            # pad with zeros 
+            missing = self.flame.cfg.n_exp - expcode.shape[-1]
+            expcode = torch.cat([expcode, torch.zeros([*expcode.shape[:-1], missing], device=expcode.device, dtype=expcode.dtype)], dim=-1)
+
+        
         if "texcode" not in sample.keys():
             texcode = None
         else:
@@ -37,12 +47,19 @@ class FlameShapeModel(ShapeModel):
         
         posecode = torch.cat([globpose, jawpose], dim=-1)
 
-        if shapecode.ndim == 3:
-            B = shapecode.shape[0]
-            T = shapecode.shape[1]
+        if expcode.ndim == 3:
+            B = expcode.shape[0]
+            T = expcode.shape[1]
         else: 
-            B = shapecode.shape[0]
+            B = expcode.shape[0]
             T = None
+
+        if shapecode.ndim != expcode.ndim:
+            shapecode = shapecode.unsqueeze(1)
+            # repeat T times
+            shapecode = shapecode.repeat(1, T, 1)
+
+        assert shapecode.ndim == expcode.ndim, "Shape and expression code must have the same number of dimensions"
 
         # batch-temporal squeeze
         if T is not None:
@@ -66,8 +83,8 @@ class FlameShapeModel(ShapeModel):
         else: 
             raise ValueError(f"Unknown FLAME output shape: {len(out)}")
 
-        if self.uses_texture():
-            assert texcode is not None, "Texture code must be provided if using texture"
+        if self.uses_texture() and texcode is not None:
+            # assert texcode is not None, "Texture code must be provided if using texture"
             albedo = self.flametex(texcode)
         else: 
             # if not using texture, default to gray
