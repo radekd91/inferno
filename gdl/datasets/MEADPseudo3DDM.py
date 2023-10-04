@@ -170,6 +170,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 emotion_type=self.emotion_type,
                 return_emotion_feature=self.return_emotion_feature,
                 return_mica_images=self.return_mica_images,
+                original_image_size=self.processed_video_size,
             )
         validation_set._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
         return validation_set
@@ -206,6 +207,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 emotion_type=self.emotion_type,
                 return_emotion_feature=self.return_emotion_feature,
                 return_mica_images=self.return_mica_images,
+                original_image_size=self.processed_video_size,
               )           
         self.validation_set = self._get_validation_set(val)
 
@@ -253,6 +255,7 @@ class MEADPseudo3DDM(MEADDataModule):
         #             average_shape_decode=self.average_shape_decode,
         #             emotion_type=self.emotion_type,
         #             return_emotion_feature=self.return_emotion_feature,
+        #             original_image_size=self.processed_video_size,
         #             )
 
         #     self.test_set = ConditionedVideoTestDatasetWrapper(
@@ -294,6 +297,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 emotion_type=self.emotion_type,
                 return_emotion_feature=self.return_emotion_feature,
                 return_mica_images=self.return_mica_images,
+                original_image_size=self.processed_video_size,
                 )
 
         self.test_set_train_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
@@ -338,6 +342,7 @@ class MEADPseudo3DDM(MEADDataModule):
                 emotion_type=self.emotion_type,
                 return_emotion_feature=self.return_emotion_feature,
                 return_mica_images=self.return_mica_images,
+                original_image_size=self.processed_video_size,
                 )
         
         self.test_set_val_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
@@ -379,6 +384,7 @@ class MEADPseudo3DDM(MEADDataModule):
             #             average_shape_decode=self.average_shape_decode,
             #             emotion_type=self.emotion_type,
             #             return_emotion_feature=self.return_emotion_feature,
+            #             original_image_size=self.processed_video_size,
             #             )
 
             #     self.test_set_cond = ConditionedVideoTestDatasetWrapper(
@@ -420,6 +426,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     emotion_type=self.emotion_type,
                     return_emotion_feature=self.return_emotion_feature,
                     return_mica_images=self.return_mica_images,
+                    original_image_size=self.processed_video_size,
                     )
             
             self.test_set_train_cond_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
@@ -462,6 +469,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     emotion_type=self.emotion_type,
                     return_emotion_feature=self.return_emotion_feature,
                     return_mica_images=self.return_mica_images,
+                    original_image_size=self.processed_video_size,
                     )
 
             self.test_set_val_cond_neutral_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
@@ -519,6 +527,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     emotion_type=self.emotion_type,
                     return_emotion_feature=self.return_emotion_feature,
                     return_mica_images=self.return_mica_images,
+                    original_image_size=self.processed_video_size,
                     )
 
             self.test_set_val_cond_happy_3_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
@@ -558,6 +567,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     emotion_type=self.emotion_type,
                     return_emotion_feature=self.return_emotion_feature,
                     return_mica_images=self.return_mica_images,
+                    original_image_size=self.processed_video_size,
                     )
             self.test_set_val_cond_sad_1_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
             self.test_set_val_cond_sad_1 = ConditionedVideoTestDatasetWrapper(
@@ -598,6 +608,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     emotion_type=self.emotion_type,
                     return_emotion_feature=self.return_emotion_feature,
                     return_mica_images=self.return_mica_images,
+                    original_image_size=self.processed_video_size,
                     )
             self.test_set_val_cond_sad_2_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
             self.test_set_val_cond_sad_2 = ConditionedVideoTestDatasetWrapper(
@@ -637,6 +648,7 @@ class MEADPseudo3DDM(MEADDataModule):
                     emotion_type=self.emotion_type,
                     return_emotion_feature=self.return_emotion_feature,
                     return_mica_images=self.return_mica_images,
+                    original_image_size=self.processed_video_size,
                     )
 
             self.test_set_val_cond_sad_3_._set_identity_label(self.training_set.identity_labels, self.training_set.identity_label2index)
@@ -864,6 +876,7 @@ class MEADPseudo3dDataset(MEADDataset):
             emotion_type=None,
             return_emotion_feature=False,
             return_mica_images=False,
+            original_image_size = None,
             ) -> None:
         super().__init__(root_path, output_dir, video_list, 
             video_metas, video_indices, audio_metas, sequence_length, audio_noise_prob, stack_order_audio, audio_normalization, 
@@ -895,6 +908,7 @@ class MEADPseudo3dDataset(MEADDataset):
             emotion_type = emotion_type,
             return_emotion_feature = return_emotion_feature,
             return_mica_images = return_mica_images,
+            original_image_size = original_image_size,
             )
         # self.read_video = read_video
 

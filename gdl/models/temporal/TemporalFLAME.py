@@ -58,15 +58,19 @@ class FlameShapeModel(ShapeModel):
             shapecode = shapecode.unsqueeze(1)
             # repeat T times
             shapecode = shapecode.repeat(1, T, 1)
-
         assert shapecode.ndim == expcode.ndim, "Shape and expression code must have the same number of dimensions"
+
+        if texcode is not None and texcode.ndim != expcode.ndim:
+            texcode = texcode.unsqueeze(1)
+            # repeat T times
+            texcode = texcode.repeat(1, T, 1)
+        assert texcode.ndim == expcode.ndim, "Texture and expression code must have the same number of dimensions"
 
         # batch-temporal squeeze
         if T is not None:
             shapecode = shapecode.view(B*T, *shapecode.shape[2:])
             expcode = expcode.view(B*T, *expcode.shape[2:])
-            if texcode is not None:
-                texcode = texcode.view(B*T, *texcode.shape[2:])
+            texcode = texcode.view(B*T, *texcode.shape[2:])
             posecode = posecode.view(B*T, *posecode.shape[2:])
 
         out = self.flame(
