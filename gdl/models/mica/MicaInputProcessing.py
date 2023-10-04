@@ -34,7 +34,7 @@ class MicaInputProcessor(object):
             if self.mode == 'ported_insightface':
                 self.app.det_model = self.app.det_model.to(device)
 
-    def __call__(self, input_image, fan_landmarks=None):
+    def __call__(self, input_image, fan_landmarks=None, landmarks_validity=None):
         batched = len(input_image.shape) == 4
         if not batched:
             input_image = input_image.unsqueeze(0)
@@ -45,14 +45,14 @@ class MicaInputProcessor(object):
         elif self.mode in [False, 'none']: 
             mica_image = F.interpolate(input_image, (112,112), mode='bilinear', align_corners=False)
         elif self.mode == 'fan':
-            mica_image = self._fan_image_preprocessing(input_image, fan_landmarks)
+            mica_image = self._fan_image_preprocessing(input_image, fan_landmarks, landmarks_validity=landmarks_validity)
         else: 
             raise ValueError(f"Invalid mica_preprocessing option: '{self.mode}'")
         if not batched:
             mica_image = mica_image.squeeze(0)
         return mica_image
 
-    def _fan_image_preprocessing(self, input_image, fan_landmarks):
+    def _fan_image_preprocessing(self, input_image, fan_landmarks, landmarks_validity=None):
         # landmarks_torch = False
         if isinstance(fan_landmarks, torch.Tensor):
             fan_landmarks = fan_landmarks.detach().cpu().numpy()
@@ -88,7 +88,10 @@ class MicaInputProcessor(object):
         
         aligned_image_list = []
         for i in range(B): 
-            aimg = face_align.norm_crop(input_image[i], landmark=kpss[i])
+            if landmarks_validity is not None and landmarks_validity[i].item() == 0.:
+                aimg = resize(input_image[i], output_shape=(112,112), preserve_range=True).astype(np.uint8)
+            else:
+                aimg = face_align.norm_crop(input_image[i], landmark=kpss[i])
             aligned_image_list.append(aimg)
             # blob = cv2.dnn.blobFromImages([aimg], 1.0 / input_std, (112, 112), (input_mean, input_mean, input_mean), swapRB=False)
 

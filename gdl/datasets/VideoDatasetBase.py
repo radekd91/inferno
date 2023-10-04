@@ -391,18 +391,22 @@ class VideoDatasetBase(AbstractVideoDataset):
 
             if self.return_mica_image: 
                 fan_landmarks = None
+                landmarks_validity = None
                 if "landmarks" in sample.keys():
                     if isinstance(sample["landmarks"], dict):
                         if "fan3d" in sample["landmarks"].keys():
                             fan_landmarks = sample["landmarks"]["fan3d"]
+                            landmarks_validity = sample["landmarks_validity"]["fan3d"]
                         elif "fan" in sample["landmarks"].keys():
                             fan_landmarks = sample["landmarks"]["fan"]
+                            landmarks_validity = sample["landmarks_validity"]["fan"]
                     elif isinstance(sample["landmarks"], (np.ndarray, torch.Tensor)):
                         if sample["landmarks"].shape[1] == 68:
                             fan_landmarks = sample["landmarks"]
+                            landmarks_validity = sample["landmarks_validity"]
                 
-                sample["mica_video"] = self.mica_preprocessor(sample["video"], fan_landmarks)
-                sample["mica_video_masked"] = self.mica_preprocessor(sample["video_masked"], fan_landmarks)
+                sample["mica_video"] = self.mica_preprocessor(sample["video"], fan_landmarks, landmarks_validity=landmarks_validity)
+                sample["mica_video_masked"] = self.mica_preprocessor(sample["video_masked"], fan_landmarks, landmarks_validity=landmarks_validity)
 
 
         # # normalize landmarks 
@@ -544,8 +548,17 @@ class VideoDatasetBase(AbstractVideoDataset):
                     # from decord import cpu, gpu
                     # start_time = timeit.default_timer()
                     vr = VideoReader(video_path.as_posix(), ctx=cpu(0), width=self.image_size, height=self.image_size) 
-                    frames = vr.get_batch(range(start_frame,(start_frame + sequence_length)))  # get frames 10-19
+                    if len(vr) < sequence_length:
+                        sequence_length_ = len(vr)
+                    else: 
+                        sequence_length_ = sequence_length
+                    frames = vr.get_batch(range(start_frame,(start_frame + sequence_length_)))  
                     frames = frames.asnumpy()
+
+                    if sequence_length_ < sequence_length:
+                        # pad with zeros if video shorter than sequence length
+                        frames = np.concatenate([frames, np.zeros((sequence_length - frames.shape[0], frames.shape[1], frames.shape[2], frames.shape[3]), dtype=frames.dtype)])
+
                     # end_time = timeit.default_timer()
                     # print(f"Video read time: {end_time - start_time:.2f} s")
                 else: 
@@ -1168,7 +1181,7 @@ class VideoDatasetBase(AbstractVideoDataset):
                 appearance['tex'] = (weights[:appearance['tex'].shape[0]] * appearance['tex']).sum(axis=0, keepdims=False)
                 # appearance = np.tile(appearance, (appearance['tex'].shape[0], 1))
             else:
-                appearance = appearance['tex']
+                # appearance = appearance['tex']
                 if  shape_pose_cam['exp'].shape[0] < sequence_length:
                     appearance['tex'] = np.concatenate([appearance['tex'], 
                                                         np.zeros((sequence_length - appearance['tex'].shape[0], appearance['tex'].shape[1]))], 

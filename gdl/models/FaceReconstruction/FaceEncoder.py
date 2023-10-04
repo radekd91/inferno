@@ -150,18 +150,22 @@ class MicaEncoder(FaceEncoderBase):
             else:
                 # time = timeit.default_timer()
                 fan_landmarks = None
+                landmarks_validity = None
                 if "landmarks" in batch.keys():
                     if isinstance(batch["landmarks"], dict):
                         if "fan3d" in batch["landmarks"].keys():
                             fan_landmarks = batch["landmarks"]["fan3d"]
+                            landmarks_validity = batch["landmarks_validity"]["fan3d"]
                         elif "fan" in batch["landmarks"].keys():
                             fan_landmarks = batch["landmarks"]["fan"]
+                            landmarks_validity = batch["landmarks_validity"]["fan"]
                     elif isinstance(batch["landmarks"], (np.ndarray, torch.Tensor)):
                         if batch["landmarks"].shape[1] == 68:
                             fan_landmarks = batch["landmarks"]
+                            landmarks_validity = batch["landmarks_validity"]
                 print("[WARNING] Processing MICA image in forward pass. This is very inefficient for training."\
                     " Please precompute the MICA images in the data loader.")
-                mica_image = self.mica_preprocessor(image, fan_landmarks)
+                mica_image = self.mica_preprocessor(image, fan_landmarks, landmarks_validity=landmarks_validity)
                 # time_preproc = timeit.default_timer()
                 # print(f"Time preprocessing:\t{time_preproc - time:0.05f}")
             mica_encoding = self.E_mica.encode(image, mica_image) 
