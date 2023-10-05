@@ -1,10 +1,13 @@
 from skimage.io import imsave
+from skvideo.io import vwrite
 from pathlib import Path
-from wandb import Image
+from wandb import Image, Video
 import numpy as np
+import soundfile as sf
+from gdl.utils.video import combine_video_audio
 
 
-def _fix_image( image):
+def _fix_image(image):
     if image.max() < 30.: #ugly hack just to find out if range is [0-1] or [0-255]
         image = image * 255.
     image = np.clip(image, 0, 255).astype(np.uint8)
@@ -37,3 +40,37 @@ def _torch_image2np(torch_image):
     elif len(image.shape) == 3:
         image = image.transpose([1, 2, 0])
     return image
+
+
+def _log_wandb_video(path, video_frames, fps, audio=None, audio_samplerate=None, caption=None):
+    _log_array_video(path, video_frames, fps, audio=audio, audio_samplerate=audio_samplerate, caption=caption)
+    wandb_vid = Video(str(path), caption=caption)
+    return wandb_vid
+
+
+def _log_array_video(path, video_frames, fps, audio=None, audio_samplerate=None, caption=None):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    video_frames = _fix_image(video_frames)
+    # write video with the given fps and audio (if any)
+    vwrite(path, video_frames, inputdict={'-r': str(fps)}, outputdict={'-r': str(fps)})
+
+    if audio is not None:
+        audio_path = Path(path).parent / (Path(path).stem + ".wav")
+        sf.write(audio_path, audio, samplerate=audio_samplerate)
+
+        video_with_sound_path = Path(path).parent / (Path(path).stem + "_with_sound.mp4")
+        combine_video_audio(str(video_with_sound_path), str(audio_path), str(path))
+        # remove audio file
+        audio_path.unlink()
+        # remove video file without audio
+        path.unlink()
+        # rename video file with audio
+        video_with_sound_path.rename(path)
+
+    if caption is not None:
+        caption_file = Path(path).parent / (Path(path).stem + ".txt")
+        with open(caption_file, "w") as f:
+            f.write(caption)
+
+    return video_frames
+
