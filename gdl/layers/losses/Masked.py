@@ -32,6 +32,8 @@ class MaskedLoss(torch.nn.Module):
                 loss = loss.mean(dim=dims_to_collapse)
             elif self.reduction == 'sum':
                 loss = loss.sum(dim=dims_to_collapse)
+        
+        assert loss.shape == mask.shape, f"loss and mask shapes must match, got {loss.shape} and {mask.shape}"
         loss = loss * mask
         
         reduction_dim = self.starting_dim_to_collapse - 1
