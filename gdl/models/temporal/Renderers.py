@@ -267,9 +267,12 @@ class FixedViewFlameRenderer(FlameRenderer):
     def set_shape_model(self, shape_model):
         self.shape_model = shape_model
 
-    def forward(self, sample, train=False, input_key_prefix="gt_", output_prefix="predicted_", **kwargs):
-        verts = sample[input_key_prefix + "vertices"]
-        jaw = sample[input_key_prefix +  "jaw"]
+    def forward(self, sample, train=False, input_key_prefix="gt_", output_prefix="predicted_", vertex_keyword="vertices", **kwargs):
+        verts = sample[input_key_prefix + vertex_keyword]
+        if input_key_prefix + "jaw" in sample.keys():
+            jaw = sample[input_key_prefix +  "jaw"]
+        else:
+            jaw = None
         
         # create an extra dimension for the fixed views
         B, T, = verts.shape[:2]
@@ -296,7 +299,8 @@ class FixedViewFlameRenderer(FlameRenderer):
 
         # shape [B, T, #num cams, ...]
         verts = verts.unsqueeze(2)
-        jaw = jaw.unsqueeze(2)
+        if jaw is not None:
+            jaw = jaw.unsqueeze(2)
         albedo = albedo.unsqueeze(2)
 
         # repeat the fixed views
@@ -305,7 +309,8 @@ class FixedViewFlameRenderer(FlameRenderer):
         verts = verts.view(B, T, C, -1, 3)
         # albedo = albedo.repeat(1, 1, C, *_other_dims_a_repeat)
         albedo = albedo.expand(B, T, C, *_other_dims_a)
-        jaw = jaw.expand(B, T, C, jaw.shape[-1])
+        if jaw is not None:
+            jaw = jaw.expand(B, T, C, jaw.shape[-1])
 
         # collapse the cam dimension 
         # shape [B, T, #num cams, ...] -> [B, T * #num cams, ...]
@@ -336,6 +341,8 @@ class FixedViewFlameRenderer(FlameRenderer):
             neck_aa = neck_aa.expand(B, T, C, self.fixed_poses_aa.shape[-1])
             eyes_aa = eyes_aa.expand(B, T, C, self.fixed_poses_aa.shape[-1])
 
+            assert jaw is not None, "If projecting landmarks, the jaw pose needs to be passed in."
+
             full_pose = torch.cat([poses_aa, neck_aa, jaw, eyes_aa], dim=-1)
 
             landmarks_2d_posed = self.shape_model._vertices2landmarks2d(verts_posed.view(B * T * C, *verts_posed.shape[3:]), full_pose.view(B * T * C, *full_pose.shape[3:]) )
@@ -361,7 +368,7 @@ class FixedViewFlameRenderer(FlameRenderer):
         
         out_vid_name = output_prefix + self.output_image_keyword
         out_landmark_name = output_prefix + "landmarks_2d"
-        # out_verts_name = output_prefix + "trans_verts"
+        out_verts_name = output_prefix + "trans_verts"
         assert out_vid_name not in sample, f"Key '{out_vid_name}' already exists in sample. Please choose a different output_prefix to not overwrite and existing value"
         assert out_landmark_name not in sample, f"Key '{out_landmark_name}' already exists in sample. Please choose a different output_prefix to not overwrite and existing value"
         sample[out_vid_name] = {}
@@ -370,7 +377,7 @@ class FixedViewFlameRenderer(FlameRenderer):
             # out_mouth_vid_name = output_prefix + "mouth_video"
             out_mouth_vid_name = output_prefix + "mouth_" + self.output_image_keyword
             sample[out_mouth_vid_name] = {}
-        # sample[out_verts_name] = {}
+        sample[out_verts_name] = {}
         for ci, cam_name in enumerate(self.cam_names):
             # predicted_vid =  rendering_sample["predicted_video"][:, ci::C, ...]
             predicted_vid =  rendering_sample["predicted_" + self.output_image_keyword][:, ci::C, ...]
@@ -379,7 +386,7 @@ class FixedViewFlameRenderer(FlameRenderer):
             sample[out_vid_name][cam_name] = predicted_vid
             
             # sample[out_name][cam_name] = sample[out_name][cam_name].view(B, T, *sample[out_name][cam_name].shape[1:])
-            # sample[out_verts_name][cam_name] = rendering_sample["trans_verts"][:, ci::C, ...]
+            sample[out_verts_name][cam_name] = rendering_sample["trans_verts"][:, ci::C, ...]
             if self.project_landmarks:
                 sample[out_landmark_name][cam_name] = rendering_sample["predicted_landmarks"][:, ci::C, ...]
 
