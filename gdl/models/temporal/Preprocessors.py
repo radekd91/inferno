@@ -192,13 +192,13 @@ class FaceRecPreprocessor(Preprocessor):
 
         self.cfg = cfg
         if not Path(cfg.model_name).is_absolute():
-            self.model_name = get_path_to_assets() / "FaceReconstruction/models"
+            self.model_name = get_path_to_assets() / "FaceReconstruction/models" / cfg.model_name
         else:
             self.model_name = Path(cfg.model_name)
         self.return_global_pose = cfg.get('return_global_pose', False)
         face_rec_cfg = omegaconf.OmegaConf.load(self.model_name / "cfg.yaml")
 
-        checkpoint = locate_checkpoint(face_rec_cfg.coarse, mode = "best")
+        checkpoint = locate_checkpoint(face_rec_cfg.coarse, mode = self.cfg.get("checkpoint_mode", "best"))
         self.model = FaceReconstructionBase.instantiate(face_rec_cfg.coarse, checkpoint=checkpoint)
         
         for p in self.model.parameters():

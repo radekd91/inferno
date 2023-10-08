@@ -44,6 +44,7 @@ from gdl.datasets.IO import (save_emotion, save_segmentation_list, save_reconstr
                              load_reconstruction_list_v2
                              )
 from PIL import Image, ImageDraw, ImageFont
+from gdl.utils.other import get_path_to_assets
 import cv2
 from skimage.io import imread
 from skvideo.io import vreader, vread
@@ -989,7 +990,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
     def _get_reconstruction_net_v2(self, device, rec_method="emoca"): 
         device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        if "FaceReconstruction" in rec_method:
+        if "FaceReconstruction" in rec_method or (get_path_to_assets() / "FaceReconstruction/models" / rec_method).exists():
             if hasattr(self, '_facerecon') and self._facerecon is not None and rec_method in self._facerecon.keys(): 
                 return self._facerecon[rec_method].to(device)
             else: 
