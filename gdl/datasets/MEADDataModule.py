@@ -408,7 +408,7 @@ class MEADDataModule(FaceVideoDataModule):
             #                'EMICA_v0_mp_lr_mse_15', 'EMICA_v0_mp_lr_mse_20']
             # rec_methods = [ 'EMICA_v0_mp_lr_cos_1']
             # rec_methods = ['EMICA_mead_mp_lr_mse_15']
-            rec_methods = ['EMICA_mead_lr_mse_20']
+            rec_methods = ['EMICA_mead_lr_mse_20', 'EMICA_mead_lr_mse_20_aug']
             # rec_methods = ['EMICA_v0_mp', 'EMICA_v0_mp_lr_cos_1', 'EMICA_v0_mp_lr_cos_1.5', \
             #         'EMICA_v0_mp_lr_mse_15', 'EMICA_v0_mp_lr_mse_20']
             # rec_methods = ['EMICA_v0_mp_lr_mse_15']
