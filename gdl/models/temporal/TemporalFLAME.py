@@ -64,13 +64,14 @@ class FlameShapeModel(ShapeModel):
             texcode = texcode.unsqueeze(1)
             # repeat T times
             texcode = texcode.repeat(1, T, 1)
-        assert texcode.ndim == expcode.ndim, "Texture and expression code must have the same number of dimensions"
+            assert texcode.ndim == expcode.ndim, "Texture and expression code must have the same number of dimensions"
 
         # batch-temporal squeeze
         if T is not None:
             shapecode = shapecode.view(B*T, *shapecode.shape[2:])
             expcode = expcode.view(B*T, *expcode.shape[2:])
-            texcode = texcode.view(B*T, *texcode.shape[2:])
+            if self.uses_texture() and texcode is not None:
+                texcode = texcode.view(B*T, *texcode.shape[2:])
             posecode = posecode.view(B*T, *posecode.shape[2:])
 
         out = self.flame(
@@ -106,7 +107,8 @@ class FlameShapeModel(ShapeModel):
                 landmarks2d_mediapipe = landmarks2d_mediapipe.view(B, T, *landmarks2d_mediapipe.shape[1:])
             # if landmarks3d_mediapipe is not None:
             #     landmarks3d_mediapipe = landmarks3d_mediapipe.view(B, T, *landmarks3d_mediapipe.shape[1:])
-            albedo = albedo.view(B, T, *albedo.shape[1:])
+            if self.uses_texture() and texcode is not None:
+                albedo = albedo.view(B, T, *albedo.shape[1:])
         
         sample["verts"] = verts
         sample["predicted_landmarks2d_flame_space"] = landmarks2d
@@ -115,8 +117,8 @@ class FlameShapeModel(ShapeModel):
             sample["predicted_landmarks2d_mediapipe_flame_space"] = landmarks2d_mediapipe
         # if landmarks3d_mediapipe is not None:
         #     sample["predicted_landmarks3d_mediapipe"] = landmarks3d_mediapipe
-            
-        sample["albedo"] = albedo
+        if self.uses_texture() and texcode is not None:
+            sample["albedo"] = albedo
         return sample
 
     def get_landmarks_2d(self, vertices, full_pose):
