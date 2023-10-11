@@ -353,6 +353,16 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
                     print(e)
                     suffix = f"_{bi * batch_size + b}"
 
+            out_audio_path = output_dir / f"{suffix[1:]}" / f"audio.wav"
+            import soundfile as sf
+            orig_audio, sr = librosa.load(audio_path) 
+            ## prepend the silent frames
+            if silent_start > 0:
+                orig_audio = np.concatenate([np.zeros(int(silent_start * sr / 25), dtype=orig_audio.dtype), orig_audio], axis=0)
+            if silent_end > 0:
+                orig_audio = np.concatenate([orig_audio, np.zeros(int(silent_end * sr / 25 , ), dtype=orig_audio.dtype)], axis=0)
+
+
             if talking_head.render_results:
                 predicted_mouth_video = batch["predicted_video"]["front"][b]
 
@@ -360,8 +370,7 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
                 save_video(out_video_path, predicted_mouth_video, fourcc="mp4v", fps=25)
                 
                 out_audio_path = output_dir / f"{suffix[1:]}" / f"audio.wav"
-                import soundfile as sf
-                sf.write(out_audio_path, batch["raw_audio"][b].view(-1).detach().cpu().numpy(), samplerate=16000)
+                sf.write(out_audio_path, orig_audio, samplerate=sr)
 
                 out_video_with_audio_path = output_dir / f"{suffix[1:]}" / f"pytorch_video_with_audio_{suffix}.mp4"
 
@@ -397,7 +406,8 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
 
                 audio_link_path = output_dir / f"{suffix[1:]}" / "audio.wav"
                 if not audio_link_path.exists():
-                    os.symlink(audio_path, audio_link_path)
+                    sf.write(audio_link_path, orig_audio, samplerate=sr)
+                    # os.symlink(audio_path, audio_link_path)
 
             if pyrender_videos:
                 if out_video_with_audio_path.exists() and not overwrite:
@@ -417,14 +427,6 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
 
                 save_video(out_video_path, pred_images, fourcc="mp4v", fps=25)
 
-                out_audio_path = output_dir / f"{suffix[1:]}" / f"audio.wav"
-                import soundfile as sf
-                orig_audio, sr = librosa.load(audio_path) 
-                ## prepend the silent frames
-                if silent_start > 0:
-                    orig_audio = np.concatenate([np.zeros(int(silent_start * sr / 25), dtype=orig_audio.dtype), orig_audio], axis=0)
-                if silent_end > 0:
-                    orig_audio = np.concatenate([orig_audio, np.zeros(int(silent_end * sr / 25 , ), dtype=orig_audio.dtype)], axis=0)
 
                 # sf.write(out_audio_path, batch["raw_audio"][b].view(-1).detach().cpu().numpy(), samplerate=16000)
                 sf.write(out_audio_path,  orig_audio, samplerate=sr)
