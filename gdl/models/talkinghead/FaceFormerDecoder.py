@@ -175,7 +175,9 @@ class EmotionCondition(StyleConditioning):
                 # if expressions.ndim == 3: # B, T, num expressions
                 #     expressions = expressions.unsqueeze(1).expand(-1, T, -1)
             if expressions.ndim == 2: # B, num expressions, missing temporal dimension -> expand
-                expressions = expressions.unsqueeze(1).expand(-1, T, -1)
+                expressions = expressions.unsqueeze(1) 
+            if expressions.shape[1] == 1: # B, 1, num expressions -> expand
+                expressions = expressions.expand(-1, T, -1)
             expressions = expressions.to(dtype=torch.float32)
             assert expressions.ndim == 3, "Expressions must have 3 dimensions"
             condition += [expressions]
@@ -187,7 +189,9 @@ class EmotionCondition(StyleConditioning):
                 intensities = torch.nn.functional.one_hot(sample["gt_expression_intensity"] -1, 
                     num_classes=self.cfg.n_intensities).to(device=sample["gt_expression_intensity"].device)
             if intensities.ndim == 2: # B, num intensities, missing temporal dimension -> expand
-                intensities = intensities.unsqueeze(1).expand(-1, T, -1)
+                intensities = intensities.unsqueeze(1) 
+            if intensities.shape[1] == 1: # B, 1, num intensities -> expand    
+                intensities = intensities.expand(-1, T, -1)
             intensities = intensities.to(dtype=torch.float32)
             assert intensities.ndim == 3, "Intensities must have 3 dimensions"
             condition += [intensities]
@@ -200,7 +204,9 @@ class EmotionCondition(StyleConditioning):
                 identities = torch.nn.functional.one_hot(sample["gt_expression_identity"], 
                                                         num_classes=self.cfg.n_identities).to(device=sample["gt_expression_identity"].device)
             if identities.ndim == 2: # B, num identities, missing temporal dimension -> expand
-                identities = identities.unsqueeze(1).expand(-1, T, -1)
+                identities = identities.unsqueeze(1)
+            if identities.shape[1] == 1: # B, 1, num identities -> expand
+                identities = identities.expand(-1, T, -1)
             identities = identities.to(dtype=torch.float32)
             assert identities.ndim == 3, "Identities must have 3 dimensions"
             condition += [identities]

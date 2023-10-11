@@ -75,22 +75,29 @@ def interpolate_condition(sample_1, sample_2, length, interpolation_type="linear
     return sample_result
 
 
-def eval_talking_head_on_audio(talking_head, audio_path):
+def eval_talking_head_on_audio(talking_head, audio_path, silent_frames_start=0, silent_frames_end=0, 
+    silent_emotion_start = 0, silent_emotion_end = 0):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     talking_head = talking_head.to(device)
     # talking_head.talking_head_model.preprocessor.to(device) # weird hack
-    sample = create_base_sample(talking_head, audio_path)
-    samples = create_id_emo_int_combinations(talking_head, sample)
-    # samples = create_high_intensity_emotions(talking_head, sample)
-    run_evalutation(talking_head, samples, audio_path)
+    sample = create_base_sample(talking_head, audio_path, silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end)
+    # samples = create_id_emo_int_combinations(talking_head, sample)
+    samples = create_high_intensity_emotions(talking_head, sample, 
+                                             silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, 
+                                            silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
+    run_evalutation(talking_head, samples, audio_path,  silent_start=silent_frames_start, silent_end=silent_frames_end)
     print("Done")
 
 
-def create_base_sample(talking_head, audio_path, smallest_unit=1):
+def create_base_sample(talking_head, audio_path, smallest_unit=1, silent_frames_start=0, silent_frames_end=0):
     wavdata, sampling_rate = read_audio(audio_path)
     sample = process_audio(wavdata, sampling_rate, video_fps=25)
     # pad the audio such that it is a multiple of the smallest unit
     sample["raw_audio"] = np.pad(sample["raw_audio"], (0, smallest_unit - sample["raw_audio"].shape[0] % smallest_unit))
+    if silent_frames_start > 0:
+        sample["raw_audio"] = np.concatenate([np.zeros((silent_frames_start, sample["raw_audio"].shape[1]), dtype=sample["raw_audio"].dtype), sample["raw_audio"]], axis=0)
+    if silent_frames_end > 0:
+        sample["raw_audio"] = np.concatenate([sample["raw_audio"], np.zeros((silent_frames_end, sample["raw_audio"].shape[1]), dtype=sample["raw_audio"].dtype)], axis=0)
     T = sample["raw_audio"].shape[0]
     sample["reconstruction"] = {}
     sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]] = {} 
@@ -145,7 +152,9 @@ def create_id_emo_int_combinations(talking_head, sample):
     return samples
 
 
-def create_high_intensity_emotions(talking_head, sample, identity_idx=None, emotion_index_list=None):
+def create_high_intensity_emotions(talking_head, sample, identity_idx=None, emotion_index_list=None, 
+                                   silent_frames_start=0, silent_frames_end=0, 
+                                   silent_emotion_start = 0, silent_emotion_end = 0):
     samples = []
     training_subjects = talking_head.get_subject_labels('training')
     # for identity_idx in range(0, talking_head.get_num_identities()): 
@@ -162,6 +171,22 @@ def create_high_intensity_emotions(talking_head, sample, identity_idx=None, emot
                                         emotions=[emo_idx], 
                                         identities=[identity_idx], 
                                         intensities=[int_idx])
+        if silent_frames_start > 0:
+            T = sample_copy["raw_audio"].shape[0]
+            cond = sample_copy["gt_expression_label_condition"]
+            if cond.shape[0] == 1:
+                cond = cond.repeat(T, axis=0)
+            cond[:silent_frames_start] = 0 
+            cond[:silent_frames_start, silent_emotion_start] = 1
+            sample_copy["gt_expression_label_condition"]= cond
+        if silent_frames_end > 0:
+            T = sample_copy["raw_audio"].shape[0]
+            cond = sample_copy["gt_expression_label_condition"]
+            if cond.shape[0] == 1:
+                cond = cond.repeat(T, axis=0)
+            cond[-silent_frames_end:] = 0
+            cond[-silent_frames_end:, silent_emotion_end] = 1
+
 
         sample_copy["output_name"] = create_name(int_idx, emo_idx, identity_idx, training_subjects)
 
@@ -180,7 +205,20 @@ class TestDataset(torch.utils.data.Dataset):
         return self.samples[idx]
 
 
-def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_meshes=False, pyrender_videos=True, out_folder = None):
+def interpolate_predictions(first_expression, last_expression, first_jaw_pose, last_jaw_pose, static_frames_start, static_frames_end, num_mouth_closure_frames):
+    num_interpolation_frames = num_mouth_closure_frames
+    weights = torch.from_numpy( np.linspace(0, 1, num_interpolation_frames)[np.newaxis, ..., np.newaxis]).to(first_expression.device)
+    ## add the static frames 
+    weights = torch.cat([torch.zeros((1, static_frames_start, 1), dtype=weights.dtype, device=weights.device), weights], dim=1)
+    weights = torch.cat([weights, torch.ones((1, static_frames_end, 1), dtype=weights.dtype, device=weights.device)], dim=1)
+    interpolated_jaw_pose = last_jaw_pose * weights + first_jaw_pose * (1 - weights)
+    interpolated_expression = last_expression * weights.repeat(1,1, 50)  + first_expression * (1 - weights.repeat(1,1, 50))
+    return interpolated_expression.float(), interpolated_jaw_pose.float()
+
+
+def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_meshes=False, pyrender_videos=True, out_folder = None, 
+                    silent_start=5, silent_end=5,
+                    manual_mouth_closure_start=5, manual_mouth_closure_end=5):
     batch_size = 1
     try:
         template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply" 
@@ -219,6 +257,84 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
         with torch.no_grad():
             batch = talking_head(batch)
 
+        if manual_mouth_closure_start > 0: 
+            # first jaw pose 
+            last_jaw_pose = batch['predicted_jaw'][:,manual_mouth_closure_start]
+            first_jaw_pose = torch.zeros_like(batch['predicted_jaw'][:,0])
+
+            last_expression = batch['predicted_exp'][:,manual_mouth_closure_start] 
+            first_expression = torch.zeros_like(batch['predicted_exp'][:,0])
+
+            num_interpolation_frames = manual_mouth_closure_start
+            interpolated_expression, interpolated_jaw_pose = interpolate_predictions(first_expression, last_expression, first_jaw_pose, last_jaw_pose, 
+                                                                                     static_frames_start=silent_start - manual_mouth_closure_start, 
+                                                                                     num_mouth_closure_frames=manual_mouth_closure_start, 
+                                                                                     static_frames_end = 0)
+            interpolated_expression = torch.zeros_like(interpolated_expression) + last_expression[:, None]
+
+            ## add silence to the audio 
+            # silence = torch.zeros((batch["raw_audio"].shape[0], num_interpolation_frames, batch["raw_audio"].shape[2]), dtype=batch["raw_audio"].dtype, device=batch["raw_audio"].device)
+            # batch["raw_audio"] = torch.cat([silence, batch["raw_audio"]], dim=1)
+            # batch["predicted_jaw"] = torch.cat([interpolated_jaw_pose, batch["predicted_jaw"]], dim=1)
+            # batch["predicted_exp"] = torch.cat([interpolated_expression, batch["predicted_exp"]], dim=1)
+            batch["predicted_jaw"][:, :interpolated_jaw_pose.shape[1]] = interpolated_jaw_pose
+            # batch["predicted_exp"][:, :interpolated_expression.shape[1]]  = interpolated_expression
+            
+            # pass the interpolated part through FLAME 
+            flame = talking_head.talking_head_model.sequence_decoder.get_shape_model()
+
+            pose = torch.cat([torch.zeros_like(interpolated_jaw_pose),interpolated_jaw_pose], dim=-1) 
+            exp = batch["predicted_exp"][:, :interpolated_expression.shape[1]]
+            B_, T_ = exp.shape[:2]
+            exp = exp.view(B_ * T_, -1)
+            pose = pose.view(B_ * T_, -1)
+            shape = batch["gt_shape"]
+            shape = shape[:,None, ...].repeat(1, T_, 1).contiguous().view(B_ * T_, -1)
+            predicted_verts, _, _ = flame(shape, exp, pose)
+            predicted_verts = predicted_verts.reshape(B_, T_, -1) 
+            # batch["predicted_vertices"] = torch.cat([predicted_verts, batch["predicted_vertices"]], dim=1) 
+            batch["predicted_vertices"][:, :predicted_verts.shape[1]] = predicted_verts
+
+        
+        if manual_mouth_closure_end > 0:
+            first_jaw_pose = batch['predicted_jaw'][:,-manual_mouth_closure_end]
+            last_jaw_pose = torch.zeros_like(batch['predicted_jaw'][:,-1])
+
+            first_expression = batch['predicted_exp'][:,-manual_mouth_closure_end]
+            last_expression = torch.zeros_like(batch['predicted_exp'][:,-1])
+
+            num_interpolation_frames = manual_mouth_closure_end
+            interpolated_expression, interpolated_jaw_pose = interpolate_predictions(first_expression, last_expression, first_jaw_pose, last_jaw_pose, 
+                                                                                     static_frames_start=0, 
+                                                                                     num_mouth_closure_frames=manual_mouth_closure_end, 
+                                                                                     static_frames_end = silent_end - manual_mouth_closure_end)
+            interpolated_expression = torch.zeros_like(interpolated_expression) + first_expression[:, None]
+
+            ## add silence to the audio
+            # silence = torch.zeros((batch["raw_audio"].shape[0], num_interpolation_frames, batch["raw_audio"].shape[2]), dtype=batch["raw_audio"].dtype, device=batch["raw_audio"].device)
+            # batch["raw_audio"] = torch.cat([batch["raw_audio"], silence], dim=1)
+            # batch["predicted_jaw"] = torch.cat([batch["predicted_jaw"], interpolated_jaw_pose], dim=1)
+            # batch["predicted_exp"] = torch.cat([batch["predicted_exp"], interpolated_expression], dim=1)
+            batch["predicted_jaw"][:, -interpolated_jaw_pose.shape[1]:] = interpolated_jaw_pose
+            # batch["predicted_exp"][:, -interpolated_expression.shape[1]:]  = interpolated_expression
+
+            # pass the interpolated part through FLAME
+            flame = talking_head.talking_head_model.sequence_decoder.get_shape_model()
+
+            pose = torch.cat([torch.zeros_like(interpolated_jaw_pose), interpolated_jaw_pose], dim=-1)
+            exp = batch["predicted_exp"][:, -interpolated_expression.shape[1]:] 
+            B_, T_ = exp.shape[:2]
+            exp = exp.view(B_ * T_, -1)
+            pose = pose.view(B_ * T_, -1)
+            shape = batch["gt_shape"]
+            shape = shape[:,None, ...].repeat(1, T_, 1).contiguous().view(B_ * T_, -1)
+            predicted_verts, _, _ = flame(shape, exp, pose)
+            predicted_verts = predicted_verts.reshape(B_, T_, -1)
+            # batch["predicted_vertices"] = torch.cat([batch["predicted_vertices"], predicted_verts], dim=1)
+            batch["predicted_vertices"][:, -predicted_verts.shape[1]:] = predicted_verts
+
+
+
         B = batch["predicted_vertices"].shape[0]
         for b in range(B):
 
@@ -240,20 +356,24 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
             if talking_head.render_results:
                 predicted_mouth_video = batch["predicted_video"]["front"][b]
 
-
                 out_video_path = output_dir / f"{suffix[1:]}" / f"pytorch_video.mp4"
                 save_video(out_video_path, predicted_mouth_video, fourcc="mp4v", fps=25)
                 
+                out_audio_path = output_dir / f"{suffix[1:]}" / f"audio.wav"
+                import soundfile as sf
+                sf.write(out_audio_path, batch["raw_audio"][b].view(-1).detach().cpu().numpy(), samplerate=16000)
+
                 out_video_with_audio_path = output_dir / f"{suffix[1:]}" / f"pytorch_video_with_audio_{suffix}.mp4"
 
                 # attach audio to video with ffmpeg
 
-                ffmpeg_cmd = f"ffmpeg -i {out_video_path} -i {audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
+                ffmpeg_cmd = f"ffmpeg -i {out_video_path} -i {out_audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
                 print(ffmpeg_cmd)
                 os.system(ffmpeg_cmd)
 
                 # delete video without audio
                 os.remove(out_video_path)
+                os.remove(out_audio_path)
 
             predicted_vertices = batch["predicted_vertices"][b]
             T = predicted_vertices.shape[0]
@@ -297,12 +417,25 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
 
                 save_video(out_video_path, pred_images, fourcc="mp4v", fps=25)
 
-                ffmpeg_cmd = f"ffmpeg -y -i {out_video_path} -i {audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
+                out_audio_path = output_dir / f"{suffix[1:]}" / f"audio.wav"
+                import soundfile as sf
+                orig_audio, sr = librosa.load(audio_path) 
+                ## prepend the silent frames
+                if silent_start > 0:
+                    orig_audio = np.concatenate([np.zeros(int(silent_start * sr / 25), dtype=orig_audio.dtype), orig_audio], axis=0)
+                if silent_end > 0:
+                    orig_audio = np.concatenate([orig_audio, np.zeros(int(silent_end * sr / 25 , ), dtype=orig_audio.dtype)], axis=0)
+
+                # sf.write(out_audio_path, batch["raw_audio"][b].view(-1).detach().cpu().numpy(), samplerate=16000)
+                sf.write(out_audio_path,  orig_audio, samplerate=sr)
+
+                ffmpeg_cmd = f"ffmpeg -y -i {out_video_path} -i {out_audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
                 print(ffmpeg_cmd)
                 os.system(ffmpeg_cmd)
 
                 # delete video without audio
                 os.remove(out_video_path)
+                os.remove(out_audio_path)
 
             chmod_cmd = f"find {str(output_dir)} -print -type d -exec chmod 775 {{}} +"
             os.system(chmod_cmd)
@@ -310,11 +443,19 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
 
 def read_audio(audio_path):
     sampling_rate = 16000
+    # try:
     wavdata, sampling_rate = librosa.load(audio_path, sr=sampling_rate)
+    # except ValueError: 
+    #     import soundfile as sf
+    #     wavdata, sampling_rate = sf.read(audio_path, channels=1, samplerate=16000,dtype=np.float32, subtype='PCM_32',format="RAW",endian='LITTLE')
     # wavdata, sampling_rate = librosa.load(audio_path, sr=sampling_rate)
     if wavdata.ndim > 1:
         wavdata = librosa.to_mono(wavdata)
     wavdata = (wavdata.astype(np.float64) * 32768.0).astype(np.int16)
+    # if longer than 30s cut it
+    if wavdata.shape[0] > 22 * sampling_rate:
+        wavdata = wavdata[:22 * sampling_rate]
+        print("Audio longer than 30s, cutting it to 30s")
     return wavdata, sampling_rate
 
 
@@ -456,10 +597,16 @@ def main():
         # audio = Path('/ps/project/EmotionalFacialAnimation/data/lrs3/extracted/test/0Fi83BHQsMA/00002.mp4')
         # audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/trainval/0af00UcTOSc/50001.wav')
         audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/pretrain/0akiEFwtkyA/00031.wav')
+        audio = Path('/home/rdanecek/Downloads/fastforward/01_gday.wav')
 
     model_path = Path(root) / resume_folder  
     talking_head = TalkingHeadWrapper(model_path, render_results=False)
-    eval_talking_head_on_audio(talking_head, audio)
+    eval_talking_head_on_audio(talking_head, audio, 
+                               silent_frames_start=30, 
+                               silent_frames_end=30, 
+                                silent_emotion_start=0, 
+                                silent_emotion_end=0,
+    )
     
 
 
