@@ -10,6 +10,7 @@ from tqdm.auto import tqdm
 from gdl.datasets.AffectNetAutoDataModule import AffectNetExpressions
 import trimesh
 import copy
+import soundfile as sf
 
 
 def create_condition(talking_head, sample, emotions=None, intensities=None, identities=None):
@@ -85,11 +86,39 @@ def eval_talking_head_on_audio(talking_head, audio_path, silent_frames_start=0, 
     samples = create_high_intensity_emotions(talking_head, sample, 
                                              silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, 
                                             silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
-    run_evalutation(talking_head, samples, audio_path,  silent_start=silent_frames_start, silent_end=silent_frames_end)
+    num_frames_to_open_mouth = 5
+    silent_intervals = [(0,silent_frames_start-num_frames_to_open_mouth),(-silent_frames_end+num_frames_to_open_mouth, -1)]
+    manual_mouth_openting_intervals = [(silent_frames_start-num_frames_to_open_mouth, silent_frames_start)]
+    manual_mouth_closure_intervals = [(-silent_frames_end, -silent_frames_end+num_frames_to_open_mouth)]
+
+    orig_audio, sr = librosa.load(audio_path) 
+    ## prepend the silent frames
+    if silent_frames_start > 0:
+        orig_audio = np.concatenate([np.zeros(int(silent_frames_start * sr / 25), dtype=orig_audio.dtype), orig_audio], axis=0)
+    if silent_frames_end > 0:
+        orig_audio = np.concatenate([orig_audio, np.zeros(int(silent_frames_end * sr / 25 , ), dtype=orig_audio.dtype)], axis=0)
+    
+    orig_audios = [(orig_audio, sr)]*len(samples)
+
+    run_evalutation(talking_head, 
+                    samples, 
+                    audio_path,  
+                    # silent_start=silent_frames_start, 
+                    # silent_end=silent_frames_end, 
+                    # manual_mouth_closure_start=5, 
+                    # manual_mouth_closure_end=5, 
+                    mouth_opening_intervals=manual_mouth_openting_intervals,
+                    mouth_closure_intervals=manual_mouth_closure_intervals,
+                    silent_intervals=silent_intervals,
+                    pyrender_videos=True,
+                    save_flame=False,
+                    save_meshes=False,
+                    original_audios=orig_audios
+                    )
     print("Done")
 
 
-def create_base_sample(talking_head, audio_path, smallest_unit=1, silent_frames_start=0, silent_frames_end=0):
+def create_base_sample(talking_head, audio_path, smallest_unit=1, silent_frames_start=0, silent_frames_end=0, silence_all=False):
     wavdata, sampling_rate = read_audio(audio_path)
     sample = process_audio(wavdata, sampling_rate, video_fps=25)
     # pad the audio such that it is a multiple of the smallest unit
@@ -98,6 +127,8 @@ def create_base_sample(talking_head, audio_path, smallest_unit=1, silent_frames_
         sample["raw_audio"] = np.concatenate([np.zeros((silent_frames_start, sample["raw_audio"].shape[1]), dtype=sample["raw_audio"].dtype), sample["raw_audio"]], axis=0)
     if silent_frames_end > 0:
         sample["raw_audio"] = np.concatenate([sample["raw_audio"], np.zeros((silent_frames_end, sample["raw_audio"].shape[1]), dtype=sample["raw_audio"].dtype)], axis=0)
+    if silence_all:
+        sample["raw_audio"] = np.zeros_like(sample["raw_audio"])
     T = sample["raw_audio"].shape[0]
     sample["reconstruction"] = {}
     sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]] = {} 
@@ -171,23 +202,31 @@ def create_high_intensity_emotions(talking_head, sample, identity_idx=None, emot
                                         emotions=[emo_idx], 
                                         identities=[identity_idx], 
                                         intensities=[int_idx])
-        if silent_frames_start > 0:
-            T = sample_copy["raw_audio"].shape[0]
-            cond = sample_copy["gt_expression_label_condition"]
+        # if silent_frames_start > 0:
+        T = sample_copy["raw_audio"].shape[0]
+        for key in ["gt_expression_label_condition", "gt_expression_identity_condition", "gt_expression_intensity_condition"]:
+            # cond = sample_copy["gt_expression_label_condition"]
+            cond = sample_copy[key]
             if cond.shape[0] == 1:
                 cond = cond.repeat(T, axis=0)
-            cond[:silent_frames_start] = 0 
-            cond[:silent_frames_start, silent_emotion_start] = 1
-            sample_copy["gt_expression_label_condition"]= cond
-        if silent_frames_end > 0:
-            T = sample_copy["raw_audio"].shape[0]
-            cond = sample_copy["gt_expression_label_condition"]
+                if key == "gt_expression_label_condition":
+                    cond[:silent_frames_start] = 0 
+                    cond[:silent_frames_start, silent_emotion_start] = 1
+            # sample_copy["gt_expression_label_condition"]= cond
+            sample_copy[key]= cond
+
+        # if silent_frames_end > 0:
+        T = sample_copy["raw_audio"].shape[0]
+
+        for key in ["gt_expression_label_condition", "gt_expression_identity_condition", "gt_expression_intensity_condition"]:
+            # cond = sample_copy["gt_expression_label_condition"]
+            cond = sample_copy[key]
             if cond.shape[0] == 1:
                 cond = cond.repeat(T, axis=0)
-            cond[-silent_frames_end:] = 0
-            cond[-silent_frames_end:, silent_emotion_end] = 1
-
-
+                if key == "gt_expression_label_condition":
+                    cond[-silent_frames_end:] = 0
+                    cond[-silent_frames_end:, silent_emotion_end] = 1
+            sample_copy[key] = cond
         sample_copy["output_name"] = create_name(int_idx, emo_idx, identity_idx, training_subjects)
 
         samples.append(sample_copy)
@@ -216,9 +255,20 @@ def interpolate_predictions(first_expression, last_expression, first_jaw_pose, l
     return interpolated_expression.float(), interpolated_jaw_pose.float()
 
 
-def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_meshes=False, pyrender_videos=True, out_folder = None, 
-                    silent_start=5, silent_end=5,
-                    manual_mouth_closure_start=5, manual_mouth_closure_end=5):
+def run_evalutation(talking_head, samples, audio_path, overwrite=False, 
+                    save_meshes=False, 
+                    pyrender_videos=True, 
+                    save_flame=False,
+                    out_folder = None, 
+                    # silent_start=0, 
+                    # silent_end=0, 
+                    # manual_mouth_closure_start=0, 
+                    mouth_opening_intervals=[(0, 0)],
+                    # manual_mouth_closure_end=0, 
+                    mouth_closure_intervals=[(0, 0)],
+                    silent_intervals=None,
+                    original_audios=None):
+    silent_intervals = silent_intervals or []
     batch_size = 1
     try:
         template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply" 
@@ -257,72 +307,127 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
         with torch.no_grad():
             batch = talking_head(batch)
 
-        if manual_mouth_closure_start > 0: 
-            # first jaw pose 
-            last_jaw_pose = batch['predicted_jaw'][:,manual_mouth_closure_start]
-            first_jaw_pose = torch.zeros_like(batch['predicted_jaw'][:,0])
+        for mouth_opening_interval_start, mouth_opening_interval_end in mouth_opening_intervals: 
+            T = batch["predicted_jaw"].shape[1]
+            if mouth_opening_interval_end < 0: 
+                mouth_opening_interval_end = T + mouth_opening_interval_end
+            if mouth_opening_interval_start < 0:
+                mouth_opening_interval_start = T + mouth_opening_interval_start
 
-            last_expression = batch['predicted_exp'][:,manual_mouth_closure_start] 
-            first_expression = torch.zeros_like(batch['predicted_exp'][:,0])
-
-            num_interpolation_frames = manual_mouth_closure_start
-            interpolated_expression, interpolated_jaw_pose = interpolate_predictions(first_expression, last_expression, first_jaw_pose, last_jaw_pose, 
-                                                                                     static_frames_start=silent_start - manual_mouth_closure_start, 
-                                                                                     num_mouth_closure_frames=manual_mouth_closure_start, 
-                                                                                     static_frames_end = 0)
-            interpolated_expression = torch.zeros_like(interpolated_expression) + last_expression[:, None]
-
-            ## add silence to the audio 
-            # silence = torch.zeros((batch["raw_audio"].shape[0], num_interpolation_frames, batch["raw_audio"].shape[2]), dtype=batch["raw_audio"].dtype, device=batch["raw_audio"].device)
-            # batch["raw_audio"] = torch.cat([silence, batch["raw_audio"]], dim=1)
-            # batch["predicted_jaw"] = torch.cat([interpolated_jaw_pose, batch["predicted_jaw"]], dim=1)
-            # batch["predicted_exp"] = torch.cat([interpolated_expression, batch["predicted_exp"]], dim=1)
-            batch["predicted_jaw"][:, :interpolated_jaw_pose.shape[1]] = interpolated_jaw_pose
-            # batch["predicted_exp"][:, :interpolated_expression.shape[1]]  = interpolated_expression
+            mouth_opening_interval_len = mouth_opening_interval_end - mouth_opening_interval_start
+            assert mouth_opening_interval_len >= 0
             
-            # pass the interpolated part through FLAME 
-            flame = talking_head.talking_head_model.sequence_decoder.get_shape_model()
+            if mouth_opening_interval_len > 0: 
+                # first jaw pose 
+                last_jaw_pose = batch['predicted_jaw'][:,mouth_opening_interval_end]
+                first_jaw_pose = torch.zeros_like(batch['predicted_jaw'][:,0])
 
-            pose = torch.cat([torch.zeros_like(interpolated_jaw_pose),interpolated_jaw_pose], dim=-1) 
-            exp = batch["predicted_exp"][:, :interpolated_expression.shape[1]]
-            B_, T_ = exp.shape[:2]
-            exp = exp.view(B_ * T_, -1)
-            pose = pose.view(B_ * T_, -1)
-            shape = batch["gt_shape"]
-            shape = shape[:,None, ...].repeat(1, T_, 1).contiguous().view(B_ * T_, -1)
-            predicted_verts, _, _ = flame(shape, exp, pose)
-            predicted_verts = predicted_verts.reshape(B_, T_, -1) 
-            # batch["predicted_vertices"] = torch.cat([predicted_verts, batch["predicted_vertices"]], dim=1) 
-            batch["predicted_vertices"][:, :predicted_verts.shape[1]] = predicted_verts
+                last_expression = batch['predicted_exp'][:,mouth_opening_interval_end] 
+                first_expression = torch.zeros_like(batch['predicted_exp'][:,0])
+
+                num_interpolation_frames = mouth_opening_interval_len
+                interpolated_expression, interpolated_jaw_pose = interpolate_predictions(
+                    first_expression, last_expression, first_jaw_pose, last_jaw_pose, 
+                    # static_frames_start=manual_mouth_closure_start, 
+                    static_frames_start=0, 
+                    # static_frames_start=silent_start - manual_mouth_closure_start, 
+                    # num_mouth_closure_frames=manual_mouth_closure_start, 
+                    num_mouth_closure_frames=mouth_opening_interval_len, 
+                    static_frames_end = 0)
+                interpolated_expression = torch.zeros_like(interpolated_expression) + last_expression[:, None]
+
+                ## add silence to the audio 
+                # silence = torch.zeros((batch["raw_audio"].shape[0], num_interpolation_frames, batch["raw_audio"].shape[2]), dtype=batch["raw_audio"].dtype, device=batch["raw_audio"].device)
+                # batch["raw_audio"] = torch.cat([silence, batch["raw_audio"]], dim=1)
+                # batch["predicted_jaw"] = torch.cat([interpolated_jaw_pose, batch["predicted_jaw"]], dim=1)
+                # batch["predicted_exp"] = torch.cat([interpolated_expression, batch["predicted_exp"]], dim=1)
+                # batch["predicted_jaw"][:, :interpolated_jaw_pose.shape[1]] = interpolated_jaw_pose
+                batch["predicted_jaw"][:, mouth_opening_interval_start:mouth_opening_interval_end] = interpolated_jaw_pose
+                # batch["predicted_exp"][:, :interpolated_expression.shape[1]]  = interpolated_expression
+                
+                # pass the interpolated part through FLAME 
+                flame = talking_head.talking_head_model.sequence_decoder.get_shape_model()
+
+                pose = torch.cat([torch.zeros_like(interpolated_jaw_pose),interpolated_jaw_pose], dim=-1) 
+                # exp = batch["predicted_exp"][:, :interpolated_expression.shape[1]]
+                exp = batch["predicted_exp"][:, mouth_opening_interval_start:mouth_opening_interval_end]
+                B_, T_ = exp.shape[:2]
+                exp = exp.view(B_ * T_, -1)
+                pose = pose.view(B_ * T_, -1)
+                shape = batch["gt_shape"]
+                shape = shape[:,None, ...].repeat(1, T_, 1).contiguous().view(B_ * T_, -1)
+                predicted_verts, _, _ = flame(shape, exp, pose)
+                predicted_verts = predicted_verts.reshape(B_, T_, -1) 
+                # batch["predicted_vertices"] = torch.cat([predicted_verts, batch["predicted_vertices"]], dim=1) 
+                # batch["predicted_vertices"][:, :predicted_verts.shape[1]] = predicted_verts
+                batch["predicted_vertices"][:, mouth_opening_interval_start:mouth_opening_interval_end] = predicted_verts
 
         
-        if manual_mouth_closure_end > 0:
-            first_jaw_pose = batch['predicted_jaw'][:,-manual_mouth_closure_end]
-            last_jaw_pose = torch.zeros_like(batch['predicted_jaw'][:,-1])
+        for mouth_closure_interval_start, mouth_closure_interval_end in mouth_closure_intervals:
+            T = batch["predicted_jaw"].shape[1]
+            if mouth_closure_interval_end < 0: 
+                mouth_closure_interval_end = T + mouth_closure_interval_end
+            if mouth_closure_interval_start < 0:
+                mouth_closure_interval_start = T + mouth_closure_interval_start
 
-            first_expression = batch['predicted_exp'][:,-manual_mouth_closure_end]
-            last_expression = torch.zeros_like(batch['predicted_exp'][:,-1])
+            mouth_closure_interval_len = mouth_closure_interval_end - mouth_closure_interval_start
+            assert mouth_closure_interval_len >= 0
 
-            num_interpolation_frames = manual_mouth_closure_end
-            interpolated_expression, interpolated_jaw_pose = interpolate_predictions(first_expression, last_expression, first_jaw_pose, last_jaw_pose, 
-                                                                                     static_frames_start=0, 
-                                                                                     num_mouth_closure_frames=manual_mouth_closure_end, 
-                                                                                     static_frames_end = silent_end - manual_mouth_closure_end)
-            interpolated_expression = torch.zeros_like(interpolated_expression) + first_expression[:, None]
+            if mouth_closure_interval_start > 0:
+                # first_jaw_pose = batch['predicted_jaw'][:,-manual_mouth_closure_end]
+                first_jaw_pose = batch['predicted_jaw'][:,mouth_closure_interval_start]
+                last_jaw_pose = torch.zeros_like(batch['predicted_jaw'][:,-1])
 
-            ## add silence to the audio
-            # silence = torch.zeros((batch["raw_audio"].shape[0], num_interpolation_frames, batch["raw_audio"].shape[2]), dtype=batch["raw_audio"].dtype, device=batch["raw_audio"].device)
-            # batch["raw_audio"] = torch.cat([batch["raw_audio"], silence], dim=1)
-            # batch["predicted_jaw"] = torch.cat([batch["predicted_jaw"], interpolated_jaw_pose], dim=1)
-            # batch["predicted_exp"] = torch.cat([batch["predicted_exp"], interpolated_expression], dim=1)
-            batch["predicted_jaw"][:, -interpolated_jaw_pose.shape[1]:] = interpolated_jaw_pose
-            # batch["predicted_exp"][:, -interpolated_expression.shape[1]:]  = interpolated_expression
+                # first_expression = batch['predicted_exp'][:,-manual_mouth_closure_end]
+                first_expression = batch['predicted_exp'][:,-mouth_closure_interval_start]
+                last_expression = torch.zeros_like(batch['predicted_exp'][:,-1])
 
-            # pass the interpolated part through FLAME
+                # num_interpolation_frames = manual_mouth_closure_end
+                num_interpolation_frames = mouth_closure_interval_len
+                interpolated_expression, interpolated_jaw_pose = interpolate_predictions(first_expression, last_expression, first_jaw_pose, last_jaw_pose, 
+                                                                                        static_frames_start=0, 
+                                                                                        # num_mouth_closure_frames=manual_mouth_closure_end, 
+                                                                                        num_mouth_closure_frames=mouth_closure_interval_len, 
+                                                                                        # static_frames_end = silent_end - manual_mouth_closure_end
+                                                                                        static_frames_end = 0
+                                                                                        )
+                interpolated_expression = torch.zeros_like(interpolated_expression) + first_expression[:, None]
+
+                ## add silence to the audio
+                # silence = torch.zeros((batch["raw_audio"].shape[0], num_interpolation_frames, batch["raw_audio"].shape[2]), dtype=batch["raw_audio"].dtype, device=batch["raw_audio"].device)
+                # batch["raw_audio"] = torch.cat([batch["raw_audio"], silence], dim=1)
+                # batch["predicted_jaw"] = torch.cat([batch["predicted_jaw"], interpolated_jaw_pose], dim=1)
+                # batch["predicted_exp"] = torch.cat([batch["predicted_exp"], interpolated_expression], dim=1)
+                # batch["predicted_jaw"][:, -interpolated_jaw_pose.shape[1]:] = interpolated_jaw_pose
+                batch["predicted_jaw"][:, mouth_closure_interval_start:mouth_closure_interval_end] = interpolated_jaw_pose
+                # batch["predicted_exp"][:, -interpolated_expression.shape[1]:]  = interpolated_expression
+                # batch["predicted_exp"][:, mouth_closure_interval_start:mouth_closure_interval_end]  = interpolated_expression
+
+                # pass the interpolated part through FLAME
+                flame = talking_head.talking_head_model.sequence_decoder.get_shape_model()
+
+                pose = torch.cat([torch.zeros_like(interpolated_jaw_pose), interpolated_jaw_pose], dim=-1)
+                # exp = batch["predicted_exp"][:, -interpolated_expression.shape[1]:] 
+                exp = batch["predicted_exp"][:, mouth_closure_interval_start:mouth_closure_interval_end]
+                B_, T_ = exp.shape[:2]
+                exp = exp.view(B_ * T_, -1)
+                pose = pose.view(B_ * T_, -1)
+                shape = batch["gt_shape"]
+                shape = shape[:,None, ...].repeat(1, T_, 1).contiguous().view(B_ * T_, -1)
+                predicted_verts, _, _ = flame(shape, exp, pose)
+                predicted_verts = predicted_verts.reshape(B_, T_, -1)
+                # batch["predicted_vertices"] = torch.cat([batch["predicted_vertices"], predicted_verts], dim=1)
+                # batch["predicted_vertices"][:, -predicted_verts.shape[1]:] = predicted_verts
+                batch["predicted_vertices"][:, mouth_closure_interval_start:mouth_closure_interval_end] = predicted_verts
+
+
+        for silent_start, silent_end in silent_intervals:
+            batch["predicted_jaw"][:, silent_start:silent_end] = 0
+
+            # pass the interval through FLAME
             flame = talking_head.talking_head_model.sequence_decoder.get_shape_model()
-
-            pose = torch.cat([torch.zeros_like(interpolated_jaw_pose), interpolated_jaw_pose], dim=-1)
-            exp = batch["predicted_exp"][:, -interpolated_expression.shape[1]:] 
+            pose = torch.cat([torch.zeros_like(batch["predicted_jaw"][:, silent_start:silent_end] ), batch["predicted_jaw"][:, silent_start:silent_end] ], dim=-1)
+            exp = batch["predicted_exp"][:, silent_start:silent_end]
             B_, T_ = exp.shape[:2]
             exp = exp.view(B_ * T_, -1)
             pose = pose.view(B_ * T_, -1)
@@ -330,10 +435,7 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
             shape = shape[:,None, ...].repeat(1, T_, 1).contiguous().view(B_ * T_, -1)
             predicted_verts, _, _ = flame(shape, exp, pose)
             predicted_verts = predicted_verts.reshape(B_, T_, -1)
-            # batch["predicted_vertices"] = torch.cat([batch["predicted_vertices"], predicted_verts], dim=1)
-            batch["predicted_vertices"][:, -predicted_verts.shape[1]:] = predicted_verts
-
-
+            batch["predicted_vertices"][:, silent_start:silent_end] = predicted_verts
 
         B = batch["predicted_vertices"].shape[0]
         for b in range(B):
@@ -354,14 +456,17 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
                     suffix = f"_{bi * batch_size + b}"
 
             out_audio_path = output_dir / f"{suffix[1:]}" / f"audio.wav"
-            import soundfile as sf
-            orig_audio, sr = librosa.load(audio_path) 
-            ## prepend the silent frames
-            if silent_start > 0:
-                orig_audio = np.concatenate([np.zeros(int(silent_start * sr / 25), dtype=orig_audio.dtype), orig_audio], axis=0)
-            if silent_end > 0:
-                orig_audio = np.concatenate([orig_audio, np.zeros(int(silent_end * sr / 25 , ), dtype=orig_audio.dtype)], axis=0)
-
+            out_audio_path.parent.mkdir(exist_ok=True, parents=True)
+            # if original_audios is not None:
+            orig_audio, sr = original_audios[bi * batch_size + b]
+            # else:
+            #     orig_audio, sr = librosa.load(audio_path) 
+            #     ## prepend the silent frames
+            #     if silent_start > 0:
+            #         orig_audio = np.concatenate([np.zeros(int(silent_start * sr / 25), dtype=orig_audio.dtype), orig_audio], axis=0)
+            #     if silent_end > 0:
+            #         orig_audio = np.concatenate([orig_audio, np.zeros(int(silent_end * sr / 25 , ), dtype=orig_audio.dtype)], axis=0)
+            sf.write(out_audio_path, orig_audio, samplerate=sr)
 
             if talking_head.render_results:
                 predicted_mouth_video = batch["predicted_video"]["front"][b]
@@ -370,7 +475,7 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
                 save_video(out_video_path, predicted_mouth_video, fourcc="mp4v", fps=25)
                 
                 out_audio_path = output_dir / f"{suffix[1:]}" / f"audio.wav"
-                sf.write(out_audio_path, orig_audio, samplerate=sr)
+
 
                 out_video_with_audio_path = output_dir / f"{suffix[1:]}" / f"pytorch_video_with_audio_{suffix}.mp4"
 
@@ -382,7 +487,7 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
 
                 # delete video without audio
                 os.remove(out_video_path)
-                os.remove(out_audio_path)
+                # os.remove(out_audio_path)
 
             predicted_vertices = batch["predicted_vertices"][b]
             T = predicted_vertices.shape[0]
@@ -397,47 +502,63 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False, save_mes
                 for t in tqdm(range(T)):
                     # mesh_path = mesh_folder / (f"{t:05d}" + ".obj")
                     mesh_path = mesh_folder / (f"{t:05d}" + ".ply")
-                    if mesh_path.exists() and not overwrite:
-                        continue
+                    if not (mesh_path.exists() and not overwrite):
+                        # continue
 
-                    pred_vertices = predicted_vertices[t].detach().cpu().view(-1,3).numpy()
-                    mesh = trimesh.base.Trimesh(pred_vertices, template.faces)
-                    mesh.export(mesh_path)
+                        pred_vertices = predicted_vertices[t].detach().cpu().view(-1,3).numpy()
+                        mesh = trimesh.base.Trimesh(pred_vertices, template.faces)
+                        mesh.export(mesh_path)
 
-                audio_link_path = output_dir / f"{suffix[1:]}" / "audio.wav"
-                if not audio_link_path.exists():
-                    sf.write(audio_link_path, orig_audio, samplerate=sr)
-                    # os.symlink(audio_path, audio_link_path)
+            if save_flame:
+                flame_folder = output_dir / f"{suffix[1:]}"  / "flame"
+                flame_folder.mkdir(exist_ok=True, parents=True)
+
+                flame_dict = {}
+                flame_dict["shape"] = batch["gt_shape"][b].detach().cpu().numpy()
+                flame_dict["expression"] = batch["predicted_exp"][b].detach().cpu().numpy()
+                flame_dict["jaw_pose"] = batch["predicted_jaw"][b].detach().cpu().numpy()
+                flame_dict["global_pose"] = np.zeros_like(batch["predicted_jaw"][b].detach().cpu().numpy())
+
+                flame_path = flame_folder / (f"flame_{suffix[1:]}.pkl")
+                if not( flame_path.exists() and not overwrite):
+                    import pickle
+                    with open(flame_path, "wb") as f:
+                        pickle.dump(flame_dict, f)
+
+                    # audio_link_path = output_dir / f"{suffix[1:]}" / "audio.wav"
+                    # if not audio_link_path.exists():
+                    #     sf.write(audio_link_path, orig_audio, samplerate=sr)
+                        # os.symlink(audio_path, audio_link_path)
 
             if pyrender_videos:
-                if out_video_with_audio_path.exists() and not overwrite:
-                    continue
+                if not(out_video_with_audio_path.exists() and not overwrite):
+                    # continue
 
-                pred_images = []
-                for t in tqdm(range(T)):
-                    pred_vertices = predicted_vertices[t].detach().cpu().view(-1,3).numpy()
-                    pred_image = renderer.render(pred_vertices)
-                    pred_images.append(pred_image)
-                    # if save_meshes: 
-                    #     mesh = trimesh.base.Trimesh(pred_vertices, template.faces)
-                    #     # mesh_path = output_video_dir / (f"frame_{t:05d}" + ".obj")
-                    #     mesh.export(mesh_path)
+                    pred_images = []
+                    for t in tqdm(range(T)):
+                        pred_vertices = predicted_vertices[t].detach().cpu().view(-1,3).numpy()
+                        pred_image = renderer.render(pred_vertices)
+                        pred_images.append(pred_image)
+                        # if save_meshes: 
+                        #     mesh = trimesh.base.Trimesh(pred_vertices, template.faces)
+                        #     # mesh_path = output_video_dir / (f"frame_{t:05d}" + ".obj")
+                        #     mesh.export(mesh_path)
 
-                pred_images = np.stack(pred_images, axis=0)
+                    pred_images = np.stack(pred_images, axis=0)
 
-                save_video(out_video_path, pred_images, fourcc="mp4v", fps=25)
+                    save_video(out_video_path, pred_images, fourcc="mp4v", fps=25)
 
 
-                # sf.write(out_audio_path, batch["raw_audio"][b].view(-1).detach().cpu().numpy(), samplerate=16000)
-                sf.write(out_audio_path,  orig_audio, samplerate=sr)
+                    # # sf.write(out_audio_path, batch["raw_audio"][b].view(-1).detach().cpu().numpy(), samplerate=16000)
+                    # sf.write(out_audio_path,  orig_audio, samplerate=sr)
 
-                ffmpeg_cmd = f"ffmpeg -y -i {out_video_path} -i {out_audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
-                print(ffmpeg_cmd)
-                os.system(ffmpeg_cmd)
+                    ffmpeg_cmd = f"ffmpeg -y -i {out_video_path} -i {out_audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
+                    print(ffmpeg_cmd)
+                    os.system(ffmpeg_cmd)
 
-                # delete video without audio
-                os.remove(out_video_path)
-                os.remove(out_audio_path)
+                    # delete video without audio
+                    os.remove(out_video_path)
+                    # os.remove(out_audio_path)
 
             chmod_cmd = f"find {str(output_dir)} -print -type d -exec chmod 775 {{}} +"
             os.system(chmod_cmd)
@@ -598,8 +719,8 @@ def main():
     else:
         # audio = Path('/ps/project/EmotionalFacialAnimation/data/lrs3/extracted/test/0Fi83BHQsMA/00002.mp4')
         # audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/trainval/0af00UcTOSc/50001.wav')
-        audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/pretrain/0akiEFwtkyA/00031.wav')
-        audio = Path('/home/rdanecek/Downloads/fastforward/01_gday.wav')
+        # audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/pretrain/0akiEFwtkyA/00031.wav')
+        audio = Path('/ps/project/EmotionalFacialAnimation/emote_fastforward/04b_oi.wav')
 
     model_path = Path(root) / resume_folder  
     talking_head = TalkingHeadWrapper(model_path, render_results=False)

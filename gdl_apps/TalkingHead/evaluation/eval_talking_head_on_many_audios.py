@@ -23,7 +23,11 @@ def eval_talking_head_on_audio(talking_head, audio_path, emotion_index_list=None
                                             silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, 
                                             silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
         
-    run_evalutation(talking_head, samples, audio_path, out_folder=output_path, pyrender_videos=False, save_meshes=True, 
+    run_evalutation(talking_head, samples, audio_path, out_folder=output_path, 
+                    pyrender_videos=False, 
+                    # pyrender_videos=True, 
+                    # save_meshes=True, 
+                    save_meshes=False, 
                     silent_start=silent_frames_start, silent_end=silent_frames_end)
                     
     print("Done")
