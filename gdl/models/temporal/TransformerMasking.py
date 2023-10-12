@@ -4,18 +4,19 @@ import math
 
 def biased_mask_from_cfg(cfg):
     temporal_bias_type = cfg.get('type', 'none')
+    max_len = cfg.get('max_seq_len', 1200)
     if temporal_bias_type == 'alibi':
-        biased_mask = init_alibi_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        biased_mask = init_alibi_biased_mask(num_heads = cfg.nhead, max_seq_len = max_len)
     elif temporal_bias_type == 'alibi_future':
-        biased_mask = init_alibi_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        biased_mask = init_alibi_biased_mask_future(num_heads = cfg.nhead, max_seq_len = max_len)
     elif temporal_bias_type == 'faceformer':
-        biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+        biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = max_len, period=cfg.period)
     elif temporal_bias_type == 'faceformer_future':
-        biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+        biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = max_len, period=cfg.period)
     elif temporal_bias_type == 'classic':
-        biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = max_len)
     elif temporal_bias_type == 'classic_future':
-        biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = max_len)
     elif temporal_bias_type in ['none', None, False]:
         biased_mask = None
     else:

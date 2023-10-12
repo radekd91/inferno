@@ -943,14 +943,16 @@ class BertPriorDecoder(FeedForwardDecoder):
         self.post_bug_fix = cfg.get('post_bug_fix', False)
 
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'none')
+        # max_len = cfg.max_len
+        max_len = 1200
         if self.temporal_bias_type == 'faceformer':
-            self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+            self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = max_len, period=cfg.period)
         elif self.temporal_bias_type == 'faceformer_future':
-            self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+            self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = max_len, period=cfg.period)
         elif self.temporal_bias_type == 'classic':
-            self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+            self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = max_len)
         elif self.temporal_bias_type == 'classic_future':
-            self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+            self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = max_len)
         elif self.temporal_bias_type == 'none':
             self.biased_mask = None
         else:
