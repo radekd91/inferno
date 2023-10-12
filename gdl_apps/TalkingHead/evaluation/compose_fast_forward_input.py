@@ -45,10 +45,7 @@ def eval_talking_head_on_audio(talking_head,
         emotion = samples_to_emotion[audio_path]
         style = samples_to_style[audio_path]
         silent_frames_start, silent_frames_end, silent_emotion_start, silent_emotion_end = samples_to_silent_start_ends[audio_path]
-        if ai == 0:
-            first_silent_frames_start = silent_frames_start
-        if ai == len(samples_to_emotion.keys()) - 2:
-            last_silent_frames_end = silent_frames_end
+
         silent = samples_silence[audio_path]
         sample = create_base_sample(talking_head, audio_path, 
                                     silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, silence_all=silent)
@@ -57,6 +54,14 @@ def eval_talking_head_on_audio(talking_head,
                                             silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, 
                                             silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
         all_samples += samples
+
+        T = samples[0]["raw_audio"].shape[0]
+        if ai == 0:
+            first_silent_frames_start = frame_counter + silent_frames_start
+        if ai == len(samples_to_emotion.keys()) - 2:
+            last_silent_frames_start = frame_counter + T - silent_frames_end
+            last_silent_frames_end = frame_counter + T 
+
         orig_audio, sr = librosa.load(audio_path) 
         if silent_frames_start > 0:
             orig_audio = np.concatenate([np.zeros(int(silent_frames_start * sr / 25), dtype=orig_audio.dtype), orig_audio], axis=0)
@@ -64,7 +69,7 @@ def eval_talking_head_on_audio(talking_head,
             orig_audio = np.concatenate([orig_audio, np.zeros(int(silent_frames_end * sr / 25 , ), dtype=orig_audio.dtype)], axis=0)
         original_audios += [orig_audio]
 
-        T = samples[0]["raw_audio"].shape[0]
+
         if silent: 
             silent_intervals += [[frame_counter, frame_counter + T]]
             
@@ -83,7 +88,8 @@ def eval_talking_head_on_audio(talking_head,
 
         frame_counter += T
     # add the beginnings
-    silent_intervals = [(0,first_silent_frames_start-num_frames_to_open_mouth)] + silent_intervals + [(-last_silent_frames_end+num_frames_to_open_mouth, -1)]
+    # silent_intervals = [(0,first_silent_frames_start-num_frames_to_open_mouth)] + silent_intervals + [(-last_silent_frames_end+num_frames_to_open_mouth, frame_counter)]
+    silent_intervals = [(0,first_silent_frames_start-num_frames_to_open_mouth)] + silent_intervals + [(last_silent_frames_start+num_frames_to_open_mouth, frame_counter)]
     
     keys_to_ignore = ["output_name", "gt_shape", "gt_tex", "samplerate"]
     sample = temporal_concatenation(all_samples, keys_to_ignore=keys_to_ignore)
@@ -93,8 +99,9 @@ def eval_talking_head_on_audio(talking_head,
     run_evalutation(talking_head, [sample], audio_path, out_folder=output_path,
                     # pyrender_videos=False, 
                     pyrender_videos=True, 
-                    # save_meshes=True, 
-                    save_meshes=False, 
+                    save_meshes=True, 
+                    # save_meshes=False, 
+                    save_flame=True,
                     # silent_start=first_silent_frames_start, 
                     # silent_end=last_silent_frames_end, 
                     original_audios=[[original_audios, sr]], 
@@ -110,12 +117,12 @@ def main():
     
     samples_to_emotion = OrderedDict({ 
         audio_path / '01b-1c.wav' :             [AffectNetExpressions.Happy.value,],
-        audio_path / '01b-2_gday.wav' :         [AffectNetExpressions.Disgust.value,],
+        audio_path / '01b-2_gday.wav' :         [AffectNetExpressions.Contempt.value,],
         audio_path / 'exactly.wav' :            [AffectNetExpressions.Neutral.value,],
         audio_path / '03_true_blue.wav':        [AffectNetExpressions.Sad.value,], 
         audio_path / 'right.wav':               [AffectNetExpressions.Neutral.value,], 
-        # audio_path / '04_oi.wav':               [AffectNetExpressions.Anger.value,],
-        audio_path / '04b_oi.wav':               [AffectNetExpressions.Anger.value,],
+        # audio_path / '04_oi.wav':             [AffectNetExpressions.Anger.value,],
+        audio_path / '04b_oi.wav':              [AffectNetExpressions.Anger.value,],
         audio_path / 'stays.wav':               [AffectNetExpressions.Anger.value,],
         audio_path / '05c_fair_dinkum.wav':     [AffectNetExpressions.Surprise.value,],
         audio_path / 'interested.wav':          [AffectNetExpressions.Happy.value,],
@@ -178,12 +185,13 @@ def main():
     
     talking_head = TalkingHeadWrapper(model_path, render_results=False)
     # talking_head = None
-    eval_talking_head_on_audio(talking_head, 
-                               samples_to_emotion, 
-                               samples_to_style,
-                               samples_to_silent_start_ends,
-                               samples_to_silent_all
-                               )
+    eval_talking_head_on_audio(
+        talking_head, 
+        samples_to_emotion, 
+        samples_to_style,
+        samples_to_silent_start_ends,
+        samples_to_silent_all
+        )
     
 
 

@@ -422,6 +422,8 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False,
 
 
         for silent_start, silent_end in silent_intervals:
+            if silent_end - silent_start <= 0:
+                continue
             batch["predicted_jaw"][:, silent_start:silent_end] = 0
 
             # pass the interval through FLAME
