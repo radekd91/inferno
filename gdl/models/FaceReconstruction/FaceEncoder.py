@@ -174,6 +174,8 @@ class MicaEncoder(FaceEncoderBase):
             mica_encoding = self.E_mica.encode(image, mica_image) 
             mica_decoding = self.E_mica.decode(mica_encoding, predict_vertices=False)
             mica_shapecode = mica_decoding['pred_shape_code']
+            # mica_image_np = mica_image.detach().cpu().numpy().transpose(0,2,3,1)
+            # image_np = image.detach().cpu().numpy().transpose(0,2,3,1)
             batch['shapecode'] = mica_shapecode
             if return_features:
                 feature_key = return_features if isinstance(return_features, str) else "mica_feature"

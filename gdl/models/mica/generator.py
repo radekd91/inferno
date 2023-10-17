@@ -16,6 +16,7 @@
 # Contact: mica@tue.mpg.de
 
 
+from typing import Any, Mapping
 import torch
 import torch.nn as nn
 import torch.nn.functional as Functional
@@ -75,6 +76,24 @@ class Generator(nn.Module):
 
         if instantiate_flame:
             self.generator = FLAME(model_cfg).to(self.device)
+
+    def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
+        try: 
+            return  super().load_state_dict(state_dict, strict) 
+        except RuntimeError as e: 
+            error_message = e.args[0]
+            # find all strings enclosed in double quotes 
+            import re
+            double_quote_strings = re.findall(r'"([^"]*)"', error_message)
+            regressor_in_double_quote_strings = any(["regressor." in x for x in double_quote_strings])
+            if regressor_in_double_quote_strings:
+                # if any of the strings is "regressor", we must throw an error
+                raise e
+            else:
+                if hasattr(self, "generator"): 
+                    raise e
+                else:
+                    return super().load_state_dict(state_dict, strict=False) 
 
     def forward(self, arcface, decode_verts=True):
         if self.regress:

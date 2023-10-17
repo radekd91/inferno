@@ -85,7 +85,8 @@ class MICA(BaseModel):
             checkpoint = torch.load(model_path)
             if 'arcface' in checkpoint:
                 self.arcface.load_state_dict(checkpoint['arcface'])
-            if 'flameModel' in checkpoint and self.instantiate_flame:
+            if 'flameModel' in checkpoint:
+                ## strict is set to false in case we are not reloading the flame shape model (but only the MLP that regresses it)
                 self.flameModel.load_state_dict(checkpoint['flameModel'])
         else:
             logger.info(f'[{self.tag}] Checkpoint not available starting from scratch!')
