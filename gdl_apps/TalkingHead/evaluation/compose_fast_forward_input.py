@@ -1,3 +1,21 @@
+"""
+Author: Radek Danecek
+Copyright (c) 2023, Radek Danecek
+All rights reserved.
+
+# Max-Planck-Gesellschaft zur Förderung der Wissenschaften e.V. (MPG) is
+# holder of all proprietary rights on this computer program.
+# Using this computer program means that you agree to the terms 
+# in the LICENSE file included with this software distribution. 
+# Any use not explicitly granted by the LICENSE is prohibited.
+#
+# Copyright©2022 Max-Planck-Gesellschaft zur Förderung
+# der Wissenschaften e.V. (MPG). acting on behalf of its Max Planck Institute
+# for Intelligent Systems. All rights reserved.
+#
+# For comments or questions, please email us at emote@tue.mpg.de
+# For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
+"""
 import os, sys 
 from pathlib import Path
 from gdl_apps.TalkingHead.evaluation.eval_talking_head_on_audio import (create_base_sample, create_high_intensity_emotions, 
@@ -36,6 +54,7 @@ def eval_talking_head_on_audio(talking_head,
     
     all_samples = []
     original_audios = []
+    original_audios_silent = []
     silent_intervals = []
     mouth_opening_intervals = []
     mouth_closure_intervals = []
@@ -68,6 +87,10 @@ def eval_talking_head_on_audio(talking_head,
         if silent_frames_end > 0:
             orig_audio = np.concatenate([orig_audio, np.zeros(int(silent_frames_end * sr / 25 , ), dtype=orig_audio.dtype)], axis=0)
         original_audios += [orig_audio]
+        if silent:
+            original_audios_silent += [np.zeros_like(orig_audio)]
+        else:
+            original_audios_silent += [orig_audio]
 
 
         if silent: 
@@ -94,11 +117,12 @@ def eval_talking_head_on_audio(talking_head,
     keys_to_ignore = ["output_name", "gt_shape", "gt_tex", "samplerate"]
     sample = temporal_concatenation(all_samples, keys_to_ignore=keys_to_ignore)
     original_audios = np.concatenate(original_audios, axis=0)
-    sf.write("test.wav", original_audios, sr)
+    original_audios_silent = np.concatenate(original_audios_silent, axis=0)
+    sf.write("silent.wav", original_audios_silent, sr)
 
     run_evalutation(talking_head, [sample], audio_path, out_folder=output_path,
-                    # pyrender_videos=False, 
-                    pyrender_videos=True, 
+                    pyrender_videos=False, 
+                    # pyrender_videos=True, 
                     save_meshes=True, 
                     # save_meshes=False, 
                     save_flame=True,
@@ -108,6 +132,9 @@ def eval_talking_head_on_audio(talking_head,
                     mouth_opening_intervals=mouth_opening_intervals,
                     mouth_closure_intervals=mouth_closure_intervals,
                     silent_intervals=silent_intervals,
+                    # neutral_mesh_path='/is/cluster/work/rdanecek/faceformer/templates/FaceTalk_170908_03277_TA.ply'
+                    # neutral_mesh_path='/is/cluster/work/rdanecek/faceformer/templates/FaceTalk_170725_00137_TA.ply'
+                    # neutral_mesh_path='/is/cluster/work/rdanecek/faceformer/templates/FaceTalk_170809_00138_TA.ply'
                     )
 
 
@@ -117,7 +144,8 @@ def main():
     
     samples_to_emotion = OrderedDict({ 
         audio_path / '01b-1c.wav' :             [AffectNetExpressions.Happy.value,],
-        audio_path / '01b-2_gday.wav' :         [AffectNetExpressions.Contempt.value,],
+        # audio_path / '01b-2_gday.wav' :         [AffectNetExpressions.Contempt.value,],
+        audio_path / '01b-2_gday.wav' :         [AffectNetExpressions.Disgust.value,],
         audio_path / 'exactly.wav' :            [AffectNetExpressions.Neutral.value,],
         audio_path / '03_true_blue.wav':        [AffectNetExpressions.Sad.value,], 
         audio_path / 'right.wav':               [AffectNetExpressions.Neutral.value,], 
@@ -130,7 +158,8 @@ def main():
 
     samples_to_style =  OrderedDict({ 
         audio_path / '01b-1c.wav' :         training_ids.index("M003"),
-        audio_path / '01b-2_gday.wav' :     training_ids.index("M003"),
+        # audio_path / '01b-2_gday.wav' :     training_ids.index("M003"),
+        audio_path / '01b-2_gday.wav' :     training_ids.index("M009"),
         audio_path / 'exactly.wav' :        training_ids.index("M003"),
         audio_path / '03_true_blue.wav':    training_ids.index("M003"),
         audio_path / 'right.wav':           training_ids.index("M003"),

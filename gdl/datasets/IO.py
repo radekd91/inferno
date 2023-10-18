@@ -65,7 +65,6 @@ def save_reconstruction_list_v2(filename, reconstructions, overwrite=False):
 
 
 def load_reconstruction_list_v2(filename, start_frame=None, end_frame=None):
-    # return _load_hickle_file(filename, start_frame, end_frame)
     return _load_hdf5_dict(filename, start_frame, end_frame)
 
 

@@ -1,3 +1,22 @@
+"""
+Author: Radek Danecek
+Copyright (c) 2023, Radek Danecek
+All rights reserved.
+
+# Max-Planck-Gesellschaft zur Förderung der Wissenschaften e.V. (MPG) is
+# holder of all proprietary rights on this computer program.
+# Using this computer program means that you agree to the terms 
+# in the LICENSE file included with this software distribution. 
+# Any use not explicitly granted by the LICENSE is prohibited.
+#
+# Copyright©2022 Max-Planck-Gesellschaft zur Förderung
+# der Wissenschaften e.V. (MPG). acting on behalf of its Max Planck Institute
+# for Intelligent Systems. All rights reserved.
+#
+# For comments or questions, please email us at emote@tue.mpg.de
+# For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
+"""
+
 from gdl_apps.TalkingHead.evaluation.eval_lip_reading import TalkingHeadWrapper, dict_to_device, save_video
 from pathlib import Path
 import librosa
@@ -11,6 +30,7 @@ from gdl.datasets.AffectNetAutoDataModule import AffectNetExpressions
 import trimesh
 import copy
 import soundfile as sf
+from psbody.mesh import Mesh
 
 
 def create_condition(talking_head, sample, emotions=None, intensities=None, identities=None):
@@ -267,14 +287,55 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False,
                     # manual_mouth_closure_end=0, 
                     mouth_closure_intervals=[(0, 0)],
                     silent_intervals=None,
-                    original_audios=None):
+                    original_audios=None, 
+                    neutral_mesh_path=None,
+                    ):
     silent_intervals = silent_intervals or []
     batch_size = 1
+
+    # pass the interpolated part through FLAME 
+    flame = talking_head.talking_head_model.sequence_decoder.get_shape_model()
+    mesh_suffix = ""
+    if neutral_mesh_path is not None:
+        neutral_mesh = Mesh(filename=str(neutral_mesh_path))
+        neutral_v = torch.from_numpy( neutral_mesh.v).to(dtype=torch.float32, device=talking_head.talking_head_model.device)
+        talking_head.set_neutral_mesh(neutral_v)
+        # flame.v_template[...] = neutral_v
+        # try:
+        #     talking_head.talking_head_model.sequence_decoder.motion_prior.postprocessor.flame.v_template[...] = neutral_v.clone()
+        # except AttributeError:
+        #     pass
+        # try:
+        #     talking_head.talking_head_model.sequence_decoder.motion_prior.preprocessor.flame.v_template[...] = neutral_v.clone()
+        # except AttributeError:
+        #     pass
+        # try:
+        #     talking_head.talking_head_model.sequence_decoder.flame.v_template[...] = neutral_v.clone()
+        # except AttributeError:
+        #     pass
+        # try:
+        #     talking_head.talking_head_model.preprocessor.flame.v_template[...] = neutral_v.clone()
+        # except AttributeError:
+        #     pass
+        mesh_suffix = "_" + Path(neutral_mesh_path).stem        
+    
+        # talking_head.talking_head_model.sequence_decoder.motion_prior.preprocessor.flame.v_template
     try:
         template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply" 
+        # template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "head_template.obj"   ## this one has UV 
     except AttributeError:
         template_mesh_path = Path("/ps/scratch/rdanecek/data/FLAME/geometry/FLAME_sample.ply")
-    template = trimesh.load_mesh(template_mesh_path)
+        # template_mesh_path = Path("/ps/scratch/rdanecek/data/FLAME/geometry/head_template.obj") ## this one has UV 
+    # obj_template_path = template_mesh_path.parent / "head_template_blender.obj"
+    obj_template_path = template_mesh_path.parent / "head_template.obj"
+    # import pyvista 
+    # template = pyvista.read(obj_template_path)
+    template = trimesh.load_mesh(template_mesh_path, process=False)
+    template_obj = trimesh.load_mesh(obj_template_path, process=False)
+    template.visual = template_obj.visual
+
+    template_obj_ps = Mesh(filename=str(obj_template_path))
+
     if pyrender_videos:
         renderer = PyRenderMeshSequenceRenderer(template_mesh_path)
     else:
@@ -345,8 +406,7 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False,
                 batch["predicted_jaw"][:, mouth_opening_interval_start:mouth_opening_interval_end] = interpolated_jaw_pose
                 # batch["predicted_exp"][:, :interpolated_expression.shape[1]]  = interpolated_expression
                 
-                # pass the interpolated part through FLAME 
-                flame = talking_head.talking_head_model.sequence_decoder.get_shape_model()
+
 
                 pose = torch.cat([torch.zeros_like(interpolated_jaw_pose),interpolated_jaw_pose], dim=-1) 
                 # exp = batch["predicted_exp"][:, :interpolated_expression.shape[1]]
@@ -404,7 +464,7 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False,
                 # batch["predicted_exp"][:, mouth_closure_interval_start:mouth_closure_interval_end]  = interpolated_expression
 
                 # pass the interpolated part through FLAME
-                flame = talking_head.talking_head_model.sequence_decoder.get_shape_model()
+                # flame = talking_head.talking_head_model.sequence_decoder.get_shape_model()
 
                 pose = torch.cat([torch.zeros_like(interpolated_jaw_pose), interpolated_jaw_pose], dim=-1)
                 # exp = batch["predicted_exp"][:, -interpolated_expression.shape[1]:] 
@@ -427,7 +487,7 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False,
             batch["predicted_jaw"][:, silent_start:silent_end] = 0
 
             # pass the interval through FLAME
-            flame = talking_head.talking_head_model.sequence_decoder.get_shape_model()
+            # flame = talking_head.talking_head_model.sequence_decoder.get_shape_model()
             pose = torch.cat([torch.zeros_like(batch["predicted_jaw"][:, silent_start:silent_end] ), batch["predicted_jaw"][:, silent_start:silent_end] ], dim=-1)
             exp = batch["predicted_exp"][:, silent_start:silent_end]
             B_, T_ = exp.shape[:2]
@@ -494,25 +554,39 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False,
             predicted_vertices = batch["predicted_vertices"][b]
             T = predicted_vertices.shape[0]
 
-            out_video_path = output_dir / f"{suffix[1:]}" / f"pyrender.mp4"
+            out_video_path = output_dir / f"{suffix[1:]}" / f"pyrender{mesh_suffix}.mp4"
             out_video_path.parent.mkdir(exist_ok=True, parents=True)
-            out_video_with_audio_path = output_dir / f"{suffix[1:]}" / f"pyrender_with_audio.mp4"
+            out_video_with_audio_path = output_dir / f"{suffix[1:]}" / f"pyrender_with_audio{mesh_suffix}.mp4"
 
             if save_meshes: 
-                mesh_folder = output_dir / f"{suffix[1:]}"  / "meshes"
+                mesh_folder = output_dir / f"{suffix[1:]}"  / f"meshes{mesh_suffix}"
                 mesh_folder.mkdir(exist_ok=True, parents=True)
                 for t in tqdm(range(T)):
-                    # mesh_path = mesh_folder / (f"{t:05d}" + ".obj")
-                    mesh_path = mesh_folder / (f"{t:05d}" + ".ply")
+                    mesh_path = mesh_folder / (f"{t:05d}" + ".obj")
+                    # mesh_path = mesh_folder / (f"{t:05d}" + ".ply")
                     if not (mesh_path.exists() and not overwrite):
                         # continue
-
                         pred_vertices = predicted_vertices[t].detach().cpu().view(-1,3).numpy()
-                        mesh = trimesh.base.Trimesh(pred_vertices, template.faces)
-                        mesh.export(mesh_path)
+                        
+
+                        # mesh = template.copy()
+                        
+                        mesh = copy.deepcopy(template_obj_ps)
+                        mesh.v = pred_vertices
+                        mesh.write_obj(str(mesh_path))
+
+                        # mesh = template.copy(deep=True)
+                        # mesh.points = pred_vertices
+                        # pl = pyvista.Plotter()
+                        # _ = pl.add_mesh(mesh)
+                        # pl.export_obj(str(mesh_path))  
+
+                        # # mesh = trimesh.base.Trimesh(pred_vertices, template.faces)
+                        # mesh.vertices = pred_vertices
+                        # mesh.export(mesh_path)
 
             if save_flame:
-                flame_folder = output_dir / f"{suffix[1:]}"  / "flame"
+                flame_folder = output_dir / f"{suffix[1:]}"  / f"flame{mesh_suffix}"
                 flame_folder.mkdir(exist_ok=True, parents=True)
 
                 flame_dict = {}

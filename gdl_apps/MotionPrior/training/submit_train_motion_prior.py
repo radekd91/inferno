@@ -1,6 +1,6 @@
 """
 Author: Radek Danecek
-Copyright (c) 2022, Radek Danecek
+Copyright (c) 2023, Radek Danecek
 All rights reserved.
 
 # Max-Planck-Gesellschaft zur Förderung der Wissenschaften e.V. (MPG) is
@@ -13,7 +13,7 @@ All rights reserved.
 # der Wissenschaften e.V. (MPG). acting on behalf of its Max Planck Institute
 # for Intelligent Systems. All rights reserved.
 #
-# For comments or questions, please email us at emoca@tue.mpg.de
+# For comments or questions, please email us at emote@tue.mpg.de
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 from gdl.utils.condor import execute_on_cluster
@@ -52,7 +52,9 @@ def submit(cfg , bid=10):
     python_bin = '/home/rdanecek/anaconda3/envs/<<ENV>>/bin/python'
     username = 'rdanecek'
     gpu_mem_requirement_mb = cfg.learning.batching.gpu_memory_min_gb * 1024
-    gpu_mem_requirement_mb_max = cfg.learning.batching.get('gpu_mem_requirement_mb_max', None)
+    gpu_mem_requirement_mb_max = cfg.learning.batching.get('gpu_memory_max_gb', None)
+    if gpu_mem_requirement_mb_max is not None:
+        gpu_mem_requirement_mb_max *= 1024
     # gpu_mem_requirement_mb = None
     cpus = cfg.data.num_workers + 2 # 1 for the training script, 1 for wandb or other loggers (and other stuff), the rest of data loading
     # cpus = 2 # 1 for the training script, 1 for wandb or other loggers (and other stuff), the rest of data loading

@@ -1,6 +1,6 @@
 """
 Author: Radek Danecek
-Copyright (c) 2022, Radek Danecek
+Copyright (c) 2023, Radek Danecek
 All rights reserved.
 
 # Max-Planck-Gesellschaft zur Förderung der Wissenschaften e.V. (MPG) is
@@ -13,7 +13,7 @@ All rights reserved.
 # der Wissenschaften e.V. (MPG). acting on behalf of its Max Planck Institute
 # for Intelligent Systems. All rights reserved.
 #
-# For comments or questions, please email us at emoca@tue.mpg.de
+# For comments or questions, please email us at emote@tue.mpg.de
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 from gdl.utils.condor import execute_on_cluster
@@ -26,8 +26,8 @@ import copy
 import sys
 import torch
 
-submit_ = False
-# submit_ = True
+# submit_ = False
+submit_ = True
 
 if submit_ or __name__ != "__main__":
     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -155,12 +155,12 @@ def submit_trainings():
 
     finetune_modes = [] 
 
-    finetune_modes += [
-        [ 
-            [
-            ]
-        ],
-    ]
+    # finetune_modes += [
+    #     [ 
+    #         [
+    #         ]
+    #     ],
+    # ]
 
     # # # ## FLAME 2023
     finetune_modes += [
@@ -246,23 +246,23 @@ def submit_trainings():
     # ]
    
     # ### MEAD 
-    dataset_options = [
-        'data/datasets=mead', 
-        # 'data/datasets=mead_occlusions', 
-        # 'data.split=specific_identity_sorted_80_20_M003',
-        'data.split=random_by_sequence_sorted_70_15_15',
-        # 'data/augmentations=default',
-        # 'data/augmentations=default_no_jpeg',
-        'data/augmentations=none',
-    ]
+    # dataset_options = [
+    #     'data/datasets=mead', 
+    #     # 'data/datasets=mead_occlusions', 
+    #     # 'data.split=specific_identity_sorted_80_20_M003',
+    #     'data.split=random_by_sequence_sorted_70_15_15',
+    #     # 'data/augmentations=default',
+    #     # 'data/augmentations=default_no_jpeg',
+    #     'data/augmentations=none',
+    # ]
 
     # # # CelebV-Text 
-    # dataset_options = [
-    #     # 'data/datasets=celebvtext',
-    #     'data/datasets=celebvtext_occlusions',
-    #     'data.split=random_70_15_15',
-    #     'data/augmentations=default',
-    # ]
+    dataset_options = [
+        # 'data/datasets=celebvtext',
+        'data/datasets=celebvtext_occlusions',
+        'data.split=random_70_15_15',
+        'data/augmentations=default',
+    ]
 
     # ##  CelebV-HQ
     # dataset_options = [
