@@ -17,7 +17,8 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 
-from gdl_apps.TalkingHead.evaluation.eval_lip_reading import TalkingHeadWrapper, dict_to_device, save_video
+from gdl_apps.TalkingHead.evaluation.TalkingHeadWrapper import TalkingHeadWrapper
+from gdl_apps.TalkingHead.evaluation.eval_lip_reading import dict_to_device, save_video
 from pathlib import Path
 import librosa
 import numpy as np
@@ -31,6 +32,7 @@ import trimesh
 import copy
 import soundfile as sf
 from psbody.mesh import Mesh
+from gdl.utils.other import get_path_to_assets
 
 
 def create_condition(talking_head, sample, emotions=None, intensities=None, identities=None):
@@ -123,10 +125,6 @@ def eval_talking_head_on_audio(talking_head, audio_path, silent_frames_start=0, 
     run_evalutation(talking_head, 
                     samples, 
                     audio_path,  
-                    # silent_start=silent_frames_start, 
-                    # silent_end=silent_frames_end, 
-                    # manual_mouth_closure_start=5, 
-                    # manual_mouth_closure_end=5, 
                     mouth_opening_intervals=manual_mouth_openting_intervals,
                     mouth_closure_intervals=manual_mouth_closure_intervals,
                     silent_intervals=silent_intervals,
@@ -300,31 +298,12 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False,
         neutral_mesh = Mesh(filename=str(neutral_mesh_path))
         neutral_v = torch.from_numpy( neutral_mesh.v).to(dtype=torch.float32, device=talking_head.talking_head_model.device)
         talking_head.set_neutral_mesh(neutral_v)
-        # flame.v_template[...] = neutral_v
-        # try:
-        #     talking_head.talking_head_model.sequence_decoder.motion_prior.postprocessor.flame.v_template[...] = neutral_v.clone()
-        # except AttributeError:
-        #     pass
-        # try:
-        #     talking_head.talking_head_model.sequence_decoder.motion_prior.preprocessor.flame.v_template[...] = neutral_v.clone()
-        # except AttributeError:
-        #     pass
-        # try:
-        #     talking_head.talking_head_model.sequence_decoder.flame.v_template[...] = neutral_v.clone()
-        # except AttributeError:
-        #     pass
-        # try:
-        #     talking_head.talking_head_model.preprocessor.flame.v_template[...] = neutral_v.clone()
-        # except AttributeError:
-        #     pass
         mesh_suffix = "_" + Path(neutral_mesh_path).stem        
-    
-        # talking_head.talking_head_model.sequence_decoder.motion_prior.preprocessor.flame.v_template
     try:
         template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "FLAME_sample.ply" 
         # template_mesh_path = Path(talking_head.cfg.model.sequence_decoder.flame.flame_lmk_embedding_path).parent / "head_template.obj"   ## this one has UV 
     except AttributeError:
-        template_mesh_path = Path("/ps/scratch/rdanecek/data/FLAME/geometry/FLAME_sample.ply")
+        template_mesh_path = get_path_to_assets() / "FLAME" / "geometry" / "FLAME_sample.ply"
         # template_mesh_path = Path("/ps/scratch/rdanecek/data/FLAME/geometry/head_template.obj") ## this one has UV 
     # obj_template_path = template_mesh_path.parent / "head_template_blender.obj"
     obj_template_path = template_mesh_path.parent / "head_template.obj"
@@ -348,12 +327,6 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False,
     # samples = samples[batch_size:]
     dl = torch.utils.data.DataLoader(TestDataset(samples), batch_size=batch_size, shuffle=False, num_workers=0, 
                                      collate_fn=robust_collate)
-
-    # for bd in tqdm(range(BD)):
-
-    #     samples_batch = samples[bd*batch_size:(bd+1)*batch_size]
-        # batch = robust_collate(samples_batch)
-
 
     if out_folder is None:
         output_dir = Path(talking_head.cfg.inout.full_run_dir) / "test_videos" / (audio_path.parent.name + "_" + audio_path.stem)
@@ -453,9 +426,6 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False,
                                                                                         )
                 interpolated_expression = torch.zeros_like(interpolated_expression) + first_expression[:, None]
 
-                ## add silence to the audio
-                # silence = torch.zeros((batch["raw_audio"].shape[0], num_interpolation_frames, batch["raw_audio"].shape[2]), dtype=batch["raw_audio"].dtype, device=batch["raw_audio"].device)
-                # batch["raw_audio"] = torch.cat([batch["raw_audio"], silence], dim=1)
                 # batch["predicted_jaw"] = torch.cat([batch["predicted_jaw"], interpolated_jaw_pose], dim=1)
                 # batch["predicted_exp"] = torch.cat([batch["predicted_exp"], interpolated_expression], dim=1)
                 # batch["predicted_jaw"][:, -interpolated_jaw_pose.shape[1]:] = interpolated_jaw_pose
@@ -568,8 +538,6 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False,
                         # continue
                         pred_vertices = predicted_vertices[t].detach().cpu().view(-1,3).numpy()
                         
-
-                        # mesh = template.copy()
                         
                         mesh = copy.deepcopy(template_obj_ps)
                         mesh.v = pred_vertices
@@ -615,18 +583,10 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False,
                         pred_vertices = predicted_vertices[t].detach().cpu().view(-1,3).numpy()
                         pred_image = renderer.render(pred_vertices)
                         pred_images.append(pred_image)
-                        # if save_meshes: 
-                        #     mesh = trimesh.base.Trimesh(pred_vertices, template.faces)
-                        #     # mesh_path = output_video_dir / (f"frame_{t:05d}" + ".obj")
-                        #     mesh.export(mesh_path)
 
                     pred_images = np.stack(pred_images, axis=0)
 
                     save_video(out_video_path, pred_images, fourcc="mp4v", fps=25)
-
-
-                    # # sf.write(out_audio_path, batch["raw_audio"][b].view(-1).detach().cpu().numpy(), samplerate=16000)
-                    # sf.write(out_audio_path,  orig_audio, samplerate=sr)
 
                     ffmpeg_cmd = f"ffmpeg -y -i {out_video_path} -i {out_audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {out_video_with_audio_path}"
                     print(ffmpeg_cmd)
