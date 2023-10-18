@@ -77,32 +77,38 @@ class TransformerEncoder(torch.nn.Module):
         # if self.input_dim == cfg.feature_dim:
         #     self.bottleneck = None
         # else:
-        self.bottleneck = nn.Linear(self.input_dim, cfg.feature_dim)
-        self.PE = positional_encoding_from_cfg(cfg, cfg.feature_dim)
+        self._init_transformer()
+        self._init_biased_mask()
+
+
+    def _init_transformer(self):
+        self.bottleneck = nn.Linear(self.input_dim, self.cfg.feature_dim)
+        self.PE = positional_encoding_from_cfg(self.cfg, self.cfg.feature_dim)
         dim_factor = self._total_dim_factor()
         encoder_layer = torch.nn.TransformerEncoderLayer(
-                    d_model=cfg.feature_dim * dim_factor, 
-                    nhead=cfg.nhead, 
-                    dim_feedforward=dim_factor*cfg.feature_dim, 
-                    activation=cfg.activation,
-                    dropout=cfg.dropout, batch_first=True
+                    d_model=self.cfg.feature_dim * dim_factor, 
+                    nhead=self.cfg.nhead, 
+                    dim_feedforward=dim_factor*self.cfg.feature_dim, 
+                    activation=self.cfg.activation,
+                    dropout=self.cfg.dropout, batch_first=True
         )
-        self.encoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=cfg.num_layers)
+        self.encoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=self.cfg.num_layers)
         # self.decoder = nn.Linear(dim_factor*self.input_dim, self.decoder_output_dim())
-        
-        self.temporal_bias_type = cfg.get('temporal_bias_type', 'none')
+
+    def _init_biased_mask(self):
+        self.temporal_bias_type = self.cfg.get('temporal_bias_type', 'none')
         if self.temporal_bias_type == 'alibi':
-            self.biased_mask = init_alibi_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+            self.biased_mask = init_alibi_biased_mask(num_heads = self.cfg.nhead, max_seq_len = self.cfg.max_len)
         elif self.temporal_bias_type == 'alibi_future':
-            self.biased_mask = init_alibi_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+            self.biased_mask = init_alibi_biased_mask_future(num_heads = self.cfg.nhead, max_seq_len = self.cfg.max_len)
         elif self.temporal_bias_type == 'faceformer':
-            self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+            self.biased_mask = init_faceformer_biased_mask(num_heads = self.cfg.nhead, max_seq_len = self.cfg.max_len, period=self.cfg.period)
         elif self.temporal_bias_type == 'faceformer_future':
-            self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+            self.biased_mask = init_faceformer_biased_mask_future(num_heads = self.cfg.nhead, max_seq_len = self.cfg.max_len, period=self.cfg.period)
         elif self.temporal_bias_type == 'classic':
-            self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+            self.biased_mask = init_mask(num_heads = self.cfg.nhead, max_seq_len = self.cfg.max_len)
         elif self.temporal_bias_type == 'classic_future':
-            self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+            self.biased_mask = init_mask_future(num_heads = self.cfg.nhead, max_seq_len = self.cfg.max_len)
         elif self.temporal_bias_type == 'none':
             self.biased_mask = None
         else:
@@ -151,6 +157,23 @@ class TransformerEncoder(torch.nn.Module):
         encoded_feature = self.encoder(hidden_states)
         encoded_feature = encoded_feature.view(B, T, -1)
         return encoded_feature
+
+
+class TransformerEncoderNoBottleneck(TransformerEncoder):
+
+    def _init_transformer(self):
+        self.bottleneck = None
+        self.PE = positional_encoding_from_cfg(self.cfg, self.cfg.feature_dim)
+        dim_factor = self._total_dim_factor()
+        encoder_layer = torch.nn.TransformerEncoderLayer(
+                    d_model=self.input_dim, 
+                    nhead=self.cfg.nhead, 
+                    dim_feedforward=dim_factor*self.cfg.hidden_feature_dim, 
+                    activation=self.cfg.activation,
+                    dropout=self.cfg.dropout, batch_first=True
+        )
+        self.encoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=self.cfg.num_layers)
+        # self.decoder = nn.Linear(dim_factor*self.input_dim, self.decoder_output_dim())
 
 
 def transformer_encoder_from_cfg(cfg, input_dim):

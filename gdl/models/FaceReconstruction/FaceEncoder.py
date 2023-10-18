@@ -1,7 +1,7 @@
 import torch 
 import numpy as np 
 import os, sys 
-from ..DecaEncoder import ResnetEncoder, SwinEncoder
+from ..DecaEncoder import ResnetEncoder, SwinEncoder, SwinToken
 from pathlib import Path
 import copy
 from omegaconf import OmegaConf
@@ -46,6 +46,8 @@ class DecaEncoder(FaceEncoderBase):
             self.encoder = ResnetEncoder(self._get_codevector_dim(), None)
         elif self.cfg.backbone == "Swin":
             self.encoder = SwinEncoder(cfg.swin_type, cfg.input_size, self._get_codevector_dim(), None)
+        elif self.cfg.backbone == "SwinToken": 
+            self.encoder = SwinToken(cfg.swin_type, cfg.input_size, self._prediction_code_dict(), self.cfg.transformer,)
         else:
             raise NotImplementedError(f"Backbone type '{self.cfg.backbone}' not implemented.")
         if self.cfg.last_layer_init_zero:

@@ -129,7 +129,7 @@ def submit_trainings():
     # coarse_conf = "emica_jaw_deca_stage"
     # coarse_conf = "emica_jaw_emoca_stage"
 
-    coarse_conf = "emica_pretrain_stage" 
+    # coarse_conf = "emica_pretrain_stage" 
     # coarse_conf = "emica_deca_stage"
     # coarse_conf = "emica_emoca_stage"
 
@@ -141,6 +141,9 @@ def submit_trainings():
     # coarse_conf = "emica_deca_stage_swin"
     # coarse_conf = "emica_emoca_stage_swin"
 
+    coarse_conf = "emica_pretrain_stage_swintoken"
+    # coarse_conf = "emica_deca_stage_swintoken"
+    # coarse_conf = "emica_emoca_stage_swintoken"
 
     ## FLAME 2023, no jaw
     # coarse_conf = "emica_pretrain_stage_swin_no_jaw"
@@ -160,14 +163,14 @@ def submit_trainings():
     ]
 
     # # # ## FLAME 2023
-    # finetune_modes += [
-    #     [ 
-    #         [ 
-    #             '+model/shape_model@model.shape_model=flametex2023',
-    #             'model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path=MICA/model/mica_2023.tar',
-    #         ]
-    #     ], 
-    # ]
+    finetune_modes += [
+        [ 
+            [ 
+                '+model/shape_model@model.shape_model=flametex2023',
+                'model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path=MICA/model/mica_2023.tar',
+            ]
+        ], 
+    ]
 
     #  ## FLAME 2023, no jaw
     # if 'emoca_stage' in coarse_conf: 
@@ -243,23 +246,23 @@ def submit_trainings():
     # ]
    
     # ### MEAD 
-    # dataset_options = [
-    #     # 'data/datasets=mead', 
-    #     'data/datasets=mead_occlusions', 
-    #     # 'data.split=specific_identity_sorted_80_20_M003',
-    #     'data.split=random_by_sequence_sorted_70_15_15',
-    #     # 'data/augmentations=default',
-    #     'data/augmentations=default_no_jpeg',
-    #     # 'data/augmentations=none',
-    # ]
+    dataset_options = [
+        'data/datasets=mead', 
+        # 'data/datasets=mead_occlusions', 
+        # 'data.split=specific_identity_sorted_80_20_M003',
+        'data.split=random_by_sequence_sorted_70_15_15',
+        # 'data/augmentations=default',
+        # 'data/augmentations=default_no_jpeg',
+        'data/augmentations=none',
+    ]
 
     # # # CelebV-Text 
-    dataset_options = [
-        # 'data/datasets=celebvtext',
-        'data/datasets=celebvtext_occlusions',
-        'data.split=random_70_15_15',
-        'data/augmentations=default',
-    ]
+    # dataset_options = [
+    #     # 'data/datasets=celebvtext',
+    #     'data/datasets=celebvtext_occlusions',
+    #     'data.split=random_70_15_15',
+    #     'data/augmentations=default',
+    # ]
 
     # ##  CelebV-HQ
     # dataset_options = [
