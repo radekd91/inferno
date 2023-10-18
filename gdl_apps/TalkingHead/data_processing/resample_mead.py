@@ -6,16 +6,13 @@ from tqdm import auto
 
 
 def main(): 
-    if len(sys.argv) > 1:
-        downloaded_mead_folder = Path(sys.argv[1])
-    else:
-        downloaded_mead_folder = Path("/ps/project/EmotionalFacialAnimation/data/mead/MEAD")
-    
-    if len(sys.argv) > 2:
-        output_dir = sys.argv[2]
-    else: 
-        output_dir = f"/is/cluster/work/rdanecek/data/"
-    
+    if len(sys.argv) < 3:
+        print("Usage: python resample_mead.py <downloaded_mead_folder> <output_dir> [videos_per_shard] [shard_idx]")
+        sys.exit(0)
+
+    downloaded_mead_folder = Path(sys.argv[1])
+    output_dir = sys.argv[2]
+
     output_fps = 25
     output_dir = Path(output_dir) / f"mead_{output_fps}/resampled_videos"    
     output_dir.mkdir(parents=True, exist_ok=True)

@@ -1,5 +1,5 @@
 executable = process_mead.sh
-arguments = 200 $(Process)
+arguments = /is/cluster/fast/rdanecek/data/mead_25fps/resampled_videos /is/cluster/fast/rdanecek/data/mead_25fps/ 200 $(Process)
 error = logs_mead/process_mead.$(Process).err
 output = logs_mead/process_mead.$(Process).out
 log = logs_mead/process_mead.$(Process).log

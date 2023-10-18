@@ -1,4 +1,4 @@
-executable = resample_mead.sh
+executable = /ps/project/EmotionalFacialAnimation/data/mead/MEAD /is/cluster/work/rdanecek/data/ resample_mead.sh
 arguments = 200 $(Process)
 error = logs_mead_resample/resample_mead.$(Process).err
 output = logs_mead_resample/resample_mead.$(Process).out
