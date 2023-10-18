@@ -1,0 +1,9 @@
+executable = process_mead.sh
+arguments = 200 $(Process)
+error = logs_mead/process_mead.$(Process).err
+output = logs_mead/process_mead.$(Process).out
+log = logs_mead/process_mead.$(Process).log
+request_memory = 30000
+request_cpus = 2
+concurrency_limits = user.process_mead:150
+queue 156
