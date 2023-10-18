@@ -26,8 +26,8 @@ import copy
 import sys
 import torch
 
-# submit_ = False
-submit_ = True
+submit_ = False
+# submit_ = True
 
 if submit_ or __name__ != "__main__":
     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -76,7 +76,9 @@ def submit(cfg , bid=10):
     # username = 'rdanecek'
     username = user_config.username
     gpu_mem_requirement_mb = cfg.learning.batching.gpu_memory_min_gb * 1024
-    gpu_mem_requirement_mb_max = cfg.learning.batching.get('gpu_mem_requirement_mb_max', None)
+    gpu_mem_requirement_mb_max = cfg.learning.batching.get('gpu_memory_max_gb', None)
+    if gpu_mem_requirement_mb_max is not None:
+        gpu_mem_requirement_mb_max *= 1024
     # gpu_mem_requirement_mb = None
     cpus = cfg.data.num_workers + 2 # 1 for the training script, 1 for wandb or other loggers (and other stuff), the rest of data loading
     # cpus = 2 # 1 for the training script, 1 for wandb or other loggers (and other stuff), the rest of data loading
@@ -157,7 +159,7 @@ def submit_trainings():
         ],
     ]
 
-    # ## FLAME 2023
+    # # # ## FLAME 2023
     # finetune_modes += [
     #     [ 
     #         [ 
@@ -241,21 +243,23 @@ def submit_trainings():
     # ]
    
     # ### MEAD 
-    dataset_options = [
-        'data/datasets=mead', 
-        # 'data.split=specific_identity_sorted_80_20_M003',
-        'data.split=random_by_sequence_sorted_70_15_15',
-        # 'data/augmentations=default',
-        # 'data/augmentations=default_no_jpeg',
-        'data/augmentations=none',
-    ]
-
-    # # CelebV-Text 
     # dataset_options = [
-    #     'data/datasets=celebvtext',
-    #     'data.split=random_70_15_15',
-    #     'data/augmentations=default',
+    #     # 'data/datasets=mead', 
+    #     'data/datasets=mead_occlusions', 
+    #     # 'data.split=specific_identity_sorted_80_20_M003',
+    #     'data.split=random_by_sequence_sorted_70_15_15',
+    #     # 'data/augmentations=default',
+    #     'data/augmentations=default_no_jpeg',
+    #     # 'data/augmentations=none',
     # ]
+
+    # # # CelebV-Text 
+    dataset_options = [
+        # 'data/datasets=celebvtext',
+        'data/datasets=celebvtext_occlusions',
+        'data.split=random_70_15_15',
+        'data/augmentations=default',
+    ]
 
     # ##  CelebV-HQ
     # dataset_options = [
@@ -345,21 +349,8 @@ def submit_trainings():
 
                     # flame 2023
                     init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_21_18-40-32_-3169766546583792807_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug/cfg.yaml"
-
-                    ## align is False 
-                    # old FLAME
-                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_21_18-28-22_-2197977971744641827_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug/cfg.yaml"
-
-                    # new FLAME
-                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_21_18-28-32_1311092999744301156_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug/cfg.yaml"
-
                 else:
-                    ## old flame
-                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_13_12-31-43_-2250655239062560418_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
-                    ## flame 2023 with jaw
-                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_15_18-04-48_-7123981511244310949_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
-                    ## flame 2023 without jaw 
-                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_15_18-04-48_4189258590173907260_FaceReconstructionBase_Celeb_Swin_Pe_Aug/cfg.yaml"
+                    pass
             elif conf.data.data_class == "cmumosei":
                 init_from = "todo"
             else:
@@ -367,12 +358,9 @@ def submit_trainings():
         elif "emica_emoca_stage" in coarse_conf:
             if conf.data.data_class == "MEADDataModule":
                 if not swin:
-                    ## old flame, old trainings
-                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_10_19-43-50_-8627699022373962674_FaceReconstructionBase_MEADDEmicaEncoder_Aug/cfg.yaml"
-
                     ## align is True
                     ## old FLAME, no augmentation
-                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_22_10-14-14_4959760480814184303_FaceReconstructionBase_MEADD_ResNet50_Pe/cfg.yaml"
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_10_17_22-38-04_8211836596115022807_FaceReconstructionBase_MEADD_ResNet50_Pe/cfg.yaml"
                     ## FLAME 2023, no augmentation
                     # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_22_10-15-36_1106960685689912156_FaceReconstructionBase_MEADD_ResNet50_Pe/cfg.yaml"
 
@@ -403,22 +391,19 @@ def submit_trainings():
                 init_from = "todo"
             elif conf.data.data_class == "CelebVTextDataModule":
                 if not swin:
-                    ## old FLAME, old trainings
-                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_12_17-07-09_-2989978127745211316_FaceReconstructionBase_CelebEmicaEncoder_Aug/cfg.yaml"
-
                     ## align is True
                     ## old FLAME, augmentation
-                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_22_10-40-29_5414976940116153634_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug/cfg.yaml"
+                    # init_from = ""
 
                     ## FLAME 2023, augmentation
-                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_22_10-50-54_-5874703732016134029_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug/cfg.yaml"
+                    init_from = ""
 
                     ## align is False
                     ## old FLAME, augmentation
-                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_22_10-41-03_693910292153695957_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug/cfg.yaml"
+                    # init_from = ""
 
                     ## FLAME 2023, augmentation
-                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_22_10-42-27_1173685102144472006_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug/cfg.yaml"
+                    # init_from = ""
 
 
                 else: 

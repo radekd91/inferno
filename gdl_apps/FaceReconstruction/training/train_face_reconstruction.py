@@ -275,72 +275,60 @@ def prepare_data(cfg):
 
 
 
-def create_experiment_name(cfg_coarse, version=0):
-    # experiment_name = "ExpDECA"
-    experiment_name = cfg_coarse.model.pl_module_class
+def create_experiment_name(cfg, version=0):
+    experiment_name = cfg.model.pl_module_class
     if version <= 2:
 
-        if cfg_coarse.data.data_class:
-            experiment_name += '_' + cfg_coarse.data.data_class[:5]
+        if cfg.data.data_class:
+            experiment_name += '_' + cfg.data.data_class[:5]
 
-        face_encoder_name = cfg_coarse.model.face_encoder.encoders.expression_encoder.backbone
+        face_encoder_name = cfg.model.face_encoder.encoders.expression_encoder.backbone
         experiment_name += "_" + face_encoder_name
-        predicts = list(cfg_coarse.model.face_encoder.encoders.expression_encoder.predicts.keys())
+        predicts = list(cfg.model.face_encoder.encoders.expression_encoder.predicts.keys())
         predicts = ''.join([p[0] for p in predicts if len(p) > 0])
         experiment_name += "_P" + predicts 
 
-        if 'augmentation' in cfg_coarse.data.keys() and len(cfg_coarse.data.augmentation) > 0:
+        if 'augmentation' in cfg.data.keys() and len(cfg.data.augmentation) > 0:
             experiment_name += "_Aug"
 
-        # if cfg_coarse.data.occlusion_settings_train.occlusion_length == 0:
+        # if cfg.data.occlusion_settings_train.occlusion_length == 0:
         #     experiment_name += "_noOcc"
 
-        if hasattr(cfg_coarse.learning, 'early_stopping') and cfg_coarse.learning.early_stopping: # \
-            # and hasattr(cfg_detail.learning, 'early_stopping') and cfg_detail.learning.early_stopping
+        if hasattr(cfg.learning, 'early_stopping') and cfg.learning.early_stopping: # \
+            # and hasattr(cfg.learning, 'early_stopping') and cfg.learning.early_stopping
             experiment_name += "_early"
 
     return experiment_name
 
 
-def train_model(cfg_coarse, 
-                # cfg_detail=None, 
+def train_model(cfg, 
                 start_i=-1, 
                 resume_from_previous = True,
                force_new_location=False):
-    # configs = [cfg_coarse, cfg_coarse, cfg_detail, cfg_detail]
-    # stages = ["train", "test", "train", "test"]
-
-
-
-    # stages_prefixes = ["", "", "", ""]
-    configs = [cfg_coarse, cfg_coarse]
+    configs = [cfg, cfg]
     stages = ["train", "test"]
     stages_prefixes = ["", "", ]
 
-    # if cfg_detail is not None:
-    #     configs  += [cfg_detail, cfg_detail]
-    #     stages += ["train", "test"]
-    #     stages_prefixes += ["", "", ]
 
     ## FLAME sanity check
-    flame23 = '2023' in  Path(cfg_coarse.model.shape_model.flame.flame_model_path).name
-    mica23 = '2023' in Path(cfg_coarse.model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path).name
+    flame23 = '2023' in  Path(cfg.model.shape_model.flame.flame_model_path).name
+    mica23 = '2023' in Path(cfg.model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path).name
     assert flame23 == mica23, "The mica and flame models must be both 2023 or both 2020"
 
-    init_from = cfg_coarse.model.get('init_from', None)
+    init_from = cfg.model.get('init_from', None)
     if start_i < 0 and init_from is not None:
         # load the cfg from init_from 
         resume_i = start_i - 1 
         init_from_cfg = OmegaConf.load(init_from)
 
-        assert init_from_cfg.coarse.model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path == cfg_coarse.model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path, \
+        assert init_from_cfg.model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path == cfg.model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path, \
             "The mica model path must be the same in the init_from config and the current config"
         
-        assert init_from_cfg.coarse.model.shape_model.flame.flame_model_path == cfg_coarse.model.shape_model.flame.flame_model_path, \
+        assert init_from_cfg.model.shape_model.flame.flame_model_path == cfg.model.shape_model.flame.flame_model_path, \
             "The FLAME model path must be the same in the init_from config and the current config"
 
-        checkpoint_mode = init_from_cfg.coarse.learning.checkpoint_after_training  # loads latest or best based on cfg
-        checkpoint, checkpoint_kwargs = get_checkpoint_with_kwargs(init_from_cfg.coarse, "", checkpoint_mode)
+        checkpoint_mode = init_from_cfg.learning.checkpoint_after_training  # loads latest or best based on cfg
+        checkpoint, checkpoint_kwargs = get_checkpoint_with_kwargs(init_from_cfg, "", checkpoint_mode)
             
     elif start_i >= 0 or force_new_location or init_from is not None:
         if resume_from_previous:
@@ -355,27 +343,27 @@ def train_model(cfg_coarse,
     else:
         checkpoint, checkpoint_kwargs = None, None
 
-    if cfg_coarse.inout.full_run_dir == 'todo' or force_new_location:
+    if cfg.inout.full_run_dir == 'todo' or force_new_location:
         if force_new_location:
             print("The run will be resumed in a new foler (forked)")
-            cfg_coarse.inout.previous_run_dir = cfg_coarse.inout.full_run_dir
+            cfg.inout.previous_run_dir = cfg.inout.full_run_dir
         time = datetime.datetime.now().strftime("%Y_%m_%d_%H-%M-%S")
         random_id = str(hash(time))
-        experiment_name = create_experiment_name(cfg_coarse)
+        experiment_name = create_experiment_name(cfg)
         full_run_dir = Path(configs[0].inout.output_dir) / (time + "_" + random_id + "_" + experiment_name)
         exist_ok = False # a path for a new experiment should not yet exist
     else:
-        experiment_name = cfg_coarse.inout.name
+        experiment_name = cfg.inout.name
         len_time_str = len(datetime.datetime.now().strftime("%Y_%m_%d_%H-%M-%S"))
-        if hasattr(cfg_coarse.inout, 'time') and cfg_coarse.inout.time is not None:
-            time = cfg_coarse.inout.time
+        if hasattr(cfg.inout, 'time') and cfg.inout.time is not None:
+            time = cfg.inout.time
         else:
             time = experiment_name[:len_time_str]
-        if hasattr(cfg_coarse.inout, 'random_id') and cfg_coarse.inout.random_id is not None:
-            random_id = cfg_coarse.inout.random_id
+        if hasattr(cfg.inout, 'random_id') and cfg.inout.random_id is not None:
+            random_id = cfg.inout.random_id
         else:
             random_id = ""
-        full_run_dir = Path(cfg_coarse.inout.full_run_dir).parent
+        full_run_dir = Path(cfg.inout.full_run_dir).parent
         exist_ok = True # a path for an old experiment should exist
 
     full_run_dir.mkdir(parents=True, exist_ok=exist_ok)
@@ -383,47 +371,27 @@ def train_model(cfg_coarse,
     # with open("out_folder.txt", "w") as f:
         # f.write(str(full_run_dir))
 
-    coarse_checkpoint_dir = full_run_dir / "coarse" / "checkpoints"
-    coarse_checkpoint_dir.mkdir(parents=True, exist_ok=exist_ok)
+    checkpoint_dir = full_run_dir / "checkpoints"
+    checkpoint_dir.mkdir(parents=True, exist_ok=exist_ok)
 
-    cfg_coarse.inout.full_run_dir = str(coarse_checkpoint_dir.parent)
-    cfg_coarse.inout.checkpoint_dir = str(coarse_checkpoint_dir)
-    cfg_coarse.inout.name = experiment_name
-    cfg_coarse.inout.time = time
-    cfg_coarse.inout.random_id = random_id
+    cfg.inout.full_run_dir = str(checkpoint_dir.parent)
+    cfg.inout.checkpoint_dir = str(checkpoint_dir)
+    cfg.inout.name = experiment_name
+    cfg.inout.time = time
+    cfg.inout.random_id = random_id
 
-    # # if cfg_detail.inout.full_run_dir == 'todo':
-    # if cfg_detail is not None:
-    #     detail_checkpoint_dir = full_run_dir / "detail" / "checkpoints"
-    #     detail_checkpoint_dir.mkdir(parents=True, exist_ok=exist_ok)
-
-    #     cfg_detail.inout.full_run_dir = str(detail_checkpoint_dir.parent)
-    #     cfg_detail.inout.checkpoint_dir = str(detail_checkpoint_dir)
-    #     cfg_detail.inout.name = experiment_name
-    #     cfg_detail.inout.time = time
-    #     cfg_detail.inout.random_id = random_id
-
-    # save config to target folder
-    conf = DictConfig({})
-
-    # TODO: name the stages dynamically if possible
-    conf.coarse = cfg_coarse 
-    
-    # if cfg_detail is not None:
-    #     conf.detail = cfg_detail
     with open(full_run_dir / "cfg.yaml", 'w') as outfile:
-        OmegaConf.save(config=conf, f=outfile)
+        OmegaConf.save(config=cfg, f=outfile)
 
     version = time
     if random_id is not None and len(random_id) > 0:
-        # version += "_" + cfg_detail.inout.random_id
-        version += "_" + cfg_coarse.inout.random_id
+        version += "_" + cfg.inout.random_id
 
     wandb_logger = create_logger(
-                         cfg_coarse.learning.logger_type,
+                         cfg.learning.logger_type,
                          name=experiment_name,
                          project_name=project_name,
-                         config=OmegaConf.to_container(conf),
+                         config=OmegaConf.to_container(cfg),
                          version=version,
                          save_dir=full_run_dir)
 
@@ -436,7 +404,7 @@ def train_model(cfg_coarse,
     for i in range(start_i, len(configs)):
         cfg = configs[i]
 
-        model_class = class_from_str(cfg_coarse.model.pl_module_class, sys.modules[__name__])
+        model_class = class_from_str(cfg.model.pl_module_class, sys.modules[__name__])
 
         model = single_stage_training_pass(model, cfg, stages[i], stages_prefixes[i], dm=None, logger=wandb_logger,
                                       data_preparation_function=prepare_data,
@@ -447,50 +415,35 @@ def train_model(cfg_coarse,
 
 
 
-def configure(coarse_cfg_default, coarse_overrides, detail_cfg_default=None, detail_overrides=None):
+def configure(cfg_default, overrides):
     from hydra.experimental import compose, initialize
     initialize(config_path="../facerec_conf", job_name="FaceReconstruction")
-    cfg_coarse = compose(config_name=coarse_cfg_default, overrides=coarse_overrides)
-    return cfg_coarse
-    # if detail_cfg_default is not None and detail_overrides is not None:
-    #     cfg_detail = compose(config_name=detail_cfg_default, overrides=detail_overrides)
-    # else: 
-    #     cfg_detail = None
-    # return cfg_coarse, cfg_detail
+    cfg = compose(config_name=cfg_default, overrides=overrides)
+    return cfg
 
 
-
-def configure_and_train(coarse_cfg_default, coarse_overrides,
-                        # detail_cfg_default, detail_overrides
+def configure_and_train(cfg_default, overrides,
                         ):
-    # cfg_coarse, cfg_detail = configure(coarse_cfg_default, coarse_overrides,
-    #                                    detail_cfg_default, detail_overrides)
-    cfg_coarse = configure(coarse_cfg_default, coarse_overrides)
-    train_model(cfg_coarse)
+    cfg = configure(cfg_default, overrides)
+    train_model(cfg)
 
 
 def configure_and_resume(run_path,
-                         coarse_cfg_default, coarse_overrides,
-                        #  detail_cfg_default, detail_overrides,
+                         cfg_default, overrides,
                          start_at_stage):
-    # cfg_coarse, cfg_detail = configure(
-    #                                    coarse_cfg_default, coarse_overrides,
-    #                                    detail_cfg_default, detail_overrides)
-    cfg_coarse = configure(coarse_cfg_default, coarse_overrides)
-
-    # cfg_coarse_, cfg_detail_ = load_configs(run_path)
-    cfg_coarse_ = load_configs(run_path)
+    cfg = configure(cfg_default, overrides)
+    cfg_ = load_configs(run_path)
 
     if start_at_stage < 2:
         raise RuntimeError("Resuming before stage 2 makes no sense, that would be training from scratch")
     elif start_at_stage == 2:
-        cfg_coarse = cfg_coarse_
+        cfg = cfg_
     elif start_at_stage == 3:
         raise RuntimeError("Resuming for stage 3 makes no sense, that is a testing stage")
     else:
         raise RuntimeError(f"Cannot resume at stage {start_at_stage}")
 
-    train_model(cfg_coarse, 
+    train_model(cfg, 
                start_i=start_at_stage,
                resume_from_previous=True, #important, resume from previous stage's checkpoint
                force_new_location=True)
@@ -499,8 +452,7 @@ def configure_and_resume(run_path,
 def load_configs(run_path):
     with open(Path(run_path) / "cfg.yaml", "r") as f:
         conf = OmegaConf.load(f)
-    cfg_coarse = conf.coarse
-    return cfg_coarse
+    return conf
 
 
 def resume_training(run_path, start_at_stage, resume_from_previous, force_new_location):
@@ -519,39 +471,26 @@ def main():
         if Path(sys.argv[1]).is_file(): 
             configured = True
             with open(sys.argv[1], 'r') as f:
-                coarse_conf = OmegaConf.load(f)
-            # detail_conf = None
+                conf = OmegaConf.load(f)
             resume_from_previous = True
             force_new_location = False
             start_from = -1
         else:
-            coarse_conf = sys.argv[1]
-            # detail_conf = None
-            coarse_override = []
-            # detail_override = []
+            conf = sys.argv[1]
+            override = []
     elif len(sys.argv) < 2:
-        coarse_conf = "emica_deca_stage"
-        # detail_conf = None
-        coarse_override = []
-        # detail_override = []
-
-        # coarse_conf = detail_conf
-        # coarse_override = detail_override
+        conf = "emica_deca_stage"
+        override = []
 
     elif len(sys.argv) >= 2:
         if Path(sys.argv[1]).is_file():
             configured = True
             print("Found configured file. Loading it")
             with open(sys.argv[1], 'r') as f:
-                coarse_conf = OmegaConf.load(f)
-            # with open(sys.argv[2], 'r') as f:
-            #     detail_conf = OmegaConf.load(f)
-            # detail_conf = None
-            coarse_override = []
-            # detail_override = []
+                conf = OmegaConf.load(f)
+            override = []
         else:
-            coarse_conf = sys.argv[1]
-            # detail_conf = sys.argv[2]
+            conf = sys.argv[1]
         if len(sys.argv) > 2:
             start_from = int(sys.argv[2])
             if len(sys.argv) > 3:
@@ -567,19 +506,16 @@ def main():
             force_new_location = False
             start_from = -1
     else:
-        coarse_conf = "emica_deca_stage"
-        coarse_override = []
-        # detail_override = []
+        conf = "emica_deca_stage"
+        override = []
 
     if configured:
         print("Configured file loaded. Running training script")
-        train_model(coarse_conf, 
-                    # detail_conf,
+        train_model(conf, 
                     start_from, 
                     resume_from_previous, force_new_location)
     else:
-        configure_and_train(coarse_conf, coarse_override)
-        # configure_and_train(coarse_conf, coarse_override, detail_conf, detail_override)
+        configure_and_train(conf, override)
 
 
 

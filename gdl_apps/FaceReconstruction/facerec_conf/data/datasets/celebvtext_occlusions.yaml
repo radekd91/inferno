@@ -20,26 +20,26 @@ inflate_by_video_size: False
 ring_type: none
 ring_size: none
 
-# occlusion_settings_train:
-#     occlusion_length: [1, 15]
-#     occlusion_probability_mouth: 0.125
-#     occlusion_probability_left_eye: 0.125
-#     occlusion_probability_right_eye: 0.125
-#     occlusion_probability_face: 0.125
+occlusion_settings_train:
+    occlusion_length: [2, 4]
+    occlusion_probability_mouth: 0.1
+    occlusion_probability_left_eye: 0.1
+    occlusion_probability_right_eye: 0.1
+    occlusion_probability_face: 0
 
-# occlusion_settings_val:
-#     occlusion_length: [1, 15]
-#     occlusion_probability_mouth: 0.125
-#     occlusion_probability_left_eye: 0.125
-#     occlusion_probability_right_eye: 0.125
-#     occlusion_probability_face: 0.125
+occlusion_settings_val:
+    occlusion_length: [2, 4]
+    occlusion_probability_mouth: 0.1
+    occlusion_probability_left_eye: 0.1
+    occlusion_probability_right_eye: 0.1
+    occlusion_probability_face: 0
 
-# occlusion_settings_test:
-#     occlusion_length: [1, 15]
-#     occlusion_probability_mouth: 0.125
-#     occlusion_probability_left_eye: 0.125
-#     occlusion_probability_right_eye: 0.125
-#     occlusion_probability_face: 0.125
+occlusion_settings_test:
+    occlusion_length: [2, 4]
+    occlusion_probability_mouth: 0.1
+    occlusion_probability_left_eye: 0.1
+    occlusion_probability_right_eye: 0.1
+    occlusion_probability_face: 0
 
 
 drop_last: true
