@@ -19,7 +19,6 @@ All rights reserved.
 
 from gdl.models.talkinghead.TalkingHeadBase import TalkingHeadBase
 import numpy as np
-from torch import nn
 import torch.nn.functional as F
 from gdl.models.temporal.BlockFactory import *
 from gdl.models.rotation_loss import compute_rotation_loss, convert_rot
@@ -31,6 +30,10 @@ from gdl.layers.losses.VideoEmotionLoss import create_video_emotion_loss
 
 
 class FaceFormer(TalkingHeadBase):
+    """
+    Originally a reimplementation of the FaceFormer model from the paper but now it is a general TalkingHead model, 
+    including EMOTE.
+    """
 
     def __init__(self, cfg):
         audio_encoder = audio_model_from_cfg(cfg.model.audio)
@@ -488,11 +491,6 @@ class FaceFormer(TalkingHeadBase):
                 strict=False, 
                 **checkpoint_kwargs
             )
-            # if stage == 'train':
-            #     mode = True
-            # else:
-            #     mode = False
-            # model.reconfigure(cfg, prefix, downgrade_ok=True, train=mode)
         return model
 
 

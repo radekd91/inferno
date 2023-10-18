@@ -15,6 +15,9 @@ from omegaconf import OmegaConf
 
 
 class DeepPhase(MotionPrior):
+    """
+    An attempt to implement the DeepPhase model. Not finished, not tested.
+    """
 
     def __init__(self, cfg) -> None:
         self.cfg = cfg
@@ -75,7 +78,7 @@ class DeepPhase(MotionPrior):
 
 class DeepPhaseEncoder(MotionEncoder): 
     """
-    Inspired by by the encoder from Learning to Listen.
+    An attempt to implement the DeepPhase model encoder . Not finished, not tested.
     """
 
     def __init__(self, cfg, sizes):

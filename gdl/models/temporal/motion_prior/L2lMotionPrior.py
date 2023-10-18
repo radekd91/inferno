@@ -31,11 +31,12 @@ from munch import Munch, munchify
 from omegaconf import OmegaConf
 
 class L2lVqVae(MotionPrior):
+    """
+    An AE prior that can support the VAE and VQ-VAE paradigms. 
+    Inspired by: https://github.com/evonneng/learning2listen 
+    """
 
     def __init__(self, cfg) -> None:
-        # motion_encoder = motion_decoder_from_cfg(cfg)
-        # motion_decoder = motion_decoder_from_cfg(cfg)
-        # motion_codebook = motion_codebook_from_cfg(cfg)
         self.cfg = cfg
         input_dim = self.get_input_sequence_dim()
         
@@ -129,24 +130,10 @@ class L2lEncoder(MotionEncoder):
     def __init__(self, cfg, sizes):
         super().__init__()
         self.config = cfg
-        # size=self.config['transformer_config']['in_dim']
         self.sizes = sizes
         size = self.config.input_dim
-        # dim=self.config['transformer_config']['hidden_size']
         dim = self.config.feature_dim
-        # layers = [nn.Sequential(
-        #             nn.Conv1d(size,dim,5,stride=2,padding=2,
-        #                         padding_mode='replicate'),
-        #             nn.LeakyReLU(0.2, True),
-        #             nn.BatchNorm1d(dim))]
-        # for _ in range(1, sizes.quant_factor):
-        #     layers += [nn.Sequential(
-        #                 nn.Conv1d(dim,dim,5,stride=1,padding=2,
-        #                             padding_mode='replicate'),
-        #                 nn.LeakyReLU(0.2, True),
-        #                 nn.BatchNorm1d(dim),
-        #                 nn.MaxPool1d(2)
-        #                 )]
+
         # self.squasher = nn.Sequential(*layers) 
         self.squasher = create_squasher(size, dim, sizes.quant_factor)
         # the purpose of the squasher is to reduce the FPS of the input sequence
@@ -160,16 +147,6 @@ class L2lEncoder(MotionEncoder):
                     batch_first=True
         )
         self.encoder_transformer = torch.nn.TransformerEncoder(encoder_layer, num_layers=cfg.num_layers)
-
-        # self.encoder_transformer = Transformer(
-        #     in_size=self.config['transformer_config']['hidden_size'],
-        #     hidden_size=self.config['transformer_config']['hidden_size'],
-        #     num_hidden_layers=\
-        #             self.config['transformer_config']['num_hidden_layers'],
-        #     num_attention_heads=\
-        #             self.config['transformer_config']['num_attention_heads'],
-        #     intermediate_size=\
-        #             self.config['transformer_config']['intermediate_size'])
         
         pos_enc_cfg = munchify(OmegaConf.to_container(cfg.positional_encoding))
         pos_enc_cfg.max_seq_len = sizes.quant_sequence_length
@@ -194,7 +171,6 @@ class L2lEncoder(MotionEncoder):
 
     def forward(self, batch, input_key="input_sequence", output_key="encoded_features", **kwargs):
         # ## downsample into path-wise length seq before passing into transformer
-        # dummy_mask = {'max_mask': None, 'mask_index': -1, 'mask': None}
         inputs = batch[input_key]
         # input is batch first: B, T, D but the convolution expects B, D, T
         # so we need to permute back and forth
@@ -379,26 +355,7 @@ class L2lEncoderWithDeepPhaseHead(L2lEncoder):
         batch["encoded_amplitudes"] = a
         batch["encoded_offsets"] = b
         batch["encoded_phases"] = p
-
-        # #Latent Reconstruction - this should go in into the decoder
-        # y = a * torch.sin(self.tpi * (f * self.args + p)) + b
-
-        # signal = y #Save signal for returning
-
-
-        # # we don't need the up convolutions here
-        # #Signal Reconstruction
-        # y = self.deconv1(y)
-        # y = self.denorm1(y)
-        # y = torch.nn.functional.elu(y)
-        # y = self.deconv2(y)
-
-        # y = y.reshape(y.shape[0], self.input_channels*self.time_range)
-
         return batch
-
-
-
 
 
 class L2lDecoder(MotionEncoder): 

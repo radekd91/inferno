@@ -33,8 +33,10 @@ from gdl.utils.other import class_from_str
 from gdl.models.IO import get_checkpoint_with_kwargs
 import sys
 
-
 class AutoRegressiveDecoder(nn.Module):
+    """
+    A base class for auto-regressive decoders
+    """
 
     def __init__(self) -> None:
         super().__init__()
@@ -266,6 +268,9 @@ class LinearEmotionCondition(EmotionCondition):
 
 
 class FaceFormerDecoderBase(AutoRegressiveDecoder):
+    """
+    A reimplemntation of the faceformer decoder from the FaceFormer paper.
+    """
 
     def __init__(self, cfg) -> None:
         super().__init__()
@@ -460,15 +465,13 @@ def rotation_rep_size(rep):
 
 class FlameFormerDecoder(FaceFormerDecoderBase):
 
+    """
+    FlameFormer decoder, similar to the original implementation of the FaceFormer paper but predicts FLAME parameters instead of vertices
+    """
+
     def __init__(self, cfg):
         super().__init__(cfg)
         from gdl.models.DecaFLAME import FLAME
-        # from munch import Munch
-        # self.flame_config = Munch()
-        # self.flame_config.flame_model_path = "/ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl" 
-        # self.flame_config.n_shape = 100 
-        # self.flame_config.n_exp = 50
-        # self.flame_config.flame_lmk_embedding_path = "/ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy"
         self.flame_config = cfg.flame
         self.flame = FLAME(self.flame_config)
         pred_dim = 0
@@ -579,6 +582,10 @@ def enc_dec_mask(device, T, S, dataset="vocaset"):
 
 
 class FeedForwardDecoder(nn.Module): 
+
+    """
+    A base-class for feed-forward (non-autoregressive) decoders.
+    """
 
     def __init__(self, cfg) -> None:
         super().__init__()
@@ -713,6 +720,10 @@ class MLPDecoder(FeedForwardDecoder):
 
 class BertDecoder(FeedForwardDecoder):
 
+    """
+    A decoder that uses a transformer encoder to decode the vertices.
+    """
+
     def __init__(self, cfg) -> None:
         super().__init__(cfg)
         dim_factor = self._total_dim_factor()
@@ -778,6 +789,10 @@ class BertDecoder(FeedForwardDecoder):
         return decoded_offsets
 
 class FlameBertDecoder(BertDecoder):
+
+    """
+    A decoder that uses a transformer encoder to decode FLAME parameters
+    """
 
     def __init__(self, cfg) -> None:
         from gdl.models.DecaFLAME import FLAME
@@ -943,7 +958,9 @@ class StackLinearSquash(nn.Module):
         return x
 
 class BertPriorDecoder(FeedForwardDecoder):
-
+    """
+    A decoder that uses a transformer encoder and a motion prior network to decode the FLAME parameters
+    """
     def __init__(self, cfg) -> None:
         super().__init__(cfg)
         dim_factor = self._total_dim_factor()
