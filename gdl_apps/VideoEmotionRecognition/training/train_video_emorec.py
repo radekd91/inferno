@@ -1,6 +1,6 @@
 """
 Author: Radek Danecek
-Copyright (c) 2022, Radek Danecek
+Copyright (c) 2023, Radek Danecek
 All rights reserved.
 
 # Max-Planck-Gesellschaft zur Förderung der Wissenschaften e.V. (MPG) is
@@ -13,9 +13,10 @@ All rights reserved.
 # der Wissenschaften e.V. (MPG). acting on behalf of its Max Planck Institute
 # for Intelligent Systems. All rights reserved.
 #
-# For comments or questions, please email us at emoca@tue.mpg.de
+# For comments or questions, please email us at emote@tue.mpg.de
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
+
 import warnings
 warnings.filterwarnings('ignore', message='.*Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. *', )
 
