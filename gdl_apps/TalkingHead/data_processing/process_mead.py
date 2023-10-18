@@ -25,21 +25,8 @@ import numpy as np
 
 
 def main(): 
-    # root_dir = Path("/ps/project/EmotionalFacialAnimation/data/celebvhq/auto_processed")
-    # root_dir = Path("/ps/project/EmotionalFacialAnimation/data/mead/MEAD")
-    # root_dir = Path("/is/cluster/work/rdanecek/data/mead_25fps/resampled_videos")
     root_dir = Path("/is/cluster/fast/rdanecek/data/mead_25fps/resampled_videos")
-    # root_dir = Path("/ps/project/EmotionalFacialAnimation/data/celebvhq/auto_processed_online")
-    # root_dir = Path("/ps/project/EmotionalFacialAnimation/data/celebvhq/auto_processed_online_25fps")
-    # output_dir = Path("/is/cluster/work/rdanecek/data/mead/")
-    # output_dir = Path("/is/cluster/work/rdanecek/data/mead_25fps/")
     output_dir = Path("/is/cluster/fast/rdanecek/data/mead_25fps/")
-    # output_dir = Path("/ps/scratch/rdanecek/data/celebvhq/")
-    # output_dir = Path("/home/rdanecek/Workspace/Data/celebvhq/")
-
-    # root_dir = Path("/ps/project/EmotionalFacialAnimation/data/lrs2/mvlrs_v1")
-    # output_dir = Path("/ps/scratch/rdanecek/data/lrs2")
-
     processed_subfolder = "processed"
 
     # Create the dataset
@@ -48,14 +35,13 @@ def main():
             scale=1.35, # zooms out the face a little bit s.t. forehead is very likely to be visible and lower part of the chin and a little bit of the neck as well
             bb_center_shift_x=0., # in relative numbers
             bb_center_shift_y=-0.1, # in relative numbers (i.e. -0.1 for 10% shift upwards, ...)
-            # processed_video_size=256,
             processed_video_size=384,
     )
 
     print("Create the dataloader")
     dm.prepare_data() 
     # sys.exit(0)
-    # TODO: take care of these #
+    # TODO: take care of these 
     # [WARNING] Video file has no audio streams! 'M041/video/front/sad/level_2/020.mp4'
     # [WARNING] Video file has no audio streams! 'M041/video/front/sad/level_2/021.mp4'
     # [WARNING] Video file has no audio streams! 'M041/video/front/sad/level_2/022.mp4'
