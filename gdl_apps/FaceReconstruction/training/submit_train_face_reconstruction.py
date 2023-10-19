@@ -130,7 +130,7 @@ def submit_trainings():
     # coarse_conf = "emica_jaw_emoca_stage"
 
     # coarse_conf = "emica_pretrain_stage" 
-    coarse_conf = "emica_deca_stage"
+    # coarse_conf = "emica_deca_stage"
     # coarse_conf = "emica_emoca_stage"
 
     # coarse_conf = "emica_jaw_pretrain_stage_swin"
@@ -142,7 +142,7 @@ def submit_trainings():
     # coarse_conf = "emica_emoca_stage_swin"
 
     # coarse_conf = "emica_pretrain_stage_swintoken"
-    # coarse_conf = "emica_deca_stage_swintoken"
+    coarse_conf = "emica_deca_stage_swintoken"
     # coarse_conf = "emica_emoca_stage_swintoken"
 
     ## FLAME 2023, no jaw
@@ -297,7 +297,15 @@ def submit_trainings():
         # config_pairs += [cfgs]
 
         init_from = None
-        if "emica_deca_stage" in coarse_conf:
+        if "emica_deca_stage_swintoken" in coarse_conf:
+            if conf.data.data_class == "MEADDataModule":
+                raise ValueError("No pretrained model for swintoken")
+            elif conf.data.data_class == "CelebVTextDataModule":
+                ## flame 2023
+                init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_10_18_16-20-00_-4383064381780820514_FaceReconstructionBase_Celeb_SwinToken_Pe_Aug/cfg.yaml"
+            else: 
+                raise ValueError(f"Unknown data class {conf.data.data_class}")
+        elif "emica_deca_stage" in coarse_conf:
             if conf.data.data_class == "MEADDataModule":
                 if not swin:
                     ### align images is True
@@ -455,7 +463,6 @@ def submit_trainings():
                     init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_16_17-56-02_-5820293105518523409_FaceReconstructionBase_Celeb_Swin_Pej_Aug/cfg.yaml"
             else: 
                 raise ValueError(f"Unknown data class {conf.data.data_class}")
-                    
 
 
         bid = 150
