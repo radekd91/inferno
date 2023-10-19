@@ -17,6 +17,7 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 
+from gdl_apps.TalkingHead.evaluation.TalkingHeadWrapper import TalkingHeadWrapper
 from gdl_apps.TalkingHead.evaluation.eval_talking_head_on_audio import *
 
 
@@ -27,11 +28,15 @@ def eval_talking_head_on_audio(talking_head, audio_path, silent_frames_start=0, 
     # talking_head.talking_head_model.preprocessor.to(device) # weird hack
     sample = create_base_sample(talking_head, audio_path, silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end)
     # samples = create_id_emo_int_combinations(talking_head, sample)
-    emo = Path(audio_path).stem.split("_")[1]
-    emo = emo[0].upper() + emo[1:]
-    emo_idx = AffectNetExpressions[emo].value
+    emo_split = Path(audio_path).stem.split("_")
+    if len(emo_split) > 1:
+        emo = [1]
+        emo = emo[0].upper() + emo[1:]
+        emo_idx = [AffectNetExpressions[emo].value]
+    else: 
+        emo_idx = list(range(8))
     samples = create_high_intensity_emotions(talking_head, sample, 
-                                             emotion_index_list = [emo_idx],
+                                             emotion_index_list = emo_idx,
                                              silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, 
                                             silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
 
@@ -56,7 +61,8 @@ def eval_talking_head_on_audio(talking_head, audio_path, silent_frames_start=0, 
                     mouth_opening_intervals=manual_mouth_openting_intervals,
                     mouth_closure_intervals=manual_mouth_closure_intervals,
                     silent_intervals=silent_intervals,
-                    save_flame=True, pyrender_videos=True
+                    save_flame=False, 
+                    pyrender_videos=True,
                     original_audios=orig_audios,
                     )
     print("Done")
@@ -80,16 +86,33 @@ def main():
         # audio = Path('/ps/project/EmotionalFacialAnimation/flare_fastforward/Audio_FLARE_ShrishaBharadwaj/5_happy.wav')
         # audio = Path('/ps/project/EmotionalFacialAnimation/flare_fastforward/Audio_FLARE_ShrishaBharadwaj/6_happy.wav')
         # audio = Path('/ps/project/EmotionalFacialAnimation/flare_fastforward/Audio_FLARE_ShrishaBharadwaj/7_happy.wav')
-        audio = Path('/ps/project/EmotionalFacialAnimation/flare_fastforward/Audio_FLARE_ShrishaBharadwaj/8_neutral.wav')
+        # audio = Path('/ps/project/EmotionalFacialAnimation/flare_fastforward/Audio_FLARE_ShrishaBharadwaj/8_neutral.wav')
+        
+        audio = []
+        audio += [Path('/ps/project/EmotionalFacialAnimation/flare_fastforward/MJB_Audio/1.m4a')]
+        audio += [Path('/ps/project/EmotionalFacialAnimation/flare_fastforward/MJB_Audio/2.m4a')]
+        audio += [Path('/ps/project/EmotionalFacialAnimation/flare_fastforward/MJB_Audio/3.m4a')]
+        audio += [Path('/ps/project/EmotionalFacialAnimation/flare_fastforward/MJB_Audio/4.m4a')]
+
+        audio += [Path('/ps/project/EmotionalFacialAnimation/flare_fastforward/YZ_Audio/1.m4a')]
+        audio += [Path('/ps/project/EmotionalFacialAnimation/flare_fastforward/YZ_Audio/2.m4a')]
+        audio += [Path('/ps/project/EmotionalFacialAnimation/flare_fastforward/YZ_Audio/3.m4a')]
+        audio += [Path('/ps/project/EmotionalFacialAnimation/flare_fastforward/YZ_Audio/4.m4a')]
+
+    if not isinstance(audio, list):
+        audio = [audio]
 
     model_path = Path(root) / resume_folder  
     talking_head = TalkingHeadWrapper(model_path, render_results=False)
-    eval_talking_head_on_audio(talking_head, audio, 
-                               silent_frames_start=30, 
-                               silent_frames_end=30, 
+    
+    for a in audio:
+        assert a.exists(), f"{a} does not exist"
+        eval_talking_head_on_audio(talking_head, a, 
+                                silent_frames_start=30, 
+                                silent_frames_end=30, 
                                 silent_emotion_start=0, 
                                 silent_emotion_end=0,
-    )
+        )
     
 
 
