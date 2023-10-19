@@ -77,7 +77,7 @@ class TalkingHeadWrapper(torch.nn.Module):
 
     def __init__(self, path_to_model, render_results=True, use_preprocessor=True, apply_mask=True) -> None:
         super().__init__()
-        self.talking_head_model, self.cfg = load_model(path_to_model.parent, path_to_model.name, mode='latest')
+        self.talking_head_model, self.cfg = load_model(path_to_model.parent, path_to_model.name, mode='latest', with_losses=False)
         self.talking_head_model.eval()
 
         self.talking_head_model.renderer = None # delete the renderer, we will use our own

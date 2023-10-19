@@ -28,10 +28,14 @@ from gdl.models.IO import locate_checkpoint
 def load_model(path_to_models,
               run_name,
               mode='latest',
+              with_losses=True,
               ):
     run_path = Path(path_to_models) / run_name
     with open(Path(run_path) / "cfg.yaml", "r") as f:
         cfg = OmegaConf.load(f)
+    if not with_losses:
+        cfg.learning.losses = {}
+        cfg.learning.metrics = {}
 
     faceformer = load_faceformer(cfg, mode,)
     return faceformer, cfg
