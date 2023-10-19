@@ -302,7 +302,8 @@ def submit_trainings():
                 raise ValueError("No pretrained model for swintoken")
             elif conf.data.data_class == "CelebVTextDataModule":
                 ## flame 2023
-                init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_10_18_16-20-00_-4383064381780820514_FaceReconstructionBase_Celeb_SwinToken_Pe_Aug/cfg.yaml"
+                # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_10_18_16-20-00_-4383064381780820514_FaceReconstructionBase_Celeb_SwinToken_Pe_Aug/cfg.yaml"
+                init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_10_18_23-27-38_7541868927658392863_FaceReconstructionBase_Celeb_SwinToken_Pe_Aug/cfg.yaml" # more converged
             else: 
                 raise ValueError(f"Unknown data class {conf.data.data_class}")
         elif "emica_deca_stage" in coarse_conf:
