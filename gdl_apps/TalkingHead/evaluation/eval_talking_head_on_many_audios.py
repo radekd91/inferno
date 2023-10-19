@@ -16,6 +16,7 @@ All rights reserved.
 # For comments or questions, please email us at emote@tue.mpg.de
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
+from gdl_apps.TalkingHead.evaluation.TalkingHeadWrapper import TalkingHeadWrapper
 from gdl_apps.TalkingHead.evaluation.eval_talking_head_on_audio import *
 import glob
 import os

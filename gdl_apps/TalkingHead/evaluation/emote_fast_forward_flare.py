@@ -62,7 +62,7 @@ def eval_talking_head_on_audio(talking_head, audio_path, silent_frames_start=0, 
                     mouth_closure_intervals=manual_mouth_closure_intervals,
                     silent_intervals=silent_intervals,
                     save_flame=False, 
-                    pyrender_videos=True,
+                    pyrender_videos=False,
                     original_audios=orig_audios,
                     )
     print("Done")
