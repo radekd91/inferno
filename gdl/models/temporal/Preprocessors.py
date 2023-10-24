@@ -199,6 +199,8 @@ class FaceRecPreprocessor(Preprocessor):
         face_rec_cfg = omegaconf.OmegaConf.load(self.model_name / "cfg.yaml")
 
         checkpoint = locate_checkpoint(face_rec_cfg, mode = self.cfg.get("checkpoint_mode", "best"))
+        face_rec_cfg.learning.losses = {}
+        face_rec_cfg.learning.metrics = {}
         self.model = FaceReconstructionBase.instantiate(face_rec_cfg, checkpoint=checkpoint)
         
         for p in self.model.parameters():

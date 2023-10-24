@@ -1622,14 +1622,33 @@ class FaceVideoDataModule(FaceDataModuleBase):
                                           sequence_id, 
                                           rec_methods, 
                                           device=None,
+                                          save_to_wandb=False,
                                      ):
         from gdl.models.DecaFLAME import FLAME_mediapipe
         from gdl.utils.PyRenderMeshSequenceRenderer import PyRenderMeshSequenceRenderer
         from gdl.models.Renderer import SRenderY
         import gdl.utils.DecaUtils as util
         from gdl.utils.video import combine_video_audio, concatenate_videos
-
-
+        if save_to_wandb:
+            assert len(rec_methods) == 1, "Saving to wandb is only supported for a single reconstruction method."
+            from omegaconf import OmegaConf
+            cfg = OmegaConf.load(Path(rec_methods[0]) / "cfg.yaml")
+            from gdl_apps.FaceReconstruction.training.training_pass import create_logger
+            import wandb
+            if hasattr(cfg.inout, 'time') and hasattr(cfg.inout, 'random_id'):
+                version = cfg.inout.time + "_" + cfg.inout.random_id
+            elif hasattr(cfg.inout, 'time'):
+                version = cfg.inout.time + "_" + cfg.inout.name
+            logger = create_logger(                    
+                    cfg.learning.logger_type,
+                    name=cfg.inout.name,
+                    project_name='FaceReconstruction',
+                    version=version,
+                    save_dir=cfg.inout.full_run_dir,
+                    config=OmegaConf.to_container(cfg))
+        else: 
+            logger = None
+            
         device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
         if not hasattr(self, 'torch_renderer_'):
@@ -1831,10 +1850,20 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     if not output_path.is_file():
                         audio_path = self._get_path_to_sequence_audio(sequence_id)
                         concatenate_videos([ str(out_vid_torch), str(out_vid), ], output_path)
+
+                    if save_to_wandb:
+                        # log the video to wandb
+                        video_str = self.get_loggable_video_string(output_path.relative_to(Path(self.output_dir) / "rec_videos" / rec_method_name))
+                        video_object = wandb.Video(str(output_path), fps=int(self.video_metas[sequence_id]['fps'].split('/')[0]), format=output_path.suffix[1:])
+                        wandb.log({f"reconstruction/{video_str}": video_object})
+                    
                         
 
         print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
 
+
+    def get_loggable_video_string(self, video_path): 
+        return str(video_path)
 
 
     # def _gather_data(self, exist_ok=False):

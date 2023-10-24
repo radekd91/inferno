@@ -875,6 +875,9 @@ class MEADDataModule(FaceVideoDataModule):
     def get_num_training_identities(self):
         return len(self.training_set.identity_labels)
 
+    def get_loggable_video_string(self, video_path): 
+        return "_".join([video_path.parts[0], video_path.parts[2], video_path.parts[3], video_path.parts[4]])
+
 
 import imgaug
 from gdl.datasets.VideoDatasetBase import VideoDatasetBaseV2
