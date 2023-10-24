@@ -198,8 +198,8 @@ class FaceRecPreprocessor(Preprocessor):
         self.return_global_pose = cfg.get('return_global_pose', False)
         face_rec_cfg = omegaconf.OmegaConf.load(self.model_name / "cfg.yaml")
 
-        checkpoint = locate_checkpoint(face_rec_cfg.coarse, mode = self.cfg.get("checkpoint_mode", "best"))
-        self.model = FaceReconstructionBase.instantiate(face_rec_cfg.coarse, checkpoint=checkpoint)
+        checkpoint = locate_checkpoint(face_rec_cfg, mode = self.cfg.get("checkpoint_mode", "best"))
+        self.model = FaceReconstructionBase.instantiate(face_rec_cfg, checkpoint=checkpoint)
         
         for p in self.model.parameters():
             p.requires_grad = False

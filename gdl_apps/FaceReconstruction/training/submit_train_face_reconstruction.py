@@ -131,7 +131,7 @@ def submit_trainings():
 
     # coarse_conf = "emica_pretrain_stage" 
     # coarse_conf = "emica_deca_stage"
-    # coarse_conf = "emica_emoca_stage"
+    coarse_conf = "emica_emoca_stage"
 
     # coarse_conf = "emica_jaw_pretrain_stage_swin"
     # coarse_conf = "emica_jaw_deca_stage_swin"
@@ -142,7 +142,7 @@ def submit_trainings():
     # coarse_conf = "emica_emoca_stage_swin"
 
     # coarse_conf = "emica_pretrain_stage_swintoken"
-    coarse_conf = "emica_deca_stage_swintoken"
+    # coarse_conf = "emica_deca_stage_swintoken"
     # coarse_conf = "emica_emoca_stage_swintoken"
 
     ## FLAME 2023, no jaw
@@ -155,22 +155,22 @@ def submit_trainings():
 
     finetune_modes = [] 
 
-    # finetune_modes += [
-    #     [ 
-    #         [
-    #         ]
-    #     ],
-    # ]
-
-    # # # ## FLAME 2023
     finetune_modes += [
         [ 
-            [ 
-                '+model/shape_model@model.shape_model=flametex2023',
-                'model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path=MICA/model/mica_2023.tar',
+            [
             ]
-        ], 
+        ],
     ]
+
+    # # # ## FLAME 2023
+    # finetune_modes += [
+    #     [ 
+    #         [ 
+    #             '+model/shape_model@model.shape_model=flametex2023',
+    #             'model.face_encoder.encoders.mica_deca_encoder.encoders.mica_encoder.mica_model_path=MICA/model/mica_2023.tar',
+    #         ]
+    #     ], 
+    # ]
 
     #  ## FLAME 2023, no jaw
     # if 'emoca_stage' in coarse_conf: 
@@ -245,24 +245,24 @@ def submit_trainings():
     #     'data.split=specific_identity_80_20_pretrain/0af00UcTOSc', # training on a single identity 
     # ]
    
-    # ### MEAD 
-    # dataset_options = [
-    #     'data/datasets=mead', 
-    #     # 'data/datasets=mead_occlusions', 
-    #     # 'data.split=specific_identity_sorted_80_20_M003',
-    #     'data.split=random_by_sequence_sorted_70_15_15',
-    #     # 'data/augmentations=default',
-    #     # 'data/augmentations=default_no_jpeg',
-    #     'data/augmentations=none',
-    # ]
+    ### MEAD 
+    dataset_options = [
+        'data/datasets=mead', 
+        # 'data/datasets=mead_occlusions', 
+        # 'data.split=specific_identity_sorted_80_20_M003',
+        'data.split=random_by_sequence_sorted_70_15_15',
+        # 'data/augmentations=default',
+        # 'data/augmentations=default_no_jpeg',
+        'data/augmentations=none',
+    ]
 
     # # # CelebV-Text 
-    dataset_options = [
-        # 'data/datasets=celebvtext',
-        'data/datasets=celebvtext_occlusions',
-        'data.split=random_70_15_15',
-        'data/augmentations=default',
-    ]
+    # dataset_options = [
+    #     # 'data/datasets=celebvtext',
+    #     'data/datasets=celebvtext_occlusions',
+    #     'data.split=random_70_15_15',
+    #     'data/augmentations=default',
+    # ]
 
     # ##  CelebV-HQ
     # dataset_options = [
@@ -366,15 +366,16 @@ def submit_trainings():
                 if not swin:
                     ## align is True
                     ## old FLAME, no augmentation
-                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_10_17_22-38-04_8211836596115022807_FaceReconstructionBase_MEADD_ResNet50_Pe/cfg.yaml"
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_10_18_20-30-36_2820531694223078876_FaceReconstructionBase_MEADD_ResNet50_Pe/cfg.yaml"
+                    
                     ## FLAME 2023, no augmentation
-                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_22_10-15-36_1106960685689912156_FaceReconstructionBase_MEADD_ResNet50_Pe/cfg.yaml"
+                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_10_18_20-20-06_4991746031487309182_FaceReconstructionBase_MEADD_ResNet50_Pe/cfg.yaml"
 
                     ## old FLAME, augmentation 
-                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_22_10-14-14_-1685380080178585813_FaceReconstructionBase_MEADD_ResNet50_Pe_Aug/cfg.yaml"
+                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_10_18_20-29-00_491763389587687482_FaceReconstructionBase_MEADD_ResNet50_Pe_Aug/cfg.yaml"
 
                     ## FLAME 2023, augmentation
-                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_09_22_10-16-58_3117774512957757240_FaceReconstructionBase_MEADD_ResNet50_Pe_Aug/cfg.yaml"
+                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_10_18_20-30-06_4884165389178573348_FaceReconstructionBase_MEADD_ResNet50_Pe_Aug/cfg.yaml"
 
                     ## align is False
                     ## old FLAME, augmentation
