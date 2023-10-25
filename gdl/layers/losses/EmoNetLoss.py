@@ -377,8 +377,8 @@ class EmoNetLoss(EmoLossBase):
             # for p in self.emonet.parameters():
             #     p.requires_grad = False
 
-    def forward(self, *args, **kwargs):
-        res = self.compute_loss(*args, **kwargs)
+    def forward(self, predicted, target, *args, **kwargs):
+        res = self.compute_loss(target, predicted, *args, **kwargs)
         feat_2_loss = res[1]
         return feat_2_loss
 
@@ -420,8 +420,8 @@ class EmoBackboneLoss(EmoLossBase):
     # def forward(self, images):
     #     return self.backbone._forward(images)
 
-    def forward(self, *args, **kwargs):
-        res = self.compute_loss(*args, **kwargs)
+    def forward(self, predicted, target, *args, **kwargs):
+        res = self.compute_loss(target, predicted, *args, **kwargs)
         feat_2_loss = res[1]
         return feat_2_loss
 
