@@ -113,14 +113,65 @@ class PositionalEncoding(torch.nn.Module):
             raise ValueError('how must be either add or concat')
 
 
-class LearnedPositionEmbedding(nn.Module):
+class LearnedPositionEmbedding(torch.nn.Module):
     """Learned Postional Embedding Layer"""
 
-    def __init__(self, seq_length, dim):
+    def __init__(self, seq_length, dim,  
+                 op: str = 'add',  batch_first=True, **kwargs):
         super().__init__()
         self.pos_embedding = nn.Parameter(torch.zeros(seq_length, dim))
+        self.op = op 
+        self.batch_first = batch_first
 
     def forward(self, x):
         T = x.shape[1]
         return x + self.pos_embedding[:T, :]
         # return x + self.pos_embedding
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: Tensor, shape [batch_size, seq_len, embedding_dim] if batch_first=True else [seq_len, batch_size, embedding_dim]
+        """
+        if self.batch_first:
+            T = x.size(1)
+            pe = self.pe[:, :T, :]
+        else:
+            T = x.size(0)
+            pe = self.pe[:T, :]
+        if self.op in ['add', 'sum']:
+            x = x + pe
+        elif self.op in ['concat', 'cat', 'concatenate']:
+            x = torch.cat([x, pe.repeat(1,x.shape[1],1)], dim=2)
+        else: 
+            raise ValueError('how must be either add or concat')
+        return self.dropout(x)
+
+    def output_size_factor(self): 
+        if self.op in ['add', 'sum']:
+            return 1
+        elif self.op in ['concat', 'cat', 'concatenate']:
+            return 2
+        else:
+            raise ValueError('how must be either add or concat')
+        
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: Tensor, shape [batch_size, seq_len, embedding_dim] if batch_first=True else [seq_len, batch_size, embedding_dim]
+        """
+        if self.batch_first:
+            T = x.size(1)
+            pe = self.pos_embedding[:T, :].unsqueeze(0)
+        else:
+            T = x.size(0)
+            pe = self.pos_embedding[:T, :].unsqueeze(1)
+        if self.op in ['add', 'sum']:
+            x = x + pe
+        elif self.op in ['concat', 'cat', 'concatenate']:
+            x = torch.cat([x, pe.repeat(1,x.shape[1],1)], dim=2)
+        else: 
+            raise ValueError('how must be either add or concat')
+        # return self.dropout(x)
+        return x

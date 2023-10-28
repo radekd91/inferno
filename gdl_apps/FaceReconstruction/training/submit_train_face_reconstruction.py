@@ -26,8 +26,8 @@ import copy
 import sys
 import torch
 
-submit_ = False
-# submit_ = True
+# submit_ = False
+submit_ = True
 
 if submit_ or __name__ != "__main__":
     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -155,12 +155,12 @@ def submit_trainings():
 
     finetune_modes = [] 
 
-    finetune_modes += [
-        [ 
-            [
-            ]
-        ],
-    ]
+    # finetune_modes += [
+    #     [ 
+    #         [
+    #         ]
+    #     ],
+    # ]
 
     # # ## FLAME 2023
     finetune_modes += [
@@ -257,12 +257,12 @@ def submit_trainings():
     # ]
 
     # # # CelebV-Text 
-    # dataset_options = [
-    #     # 'data/datasets=celebvtext',
-    #     'data/datasets=celebvtext_occlusions',
-    #     'data.split=random_70_15_15',
-    #     'data/augmentations=default',
-    # ]
+    dataset_options = [
+        # 'data/datasets=celebvtext',
+        'data/datasets=celebvtext_occlusions',
+        'data.split=random_70_15_15',
+        'data/augmentations=default',
+    ]
 
     # ##  CelebV-HQ
     # dataset_options = [
