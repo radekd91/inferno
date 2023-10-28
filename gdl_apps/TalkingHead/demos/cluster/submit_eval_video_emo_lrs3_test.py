@@ -19,7 +19,7 @@ All rights reserved.
 
 from gdl.utils.condor import execute_on_cluster
 from pathlib import Path
-import gdl_apps.TalkingHead.evaluation.eval_video_emo_lrs3_test as script
+import gdl_apps.TalkingHead.evaluation.paper_scripts.eval_video_emo_lrs3_test as script
 import datetime
 from omegaconf import OmegaConf
 import time as t
