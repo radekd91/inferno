@@ -306,6 +306,14 @@ def submit_trainings():
                 init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_10_18_23-27-38_7541868927658392863_FaceReconstructionBase_Celeb_SwinToken_Pe_Aug/cfg.yaml" # more converged
             else: 
                 raise ValueError(f"Unknown data class {conf.data.data_class}")
+        elif "emica_emoca_stage_swintoken" in coarse_conf: 
+            if conf.data.data_class == "MEADDataModule":
+                raise ValueError("No pretrained model for swintoken")
+            elif conf.data.data_class == "CelebVTextDataModule":
+                ## flame 2023
+                init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_10_19_17-36-07_-6534538663426067037_FaceReconstructionBase_Celeb_SwinToken_Pe_Aug/cfg.yaml" # more converged
+            else: 
+                raise ValueError(f"Unknown data class {conf.data.data_class}")
         elif "emica_deca_stage" in coarse_conf:
             if conf.data.data_class == "MEADDataModule":
                 if not swin:
@@ -400,10 +408,10 @@ def submit_trainings():
                 if not swin:
                     ## align is True
                     ## old FLAME, augmentation
-                    # init_from = ""
+                    init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_10_18_20-33-49_5331325351912691345_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug/cfg.yaml"
 
                     ## FLAME 2023, augmentation
-                    init_from = ""
+                    # init_from = "/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_10_18_20-37-31_-2845776313860286030_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug/cfg.yaml"
 
                     ## align is False
                     ## old FLAME, augmentation
@@ -481,6 +489,9 @@ def submit_trainings():
                 tags += ["FLAME_NO_JAW_v2"]
             # tags += ["LR_COS_SWEEP"]
             # tags += ["LR_MSE_SWEEP"]
+            # tags += ["EMO_MSE_SWEEP"]
+            # tags += ["EMO_COS_SWEEP"]
+            # tags += ["EMO_LR_FINAL"]
             if d.learning.tags is None:
                 d.learning.tags = tags
             if init_from is not None:
