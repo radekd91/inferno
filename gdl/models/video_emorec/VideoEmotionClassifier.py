@@ -21,7 +21,7 @@ import pytorch_lightning as pl
 from typing import Any, Optional, Dict, List
 from omegaconf import ListConfig
 from gdl.models.temporal.Bases import TemporalFeatureEncoder, SequenceClassificationEncoder, Preprocessor, ClassificationHead
-from gdl.models.temporal.PositionalEncodings import PositionalEncoding 
+from gdl.models.temporal.PositionalEncodings import PositionalEncoding, LearnedPositionEmbedding
 from gdl.models.temporal.TransformerMasking import  (init_alibi_biased_mask, init_alibi_biased_mask_future, init_mask, init_mask_future, init_faceformer_biased_mask, 
     init_faceformer_biased_mask_future, init_faceformer_biased_mask_future)
 from gdl.models.temporal.AudioEncoders import Wav2Vec2Encoder
@@ -40,7 +40,8 @@ def positional_encoding_from_cfg(cfg, feature_dim):
     # el
     if cfg.positional_encoding.type == 'PositionalEncoding':
         return PositionalEncoding(feature_dim, **cfg.positional_encoding)
-        # return PositionalEncoding(cfg.feature_dim, **cfg.positional_encoding)
+    elif cfg.positional_encoding.type == 'LearnedPositionEmbedding':
+        return LearnedPositionEmbedding(dim=feature_dim, **cfg.positional_encoding)
     elif not cfg.positional_encoding.type or str(cfg.positional_encoding.type).lower() == 'none':
         return None
     raise ValueError("Unsupported positional encoding")
@@ -182,7 +183,7 @@ class TransformerEncoderNoBottleneck(TransformerEncoder):
 
     def _init_transformer(self):
         self.bottleneck = None
-        self.PE = positional_encoding_from_cfg(self.cfg, self.cfg.feature_dim)
+        self.PE = positional_encoding_from_cfg(self.cfg, self.input_dim,)
         dim_factor = self._total_dim_factor()
         encoder_layer = torch.nn.TransformerEncoderLayer(
                     d_model=self.input_dim, 
