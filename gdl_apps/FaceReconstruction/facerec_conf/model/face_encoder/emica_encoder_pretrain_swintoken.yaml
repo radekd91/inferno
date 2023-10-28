@@ -54,9 +54,13 @@ encoders:
       #   max_len: 600 
       #   dropout: 0.1
 
-      # 2) alibi-style -> no PE but biased mask
+      # # 2) alibi-style -> no PE but biased mask
+      # positional_encoding: 
+      #   type: none
+
       positional_encoding: 
-        type: none
+        type: LearnedPositionEmbedding
+        seq_length: 54
 
       # temporal_bias_type: alibi_future
       temporal_bias_type: none
@@ -127,10 +131,14 @@ encoders:
           #   max_len: 600 
           #   dropout: 0.1
 
-          # 2) alibi-style -> no PE but biased mask
+          # # 2) alibi-style -> no PE but biased mask
+          # positional_encoding: 
+          #   type: none
+          
           positional_encoding: 
-            type: none
-
+            type: LearnedPositionEmbedding
+            seq_length: 54
+              
           # temporal_bias_type: alibi_future
           temporal_bias_type: none
 

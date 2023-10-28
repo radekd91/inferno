@@ -134,13 +134,13 @@ def submit(resume_folder,
     t.sleep(1)
 
 
-def train_emodeca_on_cluster():
+def resume_training():
 
     root = "/is/cluster/work/rdanecek/face_reconstruction/trainings/"
     
 
     resume_folders = []
-    # resume_folders += ['2023_09_14_12-08-02_803026180622496885_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug']
+    # resume_folders += ['']
     # bid = 2000
     bid = 150
     # bid = 28
@@ -157,23 +157,7 @@ def train_emodeca_on_cluster():
     # resume_from_previous = True
     # force_new_location = False
 
-    # delete_rec_videos = False
-    # # delete_cond_videos = True
-    # delete_cond_videos = False
-
-    for resume_folder in resume_folders:
-
-        # if stage == 1: 
-        #     folders_to_delete = []
-        #     if delete_rec_videos:
-        #         folders_to_delete += [Path(root) / resume_folder / "videos" / "train", Path(root) / resume_folder / "videos" / "val"]
-        #     if delete_cond_videos: 
-        #         folders_to_delete += [Path(root) / resume_folder / "videos" / "train_cond", Path(root) / resume_folder / "videos" / "val_cond"]
-
-        #     for folder in folders_to_delete:
-        #         if folder.exists():
-        #             print(f"deleting {folder}")
-        #             shutil.rmtree(folder)                
+    for resume_folder in resume_folders:     
 
         if submit_:
             submit(root + resume_folder, stage, resume_from_previous, force_new_location, bid=bid, max_price=max_price)
@@ -182,5 +166,5 @@ def train_emodeca_on_cluster():
 
 
 if __name__ == "__main__":
-    train_emodeca_on_cluster()
+    resume_training()
 
