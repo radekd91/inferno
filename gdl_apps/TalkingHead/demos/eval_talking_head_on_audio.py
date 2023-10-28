@@ -19,6 +19,7 @@ All rights reserved.
 
 from gdl_apps.TalkingHead.evaluation.TalkingHeadWrapper import TalkingHeadWrapper
 from gdl_apps.TalkingHead.evaluation.eval_lip_reading import dict_to_device, save_video
+from gdl.datasets.FaceVideoDataModule import dict_to_device
 from pathlib import Path
 import librosa
 import numpy as np

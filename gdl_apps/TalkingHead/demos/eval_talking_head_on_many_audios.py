@@ -17,7 +17,7 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 from gdl_apps.TalkingHead.evaluation.TalkingHeadWrapper import TalkingHeadWrapper
-from gdl_apps.TalkingHead.evaluation.eval_talking_head_on_audio import *
+from gdl_apps.TalkingHead.demos.eval_talking_head_on_audio import *
 import glob
 import os
 
