@@ -6,16 +6,36 @@ import torch.nn.functional as F
 import torch 
 
 
+def check_flame_paths(flame_cfg):
+    flame_model_path = Path(flame_cfg.flame_model_path)
+    if not flame_model_path.is_absolute():
+        flame_model_path = str(get_path_to_assets() / flame_model_path)
+        flame_cfg.flame_model_path = flame_model_path
+    flame_lmk_embedding_path = Path(flame_cfg.flame_lmk_embedding_path)
+    if not flame_lmk_embedding_path.is_absolute():
+        flame_lmk_embedding_path = str(get_path_to_assets() / flame_lmk_embedding_path)
+        flame_cfg.flame_lmk_embedding_path = flame_lmk_embedding_path
+    return flame_cfg
+
+def check_flametex_paths(flame_cfg):
+    tex_path = Path(flame_cfg.tex_path)
+    if not tex_path.is_absolute():
+        tex_path = str(get_path_to_assets() / tex_path)
+        flame_cfg.tex_path = tex_path
+    return flame_cfg
+
 class FlamePreprocessor(Preprocessor): 
 
     def __init__(self, cfg, **kwargs):
         super().__init__(**kwargs)
         from gdl.models.DecaFLAME import FLAME, FLAMETex
         self.cfg = cfg
+        self.cfg.flame = check_flame_paths(cfg.flame)
         self.flame = FLAME(cfg.flame)
 
         self.flame_tex = None
         if cfg.use_texture:
+            self.cfg.flame_tex = check_flametex_paths(cfg.flame_tex)
             self.flame_tex = FLAMETex(cfg.flame_tex)
 
     @property
