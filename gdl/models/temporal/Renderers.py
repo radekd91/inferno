@@ -2,6 +2,8 @@ from gdl.models.temporal.Bases import Renderer
 from gdl.models.Renderer import *
 from gdl.utils.lbs import batch_rodrigues, batch_rigid_transform
 import torchvision.transforms.functional as F_v
+from pathlib import Path 
+from gdl.utils.other import get_path_to_assets
 
 
 class FlameLandmarkProjector(Renderer):
@@ -104,18 +106,30 @@ class FlameRenderer(Renderer):
 
     def __init__(self, cfg):
         super().__init__() 
-        mask = imread(cfg.face_mask_path).astype(np.float32) / 255.
+        face_mask_path = Path(cfg.face_mask_path)
+        if not face_mask_path.is_absolute():
+            face_mask_path = get_path_to_assets() / face_mask_path
+        mask = imread(face_mask_path).astype(np.float32) / 255.
         mask = torch.from_numpy(mask[:, :, 0])[None, None, :, :].contiguous()
         uv_face_mask = F.interpolate(mask, [cfg.uv_size, cfg.uv_size])
         self.register_buffer('uv_face_mask', uv_face_mask)
-        mask = imread(cfg.face_eye_mask_path).astype(np.float32) / 255.
+
+        face_eye_mask_path = Path(cfg.face_eye_mask_path)
+        if not face_eye_mask_path.is_absolute():
+            face_eye_mask_path = get_path_to_assets() / face_eye_mask_path
+
+        mask = imread(face_eye_mask_path).astype(np.float32) / 255.
         mask = torch.from_numpy(mask[:, :, 0])[None, None, :, :].contiguous()
         uv_face_eye_mask = F.interpolate(mask, [cfg.uv_size, cfg.uv_size])
         self.register_buffer('uv_face_eye_mask', uv_face_eye_mask)
 
         # TODO: detail part rendering not implemented 
 
-        self.render = SRenderY(cfg.image_size, obj_filename=cfg.topology_path,
+        topology_path = Path(cfg.topology_path)
+        if not topology_path.is_absolute():
+            topology_path = get_path_to_assets() / topology_path
+
+        self.render = SRenderY(cfg.image_size, obj_filename=str(topology_path),
                                uv_size=cfg.uv_size)  
         self.project_landmarks = cfg.get("project_landmarks", True)
         self.output_image_keyword = cfg.get("output_image_keyword", "video")

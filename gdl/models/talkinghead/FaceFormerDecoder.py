@@ -901,8 +901,14 @@ class FlameBertDecoder(BertDecoder):
 
 
 def load_motion_prior_net(path, trainable=False):
+    from pathlib import Path
+    from gdl.utils.other import get_path_to_assets
 
-    with open(path + "/cfg.yaml", 'r') as f:
+    path = Path(path)
+    if not path.is_absolute():
+        path = get_path_to_assets() / path
+
+    with open(path / "cfg.yaml", 'r') as f:
         model_config = OmegaConf.load(f)
     checkpoint_mode = 'best' # resuming in the same stage, we want to pick up where we left of
     

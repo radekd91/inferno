@@ -12,12 +12,13 @@ from gdl.layers.losses.emotion_loss_loader import emo_network_from_path
 import sys
 from omegaconf import OmegaConf
 from .Metrics import metric_from_str
+from gdl.utils.other import get_path_to_assets
 
 
-def create_video_emotion_loss(cfg):
-    from gdl.models.video_emorec.VideoEmotionClassifier import VideoEmotionClassifier 
-    
-    model_config_path = Path(cfg.network_path) / "cfg.yaml"
+def load_video_emotion_recognition_net(network_path):
+    model_config_path = Path(network_path) / "cfg.yaml"
+    if not model_config_path.is_absolute():
+        model_config_path = get_path_to_assets() / model_config_path
     # load config 
     model_config = OmegaConf.load(model_config_path)
 
@@ -31,7 +32,18 @@ def create_video_emotion_loss(cfg):
         pattern="val"
         )
 
-    sequence_model = class_.instantiate(model_config, None, None, checkpoint, checkpoint_kwargs)
+    network = class_.instantiate(model_config, None, None, checkpoint, checkpoint_kwargs)
+    return network
+
+
+def create_video_emotion_loss(cfg):
+    model_config_path = Path(cfg.network_path) / "cfg.yaml"
+    if not model_config_path.is_absolute():
+        model_config_path = get_path_to_assets() / model_config_path
+    # load config 
+    model_config = OmegaConf.load(model_config_path)
+
+    sequence_model = load_video_emotion_recognition_net(cfg.network_path)
 
     ## see if the model has a feature extractor
     feat_extractor_cfg = model_config.model.get('feature_extractor', None)
@@ -42,8 +54,10 @@ def create_video_emotion_loss(cfg):
     # if feat_extractor_cfg is None and hasattr(sequence_model, 'feature_extractor_path'):
     if (feat_extractor_cfg is None or feat_extractor_cfg.type is False) and hasattr(cfg, 'feature_extractor_path'):
         # default to the affecnet trained resnet feature extractor
-        feature_extractor_path = cfg.feature_extractor_path
-        feature_extractor = emo_network_from_path(feature_extractor_path)
+        feature_extractor_path = Path(cfg.feature_extractor_path)
+        if not feature_extractor_path.is_absolute():
+            feature_extractor_path = get_path_to_assets() / feature_extractor_path
+        feature_extractor = emo_network_from_path(str(feature_extractor_path))
     elif cfg.feature_extractor == "no":
         feature_extractor = None
     else: 

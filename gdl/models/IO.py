@@ -20,6 +20,7 @@ All rights reserved.
 
 import sys
 from pathlib import Path
+from gdl.utils.other import get_path_to_assets
 
 
 def locate_checkpoint(cfg_or_checkpoint_dir, replace_root = None, relative_to = None, mode=None, pattern=None):
@@ -33,6 +34,8 @@ def locate_checkpoint(cfg_or_checkpoint_dir, replace_root = None, relative_to = 
         except ValueError as e:
             print(f"Not replacing the root of checkpoint_dir '{checkpoint_dir}' beacuse the specified root does not fit:"
                   f"'{replace_root}'")
+    if not Path(checkpoint_dir).is_absolute():
+        checkpoint_dir = str(get_path_to_assets() / checkpoint_dir)
     print(f"Looking for checkpoint in '{checkpoint_dir}'")
     checkpoints = sorted(list(Path(checkpoint_dir).rglob("*.ckpt")))
     if len(checkpoints) == 0:
