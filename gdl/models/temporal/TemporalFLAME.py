@@ -1,12 +1,29 @@
 from gdl.models.temporal.Bases import ShapeModel
 from gdl.models.DecaFLAME import FLAME, FLAME_mediapipe, FLAMETex 
 import torch
+from pathlib import Path 
+from gdl.utils.other import get_path_to_assets
+
+
+def check_for_relative_paths(cfg):
+    if not Path(cfg.flame_lmk_embedding_path).is_absolute():
+        cfg.flame_lmk_embedding_path = str(get_path_to_assets() / cfg.flame_lmk_embedding_path) 
+    if not Path(cfg.flame_model_path).is_absolute():
+        cfg.flame_model_path = str(get_path_to_assets() / cfg.flame_model_path)
+    if 'flame_mediapipe_lmk_embedding_path' in cfg.keys(): 
+        if not Path(cfg.flame_mediapipe_lmk_embedding_path).is_absolute():
+            cfg.flame_mediapipe_lmk_embedding_path = str(get_path_to_assets() / cfg.flame_mediapipe_lmk_embedding_path)
+    if 'tex_path' in cfg.keys():
+        if not Path(cfg.tex_path).is_absolute():
+            cfg.tex_path = str(get_path_to_assets() / cfg.tex_path)
+    return cfg
 
 
 class FlameShapeModel(ShapeModel): 
 
     def __init__(self, cfg):
         super().__init__() 
+        cfg = check_for_relative_paths(cfg)
         if cfg.type == "flame":
             self.flame = FLAME(cfg)
         elif cfg.type == "flame_mediapipe":

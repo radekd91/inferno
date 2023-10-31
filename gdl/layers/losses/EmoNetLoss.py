@@ -15,7 +15,7 @@ except ImportError as e:
     print(f"Could not import EmoSwinModule. SWIN models will not be available. Make sure you pull the repository with submodules to enable SWIN.")
 from gdl.models.EmoCnnModule import EmoCnnModule
 from gdl.models.IO import get_checkpoint_with_kwargs
-from gdl.utils.other import class_from_str
+from gdl.utils.other import class_from_str, get_path_to_assets
 import sys
 
 
@@ -63,6 +63,8 @@ def create_emo_loss(device, emoloss = None, trainable=False, dual=False, normali
         return EmoNetLoss(device, emonet=emoloss)
     if isinstance(emoloss, str):
         path = Path(emoloss)
+        if not path.is_absolute():
+            path = Path(get_path_to_assets()) / path
         if path.is_dir():
             from gdl.layers.losses.emotion_loss_loader import emo_network_from_path
             emo_loss = emo_network_from_path(path)

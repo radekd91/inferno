@@ -442,8 +442,8 @@ class FLAMETex(nn.Module):
             texture_basis = tex_space[pc_key].reshape(-1, n_pc) / 255.
 
         else:
-            print('texture type ', config.tex_type, 'not exist!')
-            exit()
+            print('texture type "', config.tex_type, '" does not exist!')
+            raise NotImplementedError('texture type "', config.tex_type, '" does not exist!')
 
         n_tex = config.n_tex
         num_components = texture_basis.shape[1]
