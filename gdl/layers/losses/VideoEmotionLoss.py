@@ -1,3 +1,21 @@
+"""
+Author: Radek Danecek
+Copyright (c) 2023, Radek Danecek
+All rights reserved.
+
+# Max-Planck-Gesellschaft zur Förderung der Wissenschaften e.V. (MPG) is
+# holder of all proprietary rights on this computer program.
+# Using this computer program means that you agree to the terms 
+# in the LICENSE file included with this software distribution. 
+# Any use not explicitly granted by the LICENSE is prohibited.
+#
+# Copyright©2022 Max-Planck-Gesellschaft zur Förderung
+# der Wissenschaften e.V. (MPG). acting on behalf of its Max Planck Institute
+# for Intelligent Systems. All rights reserved.
+#
+# For comments or questions, please email us at emote@tue.mpg.de
+# For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
+"""
 import copy
 import omegaconf
 import torch
@@ -47,13 +65,7 @@ def create_video_emotion_loss(cfg):
 
     ## see if the model has a feature extractor
     feat_extractor_cfg = model_config.model.get('feature_extractor', None)
-
-    # video_emotion_loss_cfg.network_path = str(Path(video_network_folder) / video_emotion_loss_cfg.video_network_name)
-    # video_emotion_loss = create_video_emotion_loss( video_emotion_loss_cfg).to(device)
-     
-    # if feat_extractor_cfg is None and hasattr(sequence_model, 'feature_extractor_path'):
-    if (feat_extractor_cfg is None or feat_extractor_cfg.type is False) and hasattr(cfg, 'feature_extractor_path'):
-        # default to the affecnet trained resnet feature extractor
+class AffectNetExpres
         feature_extractor_path = Path(cfg.feature_extractor_path)
         if not feature_extractor_path.is_absolute():
             feature_extractor_path = get_path_to_assets() / feature_extractor_path
