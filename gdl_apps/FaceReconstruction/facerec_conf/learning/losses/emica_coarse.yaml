@@ -54,8 +54,8 @@ losses:
     # weight: 50.0 
     # weight: 20.0 
     # weight: 10.0 
-    # weight: 5.0
-    weight: 2.5
+    weight: 5.0
+    # weight: 2.5
     # weight: 1.0
     # weight: 0.1
     # weight: 0.0
@@ -84,9 +84,9 @@ losses:
     # weight: 1.5
     # weight: 3.0
     # weight: 6.0
-    # weight: 10.0
+    weight: 10.0
     # weight: 15.0
-    weight: 20.0
+    # weight: 20.0
     # weight: 20.0
     # weight: 30.0
     # weight: 50.0

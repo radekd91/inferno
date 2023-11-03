@@ -99,42 +99,43 @@ def interpolate_condition(sample_1, sample_2, length, interpolation_type="linear
     return sample_result
 
 
-def eval_talking_head_on_audio(talking_head, audio_path, silent_frames_start=0, silent_frames_end=0, 
-    silent_emotion_start = 0, silent_emotion_end = 0):
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    talking_head = talking_head.to(device)
-    # talking_head.talking_head_model.preprocessor.to(device) # weird hack
-    sample = create_base_sample(talking_head, audio_path, silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end)
-    # samples = create_id_emo_int_combinations(talking_head, sample)
-    samples = create_high_intensity_emotions(talking_head, sample, 
-                                             silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, 
-                                            silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
-    num_frames_to_open_mouth = 5
-    silent_intervals = [(0,silent_frames_start-num_frames_to_open_mouth),(-silent_frames_end+num_frames_to_open_mouth, -1)]
-    manual_mouth_openting_intervals = [(silent_frames_start-num_frames_to_open_mouth, silent_frames_start)]
-    manual_mouth_closure_intervals = [(-silent_frames_end, -silent_frames_end+num_frames_to_open_mouth)]
 
-    orig_audio, sr = librosa.load(audio_path) 
-    ## prepend the silent frames
-    if silent_frames_start > 0:
-        orig_audio = np.concatenate([np.zeros(int(silent_frames_start * sr / 25), dtype=orig_audio.dtype), orig_audio], axis=0)
-    if silent_frames_end > 0:
-        orig_audio = np.concatenate([orig_audio, np.zeros(int(silent_frames_end * sr / 25 , ), dtype=orig_audio.dtype)], axis=0)
+# def eval_talking_head_on_audio(talking_head, audio_path, silent_frames_start=0, silent_frames_end=0, 
+#     silent_emotion_start = 0, silent_emotion_end = 0):
+#     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+#     talking_head = talking_head.to(device)
+#     # talking_head.talking_head_model.preprocessor.to(device) # weird hack
+#     sample = create_base_sample(talking_head, audio_path, silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end)
+#     # samples = create_id_emo_int_combinations(talking_head, sample)
+#     samples = create_high_intensity_emotions(talking_head, sample, 
+#                                              silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, 
+#                                             silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
+#     num_frames_to_open_mouth = 5
+#     silent_intervals = [(0,silent_frames_start-num_frames_to_open_mouth),(-silent_frames_end+num_frames_to_open_mouth, -1)]
+#     manual_mouth_openting_intervals = [(silent_frames_start-num_frames_to_open_mouth, silent_frames_start)]
+#     manual_mouth_closure_intervals = [(-silent_frames_end, -silent_frames_end+num_frames_to_open_mouth)]
+
+#     orig_audio, sr = librosa.load(audio_path) 
+#     ## prepend the silent frames
+#     if silent_frames_start > 0:
+#         orig_audio = np.concatenate([np.zeros(int(silent_frames_start * sr / 25), dtype=orig_audio.dtype), orig_audio], axis=0)
+#     if silent_frames_end > 0:
+#         orig_audio = np.concatenate([orig_audio, np.zeros(int(silent_frames_end * sr / 25 , ), dtype=orig_audio.dtype)], axis=0)
     
-    orig_audios = [(orig_audio, sr)]*len(samples)
+#     orig_audios = [(orig_audio, sr)]*len(samples)
 
-    run_evalutation(talking_head, 
-                    samples, 
-                    audio_path,  
-                    mouth_opening_intervals=manual_mouth_openting_intervals,
-                    mouth_closure_intervals=manual_mouth_closure_intervals,
-                    silent_intervals=silent_intervals,
-                    pyrender_videos=True,
-                    save_flame=False,
-                    save_meshes=False,
-                    original_audios=orig_audios
-                    )
-    print("Done")
+#     run_evalutation(talking_head, 
+#                     samples, 
+#                     audio_path,  
+#                     mouth_opening_intervals=manual_mouth_openting_intervals,
+#                     mouth_closure_intervals=manual_mouth_closure_intervals,
+#                     silent_intervals=silent_intervals,
+#                     pyrender_videos=True,
+#                     save_flame=False,
+#                     save_meshes=False,
+#                     original_audios=orig_audios
+#                     )
+#     print("Done")
 
 
 def create_base_sample(talking_head, audio_path, smallest_unit=1, silent_frames_start=0, silent_frames_end=0, silence_all=False):
@@ -208,10 +209,10 @@ def create_neutral_emotions(talking_head, sample,
                             silent_emotion_start = 0, silent_emotion_end = 0):
 
     return create_high_intensity_emotions(talking_head, sample, 
-                                          identity_idx=identity_idx, 
-                                          emotion_index_list=[0], 
-                                          silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, 
-                                          silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
+                                        identity_idx=identity_idx, 
+                                        emotion_index_list=[0], 
+                                        silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, 
+                                        silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
                                           
 
 def create_high_intensity_emotions(talking_head, sample, identity_idx=None, emotion_index_list=None, 
@@ -265,16 +266,6 @@ def create_high_intensity_emotions(talking_head, sample, identity_idx=None, emot
     return samples
 
 
-class TestDataset(torch.utils.data.Dataset):
-    def __init__(self, samples):
-        self.samples = samples
-
-    def __len__(self):
-        return len(self.samples)
-
-    def __getitem__(self, idx):
-        return self.samples[idx]
-
 
 def interpolate_predictions(first_expression, last_expression, first_jaw_pose, last_jaw_pose, static_frames_start, static_frames_end, num_mouth_closure_frames):
     num_interpolation_frames = num_mouth_closure_frames
@@ -287,7 +278,22 @@ def interpolate_predictions(first_expression, last_expression, first_jaw_pose, l
     return interpolated_expression.float(), interpolated_jaw_pose.float()
 
 
-def run_evalutation(talking_head, samples, audio_path, overwrite=False, 
+class TestDataset(torch.utils.data.Dataset):
+    def __init__(self, samples):
+        self.samples = samples
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        return self.samples[idx]
+
+
+
+def run_evalutation(talking_head, 
+                    samples, 
+                    audio_path, 
+                    overwrite=False, 
                     save_meshes=False, 
                     pyrender_videos=True, 
                     save_flame=False,
@@ -320,6 +326,8 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False,
         template_mesh_path = get_path_to_assets() / "FLAME" / "geometry" / "FLAME_sample.ply"
         # template_mesh_path = Path("/ps/scratch/rdanecek/data/FLAME/geometry/head_template.obj") ## this one has UV 
     # obj_template_path = template_mesh_path.parent / "head_template_blender.obj"
+    if not template_mesh_path.is_absolute():
+        template_mesh_path = get_path_to_assets() / template_mesh_path
     obj_template_path = template_mesh_path.parent / "head_template.obj"
     # import pyvista 
     # template = pyvista.read(obj_template_path)
@@ -621,7 +629,8 @@ def run_evalutation(talking_head, samples, audio_path, overwrite=False,
                         os.remove(out_video_path)
                     # os.remove(out_audio_path)
 
-            chmod_cmd = f"find {str(output_dir)} -print -type d -exec chmod 775 {{}} +"
+            # chmod_cmd = f"find {str(output_dir)} -print -type d -exec chmod 775 {{}} +"
+            chmod_cmd = f"find {str(output_dir)} -type d -exec chmod 775 {{}} +"
             os.system(chmod_cmd)
 
 
@@ -656,143 +665,7 @@ def process_audio(wavdata, sampling_rate, video_fps):
     else: 
         wavdata_[:wavdata.size] = wavdata
     wavdata_ = wavdata_.reshape((num_frames, wav_per_frame))
-    # wavdata_ = wavdata_[start_frame:(start_frame + num_read_frames)] 
-    # if wavdata_.shape[0] < sequence_length:
-    #     # concatente with zeros
-    #     wavdata_ = np.concatenate([wavdata_, 
-    #         np.zeros((sequence_length - wavdata_.shape[0], wavdata_.shape[1]),
-    #         dtype=wavdata_.dtype)], axis=0)
-    # wavdata_ = wavdata_.astype(np.float64) / np.int16(np.iinfo(np.int16).max)
-
-    # wavdata_ = np.zeros((sequence_length, samplerate // video_fps), dtype=wavdata.dtype)
-    # wavdata_ = np.zeros((n * frames.shape[0]), dtype=wavdata.dtype)
-    # wavdata_[:wavdata.shape[0]] = wavdata 
-    # wavdata_ = wavdata_.reshape((frames.shape[0], -1))
     sample = {}
     sample["raw_audio"] = wavdata_ 
     sample["samplerate"] = sampling_rate
     return sample
-
-
-## note to self: 
-# the MEAD test set that uses the split of "random_by_identityV2_sorted_70_15_15" (all of our training models)
-# has the following test individuals: 
-# ['M037', 'M039', 'M040', 'M041', 'M042', 'W037', 'W038', 'W040']
-# validation individuals: 
-# ['M032', 'M033', 'M034', 'M035', 'W033', 'W035', 'W036'] 
-# and training individuals
-#['M003', # GT status: good emotions, neutral a bit of artifacts, very expressive ## decision: 5
-# 'M005',  # GT status: decent emotions, neutral does not look neutral looks not neutral some artifacts, very expressive ## decision: 3.5
-# 'M007',  # GT status: decent emotions, neutral some artifacts, ok geometry but weird speaking style ## decision: 3.5
-# 'M009',  # GT status: good emotions, neutral a bit of artifacts, very expressive ## decision: 5
-# 'M011',  # GT status: ok emotions, neutral does not look neutral at all (bad recostruction) a bit of artifacts, very expressive ## decision: 2.5
-# 'M012',  # GT status: ok emotions, neutral a bit of artifacts, quite expressive ## decision: 4.5
-# 'M013',  # GT status: black guy, artifacts in reconstruction, quite expressive ## decision: 1
-# 'M019',  # GT status: good, emotions, very expressive, tiny bit of neutral artifacts ## decision: 5
-# 'M022',  # GT status: good, emotions, very expressive, tiny bit of neutral artifacts ## decision: 5
-# 'M023',  # GT status: good, emotions, lower amplitude but good, tiny bit of neutral artifacts ## decision: 5
-# 'M024',  # GT status: ok emotions, lower amplitude, neutral mubmles a bit, tiny bit of neutral artifacts ## decision: 4
-# 'M025',  # GT status: neural has some artifacts (the black kind of artifacts :-( ) but the emotions are OK: ## decision: 2.5
-# 'M026',  # GT status, neutral look emotional so not great, even the happy doesn't look good, not too wrong but overall very weird speaking style: 2
-# 'M027',  # GT status: good, emotions, very expressive, tiny bit of neutral artifacts ## decision: 5
-# 'M028',  # GT status: good, emotions, very expressive, tiny bit of neutral artifacts ## decision: 5
-# 'M029',  # GT status: consistent artifcats around lips (the reconstruction does not work so wel onn this guy): decision: 2 
-# 'M030',  #  GT status: ok emotions, ok expressive, some of neutral artifacts ## decision: 4
-# 'M031',  # GT status: good, emotions, very expressive, tiny bit of neutral artifacts ## decision: 5
-# 'W009', # GT status: 4-5
-# 'W011', # GT status: 4-5
-# 'W014', # GT status: 4-5
-# 'W015', # GT status: 4-5
-# 'W016', # GT status: 4-5
-# 'W018', # neutral not neutral (black artifact) not good 1 
-# 'W019', #  terrible actress but the reconstructions are OK, will confuse people though (happy not happy, ...) GT status: 3
-# 'W021', # GT status: 4-5
-# 'W023', # neutral not neutral (black artifact) not good 2.5 
-# 'W024', # neutral not neutral this time it's actually accurate, this woman't neutral looks sad, that said the reconstructions are OK but will confuse people ## 3.5
-# 'W025', # neutral not neutral (black artifact) not good 2. 
-# 'W026', # neutral not neutral this time it's actually accurate, this woman't neutral looks sad, that said the reconstructions are OK but will confuse people ## 3.5
-# 'W028', # 4-5
-# 'W029', # neutral not neutral (black artifact) not good 1.5
-# ]
-##
-training_ids = ['M003', 'M005', 'M007', 'M009', 'M011', 'M012', 'M013', 'M019', 'M022', 'M023', 'M024', 'M025', 'M026', 'M027', 'M028', 'M029', 'M030', 'M031', 'W009', 'W011', 'W014', 'W015', 'W016', 'W018', 'W019', 'W021', 'W023', 'W024', 'W025', 'W026', 'W028', 'W029']
-# val_ids = ['M032', 'M033', 'M034', 'M035', 'W033', 'W035', 'W036'] 
-# test_ids = ['M037', 'M039', 'M040', 'M041', 'M042', 'W037', 'W038', 'W040']
-
-# label2score = { 
-# 'M003': 5,
-# 'M005': 3.5,
-# 'M007': 3.5,
-# 'M009': 5,
-# 'M011': 2.5,
-# 'M012': 4.5,
-# 'M013': 1,
-# 'M019': 5,
-# 'M022': 5,
-# 'M023': 5,
-# 'M024': 4,
-# 'M025': 2.5,
-# 'M026': 2,
-# 'M027': 5,
-# 'M028': 5,
-# 'M029': 2 ,
-# 'M030': 4,
-# 'M031': 5,
-# 'W009': 4,
-# 'W011': 4,
-# 'W014': 4,
-# 'W015': 4,
-# 'W016': 4,
-# 'W018': 1 ,
-# 'W019': 3,
-# 'W021': 4,
-# 'W023': 2.5 ,
-# 'W024': 3.5,
-# 'W025': 2. ,
-# 'W026': 3.5,
-# 'W028': 4-5,
-# 'W029': 1.5,
-# }
-
-# id2label = zip(list(training_ids, range(len(training_ids))))
-# label2id = zip(range(len(training_ids)), list(training_ids))
-
-# # accepted labels >= 4
-# accepted_labels2score = { k: v for k, v in label2score.items() if v >= 4 }
-# accaoted_label2id = { k: v for k, v in label2id.items() if v in accepted_labels2score.keys() }
-
-
-def main(): 
-    root = "/is/cluster/work/rdanecek/talkinghead/trainings/"
-    # resume_folders = []
-    # resume_folders += ["2023_05_04_13-04-51_-8462650662499054253_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_predEJ_LVm"]
-    # resume_folders += ["2023_05_04_18-22-17_5674910949749447663_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"]
-
-    if len(sys.argv) > 1:
-        resume_folder = sys.argv[1]
-    else:
-        # good model with disentanglement
-        # resume_folder = "2023_05_08_20-36-09_8797431074914794141_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
-        # NEW MAIN MODEL 
-        resume_folder = "2023_05_18_01-26-32_-6224330163499889169_FaceFormer_MEADP_Awav2vec2_Elinear_DBertPriorDecoder_Seml_NPE_Tff_predEJ_LVmmmLmm"
-    if len(sys.argv) > 2:
-        audio = Path(sys.argv[2])
-    else:
-        # audio = Path('/ps/project/EmotionalFacialAnimation/data/lrs3/extracted/test/0Fi83BHQsMA/00002.mp4')
-        # audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/trainval/0af00UcTOSc/50001.wav')
-        # audio = Path('/is/cluster/fast/rdanecek/data/lrs3/processed2/audio/pretrain/0akiEFwtkyA/00031.wav')
-        audio = Path('/ps/project/EmotionalFacialAnimation/emote_fastforward/04b_oi.wav')
-
-    model_path = Path(root) / resume_folder  
-    talking_head = TalkingHeadWrapper(model_path, render_results=False)
-    eval_talking_head_on_audio(talking_head, audio, 
-                               silent_frames_start=30, 
-                               silent_frames_end=30, 
-                                silent_emotion_start=0, 
-                                silent_emotion_end=0,
-    )
-    
-
-
-if __name__=="__main__": 
-    main()

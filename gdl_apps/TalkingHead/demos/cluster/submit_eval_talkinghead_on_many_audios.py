@@ -19,7 +19,7 @@ All rights reserved.
 
 from gdl.utils.condor import execute_on_cluster
 from pathlib import Path
-import gdl_apps.TalkingHead.evaluation.eval_talking_head_on_many_audios as script
+import gdl_apps.TalkingHead.demos.eval_talking_head_on_many_audios as script
 import datetime
 from omegaconf import OmegaConf
 import time as t
@@ -28,8 +28,8 @@ from omegaconf import DictConfig, OmegaConf, open_dict
 import sys
 import shutil
 
-# submit_ = False
-submit_ = True
+submit_ = False
+# submit_ = True
 
 # if submit_:
 #     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -221,7 +221,7 @@ def run_talking_head_eval():
     # # ## FaceFormer
     # resume_folders += ["2023_05_10_13-16-00_-3885098104460673227_FaceFormer_MEADP_Awav2vec2T_Elinear_DFaceFormerDecoder_Seml_PPE_predV_LV"]
 
-    # emotion_index_list = [0]
+    emotion_index_list = [1]
 
     # bid = 2000
     # bid = 150
@@ -229,14 +229,21 @@ def run_talking_head_eval():
     # max_price = 250
     max_price = 200
 
-    audio_folder = Path('/is/cluster/fast/rdanecek/data/lrs3_enspark_testing')
+    # audio_folder = Path('/is/cluster/fast/rdanecek/data/lrs3_enspark_testing')
+    # audio_folder = Path('/is/cluster/work/rdanecek/testing/emote_for_bala/voca_wav/wav')
+    # audio_folder = Path('/is/cluster/work/rdanecek/testing/emote_for_bala/voca_wav/wav_betty')
+    audio_folder = Path('/is/cluster/work/rdanecek/testing/emote_for_bala/voca_wav/wav_guy')
     # audio_folder = Path('/is/cluster/work/rdanecek/data/lrs3_enspark_testing_v2')
+
+    # neutral_mesh_path=None
+    # neutral_mesh_path='/is/cluster/work/rdanecek/faceformer/templates/FaceTalk_170731_00024_TA.ply'
+    neutral_mesh_path='/is/cluster/work/rdanecek/faceformer/templates/FaceTalk_170809_00138_TA.ply'
 
     for resume_folder in resume_folders:
         if submit_:
             submit(resume_folder, audio_folder, emotion_index_list=emotion_index_list, bid=bid, max_price=max_price)
         else: 
-            script.run(resume_folder, audio_folder, emotion_index_list=emotion_index_list)
+            script.run(resume_folder, audio_folder, emotion_index_list=emotion_index_list, neutral_mesh_path=neutral_mesh_path)
 
 
 

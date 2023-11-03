@@ -20,13 +20,17 @@ from gdl_apps.TalkingHead.evaluation.TalkingHeadWrapper import TalkingHeadWrappe
 from gdl_apps.TalkingHead.demos.eval_talking_head_on_audio import *
 import glob
 import os
+import librosa
 
 
 def eval_talking_head_on_audio(talking_head, audio_path, emotion_index_list=None, output_path=None, 
-                               silent_frames_start=30, 
-                               silent_frames_end=30, 
+                            #    silent_frames_start=30, 
+                            #    silent_frames_end=30, 
+                               silent_frames_start=0, 
+                               silent_frames_end=0, 
                                silent_emotion_start=0, 
-                               silent_emotion_end=0
+                               silent_emotion_end=0, 
+                               neutral_mesh_path=None,
                                ):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     talking_head = talking_head.to(device)
@@ -34,25 +38,35 @@ def eval_talking_head_on_audio(talking_head, audio_path, emotion_index_list=None
     sample = create_base_sample(talking_head, audio_path, silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end)
     # samples = create_id_emo_int_combinations(talking_head, sample)
     # styles = ['M003', 'M009', 'M022', 'M028', 'W014', 'W028']
-    styles = ['M003', 'M009', 'M022']
+    # styles = ['M003', 'M009', 'M022']
+    styles = ['M003']
     style_indices = [training_ids.index(s) for s in styles]
     samples = []
     for i in style_indices:
+        # samples += create_high_intensity_emotions(talking_head, sample, identity_idx=i, emotion_index_list=emotion_index_list, 
+        #                                     silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, 
+        #                                     silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
         samples += create_high_intensity_emotions(talking_head, sample, identity_idx=i, emotion_index_list=emotion_index_list, 
-                                            silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, 
-                                            silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
-        
+                                    silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, 
+                                    silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
+        # samples += create_neutral_emotions(talking_head, sample, identity_idx=i,
+        #                             silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, 
+        #                             silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
     run_evalutation(talking_head, samples, audio_path, out_folder=output_path, 
                     pyrender_videos=False, 
                     # pyrender_videos=True, 
-                    # save_meshes=True, 
-                    save_meshes=False, 
-                    silent_start=silent_frames_start, silent_end=silent_frames_end)
+                    save_meshes=True, 
+                    # save_meshes=False, 
+                    # silent_start=silent_frames_start, silent_end=silent_frames_end
+                    neutral_mesh_path = neutral_mesh_path
+                    )
                     
     print("Done")
 
 
-def run(resume_folder, audio_folder, emotion_index_list=None, output_folder = None):
+def run(resume_folder, audio_folder, emotion_index_list=None, output_folder = None,
+        neutral_mesh_path=None,
+        ):
     root = "/is/cluster/work/rdanecek/talkinghead/trainings/"
     model_path = Path(root) / resume_folder  
     talking_head = TalkingHeadWrapper(model_path, render_results=False)
@@ -73,12 +87,29 @@ def run(resume_folder, audio_folder, emotion_index_list=None, output_folder = No
             
         output_dir = output_dir / audio.parents[1].name / (audio.parent.name + "/" + audio.stem)
         # output_dir = Path(talking_head.cfg.inout.full_run_dir) / "mturk_videos_lrs3" / audio.parents[1].name / (audio.parent.name + "/" + audio.stem)
+        
+        # original_audios = []
+        # orig_audio, sr = librosa.load(audio) 
+        # # if silent_frames_start > 0:
+        # #     orig_audio = np.concatenate([np.zeros(int(silent_frames_start * sr / 25), dtype=orig_audio.dtype), orig_audio], axis=0)
+        # # if silent_frames_end > 0:
+        # #     orig_audio = np.concatenate([orig_audio, np.zeros(int(silent_frames_end * sr / 25 , ), dtype=orig_audio.dtype)], axis=0)
+        # original_audios += [orig_audio]
+        # # if silent:
+        # #     original_audios_silent += [np.zeros_like(orig_audio)]
+        # # else:
+        # #     original_audios_silent += [orig_audio]
+
+        
         eval_talking_head_on_audio(talking_head, audio, output_path=output_dir, emotion_index_list=emotion_index_list, 
-                                silent_frames_start=30, 
-                                silent_frames_end=30, 
+                                # silent_frames_start=30, 
+                                # silent_frames_end=30, 
+                                silent_frames_start=0, 
+                                silent_frames_end=0, 
                                 silent_emotion_start=0, 
                                 silent_emotion_end=0,
-                                   )
+                                neutral_mesh_path= neutral_mesh_path
+                                )
 
         chmod_cmd = f"find {str(output_dir)} -print -type d -exec chmod 775 {{}} +"
         os.system(chmod_cmd)
@@ -116,10 +147,18 @@ def main():
         output_folder = Path('/is/cluster/fast/rdanecek/testing/enspark/fastforward_results')
 
     emotion_index_list = None
-    if len(sys.argv) > 3:
+    if len(sys.argv) > 4:
         emotion_index_list = [int(i) for i in sys.argv[3].split(",")]
+    
+    if len(sys.argv) > 5:
+        neutral_mesh_path = Path(sys.argv[3])
+    else:
+        neutral_mesh_path = None
 
-    run(resume_folder, audio_folder, emotion_index_list=emotion_index_list, output_folder=output_folder)
+
+
+    run(resume_folder, audio_folder, emotion_index_list=emotion_index_list, output_folder=output_folder, 
+        neutral_mesh_path=neutral_mesh_path)
     
 
 
