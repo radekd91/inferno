@@ -30,6 +30,8 @@ def eval_talking_head_on_audio(
     silent_emotion_end = 0, 
     outfolder=None,
     identity_idx=0,
+    emotion_index_list=None,
+    intensity_list=None,
     save_flame=False,
     save_meshes=False,
     save_videos=False,
@@ -42,8 +44,10 @@ def eval_talking_head_on_audio(
     # samples = create_id_emo_int_combinations(talking_head, sample)
     samples = create_high_intensity_emotions(talking_head, sample, 
                                              identity_idx=identity_idx,
+                                             emotion_index_list=emotion_index_list,
+                                             intensity_list=intensity_list,
                                              silent_frames_start=silent_frames_start, silent_frames_end=silent_frames_end, 
-                                            silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
+                                             silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
     silent_intervals = []
     if silent_frames_start > 0:
         num_frames_to_open_mouth = 5
@@ -111,6 +115,8 @@ def main():
     parser.add_argument('--silent_emotion_end', type=int, default=0, help="Which emotion will be silent at the end of the audio.")
     parser.add_argument('--subject_style', type=str, default='M003', help=f"Which subject style to use. Styles available: \n{training_ids}")
     parser.add_argument('--neutral_mesh_path', type=str, default='', help="Path to the neutral mesh. If blank, the default FLAME mean face will be used")
+    parser.add_argument('--emotion', type=str, default='all', help="The emotion to generate. One of: neutral, Happy, Sad, Surprise, Fear, Disgust, Anger, Contempt. If 'all', all emotions will be generated.")
+    parser.add_argument('--intensity', type=str, default='2', help="The emotion intesntiy. One of: 0, 1, 2. If 'all', all emotions will be generated.")
     # parser.add_argument('--neutral_mesh_path', type=str, default='/is/cluster/work/rdanecek/faceformer/templates/FaceTalk_170809_00138_TA.ply', 
     # parser.add_argument('--neutral_mesh_path', type=str, default='/is/cluster/work/rdanecek/faceformer/templates/FaceTalk_170731_00024_TA.ply', 
     #                     help="Path to the neutral mesh. If blank, the default FLAME mean face will be used")
@@ -126,6 +132,23 @@ def main():
     
     subject_id = training_ids.index(args.subject_style)
     
+    if args.emotion == 'all':
+        emotion_index_list = list(range(8))
+    else:
+        emotions = args.emotion.split(',')
+        emotion_index_list = []
+        for e in emotions:
+            emotion_name = e[0].upper() + e[1:].lower()
+            emotion_index_list += [AffectNetExpressions.index(emotion_name)]
+    
+    if args.intensities == 'all': 
+        intensity_list = list(range(3))
+    else:
+        intensities = args.intensities.split(',')
+        intensity_list = []
+        for i in intensities:
+            intensity_list += [int(i)]
+    
     eval_talking_head_on_audio(
         talking_head, audio, 
         silent_frames_start=args.silent_frames_start,
@@ -138,6 +161,8 @@ def main():
         save_meshes=args.save_mesh,
         save_videos=args.save_video,
         neutral_mesh_path = args.neutral_mesh_path if args.neutral_mesh_path != '' else None,
+        emotion_index_list=emotion_index_list,
+        intensity_list=intensity_list
     )
     
 

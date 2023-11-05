@@ -215,7 +215,9 @@ def create_neutral_emotions(talking_head, sample,
                                         silent_emotion_start = silent_emotion_start, silent_emotion_end = silent_emotion_end)
                                           
 
-def create_high_intensity_emotions(talking_head, sample, identity_idx=None, emotion_index_list=None, 
+def create_high_intensity_emotions(talking_head, sample, identity_idx=None, 
+                                   emotion_index_list=None, 
+                                   intensity_list=None,
                                    silent_frames_start=0, silent_frames_end=0, 
                                    silent_emotion_start = 0, silent_emotion_end = 0):
     samples = []
@@ -225,44 +227,50 @@ def create_high_intensity_emotions(talking_head, sample, identity_idx=None, emot
     emotion_index_list = emotion_index_list or list(range(0, talking_head.get_num_emotions()))
     for emo_idx in emotion_index_list:
         # for int_idx in range(0, talking_head.get_num_intensities()):
-        if emotion_index_list == [0]:
-        # if emotion_index_list == 0:
-            int_idx = 0
+        if intensity_list is None:
+            if emotion_index_list == [0]:
+            # if emotion_index_list == 0:
+                int_idx = 0
+            else:
+                int_idx = talking_head.get_num_intensities() - 1
+            intensity_list_ = [int_idx]
         else:
-            int_idx = talking_head.get_num_intensities() - 1
-        sample_copy = copy.deepcopy(sample)
-        sample_copy = create_condition(talking_head, sample_copy, 
-                                        emotions=[emo_idx], 
-                                        identities=[identity_idx], 
-                                        intensities=[int_idx])
-        # if silent_frames_start > 0:
-        T = sample_copy["raw_audio"].shape[0]
-        for key in ["gt_expression_label_condition", "gt_expression_identity_condition", "gt_expression_intensity_condition"]:
-            # cond = sample_copy["gt_expression_label_condition"]
-            cond = sample_copy[key]
-            if cond.shape[0] == 1:
-                cond = cond.repeat(T, axis=0)
-                if key == "gt_expression_label_condition":
-                    cond[:silent_frames_start] = 0 
-                    cond[:silent_frames_start, silent_emotion_start] = 1
-            # sample_copy["gt_expression_label_condition"]= cond
-            sample_copy[key]= cond
+            intensity_list_ = intensity_list.copy()
+        
+        for int_idx in intensity_list_:
+            sample_copy = copy.deepcopy(sample)
+            sample_copy = create_condition(talking_head, sample_copy, 
+                                            emotions=[emo_idx], 
+                                            identities=[identity_idx], 
+                                            intensities=[int_idx])
+            # if silent_frames_start > 0:
+            T = sample_copy["raw_audio"].shape[0]
+            for key in ["gt_expression_label_condition", "gt_expression_identity_condition", "gt_expression_intensity_condition"]:
+                # cond = sample_copy["gt_expression_label_condition"]
+                cond = sample_copy[key]
+                if cond.shape[0] == 1:
+                    cond = cond.repeat(T, axis=0)
+                    if key == "gt_expression_label_condition":
+                        cond[:silent_frames_start] = 0 
+                        cond[:silent_frames_start, silent_emotion_start] = 1
+                # sample_copy["gt_expression_label_condition"]= cond
+                sample_copy[key]= cond
 
-        # if silent_frames_end > 0:
-        T = sample_copy["raw_audio"].shape[0]
+            # if silent_frames_end > 0:
+            T = sample_copy["raw_audio"].shape[0]
 
-        for key in ["gt_expression_label_condition", "gt_expression_identity_condition", "gt_expression_intensity_condition"]:
-            # cond = sample_copy["gt_expression_label_condition"]
-            cond = sample_copy[key]
-            if cond.shape[0] == 1:
-                cond = cond.repeat(T, axis=0)
-                if key == "gt_expression_label_condition":
-                    cond[-silent_frames_end:] = 0
-                    cond[-silent_frames_end:, silent_emotion_end] = 1
-            sample_copy[key] = cond
-        sample_copy["output_name"] = create_name(int_idx, emo_idx, identity_idx, training_subjects)
+            for key in ["gt_expression_label_condition", "gt_expression_identity_condition", "gt_expression_intensity_condition"]:
+                # cond = sample_copy["gt_expression_label_condition"]
+                cond = sample_copy[key]
+                if cond.shape[0] == 1:
+                    cond = cond.repeat(T, axis=0)
+                    if key == "gt_expression_label_condition":
+                        cond[-silent_frames_end:] = 0
+                        cond[-silent_frames_end:, silent_emotion_end] = 1
+                sample_copy[key] = cond
+            sample_copy["output_name"] = create_name(int_idx, emo_idx, identity_idx, training_subjects)
 
-        samples.append(sample_copy)
+            samples.append(sample_copy)
     return samples
 
 
