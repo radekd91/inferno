@@ -1,8 +1,7 @@
 # EMOTE : Emotional Speech-Driven Animation with Content-Emotion Disentanglement
 
-This is the official implementation of [EMOCA: Emotion-Driven Monocular Face Capture and Animation](https://emote.is.tue.mpg.de/). EMOCA takes a single in-the-wild image as input and reconstructs a 3D face with sufficient facial expression detail to convey the emotional state of the
-input image. 
-
+This is the official implementation of [EMOTE : Emotional Speech-Driven Animation with Content-Emotion Disentanglement](https://emote.is.tue.mpg.de/). 
+EMOTE takes speech audio and an emotion and intensity labels on the input and produces a talking head avatar that correctly articulates the words spoken in the audio while expressing the specified emotion.
 
 
 ## Installation 
@@ -25,10 +24,16 @@ conda activate work38
 ```
 
 ### Create a speech-driven animation for all of 8 basic emotions
-If you want to run EMOTE on any .wav file, run the following:
+If you want to run EMOTE on the demo audio file, run the following:
 
-```python 
-python evaluation/TODO 
+```bash 
+python demo/demo_eval_talking_head_on_audio.py 
 ```
 
-The script will detect faces in every image in the folder output the results that you specify with `--save_video`, `--save_flame`, `--save_meshes` to the output folder. 
+The script will save the output meshes and videos into `.results/` for each of the 9 basic emotions.
+
+To run the demo on any audio, run:
+```bash 
+python demo/demo_eval_talking_head_on_audio.py --path_to_audio <your_wav_file> --path_to
+```
+
