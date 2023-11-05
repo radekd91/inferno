@@ -100,7 +100,7 @@ def main():
         # reconstruct_faces = False
         reconstruct_faces = True
     if len(sys.argv) > 11:
-        recognize_emotions = bool(int(sys.argv[11]])) 
+        recognize_emotions = bool(int(sys.argv[11])) 
     else: 
         recognize_emotions = False
 
