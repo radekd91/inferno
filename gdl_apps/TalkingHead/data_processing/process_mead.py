@@ -25,12 +25,19 @@ import numpy as np
 
 
 def main(): 
-    if len(sys.argv) < 3:
-        print("Usage: python resample_mead.py <downloaded_mead_folder> <output_dir> [videos_per_shard] [shard_idx]")
-        sys.exit(0)
+    # if len(sys.argv) < 3:
+    #     print("Usage: python resample_mead.py <downloaded_mead_folder> <output_dir> [videos_per_shard] [shard_idx]")
+    #     sys.exit(0)
         
-    input_data_dir = Path(sys.argv[1])
-    output_data_dir = Path(sys.argv[2])
+      
+    if len(sys.argv) > 1:
+        input_data_dir = Path(sys.argv[1])
+    else: 
+        input_data_dir = "/is/cluster/fast/rdanecek/data/mead_25fps/resampled_videos"    
+    if len(sys.argv) > 2:
+        output_data_dir = Path(sys.argv[2])
+    else:
+        output_data_dir = "/is/cluster/fast/rdanecek/data/mead_25fps/"
 
     processed_subfolder = "processed"
 
@@ -47,12 +54,12 @@ def main():
 
     print("Create the dataloader")
     dm.prepare_data() 
-    # sys.exit(0)
-    # TODO: take care of these 
-    # [WARNING] Video file has no audio streams! 'M041/video/front/sad/level_2/020.mp4'
-    # [WARNING] Video file has no audio streams! 'M041/video/front/sad/level_2/021.mp4'
-    # [WARNING] Video file has no audio streams! 'M041/video/front/sad/level_2/022.mp4'
-    # [WARNING] Video file has no audio streams! 'M041/video/front/sad/level_2/023.mp4'
+    # WARNING: these videos may be missing audio, but MEAD provides them also separately
+    ## copy them manually later
+    # 'M041/video/front/sad/level_2/020.mp4'
+    # 'M041/video/front/sad/level_2/021.mp4'
+    # 'M041/video/front/sad/level_2/022.mp4'
+    # 'M041/video/front/sad/level_2/023.mp4'
 
     videos_per_shard = 200 
     shard_idx = 0
@@ -97,11 +104,11 @@ def main():
     else: 
         recognize_emotions = False
 
-    if len(sys.argv) > 12:
-        segmentations_to_hdf5 = bool(int(sys.argv[10]))
-    else:
-        # segmentations_to_hdf5 = True
-        segmentations_to_hdf5 = False
+    # if len(sys.argv) > 12:
+    #     segmentations_to_hdf5 = bool(int(sys.argv[10]))
+    # else:
+    #     # segmentations_to_hdf5 = True
+    #     segmentations_to_hdf5 = False
 
     dm._process_shard(
         videos_per_shard, 
@@ -113,7 +120,7 @@ def main():
         detect_aligned_landmarks=detect_aligned_landmarks,
         reconstruct_faces=reconstruct_faces,
         recognize_emotions=recognize_emotions,
-        segmentations_to_hdf5=segmentations_to_hdf5,
+        # segmentations_to_hdf5=segmentations_to_hdf5,
     )
     
     dm.setup()

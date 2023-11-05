@@ -105,18 +105,26 @@ def main():
     
     # pass 
     input_models = Path("/is/cluster/work/rdanecek/face_reconstruction/trainings/")
-    input_model_folder =  "2023_10_26_15-15-19_-2340495024515473390_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug"
+    
+    input_model_folder = "2023_10_26_15-15-19_-2340495024515473390_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug" ## EMICA-celebVtext, FLAME 2020
+    output_model = "EMICA-CVT_flame2020"
+    
+    # input_model_folder = "2023_11_02_18-40-00_3717850753128516540_FaceReconstructionBase_MEADD_ResNet50_Pe" ## EMICA-celebVtext finetuned on MEAD, FLAME 2020
+    # output_model = "EMICA-MEAD_flame2020"
+    
+    # input_model_folder = "2023_10_26_15-14-49_1067292532044087133_FaceReconstructionBase_Celeb_ResNet50_Pe_Aug" ## EMICA-celebVtext, FLAME 2023
+    # output_model = "EMICA-CVT_flame2023"
+    
     output_models = get_path_to_assets() / "FaceReconstruction" / "models" 
-    output_model = "EMICA_flame2020"
 
     path_to_emotion_feature = Path("EmotionRecognition") / "image_based_networks" / "ResNet50" 
 
     input_model_folder = input_models / input_model_folder
     output_model_folder = output_models / output_model
-    # export_model(input_model_folder, output_model_folder, 
-    #              overwrite=True, 
-    #              path_to_emotion_feature=path_to_emotion_feature, 
-    #              with_texture=True)
+    export_model(input_model_folder, output_model_folder, 
+                 overwrite=True, 
+                 path_to_emotion_feature=path_to_emotion_feature, 
+                 with_texture=True)
     
     output_model = output_model + "_notexture"
     output_model_folder = output_models / output_model
