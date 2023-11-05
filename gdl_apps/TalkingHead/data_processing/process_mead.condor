@@ -8,5 +8,6 @@ request_cpus = 2
 request_gpus = 1
 requirements=TARGET.CUDACapability>=7.0
 requirements=TARGET.CUDAGlobalMemoryMb>=35000
+requirements=TARGET.CUDAGlobalMemoryMb<=42000
 concurrency_limits = user.process_mead:150
 queue 156
