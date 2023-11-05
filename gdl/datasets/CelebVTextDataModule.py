@@ -210,18 +210,7 @@ class CelebVTextDataModule(FaceVideoDataModule):
             self._detect_landmarkes_in_aligned_sequence(idx)
 
         if reconstruct_faces: 
-            # self._reconstruct_faces_in_sequence(idx, 
-            #     reconstruction_net=self._get_reconstruction_network('emoca'))
-            # self._reconstruct_faces_in_sequence(idx, 
-            #     reconstruction_net=self._get_reconstruction_network('deep3dface'))
-            # self._reconstruct_faces_in_sequence(idx, 
-            #     reconstruction_net=self._get_reconstruction_network('deca'))
-            # rec_methods = ['emoca', 'deep3dface', 'deca']
-            rec_methods = ['emoca', 'spectre',]
-            # for rec_method in rec_methods:
-            #     self._reconstruct_faces_in_sequence(idx, reconstruction_net=None, device=None,
-            #                         save_obj=False, save_mat=True, save_vis=False, save_images=False,
-            #                         save_video=False, rec_method=rec_method, retarget_from=None, retarget_suffix=None)
+            rec_methods = []
             self._reconstruct_faces_in_sequence_v2(
                         idx, reconstruction_net=None, device=None,
                         save_obj=False, save_mat=True, save_vis=False, save_images=False,
