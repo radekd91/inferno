@@ -64,43 +64,43 @@ def main():
     videos_per_shard = 200 
     shard_idx = 0
     if len(sys.argv) > 3:
-        videos_per_shard = int(sys.argv[1])
+        videos_per_shard = int(sys.argv[3])
 
     if len(sys.argv) > 4:
-        shard_idx = int(sys.argv[2])
+        shard_idx = int(sys.argv[4])
 
     print(videos_per_shard, shard_idx)
     print(dm._get_num_shards(videos_per_shard))
     # sys.exit(0)
 
     if len(sys.argv) > 5:
-        extract_audio = bool(int(sys.argv[3]))
+        extract_audio = bool(int(sys.argv[5]))
     else: 
         extract_audio = False
     if len(sys.argv) > 6:
-        restore_videos = bool(int(sys.argv[4]))
+        restore_videos = bool(int(sys.argv[6]))
     else: 
         restore_videos = False
     if len(sys.argv) > 7:
-        detect_landmarks = bool(int(sys.argv[5]))
+        detect_landmarks = bool(int(sys.argv[7]))
     else: 
         detect_landmarks = False
     if len(sys.argv) > 8:
-        segment_videos = bool(int(sys.argv[6]))
+        segment_videos = bool(int(sys.argv[8]))
     else: 
         # segment_videos = True
         segment_videos = False
     if len(sys.argv) > 9:
-        detect_aligned_landmarks = bool(int(sys.argv[7]))
+        detect_aligned_landmarks = bool(int(sys.argv[9]))
     else: 
         detect_aligned_landmarks = False
     if len(sys.argv) > 10:
-        reconstruct_faces = bool(int(sys.argv[8])) 
+        reconstruct_faces = bool(int(sys.argv[10])) 
     else: 
         # reconstruct_faces = False
         reconstruct_faces = True
     if len(sys.argv) > 11:
-        recognize_emotions = bool(int(sys.argv[9])) 
+        recognize_emotions = bool(int(sys.argv[11]])) 
     else: 
         recognize_emotions = False
 
