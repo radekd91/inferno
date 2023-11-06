@@ -300,28 +300,6 @@ def create_experiment_name(cfg, version=0):
                 experiment_name += "bi"
             experiment_name += "_nl-" + str(cfg.model.sequence_encoder.num_layers)
 
-        # use_alignment_bias = cfg.model.classifier.get('use_alignment_bias', True)
-        # if not use_alignment_bias:
-        #     experiment_name += "_NAB"
-
-        # if cfg.model.get('code_vector_projection', None) is not None:
-        #     projector_name = cfg.model.code_vector_projection.name if cfg.model.code_vector_projection.type == 'parallel' \
-        #         else cfg.model.code_vector_projection.type
-        #     if projector_name != "linear":
-        #         experiment_name += "_P" + projector_name
-        
-        # experiment_name += "_pred"
-        # # if cfg_coarse.model.output.predict_shapecode:
-        #     # experiment_name += "S"
-        # if cfg.model.output.predict_expcode:
-        #     experiment_name += "E"
-        # # if cfg_coarse.model.output.predict_globalpose:
-        # #     experiment_name += "G"
-        # if cfg.model.output.predict_jawpose:
-        #     experiment_name += "J"
-
-        # if cfg.model.output.predict_vertices:
-        #     experiment_name += "V"
 
         experiment_name += "_L"
         
@@ -331,24 +309,6 @@ def create_experiment_name(cfg, version=0):
             mask_str = ''
             if cfg.learning.losses[loss_type].get('mask_invalid', None): 
                 mask_str = 'm'
-            # if loss_type in ["jawpose_loss", "jaw_loss"]:
-            #     experiment_name += "J" + cfg.learning.losses[loss_type].get('rotation_rep', 'quat') 
-            # elif loss_type in ["expression_loss", "exp_loss"]:
-            #     experiment_name += "E"
-            # elif loss_type == "vertex_loss":
-            #     experiment_name += "V"
-            # # velocity losses
-            # elif loss_type == "vertex_velocity_loss":
-            #     experiment_name += "Vv"
-            # elif loss_type in ["expression_velocity_loss", "exp_velocity_loss"]:
-            #     experiment_name += "Ev"
-            # elif loss_type in ["jawpose_velocity_loss", "jaw_velocity_loss"]:
-            #     experiment_name += "Jv" +  cfg.learning.losses[loss_type].get('rotation_rep', 'quat')
-            # elif loss_type == "emotion_loss":
-            #     experiment_name += "E"
-            # elif loss_type == "lip_reading_loss":
-            #     experiment_name += "L"
-            # el
             if loss_type == "cross_entropy":
                 experiment_name += "nce"
             experiment_name += mask_str
