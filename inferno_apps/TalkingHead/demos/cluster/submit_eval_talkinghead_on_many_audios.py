@@ -17,9 +17,9 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 
-from gdl.utils.condor import execute_on_cluster
+from inferno.utils.condor import execute_on_cluster
 from pathlib import Path
-import gdl_apps.TalkingHead.demos.eval_talking_head_on_many_audios as script
+import inferno_apps.TalkingHead.demos.eval_talking_head_on_many_audios as script
 import datetime
 from omegaconf import OmegaConf
 import time as t

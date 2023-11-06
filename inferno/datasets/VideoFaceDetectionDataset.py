@@ -24,8 +24,8 @@ from PIL import Image
 from skimage.io import imread
 from torchvision.transforms import ToTensor
 
-from gdl.utils.FaceDetector import load_landmark
-from gdl.datasets.FaceAlignmentTools import align_face
+from inferno.utils.FaceDetector import load_landmark
+from inferno.datasets.FaceAlignmentTools import align_face
 
 from skvideo.io import vread, vreader 
 from types import GeneratorType

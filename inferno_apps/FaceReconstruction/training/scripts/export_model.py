@@ -2,10 +2,10 @@ import os, sys
 from pathlib import Path
 from omegaconf import OmegaConf, DictConfig 
 import shutil
-from gdl.utils.other import get_path_to_assets
-from gdl.models.IO import get_checkpoint_with_kwargs
-from gdl.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase 
-from gdl.models.IO import locate_checkpoint
+from inferno.utils.other import get_path_to_assets
+from inferno.models.IO import get_checkpoint_with_kwargs
+from inferno.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase 
+from inferno.models.IO import locate_checkpoint
 
 
 def export_model(input_model_folder, output_model_folder, overwrite=False, path_to_emotion_feature=None, with_texture=True):

@@ -1,9 +1,9 @@
 import os, sys 
 from pathlib import Path
 import argparse
-from gdl.models.talkinghead.FaceFormer import FaceFormer
-from gdl_apps.TalkingHead.utils.load import load_model
-from gdl.utils.other import get_path_to_assets
+from inferno.models.talkinghead.FaceFormer import FaceFormer
+from inferno_apps.TalkingHead.utils.load import load_model
+from inferno.utils.other import get_path_to_assets
 import pickle
 import torch
 import numpy as np

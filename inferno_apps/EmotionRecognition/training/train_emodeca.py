@@ -20,38 +20,38 @@ All rights reserved.
 
 # #warning: external import collision
 try:
-    from gdl.models.external.EmoDeep3DFace import EmoDeep3DFace
+    from inferno.models.external.EmoDeep3DFace import EmoDeep3DFace
 except ImportError as e:
     print("Could not import EmoDeep3DFace")
 # warning: external import collision
 # try:
-    # from gdl.models.external.Emo3DDFA_V2 import Emo3DDFA_v2
+    # from inferno.models.external.Emo3DDFA_V2 import Emo3DDFA_v2
 # except ImportError as e:
     # print("Could not import Emo3DDFA_v2")
 
 import os, sys
 from pathlib import Path
 from omegaconf import OmegaConf
-from gdl_apps.EMOCA.training.train_expdeca import prepare_data, create_logger
-from gdl.models.IO import locate_checkpoint, get_checkpoint_with_kwargs
+from inferno_apps.EMOCA.training.train_expdeca import prepare_data, create_logger
+from inferno.models.IO import locate_checkpoint, get_checkpoint_with_kwargs
 
-from gdl.models.EmoDECA import EmoDECA
+from inferno.models.EmoDECA import EmoDECA
 try:
-    from gdl.models.EmoSwinModule import EmoSwinModule
+    from inferno.models.EmoSwinModule import EmoSwinModule
 except ImportError as e: 
     print(f"Could not import EmoSwinModule. SWIN models will not be available. Make sure you pull the repository with submodules to enable SWIN.")
-from gdl.models.EmoCnnModule import EmoCnnModule
+from inferno.models.EmoCnnModule import EmoCnnModule
 try:
-    from gdl.models.EmoNetModule import EmoNetModule
+    from inferno.models.EmoNetModule import EmoNetModule
 except ImportError as e: 
     print(f"Could not import EmoNet. EmoNet models will not be available. Make sure you pull the repository with submodules to enable EmoNet.")
-from gdl.models.EmoMLP import EmoMLP
+from inferno.models.EmoMLP import EmoMLP
 
-from gdl.utils.other import class_from_str
+from inferno.utils.other import class_from_str
 import datetime
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from gdl_apps.EMOCA.utils.load import hack_paths
+from inferno_apps.EMOCA.utils.load import hack_paths
 
 
 # project_name = 'EmoDECA'
@@ -186,13 +186,13 @@ def single_stage_deca_pass(deca, cfg, stage, prefix, dm=None, logger=None,
             if cfg.model.emodeca_type == 'EmoDeep3DFace':
                 ## ugly and yucky import but otherwise there's import collisions with 3DDFA
                 try:
-                    from gdl.models.external.EmoDeep3DFace import EmoDeep3DFace
+                    from inferno.models.external.EmoDeep3DFace import EmoDeep3DFace
                 except ImportError as e:
                     print("Could not import EmoDeep3DFace")
             if cfg.model.emodeca_type == 'Emo3DDFA_v2':
                 ## ugly and yucky import but otherwise there's import collisions with EmoDeep3DFace
                 try:
-                    from gdl.models.external.Emo3DDFA_V2 import Emo3DDFA_v2
+                    from inferno.models.external.Emo3DDFA_V2 import Emo3DDFA_v2
                 except ImportError as e:
                     print("Could not import Emo3DDFA_v2")
             deca_class = class_from_str(cfg.model.emodeca_type, sys.modules[__name__])
@@ -441,7 +441,7 @@ def configure(emo_deca_default, emodeca_overrides, deca_default, deca_overrides,
 
     if 'swin_type' in cfg.model.keys():
         if cfg.model.swin_cfg == 'todo':
-            from gdl.utils.other import get_path_to_externals
+            from inferno.utils.other import get_path_to_externals
             swin_cfg = OmegaConf.load(
                 get_path_to_externals() / "SwinTransformer" / "configs" / (cfg.model.swin_type + ".yaml"))
             OmegaConf.set_struct(swin_cfg, True)

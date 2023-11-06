@@ -20,17 +20,17 @@ All rights reserved.
 import torch 
 from torch import nn
 import math
-from gdl.models.rotation_loss import convert_rot
-from gdl.models.MLP import MLP
+from inferno.models.rotation_loss import convert_rot
+from inferno.models.MLP import MLP
 from pytorch3d.transforms import rotation_6d_to_matrix, matrix_to_rotation_6d
 from omegaconf import DictConfig, OmegaConf, open_dict
-from gdl.models.temporal.PositionalEncodings import positional_encoding_from_cfg
-from gdl.models.temporal.TransformerMasking import init_mask_future, init_mask, init_faceformer_biased_mask, init_faceformer_biased_mask_future
-from gdl.models.temporal.motion_prior.MotionPrior import MotionPrior
-from gdl.models.temporal.motion_prior.L2lMotionPrior import L2lVqVae, create_squasher
+from inferno.models.temporal.PositionalEncodings import positional_encoding_from_cfg
+from inferno.models.temporal.TransformerMasking import init_mask_future, init_mask, init_faceformer_biased_mask, init_faceformer_biased_mask_future
+from inferno.models.temporal.motion_prior.MotionPrior import MotionPrior
+from inferno.models.temporal.motion_prior.L2lMotionPrior import L2lVqVae, create_squasher
     
-from gdl.utils.other import class_from_str
-from gdl.models.IO import get_checkpoint_with_kwargs
+from inferno.utils.other import class_from_str
+from inferno.models.IO import get_checkpoint_with_kwargs
 import sys
 
 class AutoRegressiveDecoder(nn.Module):
@@ -471,7 +471,7 @@ class FlameFormerDecoder(FaceFormerDecoderBase):
 
     def __init__(self, cfg):
         super().__init__(cfg)
-        from gdl.models.DecaFLAME import FLAME
+        from inferno.models.DecaFLAME import FLAME
         self.flame_config = cfg.flame
         self.flame = FLAME(self.flame_config)
         pred_dim = 0
@@ -795,7 +795,7 @@ class FlameBertDecoder(BertDecoder):
     """
 
     def __init__(self, cfg) -> None:
-        from gdl.models.DecaFLAME import FLAME
+        from inferno.models.DecaFLAME import FLAME
         self.flame_config = cfg.flame
         self.pred_dim = 0
         self.predict_exp = cfg.predict_exp
@@ -902,7 +902,7 @@ class FlameBertDecoder(BertDecoder):
 
 def load_motion_prior_net(path, trainable=False):
     from pathlib import Path
-    from gdl.utils.other import get_path_to_assets
+    from inferno.utils.other import get_path_to_assets
 
     path = Path(path)
     if not path.is_absolute():

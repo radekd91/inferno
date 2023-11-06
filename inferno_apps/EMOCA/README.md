@@ -14,7 +14,7 @@ input image.
 <p align="center">Top row: input images. Middle row: coarse shape reconstruction. Bottom row: reconstruction with detailed displacements.<p align="center">
 
 ## !!! UPDATE !!! 
-**EMOCA is now deprecated.** For much better face reconstruction, please head over to the [FaceReconstruction](../../gdl_apps/FaceReconstruction) project.
+**EMOCA is now deprecated.** For much better face reconstruction, please head over to the [FaceReconstruction](../../inferno_apps/FaceReconstruction) project.
 
 ## !!! UPDATE !!!
 **EMOCA v2 is now out.** 

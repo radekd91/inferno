@@ -23,15 +23,15 @@ import sys
 import torch
 import pytorch_lightning as pl
 import numpy as np
-from gdl.utils.other import class_from_str
+from inferno.utils.other import class_from_str
 import torch.nn.functional as F
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.loggers import WandbLogger
-from gdl.datasets.AffectNetDataModule import AffectNetExpressions
-from gdl.datasets.AffWild2Dataset import Expression7
+from inferno.datasets.AffectNetDataModule import AffectNetExpressions
+from inferno.datasets.AffWild2Dataset import Expression7
 from pathlib import Path
-from gdl.utils.lightning_logging import _log_array_image, _log_wandb_image, _torch_image2np
-from gdl.models.EmotionRecognitionModuleBase import EmotionRecognitionBaseModule
+from inferno.utils.lightning_logging import _log_array_image, _log_wandb_image, _torch_image2np
+from inferno.models.EmotionRecognitionModuleBase import EmotionRecognitionBaseModule
 from omegaconf import open_dict
 from .Swin import create_swin_backbone
 import pytorch_lightning.plugins.environments.lightning_environment as le

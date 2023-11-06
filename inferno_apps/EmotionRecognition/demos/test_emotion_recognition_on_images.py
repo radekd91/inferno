@@ -18,9 +18,9 @@ All rights reserved.
 """
 
 
-from gdl_apps.EmotionRecognition.utils.io import load_model, test
-from gdl.datasets.ImageTestDataset import TestData
-import gdl
+from inferno_apps.EmotionRecognition.utils.io import load_model, test
+from inferno.datasets.ImageTestDataset import TestData
+import inferno
 import numpy as np
 import os
 import torch
@@ -30,8 +30,8 @@ from tqdm import auto
 import argparse
 import matplotlib.pyplot as plt
 from torch.functional import F
-from gdl.datasets.AffectNetDataModule import AffectNetExpressions
-from gdl.utils.other import get_path_to_assets
+from inferno.datasets.AffectNetDataModule import AffectNetExpressions
+from inferno.utils.other import get_path_to_assets
 import pickle as pkl
 
 
@@ -84,7 +84,7 @@ def save_images(batch, predictions, output_folder):
 def main():
     parser = argparse.ArgumentParser()
     # add the input folder arg 
-    parser.add_argument('--input_folder', type=str, default=str(Path(gdl.__file__).parents[1] / "assets/data/EMOCA_test_example_data/images/affectnet_test_examples"))
+    parser.add_argument('--input_folder', type=str, default=str(Path(inferno.__file__).parents[1] / "assets/data/EMOCA_test_example_data/images/affectnet_test_examples"))
     parser.add_argument('--output_folder', type=str, default="image_output", help="Output folder to save the results to.")
     parser.add_argument('--model_type', type=str, default="3dmm", choices=["image", "3dmm"], help="Type of the model. Image-based vs face reconsruction-based")
     parser.add_argument('--model_name', type=str, default='EMOCA-emorec', help='Name of the model to use.')

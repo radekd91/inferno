@@ -18,8 +18,8 @@ All rights reserved.
 """
 
 
-from gdl.models.IO import locate_checkpoint
-from gdl_apps.EMOCA.training.test_and_finetune_deca import single_stage_deca_pass#, locate_checkpoint
+from inferno.models.IO import locate_checkpoint
+from inferno_apps.EMOCA.training.test_and_finetune_deca import single_stage_deca_pass#, locate_checkpoint
 from omegaconf import DictConfig, OmegaConf
 from pathlib import Path
 from pytorch_lightning.loggers import WandbLogger

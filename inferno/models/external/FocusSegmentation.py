@@ -1,11 +1,11 @@
 import torch 
-from gdl.utils.other import get_path_to_externals
+from inferno.utils.other import get_path_to_externals
 import os, sys
-from gdl.models.ImageTranslationNetBase import ImageTranslationNetBase
+from inferno.models.ImageTranslationNetBase import ImageTranslationNetBase
 import torch.nn.functional as F
 from torchvision.transforms import Resize, Compose, Normalize
 import numpy as np
-from gdl.utils.other import get_path_to_externals, get_path_to_assets
+from inferno.utils.other import get_path_to_externals, get_path_to_assets
 from munch import Munch
 path_to_focus = get_path_to_externals() / "FOCUS"
 if not(str(path_to_focus) in sys.path  or str(path_to_focus.absolute()) in sys.path):

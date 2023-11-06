@@ -19,13 +19,13 @@ All rights reserved.
 
 import pytorch_lightning as pl 
 from typing import Any, Optional
-from gdl.models.temporal.AudioEncoders import TemporalAudioEncoder
-from gdl.models.temporal.MultiModalTemporalNet import *
-from gdl.models.temporal.Bases import *
-# from gdl.models.temporal.BlockFactory import norm_from_cfg
+from inferno.models.temporal.AudioEncoders import TemporalAudioEncoder
+from inferno.models.temporal.MultiModalTemporalNet import *
+from inferno.models.temporal.Bases import *
+# from inferno.models.temporal.BlockFactory import norm_from_cfg
 import random
 import omegaconf
-from gdl.utils.batch import check_nan, detach_dict
+from inferno.utils.batch import check_nan, detach_dict
 
 
 class TalkingHeadBase(pl.LightningModule): 

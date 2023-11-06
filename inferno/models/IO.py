@@ -20,7 +20,7 @@ All rights reserved.
 
 import sys
 from pathlib import Path
-from gdl.utils.other import get_path_to_assets
+from inferno.utils.other import get_path_to_assets
 
 
 def locate_checkpoint(cfg_or_checkpoint_dir, replace_root = None, relative_to = None, mode=None, pattern=None):

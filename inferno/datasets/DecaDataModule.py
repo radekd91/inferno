@@ -111,7 +111,7 @@ class DecaDataModule(LightningDataModule):
     def setup(self, stage=None):
         dataset = build_dataset(self.config, self.config.data.training_datasets, concat=True)
         if self.mica_preprocessing is not None:
-            from gdl.models.mica.MicaInputProcessing import MicaDatasetWrapper
+            from inferno.models.mica.MicaInputProcessing import MicaDatasetWrapper
             dataset = MicaDatasetWrapper(dataset, self.mica_preprocessing)
         self.training_set = DatasetSplitter(dataset, self.split_ratio, self.split_style)
         self.validation_set = []
@@ -119,11 +119,11 @@ class DecaDataModule(LightningDataModule):
             self.validation_set += [self.training_set.complementary_set(), ]
         self.validation_set += build_dataset(self.config, self.config.data.validation_datasets, concat=False)
         if self.mica_preprocessing is not None:
-            # from gdl.models.mica.MicaInputProcessing import MicaDatasetWrapper
+            # from inferno.models.mica.MicaInputProcessing import MicaDatasetWrapper
             self.validation_set[-1] = MicaDatasetWrapper(self.validation_set[-1], self.mica_preprocessing) 
         self.test_set = build_dataset(self.config, self.config.data.testing_datasets, concat=False)
         if self.mica_preprocessing is not None:
-            # from gdl.models.mica.MicaInputProcessing import MicaDatasetWrapper
+            # from inferno.models.mica.MicaInputProcessing import MicaDatasetWrapper
             self.test_set = MicaDatasetWrapper(self.test_set, self.mica_preprocessing)
 
     def train_dataloader(self, *args, **kwargs):
@@ -1123,7 +1123,7 @@ class TestData(Dataset):
             # self.face_detector = detectors.Dlib(model_path=face_detector_model)
             raise NotImplementedError()
         elif face_detector == 'fan':
-            from gdl.utils.FaceDetector import FAN
+            from inferno.utils.FaceDetector import FAN
             # self.face_detector = detectors.FAN()
             self.face_detector = FAN()
         else:
@@ -1225,7 +1225,7 @@ class EvalData(Dataset):
             # self.face_detector = detectors.Dlib(model_path=face_detector_model)
             raise NotImplementedError()
         elif face_detector == 'fan':
-            from gdl.utils.FaceDetector import FAN
+            from inferno.utils.FaceDetector import FAN
             # self.face_detector = detectors.FAN()
             self.face_detector = FAN()
         else:
@@ -1514,7 +1514,7 @@ class FFHQ_val(Dataset):
                 }
 
 
-from gdl.utils.DecaUtils import load_torch7_landmarks, cut_image, calc_aabb #, load_torch7_landmarks_v2
+from inferno.utils.DecaUtils import load_torch7_landmarks, cut_image, calc_aabb #, load_torch7_landmarks_v2
 
 class GIF_val(Dataset):
     def __init__(self, ring_elements, crop_size, path):

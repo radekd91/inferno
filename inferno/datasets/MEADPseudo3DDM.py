@@ -17,12 +17,12 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 
-from gdl.datasets.MEADDataModule import MEADDataModule, MEADDataset, robust_collate
-from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp 
+from inferno.datasets.MEADDataModule import MEADDataModule, MEADDataset, robust_collate
+from inferno.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp 
 import imgaug
 import numpy as np
 import torch
-from gdl.datasets.ConditionedVideoTestDatasetWrapper import ConditionedVideoTestDatasetWrapper
+from inferno.datasets.ConditionedVideoTestDatasetWrapper import ConditionedVideoTestDatasetWrapper
 import omegaconf
 
 class MEADPseudo3DDM(MEADDataModule): 

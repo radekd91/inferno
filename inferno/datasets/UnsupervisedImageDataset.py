@@ -24,7 +24,7 @@ from PIL import Image
 from skimage.io import imread
 from torchvision.transforms import ToTensor
 
-from gdl.utils.FaceDetector import load_landmark
+from inferno.utils.FaceDetector import load_landmark
 
 
 class UnsupervisedImageDataset(torch.utils.data.Dataset):

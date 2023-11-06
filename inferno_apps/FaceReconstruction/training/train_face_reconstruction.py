@@ -18,24 +18,24 @@ All rights reserved.
 """
 import os,sys 
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE" # enable if you get an error about file locking
-from gdl_apps.FaceReconstruction.training.training_pass import ( 
+from inferno_apps.FaceReconstruction.training.training_pass import ( 
     single_stage_training_pass, 
     get_checkpoint_with_kwargs, 
     create_logger, 
     )
-from gdl.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase
-from gdl.datasets.LRS3DataModule import LRS3DataModule
-from gdl.datasets.CelebVHQDataModule import CelebVHQDataModule
-from gdl.datasets.MEADDataModule import MEADDataModule
-from gdl.datasets.CelebVTextDataModule import CelebVTextDataModule
+from inferno.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase
+from inferno.datasets.LRS3DataModule import LRS3DataModule
+from inferno.datasets.CelebVHQDataModule import CelebVHQDataModule
+from inferno.datasets.MEADDataModule import MEADDataModule
+from inferno.datasets.CelebVTextDataModule import CelebVTextDataModule
 
-from gdl.datasets.CombinedDataModule import CombinedDataModule
+from inferno.datasets.CombinedDataModule import CombinedDataModule
 from omegaconf import DictConfig, OmegaConf
 import sys
 from pathlib import Path
 from pytorch_lightning.loggers import WandbLogger
 import datetime
-from gdl.utils.other import class_from_str
+from inferno.utils.other import class_from_str
 import torch 
 from munch import Munch, munchify
 # torch.autograd.set_detect_anomaly(True)

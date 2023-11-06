@@ -17,23 +17,23 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 
-from gdl_apps.TalkingHead.evaluation.TalkingHeadWrapper import TalkingHeadWrapper
-from gdl_apps.TalkingHead.utils.video import save_video
-from gdl.datasets.FaceVideoDataModule import dict_to_device
+from inferno_apps.TalkingHead.evaluation.TalkingHeadWrapper import TalkingHeadWrapper
+from inferno_apps.TalkingHead.utils.video import save_video
+from inferno.datasets.FaceVideoDataModule import dict_to_device
 from pathlib import Path
 import librosa
 import numpy as np
-from gdl.utils.collate import robust_collate
+from inferno.utils.collate import robust_collate
 import torch
 import os, sys
-from gdl.utils.PyRenderMeshSequenceRenderer import PyRenderMeshSequenceRenderer
+from inferno.utils.PyRenderMeshSequenceRenderer import PyRenderMeshSequenceRenderer
 from tqdm.auto import tqdm
-from gdl.datasets.AffectNetAutoDataModule import AffectNetExpressions
+from inferno.datasets.AffectNetAutoDataModule import AffectNetExpressions
 import trimesh
 import copy
 import soundfile as sf
 from psbody.mesh import Mesh
-from gdl.utils.other import get_path_to_assets
+from inferno.utils.other import get_path_to_assets
 
 
 def create_condition(talking_head, sample, emotions=None, intensities=None, identities=None):

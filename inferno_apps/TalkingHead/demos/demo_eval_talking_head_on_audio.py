@@ -17,8 +17,8 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 import argparse
-from gdl_apps.TalkingHead.evaluation.TalkingHeadWrapper import TalkingHeadWrapper
-from gdl_apps.TalkingHead.evaluation.evaluation_functions import *
+from inferno_apps.TalkingHead.evaluation.TalkingHeadWrapper import TalkingHeadWrapper
+from inferno_apps.TalkingHead.evaluation.evaluation_functions import *
 
 
 def eval_talking_head_on_audio(

@@ -19,13 +19,13 @@ All rights reserved.
 
 import torch
 import torch.nn.functional as F
-from gdl.layers.losses.Masked import MaskedTemporalMAELoss, MaskedTemporalMSELoss
-from gdl.utils.DecaUtils import quaternion_to_angle_axis, quaternion_to_rotation_matrix
+from inferno.layers.losses.Masked import MaskedTemporalMAELoss, MaskedTemporalMSELoss
+from inferno.utils.DecaUtils import quaternion_to_angle_axis, quaternion_to_rotation_matrix
 
 
 def convert_rot(r, input_rep, output_rep):
     from pytorch3d.transforms import matrix_to_quaternion, matrix_to_rotation_6d, rotation_6d_to_matrix
-    from gdl.utils.DecaUtils import batch_rodrigues, aa2euler_batch, rot_mat_to_euler
+    from inferno.utils.DecaUtils import batch_rodrigues, aa2euler_batch, rot_mat_to_euler
     # assert input_rep != output_rep
     if input_rep == output_rep: 
         return r

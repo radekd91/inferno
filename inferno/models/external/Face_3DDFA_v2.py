@@ -23,7 +23,7 @@ from pathlib import Path
 from matplotlib.image import imsave
 
 import numpy as np
-from gdl.utils.other import get_path_to_externals
+from inferno.utils.other import get_path_to_externals
 
 repo_dir = str(get_path_to_externals())
 sys.path += [repo_dir]
@@ -44,7 +44,7 @@ import torch.nn.functional as F
 from omegaconf import OmegaConf
 
 import pytorch_lightning as pl
-from gdl.utils.lightning_logging import _log_array_image, _log_wandb_image, _torch_image2np
+from inferno.utils.lightning_logging import _log_array_image, _log_wandb_image, _torch_image2np
 from pytorch_lightning.loggers import WandbLogger
 
 from skimage.io import imsave

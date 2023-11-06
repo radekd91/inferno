@@ -123,7 +123,7 @@ class MicaInputProcessor(object):
 
     def _dirty_image_preprocessing(self, input_image): 
         # breaks whatever gradient flow that may have gone into the image creation process
-        from gdl.models.mica.detector import get_center, get_arcface_input
+        from inferno.models.mica.detector import get_center, get_arcface_input
         from insightface.app.common import Face
         
         image = input_image.detach().clone().cpu().numpy() * 255. 

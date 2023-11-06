@@ -17,7 +17,7 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 
-from gdl.datasets.AffectNetDataModule import *
+from inferno.datasets.AffectNetDataModule import *
 from pytorch_lightning import LightningDataModule
 
 class AffectNetAutoDataModule(AffectNetDataModule):

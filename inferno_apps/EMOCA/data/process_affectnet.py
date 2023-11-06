@@ -18,7 +18,7 @@ All rights reserved.
 """
 import sys
 
-from gdl.datasets.AffectNetDataModule import AffectNetDataModule
+from inferno.datasets.AffectNetDataModule import AffectNetDataModule
 
 
 def main(): 

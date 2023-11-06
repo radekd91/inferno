@@ -29,7 +29,7 @@ import torchvision.transforms.functional as F_v
 import adabound
 from pytorch_lightning import LightningModule
 from pytorch_lightning.loggers import WandbLogger
-from gdl.layers.losses.EmoNetLoss import EmoNetLoss, create_emo_loss, create_au_loss
+from inferno.layers.losses.EmoNetLoss import EmoNetLoss, create_emo_loss, create_au_loss
 import numpy as np
 # from time import time
 from skimage.io import imread
@@ -37,23 +37,23 @@ from skimage.transform import resize
 import cv2
 from pathlib import Path
 
-from gdl.models.Renderer import SRenderY
-from gdl.models.DecaEncoder import ResnetEncoder, SecondHeadResnet, SwinEncoder
-from gdl.models.DecaDecoder import Generator, GeneratorAdaIn
-from gdl.models.DecaFLAME import FLAME, FLAMETex, FLAME_mediapipe
-from gdl.models.EmotionMLP import EmotionMLP
+from inferno.models.Renderer import SRenderY
+from inferno.models.DecaEncoder import ResnetEncoder, SecondHeadResnet, SwinEncoder
+from inferno.models.DecaDecoder import Generator, GeneratorAdaIn
+from inferno.models.DecaFLAME import FLAME, FLAMETex, FLAME_mediapipe
+from inferno.models.EmotionMLP import EmotionMLP
 
-import gdl.layers.losses.DecaLosses as lossfunc
-import gdl.layers.losses.MediaPipeLandmarkLosses as lossfunc_mp
-import gdl.utils.DecaUtils as util
-from gdl.datasets.AffWild2Dataset import Expression7
-from gdl.datasets.AffectNetDataModule import AffectNetExpressions
-from gdl.utils.lightning_logging import _log_array_image, _log_wandb_image, _torch_image2np
+import inferno.layers.losses.DecaLosses as lossfunc
+import inferno.layers.losses.MediaPipeLandmarkLosses as lossfunc_mp
+import inferno.utils.DecaUtils as util
+from inferno.datasets.AffWild2Dataset import Expression7
+from inferno.datasets.AffectNetDataModule import AffectNetExpressions
+from inferno.utils.lightning_logging import _log_array_image, _log_wandb_image, _torch_image2np
 
 torch.backends.cudnn.benchmark = True
 from enum import Enum
-from gdl.utils.other import class_from_str, get_path_to_assets
-from gdl.layers.losses.VGGLoss import VGG19Loss
+from inferno.utils.other import class_from_str, get_path_to_assets
+from inferno.layers.losses.VGGLoss import VGG19Loss
 from omegaconf import OmegaConf, open_dict
 
 import pytorch_lightning.plugins.environments.lightning_environment as le
@@ -251,7 +251,7 @@ class DecaModule(LightningModule):
                     print("The old lip reading loss is not trainable. It will be replaced.")
 
             # old_lipread_loss = self.emonet_loss
-            from gdl.models.temporal.external.LipReadingLoss import LipReadingLoss
+            from inferno.models.temporal.external.LipReadingLoss import LipReadingLoss
             self.lipread_loss = LipReadingLoss(self.device, self.deca.config.lipread_loss.lipread_loss)
             self.lipread_loss.eval()
             self.lipread_loss.requires_grad_(False)
@@ -3180,7 +3180,7 @@ class DECA(torch.nn.Module):
                             inverse_face_order=True)
 
 
-from gdl.models.EmoNetRegressor import EmoNetRegressor, EmonetRegressorStatic
+from inferno.models.EmoNetRegressor import EmoNetRegressor, EmonetRegressorStatic
 
 
 class ExpDECAInterface(object): 
@@ -3498,7 +3498,7 @@ def _emica_create_model(self):
     if Path(self.config.mica_model_path).exists(): 
         mica_path = self.config.mica_model_path 
     else:
-        from gdl.utils.other import get_path_to_assets
+        from inferno.utils.other import get_path_to_assets
         mica_path = get_path_to_assets() / self.config.mica_model_path  
         assert mica_path.exists(), f"MICA model path does not exist: '{mica_path}'"
 
@@ -3796,7 +3796,7 @@ def load_deca(conf,
     #     cfg = hack_paths(cfg, replace_root_path=replace_root_path, relative_to_path=relative_to_path)
     cfg.model.resume_training = False
 
-    from gdl.models.IO import locate_checkpoint
+    from inferno.models.IO import locate_checkpoint
     checkpoint = locate_checkpoint(cfg, replace_root_path, relative_to_path, mode=mode)
     if checkpoint is None:
         if terminate_on_failure:

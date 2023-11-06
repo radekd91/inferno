@@ -1,12 +1,12 @@
 from torch import batch_norm
-from gdl.models.DECA import * 
-from gdl.models.temporal.MultiModalTemporalNet import *
-from gdl.models.temporal.Bases import *
-from gdl.models.temporal.BlockFactory import norm_from_cfg
-from gdl.models.MLP import MLP 
+from inferno.models.DECA import * 
+from inferno.models.temporal.MultiModalTemporalNet import *
+from inferno.models.temporal.Bases import *
+from inferno.models.temporal.BlockFactory import norm_from_cfg
+from inferno.models.MLP import MLP 
 import random
 
-from gdl.models.temporal.VideoEncoders import EmocaVideoEncoder 
+from inferno.models.temporal.VideoEncoders import EmocaVideoEncoder 
 
 
 class TemporalMLP(MLP): 

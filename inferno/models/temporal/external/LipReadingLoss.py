@@ -17,11 +17,11 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 
-from gdl.utils.other import get_path_to_externals
+from inferno.utils.other import get_path_to_externals
 from pathlib import Path
 import sys
 import torch
-from gdl.models.temporal.Renderers import cut_mouth_vectorized
+from inferno.models.temporal.Renderers import cut_mouth_vectorized
 
 path_to_ext = str(get_path_to_externals())
 if path_to_ext not in sys.path:
@@ -78,7 +78,7 @@ class LipReadingNet(torch.nn.Module):
         """
         # this is my - hopefully fixed version of the forward pass
         # In other words, in the lip reading repo code, the following happens:
-        # gdl/external/spectre/external/Visual_Speech_Recognition_for_Multiple_Languages/espnet/nets/pytorch_backend/backbones/conv3d_extractor.py
+        # inferno/external/spectre/external/Visual_Speech_Recognition_for_Multiple_Languages/espnet/nets/pytorch_backend/backbones/conv3d_extractor.py
         # line 95:
         # B, C, T, H, W = xs_pad.size() # evaluated to: torch.Size([B, 1, 70, 88, 88]) - so the temporal window is collapsed into the batch size
         ndim = lip_images.ndim
@@ -118,7 +118,7 @@ class LipReadingNet(torch.nn.Module):
         # by some weird coincidence, this does not crash the lipread net and it seems to work for them .... 
         # however, shouldn't the video be passed such that the temporal sequence lenght is the batch size is correct?
         # In other words, in the lip reading repo code, the following happens:
-        # gdl/external/spectre/external/Visual_Speech_Recognition_for_Multiple_Languages/espnet/nets/pytorch_backend/backbones/conv3d_extractor.py
+        # inferno/external/spectre/external/Visual_Speech_Recognition_for_Multiple_Languages/espnet/nets/pytorch_backend/backbones/conv3d_extractor.py
         # line 95:
         # B, C, T, H, W = xs_pad.size() # evaluated to: torch.Size([70, 1, 1, 88, 88]) - so the temporal window is collapsed into the batch size
         channel_dim = 1

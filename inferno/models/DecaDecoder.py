@@ -64,7 +64,7 @@ class Generator(nn.Module):
         return img * self.out_scale
 
 
-from gdl.layers.AdaIN import AdaIN
+from inferno.layers.AdaIN import AdaIN
 
 
 class AdaInUpConvBlock(nn.Module):

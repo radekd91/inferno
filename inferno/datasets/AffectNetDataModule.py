@@ -28,24 +28,24 @@ import pytorch_lightning as pl
 import pandas as pd
 import pickle as pkl
 from skimage.io import imread, imsave
-from gdl.datasets.IO import load_segmentation, process_segmentation, load_emotion, save_emotion
-from gdl.utils.image import numpy_image_to_torch
-from gdl.transforms.keypoints import KeypointNormalization
+from inferno.datasets.IO import load_segmentation, process_segmentation, load_emotion, save_emotion
+from inferno.utils.image import numpy_image_to_torch
+from inferno.transforms.keypoints import KeypointNormalization
 import imgaug
-from gdl.datasets.FaceDataModuleBase import FaceDataModuleBase
-from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
-from gdl.datasets.EmotionalImageDataset import EmotionalImageDatasetBase
-from gdl.datasets.UnsupervisedImageDataset import UnsupervisedImageDataset
-from gdl.utils.FaceDetector import save_landmark, load_landmark
+from inferno.datasets.FaceDataModuleBase import FaceDataModuleBase
+from inferno.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
+from inferno.datasets.EmotionalImageDataset import EmotionalImageDatasetBase
+from inferno.datasets.UnsupervisedImageDataset import UnsupervisedImageDataset
+from inferno.utils.FaceDetector import save_landmark, load_landmark
 from tqdm import auto
 import traceback
 from torch.utils.data.dataloader import DataLoader
-from gdl.transforms.imgaug import create_image_augmenter
+from inferno.transforms.imgaug import create_image_augmenter
 from torchvision.transforms import Resize, Compose
 from sklearn.neighbors import NearestNeighbors
 from torch.utils.data._utils.collate import default_collate
 from torch.utils.data.sampler import WeightedRandomSampler
-from gdl.utils.other import class_from_str
+from inferno.utils.other import class_from_str
 
 
 class AffectNetExpressions(Enum):
@@ -262,7 +262,7 @@ class AffectNetDataModule(FaceDataModuleBase):
         return Path(self.output_dir) / "emotions"
 
     def _get_emotion_net(self, device):
-        from gdl.layers.losses.EmonetLoader import get_emonet
+        from inferno.layers.losses.EmonetLoader import get_emonet
 
         net = get_emonet()
         net = net.to(device)
@@ -402,8 +402,8 @@ class AffectNetDataModule(FaceDataModuleBase):
                                  
         completed = status_array[start_i // self.subset_size]
         del status_array
-        from gdl.utils.FaceDetector import save_landmark_v2, save_landmark
-        from gdl.utils.MediaPipeLandmarkDetector import MediaPipeLandmarkDetector
+        from inferno.utils.FaceDetector import save_landmark_v2, save_landmark
+        from inferno.utils.MediaPipeLandmarkDetector import MediaPipeLandmarkDetector
 
         detector = MediaPipeLandmarkDetector()
 
@@ -1085,7 +1085,7 @@ class AffectNet(EmotionalImageDatasetBase):
 
         self.mica_processor = None
         if return_mica_images is not None:
-            from gdl.models.mica.MicaInputProcessing import MicaInputProcessor
+            from inferno.models.mica.MicaInputProcessing import MicaInputProcessor
             self.mica_processor = MicaInputProcessor(return_mica_images)
 
 
@@ -1695,7 +1695,7 @@ if __name__ == "__main__":
     #         )
     import yaml
     augmenter = yaml.load(
-            open(Path(__file__).parents[2] / "gdl_apps" / "EmotionRecognition" / "emodeca_conf" / "data" / "augmentations" / "default_with_resize.yaml"), 
+            open(Path(__file__).parents[2] / "inferno_apps" / "EmotionRecognition" / "emodeca_conf" / "data" / "augmentations" / "default_with_resize.yaml"), 
             Loader=yaml.FullLoader)["augmentation"]
     # augmenter = None
     # # dm = AffectNetEmoNetSplitModule(

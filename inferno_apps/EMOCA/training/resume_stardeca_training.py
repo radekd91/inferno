@@ -18,7 +18,7 @@ All rights reserved.
 """
 
 
-from gdl_apps.EMOCA.training.train_stardeca import resume_training
+from inferno_apps.EMOCA.training.train_stardeca import resume_training
 import sys, os
 
 

@@ -1,7 +1,7 @@
 import torch 
-from gdl.utils.other import get_path_to_externals
+from inferno.utils.other import get_path_to_externals
 import os, sys
-from gdl.models.ImageTranslationNetBase import ImageTranslationNetBase
+from inferno.models.ImageTranslationNetBase import ImageTranslationNetBase
 import torch.nn.functional as F
 
 # path_to_gpen = get_path_to_externals() / ".." / ".." / "GPEN" / "face_model"

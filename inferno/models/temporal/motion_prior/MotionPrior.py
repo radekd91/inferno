@@ -21,10 +21,10 @@ import pytorch_lightning as pl
 import torch
 from torch import nn
 from typing import Any, Optional 
-from gdl.models.temporal.Bases import ShapeModel, Preprocessor
+from inferno.models.temporal.Bases import ShapeModel, Preprocessor
 from torch.nn.functional import mse_loss, l1_loss, cosine_similarity
-from gdl.utils.other import class_from_str
-from gdl.models.rotation_loss import compute_rotation_loss, convert_rot
+from inferno.utils.other import class_from_str
+from inferno.models.rotation_loss import compute_rotation_loss, convert_rot
 import numpy as np
 
 class MotionEncoder(torch.nn.Module): 
@@ -180,7 +180,7 @@ class MotionPrior(pl.LightningModule):
         return self.motion_encoder.quant_factor()
 
     def get_flame(self):
-        # from gdl.models.temporal.Preprocessors import FlamePreprocessor
+        # from inferno.models.temporal.Preprocessors import FlamePreprocessor
         # if isinstance(self.preprocessor, FlamePreprocessor):
         if "FlamePreprocessor" in self.preprocessor.__class__.__name__:
             return self.preprocessor.flame

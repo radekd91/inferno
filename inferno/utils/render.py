@@ -2,7 +2,7 @@ import os
 import torch
 import numpy as np
 
-from gdl.utils.mesh import load_mesh
+from inferno.utils.mesh import load_mesh
 
 # Data structures and functions for rendering
 from pytorch3d.structures import Meshes, Textures
@@ -221,7 +221,7 @@ def render(mesh, device, renderer='flat') -> torch.Tensor:
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    from gdl.utils.image import concatenate_image_batch_to_wide_image, torchFloatToNpUintImage
+    from inferno.utils.image import concatenate_image_batch_to_wide_image, torchFloatToNpUintImage
 
     device = torch.device("cuda:0")
     torch.cuda.set_device(device)

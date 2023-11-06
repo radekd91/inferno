@@ -22,14 +22,14 @@ import warnings
 warnings.filterwarnings('ignore', message='.*Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. *', )
 import torch 
 torch.autograd.set_detect_anomaly(True)
-from gdl.datasets.LRS3Pseudo3DDM import LRS3Pseudo3DDM
-from gdl_apps.TalkingHead.training.training_pass import( single_stage_training_pass, 
+from inferno.datasets.LRS3Pseudo3DDM import LRS3Pseudo3DDM
+from inferno_apps.TalkingHead.training.training_pass import( single_stage_training_pass, 
             get_checkpoint_with_kwargs, create_logger, configure_and_train, configure)
-# from gdl.datasets.DecaDataModule import DecaDataModule
-from gdl.models.talkinghead.FaceFormer import FaceFormer
-from gdl.datasets.FaceformerVocasetDM import FaceformerVocasetDM
-from gdl.datasets.CelebVHQPseudo3DDM import CelebVHQPseudo3DDM
-from gdl.datasets.MEADPseudo3DDM import MEADPseudo3DDM
+# from inferno.datasets.DecaDataModule import DecaDataModule
+from inferno.models.talkinghead.FaceFormer import FaceFormer
+from inferno.datasets.FaceformerVocasetDM import FaceformerVocasetDM
+from inferno.datasets.CelebVHQPseudo3DDM import CelebVHQPseudo3DDM
+from inferno.datasets.MEADPseudo3DDM import MEADPseudo3DDM
 
 
 from omegaconf import DictConfig, OmegaConf, open_dict
@@ -37,7 +37,7 @@ import sys
 from pathlib import Path
 from pytorch_lightning.loggers import WandbLogger
 import datetime
-from gdl.utils.other import class_from_str
+from inferno.utils.other import class_from_str
 
 
 

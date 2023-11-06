@@ -18,8 +18,8 @@ All rights reserved.
 """
 
 
-from gdl_apps.EMOCA.training.test_and_finetune_deca import single_stage_deca_pass, get_checkpoint_with_kwargs, create_logger
-from gdl.datasets.DecaDataModule import DecaDataModule
+from inferno_apps.EMOCA.training.test_and_finetune_deca import single_stage_deca_pass, get_checkpoint_with_kwargs, create_logger
+from inferno.datasets.DecaDataModule import DecaDataModule
 from omegaconf import DictConfig, OmegaConf
 import sys
 from pathlib import Path

@@ -17,16 +17,16 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 
-from gdl.models.talkinghead.TalkingHeadBase import TalkingHeadBase
+from inferno.models.talkinghead.TalkingHeadBase import TalkingHeadBase
 import numpy as np
 import torch.nn.functional as F
-from gdl.models.temporal.BlockFactory import *
-from gdl.models.rotation_loss import compute_rotation_loss, convert_rot
-from gdl.layers.losses.EmoNetLoss import create_emo_loss
+from inferno.models.temporal.BlockFactory import *
+from inferno.models.rotation_loss import compute_rotation_loss, convert_rot
+from inferno.layers.losses.EmoNetLoss import create_emo_loss
 from omegaconf import open_dict
 from munch import Munch
-from gdl.layers.losses.Masked import MaskedTemporalMSELoss
-from gdl.layers.losses.VideoEmotionLoss import create_video_emotion_loss
+from inferno.layers.losses.Masked import MaskedTemporalMSELoss
+from inferno.layers.losses.VideoEmotionLoss import create_video_emotion_loss
 
 
 class FaceFormer(TalkingHeadBase):
@@ -76,7 +76,7 @@ class FaceFormer(TalkingHeadBase):
                 self.neural_losses.emotion_loss.eval()
                 self.neural_losses.emotion_loss.requires_grad_(False)
             elif loss_type == "lip_reading_loss": 
-                from gdl.models.temporal.external.LipReadingLoss import LipReadingLoss
+                from inferno.models.temporal.external.LipReadingLoss import LipReadingLoss
                 self.neural_losses.lip_reading_loss = LipReadingLoss(self.device, 
                     loss_cfg.get('metric', 'cosine_similarity'))
                 self.neural_losses.lip_reading_loss.eval()

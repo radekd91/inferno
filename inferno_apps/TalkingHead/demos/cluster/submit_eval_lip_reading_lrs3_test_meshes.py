@@ -17,9 +17,9 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 
-from gdl.utils.condor import execute_on_cluster
+from inferno.utils.condor import execute_on_cluster
 from pathlib import Path
-import gdl_apps.TalkingHead.evaluation.evaluate_lip_reading_on_lrs3_meshes as script
+import inferno_apps.TalkingHead.evaluation.evaluate_lip_reading_on_lrs3_meshes as script
 import datetime
 from omegaconf import OmegaConf
 import time as t

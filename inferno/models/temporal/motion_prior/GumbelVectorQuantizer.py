@@ -7,7 +7,7 @@ import torch.nn as nn
 from .MotionPrior import MotionQuantizer
 from torch.nn import functional as F
 from typing import Dict
-from gdl.utils.ValueScheduler import scheduler_from_dict
+from inferno.utils.ValueScheduler import scheduler_from_dict
 
 def kl_divergence(p, q, reduction='batchmean'):
     """

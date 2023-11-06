@@ -19,8 +19,8 @@ All rights reserved.
 from typing import Any, Optional, Dict, List
 import torch
 import torch.nn as nn
-from gdl.models.temporal.PositionalEncodings import PositionalEncoding, LearnedPositionEmbedding
-from gdl.models.temporal.TransformerMasking import (init_alibi_biased_mask, init_alibi_biased_mask_future, 
+from inferno.models.temporal.PositionalEncodings import PositionalEncoding, LearnedPositionEmbedding
+from inferno.models.temporal.TransformerMasking import (init_alibi_biased_mask, init_alibi_biased_mask_future, 
                                                     init_mask, init_mask_future, init_faceformer_biased_mask, 
                                                     init_faceformer_biased_mask_future, init_faceformer_biased_mask_future)
 from omegaconf import OmegaConf, ListConfig

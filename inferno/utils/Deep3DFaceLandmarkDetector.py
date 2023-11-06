@@ -3,9 +3,9 @@ tf.disable_v2_behavior()
 import numpy as np
 import torch
 import pickle as pkl
-from gdl.utils.FaceDetector import FaceDetector, MTCNN
+from inferno.utils.FaceDetector import FaceDetector, MTCNN
 import os, sys
-from gdl.utils.other import get_path_to_externals 
+from inferno.utils.other import get_path_to_externals 
 from pathlib import Path
 
 

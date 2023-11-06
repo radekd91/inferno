@@ -1,6 +1,6 @@
-from gdl_apps.EMOCA.utils.load import load_model
-from gdl.datasets.ImageTestDataset import TestData
-import gdl
+from inferno_apps.EMOCA.utils.load import load_model
+from inferno.datasets.ImageTestDataset import TestData
+import inferno
 import numpy as np
 import os
 import torch
@@ -8,8 +8,8 @@ from skimage.io import imsave
 from pathlib import Path
 from tqdm import auto
 import argparse
-from gdl_apps.EMOCA.utils.io import save_obj, save_images, save_codes, test, torch_img_to_np
-from gdl.utils.lightning_logging import _fix_image
+from inferno_apps.EMOCA.utils.io import save_obj, save_images, save_codes, test, torch_img_to_np
+from inferno.utils.lightning_logging import _fix_image
 
 
 def save_images(outfolder, name, vis_dict, i = 0, with_detection=False):
@@ -46,7 +46,7 @@ def main():
     # parser.add_argument('--model_name', type=str, default='EMOCA', help='Name of the model to use.')
     # parser.add_argument('--model_name', type=str, default='EMOCA', help='Name of the model to use.')
     # parser.add_argument('--model_name', type=str, default='EMOCA', help='Name of the model to use.')
-    # parser.add_argument('--path_to_models', type=str, default=Path(gdl.__file__).parents[1] / "assets/EMOCA/models")
+    # parser.add_argument('--path_to_models', type=str, default=Path(inferno.__file__).parents[1] / "assets/EMOCA/models")
     parser.add_argument('--path_to_models', type=str, default="/is/cluster/work/rdanecek/emoca/finetune_deca/")
     parser.add_argument('--save_images', type=bool, default=True, help="If true, output images will be saved")
     parser.add_argument('--save_codes', type=bool, default=False, help="If true, output FLAME values for shape, expression, jaw pose will be saved")

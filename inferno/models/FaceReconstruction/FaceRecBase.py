@@ -41,25 +41,25 @@ from pytorch_lightning.loggers import WandbLogger
 from skimage.io import imread
 from skimage.transform import resize
 
-import gdl.utils.DecaUtils as util
-from gdl.datasets.AffectNetDataModule import AffectNetExpressions
-from gdl.datasets.AffWild2Dataset import Expression7
-from gdl.layers.losses.EmoNetLoss import (create_au_loss, create_emo_loss, EmoNetLoss)
-from gdl.layers.losses.VGGLoss import VGG19Loss
-from gdl.models.temporal.Bases import ShapeModel
-from gdl.models.temporal.external.LipReadingLoss import LipReadingLoss
-from gdl.models.temporal.Renderers import Renderer
-from gdl.utils.lightning_logging import (_log_array_image, _log_wandb_image,
+import inferno.utils.DecaUtils as util
+from inferno.datasets.AffectNetDataModule import AffectNetExpressions
+from inferno.datasets.AffWild2Dataset import Expression7
+from inferno.layers.losses.EmoNetLoss import (create_au_loss, create_emo_loss, EmoNetLoss)
+from inferno.layers.losses.VGGLoss import VGG19Loss
+from inferno.models.temporal.Bases import ShapeModel
+from inferno.models.temporal.external.LipReadingLoss import LipReadingLoss
+from inferno.models.temporal.Renderers import Renderer
+from inferno.utils.lightning_logging import (_log_array_image, _log_wandb_image,
                                          _torch_image2np)
-from gdl.utils.other import class_from_str, get_path_to_assets
-from gdl.utils.MediaPipeLandmarkUtils import draw_mediapipe_landmarks, draw_mediapipe_landmark_flame_subset
+from inferno.utils.other import class_from_str, get_path_to_assets
+from inferno.utils.MediaPipeLandmarkUtils import draw_mediapipe_landmarks, draw_mediapipe_landmark_flame_subset
 from .FaceEncoder import encoder_from_cfg
 from .Losses import (FanContourLandmarkLoss, LandmarkLoss,
                      MediaPipeLandmarkLoss, MediaPipeLipDistanceLoss,
                      MediaPipeMouthCornerLoss, MediaPipleEyeDistanceLoss,
                      PhotometricLoss, GaussianRegLoss, LightRegLoss)
 
-from gdl.utils.batch import dict_get, check_nan
+from inferno.utils.batch import dict_get, check_nan
 # import timeit
 
 
@@ -67,7 +67,7 @@ def shape_model_from_cfg(cfg):
     cfg_shape = cfg.model.shape_model
 
     if cfg_shape.type == "FlameShapeModel":
-        from gdl.models.temporal.TemporalFLAME import FlameShapeModel
+        from inferno.models.temporal.TemporalFLAME import FlameShapeModel
         shape_model = FlameShapeModel(cfg_shape.flame)
     else: 
         raise ValueError(f"Unsupported shape model type: '{cfg_shape.type}'")
@@ -81,10 +81,10 @@ def renderer_from_cfg(cfg):
         return None
 
     if cfg_renderer.type == "DecaLandmarkProjector":
-        from gdl.models.temporal.Renderers import FlameLandmarkProjector
+        from inferno.models.temporal.Renderers import FlameLandmarkProjector
         renderer = FlameLandmarkProjector(cfg_renderer)
     elif cfg_renderer.type == "DecaRenderer":
-        from gdl.models.temporal.Renderers import FlameRenderer
+        from inferno.models.temporal.Renderers import FlameRenderer
         renderer = FlameRenderer(cfg_renderer)
     else: 
         raise ValueError(f"Unsupported renderer type: '{cfg_renderer.type}'")
@@ -107,7 +107,7 @@ def losses_from_cfg(losses_cfg, device):
             loss_func.eval()
             loss_func.requires_grad_(False)
         elif loss_type == "lip_reading_loss": 
-            from gdl.models.temporal.external.LipReadingLoss import \
+            from inferno.models.temporal.external.LipReadingLoss import \
                 LipReadingLoss
             loss_func = LipReadingLoss(device, 
                 loss_cfg.metric)

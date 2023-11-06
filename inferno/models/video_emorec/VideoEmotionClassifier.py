@@ -19,15 +19,15 @@ All rights reserved.
 
 import pytorch_lightning as pl 
 from typing import Any, Optional, Dict, List
-from gdl.models.temporal.Bases import TemporalFeatureEncoder, SequenceClassificationEncoder, Preprocessor, ClassificationHead
-from gdl.models.temporal.AudioEncoders import Wav2Vec2Encoder
-from gdl.models.temporal.SequenceModels import *
+from inferno.models.temporal.Bases import TemporalFeatureEncoder, SequenceClassificationEncoder, Preprocessor, ClassificationHead
+from inferno.models.temporal.AudioEncoders import Wav2Vec2Encoder
+from inferno.models.temporal.SequenceModels import *
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from gdl.models.EmoSwinModule import EmoSwinModule
+from inferno.models.EmoSwinModule import EmoSwinModule
 from pathlib import Path
-from gdl.utils.other import get_path_to_assets
+from inferno.utils.other import get_path_to_assets
 from omegaconf import OmegaConf
 
 class VideoClassifierBase(pl.LightningModule): 

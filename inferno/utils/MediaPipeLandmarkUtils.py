@@ -1,6 +1,6 @@
 import numpy as np
 from mediapipe.framework.formats.landmark_pb2 import NormalizedLandmarkList, NormalizedLandmark
-from gdl.layers.losses.MediaPipeLandmarkLosses import EMBEDDING_INDICES_NP
+from inferno.layers.losses.MediaPipeLandmarkLosses import EMBEDDING_INDICES_NP
 
 
 def mediapipe2np(landmarks): 

@@ -21,19 +21,19 @@ All rights reserved.
 import torch
 import pytorch_lightning as pl
 import numpy as np
-from gdl.utils.other import class_from_str
+from inferno.utils.other import class_from_str
 import torch.nn.functional as F
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.loggers import WandbLogger
-from gdl.layers.losses.EmonetLoader import get_emonet
-from gdl.utils.emotion_metrics import *
+from inferno.layers.losses.EmonetLoader import get_emonet
+from inferno.utils.emotion_metrics import *
 from torch.nn.functional import mse_loss, cross_entropy, nll_loss, l1_loss, log_softmax
 import sys
 import adabound
-from gdl.datasets.EmotioNetDataModule import ActionUnitTypes
+from inferno.datasets.EmotioNetDataModule import ActionUnitTypes
 from torch.nn import BatchNorm1d, InstanceNorm1d
 from .EmotionRecognitionModuleBase import EmotionRecognitionBaseModule
-from gdl.models.MLP import MLP
+from inferno.models.MLP import MLP
 
 
 class EmoMLP(EmotionRecognitionBaseModule):

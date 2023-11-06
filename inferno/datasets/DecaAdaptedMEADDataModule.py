@@ -1,5 +1,5 @@
 from .MEADDataModule import * 
-from gdl.models.mica.MicaInputProcessing import MicaDatasetWrapper
+from inferno.models.mica.MicaInputProcessing import MicaDatasetWrapper
 from torch.utils.data import Dataset
 
 class DecaAdaptedMeadDataModule(MEADDataModule):

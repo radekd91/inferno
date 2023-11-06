@@ -24,15 +24,15 @@ from pathlib import Path
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
-from gdl.models.talkinghead.TalkingHeadBase import TalkingHeadBase
+from inferno.models.talkinghead.TalkingHeadBase import TalkingHeadBase
 from pytorch_lightning.loggers import WandbLogger
 import datetime
 import time as t
 # import hydra
 from omegaconf import DictConfig, OmegaConf
 import copy
-from gdl.callbacks.TalkingHeadRenderingCallback import TalkingHeadTestRenderingCallback
-from gdl.callbacks.ImageSavingCallback import ImageSavingCallback
+from inferno.callbacks.TalkingHeadRenderingCallback import TalkingHeadTestRenderingCallback
+from inferno.callbacks.ImageSavingCallback import ImageSavingCallback
 
 project_name = 'TalkingHead'
 

@@ -20,7 +20,7 @@ All rights reserved.
 
 import os, sys
 from pathlib import Path
-from gdl.utils.other import get_path_to_externals
+from inferno.utils.other import get_path_to_externals
 swin_path = (get_path_to_externals() / "SwinTransformer").absolute()
 if not swin_path.is_dir():
     raise ImportError(f"Swin repository not found in : '{swin_path}'")

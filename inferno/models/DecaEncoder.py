@@ -24,7 +24,7 @@ import numpy as np
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
-import gdl.models.ResNet as resnet
+import inferno.models.ResNet as resnet
 # import timeit
 
 try:
@@ -182,7 +182,7 @@ class SwinToken(SwinEncoder):
         # self.transformer_layer = nn.TransformerEncoderLayer(d_model=self.encoder.num_features, nhead=8)
         # self.transformer = nn.TransformerEncoder(self.transformer_layer, num_layers=6)
         
-        from gdl.models.temporal.SequenceModels import TransformerEncoderNoBottleneck as TransformerEnc
+        from inferno.models.temporal.SequenceModels import TransformerEncoderNoBottleneck as TransformerEnc
         self.transformer = TransformerEnc(self.transformer_cfg, self.encoder.num_features)
 
         self.token_heads = nn.ModuleDict()

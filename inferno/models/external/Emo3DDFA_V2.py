@@ -22,10 +22,10 @@ import sys, os
 from pathlib import Path
 
 import torch
-from gdl.models.EmotionRecognitionModuleBase import EmotionRecognitionBaseModule
-from gdl.models.external.Face_3DDFA_v2 import Face3DDFAv2Wrapper
-from gdl.models.MLP import MLP
-from gdl.utils.other import class_from_str
+from inferno.models.EmotionRecognitionModuleBase import EmotionRecognitionBaseModule
+from inferno.models.external.Face_3DDFA_v2 import Face3DDFAv2Wrapper
+from inferno.models.MLP import MLP
+from inferno.utils.other import class_from_str
 from torch.nn import BatchNorm1d, InstanceNorm1d
 
 

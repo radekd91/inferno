@@ -18,7 +18,7 @@ All rights reserved.
 """
 
 
-from gdl_apps.VideoEmotionRecognition.training.train_video_emorec import resume_training
+from inferno_apps.VideoEmotionRecognition.training.train_video_emorec import resume_training
 import sys, os
 
 

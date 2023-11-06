@@ -21,14 +21,14 @@ All rights reserved.
 import torch
 import numpy as np
 import torch.nn.functional as F
-# from gdl_apps.EMOCA.train_deca_modular import get_checkpoint
+# from inferno_apps.EMOCA.train_deca_modular import get_checkpoint
 from pytorch_lightning.loggers import WandbLogger
-from gdl.layers.losses.EmonetLoader import get_emonet
-from gdl.datasets.AffectNetDataModule import AffectNetExpressions
-from gdl.datasets.AffWild2Dataset import Expression7
+from inferno.layers.losses.EmonetLoader import get_emonet
+from inferno.datasets.AffectNetDataModule import AffectNetExpressions
+from inferno.datasets.AffWild2Dataset import Expression7
 from pathlib import Path
-from gdl.utils.lightning_logging import _log_array_image, _log_wandb_image, _torch_image2np
-from gdl.models.EmotionRecognitionModuleBase import EmotionRecognitionBaseModule
+from inferno.utils.lightning_logging import _log_array_image, _log_wandb_image, _torch_image2np
+from inferno.models.EmotionRecognitionModuleBase import EmotionRecognitionBaseModule
 import pytorch_lightning.plugins.environments.lightning_environment as le
 
 

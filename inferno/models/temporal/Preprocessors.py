@@ -1,7 +1,7 @@
 import omegaconf 
 from pathlib import Path
-from gdl.utils.other import get_path_to_assets
-from gdl.models.temporal.Bases import Preprocessor
+from inferno.utils.other import get_path_to_assets
+from inferno.models.temporal.Bases import Preprocessor
 import torch.nn.functional as F
 import torch 
 
@@ -28,7 +28,7 @@ class FlamePreprocessor(Preprocessor):
 
     def __init__(self, cfg, **kwargs):
         super().__init__(**kwargs)
-        from gdl.models.DecaFLAME import FLAME, FLAMETex
+        from inferno.models.DecaFLAME import FLAME, FLAMETex
         self.cfg = cfg
         self.cfg.flame = check_flame_paths(cfg.flame)
         self.flame = FLAME(cfg.flame)
@@ -64,7 +64,7 @@ class FlamePreprocessor(Preprocessor):
             if not self.test_time: # and the preprocessor is not needed for test time 
                 # just return
                 return batch
-        # from gdl_apps.EMOCA.utils.io import test
+        # from inferno_apps.EMOCA.utils.io import test
 
         rec_types = []
         if 'gt_exp' in batch:
@@ -207,8 +207,8 @@ def nested_dict_set(dictionary, first_key, key, value):
 class FaceRecPreprocessor(Preprocessor): 
 
     def __init__(self, cfg, **kwargs):
-        from gdl.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase 
-        from gdl.models.IO import locate_checkpoint
+        from inferno.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase 
+        from inferno.models.IO import locate_checkpoint
 
         self.cfg = cfg
         if not Path(cfg.model_name).is_absolute():
@@ -243,7 +243,7 @@ class FaceRecPreprocessor(Preprocessor):
             if not self.test_time: # and the preprocessor is not needed for test time 
                 # just return
                 return batch
-        # from gdl_apps.EMOCA.utils.io import test
+        # from inferno_apps.EMOCA.utils.io import test
         images = batch[input_key]
 
         B, T, C, H, W = images.shape
@@ -331,7 +331,7 @@ class EmocaPreprocessor(Preprocessor):
 
     def __init__(self, cfg, **kwargs):
         super().__init__(**kwargs)
-        from gdl_apps.EMOCA.utils.io import load_model
+        from inferno_apps.EMOCA.utils.io import load_model
         self.cfg = cfg
         if not cfg.model_path:
             self.model_path = get_path_to_assets() / "EMOCA/models"
@@ -371,7 +371,7 @@ class EmocaPreprocessor(Preprocessor):
             if not self.test_time: # and the preprocessor is not needed for test time 
                 # just return
                 return batch
-        # from gdl_apps.EMOCA.utils.io import test
+        # from inferno_apps.EMOCA.utils.io import test
         images = batch[input_key]
 
         B, T, C, H, W = images.shape
@@ -495,7 +495,7 @@ class EmotionRecognitionPreprocessor(Preprocessor):
         super().__init__(**kwargs)
         self.cfg = cfg
         self.max_b = cfg.get('max_b', 100)
-        from gdl_apps.EmotionRecognition.utils.io import load_model
+        from inferno_apps.EmotionRecognition.utils.io import load_model
         self.cfg = cfg
         if not cfg.model_path:
             self.model_path = get_path_to_assets() / "EmotionRecognition" / "image_based_networks"
@@ -571,7 +571,7 @@ class SpeechEmotionRecognitionPreprocessor(Preprocessor):
     def __init__(self, cfg, **kwargs):
         super().__init__(**kwargs)
     
-        from gdl.models.temporal.AudioEncoders import Wav2Vec2SER
+        from inferno.models.temporal.AudioEncoders import Wav2Vec2SER
         self.cfg = cfg
         model_specifier = cfg.model_specifier
         trainable = False 

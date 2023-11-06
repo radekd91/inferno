@@ -6,10 +6,10 @@ from .MotionPrior import *
 from torch import nn
 from ..BlockFactory import preprocessor_from_cfg
 from omegaconf import open_dict
-from gdl.utils.other import class_from_str
+from inferno.utils.other import class_from_str
 import sys
-# from gdl.models.temporal.PositionalEncodings import positional_encoding_from_cfg
-# from gdl.models.temporal.TransformerMasking import biased_mask_from_cfg
+# from inferno.models.temporal.PositionalEncodings import positional_encoding_from_cfg
+# from inferno.models.temporal.TransformerMasking import biased_mask_from_cfg
 from munch import Munch, munchify
 from omegaconf import OmegaConf
 

@@ -1,14 +1,14 @@
 # import copy
 #
 # import torch
-# from gdl.layers.losses.EmonetLoader import get_emonet
+# from inferno.layers.losses.EmonetLoader import get_emonet
 # from pathlib import Path
 # import torch.nn.functional as F
-# from gdl.models.EmoNetModule import EmoNetModule
-# from gdl.models.EmoSwinModule import EmoSwinModule
-# from gdl.models.EmoCnnModule import EmoCnnModule
-# from gdl.models.IO import get_checkpoint_with_kwargs
-# from gdl.utils.other import class_from_str
+# from inferno.models.EmoNetModule import EmoNetModule
+# from inferno.models.EmoSwinModule import EmoSwinModule
+# from inferno.models.EmoCnnModule import EmoCnnModule
+# from inferno.models.IO import get_checkpoint_with_kwargs
+# from inferno.utils.other import class_from_str
 # import sys
 #
 #

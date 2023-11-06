@@ -1,8 +1,8 @@
-from gdl.models.temporal.Bases import ShapeModel
-from gdl.models.DecaFLAME import FLAME, FLAME_mediapipe, FLAMETex 
+from inferno.models.temporal.Bases import ShapeModel
+from inferno.models.DecaFLAME import FLAME, FLAME_mediapipe, FLAMETex 
 import torch
 from pathlib import Path 
-from gdl.utils.other import get_path_to_assets
+from inferno.utils.other import get_path_to_assets
 
 
 def check_for_relative_paths(cfg):

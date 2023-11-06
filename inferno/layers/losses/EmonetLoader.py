@@ -1,7 +1,7 @@
 import inspect
 import sys
 from pathlib import Path
-from gdl.utils.other import get_path_to_externals
+from inferno.utils.other import get_path_to_externals
 import torch
 
 

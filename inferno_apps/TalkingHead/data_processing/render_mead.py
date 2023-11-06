@@ -1,8 +1,8 @@
 from pathlib import Path
-from gdl.datasets.MEADDataModule import MEADDataModule 
-from gdl.datasets.IO import load_reconstruction_list
-from gdl.models.DecaFLAME import FLAME_mediapipe
-from gdl.utils.PyRenderMeshSequenceRenderer import PyRenderMeshSequenceRenderer
+from inferno.datasets.MEADDataModule import MEADDataModule 
+from inferno.datasets.IO import load_reconstruction_list
+from inferno.models.DecaFLAME import FLAME_mediapipe
+from inferno.utils.PyRenderMeshSequenceRenderer import PyRenderMeshSequenceRenderer
 import numpy as np
 import os, sys
 from munch import munchify, Munch

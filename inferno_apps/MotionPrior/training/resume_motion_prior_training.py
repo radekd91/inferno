@@ -17,7 +17,7 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 
-from gdl_apps.MotionPrior.training.train_motion_prior import resume_training
+from inferno_apps.MotionPrior.training.train_motion_prior import resume_training
 import sys, os
 
 

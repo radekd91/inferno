@@ -22,7 +22,7 @@ import torch
 from omegaconf import DictConfig, OmegaConf
 from torch.nn import functional, Linear, LeakyReLU, Sequential
 import torch.nn.functional as F
-from gdl.utils.other import class_from_str
+from inferno.utils.other import class_from_str
 
 
 class MLP(torch.nn.Module):

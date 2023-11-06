@@ -24,18 +24,18 @@ from pathlib import Path
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
-from gdl.models.temporal.motion_prior.MotionPrior import MotionPrior
-from gdl.models.temporal.motion_prior.L2lMotionPrior import L2lVqVae
-from gdl.models.temporal.motion_prior.DeepPhase import DeepPhase
+from inferno.models.temporal.motion_prior.MotionPrior import MotionPrior
+from inferno.models.temporal.motion_prior.L2lMotionPrior import L2lVqVae
+from inferno.models.temporal.motion_prior.DeepPhase import DeepPhase
 from pytorch_lightning.loggers import WandbLogger
 import datetime
 import time as t
 # import hydra
 from omegaconf import DictConfig, OmegaConf
 import copy
-from gdl.callbacks.TalkingHeadRenderingCallback import TalkingHeadTestRenderingCallback
-# from gdl.callbacks.ImageSavingCallback import ImageSavingCallback
-from gdl.utils.other import class_from_str
+from inferno.callbacks.TalkingHeadRenderingCallback import TalkingHeadTestRenderingCallback
+# from inferno.callbacks.ImageSavingCallback import ImageSavingCallback
+from inferno.utils.other import class_from_str
 
 
 project_name = 'MotionPrior'

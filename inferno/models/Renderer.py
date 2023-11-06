@@ -14,7 +14,7 @@ import imageio
 from pytorch3d.structures import Meshes
 from pytorch3d.io import load_obj
 from pytorch3d.renderer.mesh import rasterize_meshes
-import gdl.utils.DecaUtils as util
+import inferno.utils.DecaUtils as util
 
 
 # from .rasterizer.standard_rasterize_cuda import standard_rasterize

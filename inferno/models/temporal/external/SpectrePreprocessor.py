@@ -1,5 +1,5 @@
 from ..Preprocessors import Preprocessor 
-from gdl.utils.other import get_path_to_externals
+from inferno.utils.other import get_path_to_externals
 import os, sys
 from pathlib import Path
 import torch

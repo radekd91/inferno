@@ -34,7 +34,7 @@ from tqdm import tqdm
 import copy
 # import gc
 # from memory_profiler import profile
-from gdl.transforms.imgaug import create_image_augmenter
+from inferno.transforms.imgaug import create_image_augmenter
 
 
 class AffWild2DataModule(pl.LightningDataModule):

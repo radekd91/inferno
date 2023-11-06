@@ -18,8 +18,8 @@ All rights reserved.
 """
 import os, sys 
 from pathlib import Path
-from gdl_apps.TalkingHead.evaluation.TalkingHeadWrapper import TalkingHeadWrapper
-from gdl_apps.TalkingHead.evaluation.eval_talking_head_on_audio import (create_base_sample, create_high_intensity_emotions, 
+from inferno_apps.TalkingHead.evaluation.TalkingHeadWrapper import TalkingHeadWrapper
+from inferno_apps.TalkingHead.evaluation.eval_talking_head_on_audio import (create_base_sample, create_high_intensity_emotions, 
                                                                         run_evalutation, AffectNetExpressions, training_ids)
 from collections import OrderedDict
 import torch

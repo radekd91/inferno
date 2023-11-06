@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from gdl.layers.losses.DecaLosses import VGGFace2Loss
+from inferno.layers.losses.DecaLosses import VGGFace2Loss
 
 
 class PerceptualLoss(torch.nn.Module):

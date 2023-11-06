@@ -17,9 +17,9 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 
-from gdl.utils.condor import execute_on_cluster
+from inferno.utils.condor import execute_on_cluster
 from pathlib import Path
-import gdl_apps.MotionPrior.training.resume_motion_prior_training  as script
+import inferno_apps.MotionPrior.training.resume_motion_prior_training  as script
 import datetime
 from omegaconf import OmegaConf
 import time as t

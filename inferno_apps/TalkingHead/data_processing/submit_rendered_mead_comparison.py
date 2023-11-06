@@ -1,6 +1,6 @@
-from gdl.utils.condor import execute_on_cluster
+from inferno.utils.condor import execute_on_cluster
 from pathlib import Path
-import gdl_apps.Speech4D.data_processing.rendered_mead_comparison as script
+import inferno_apps.Speech4D.data_processing.rendered_mead_comparison as script
 import datetime
 from omegaconf import OmegaConf
 import time as t

@@ -25,11 +25,11 @@ import torch
 from torch.nn import BatchNorm1d, LayerNorm, InstanceNorm1d
 import pytorch_lightning as pl
 import numpy as np
-from gdl.utils.other import class_from_str
+from inferno.utils.other import class_from_str
 import torch.nn.functional as F
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.loggers import WandbLogger
-from gdl.layers.losses.EmonetLoader import get_emonet
+from inferno.layers.losses.EmonetLoader import get_emonet
 import sys
 import pytorch_lightning.plugins.environments.lightning_environment as le
 

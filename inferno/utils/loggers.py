@@ -55,7 +55,7 @@ class WandbLogger(AbstractLogger):
         # wandb.log(vals)
 
     def log_3D_shape(self, epoch: int, models: dict):
-        shapes = {key: wandb.Object3D(value) for key, value in from gdl.models.items() }
+        shapes = {key: wandb.Object3D(value) for key, value in from inferno.models.items() }
         wandb.log(shapes, step=epoch)
 
     def log_image(self, epoch, images: dict):
@@ -84,7 +84,7 @@ class WandbLogger(AbstractLogger):
             print("Wandb was synced automatically")
 
 import tensorboardX as tbx
-from gdl.utils.mesh import load_mesh
+from inferno.utils.mesh import load_mesh
 
 
 class TbXLogger(AbstractLogger):
@@ -129,8 +129,8 @@ class TbXLogger(AbstractLogger):
     def log_3D_shape(self, epoch: int, models: dict):
         if self.wandb_logger is not None:
             self.wandb_logger.log_3D_shape(epoch, models)
-        # shapes = {key: wandb.Object3D(value) for key, value in from gdl.models.items() }
-        for key, value in from gdl.models.items():
+        # shapes = {key: wandb.Object3D(value) for key, value in from inferno.models.items() }
+        for key, value in from inferno.models.items():
             if isinstance(value, str):
                 vertices, faces = load_mesh(value)
                 colors = None

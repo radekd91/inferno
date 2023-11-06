@@ -28,9 +28,9 @@ from skimage.io import imread
 from skimage.transform import rescale, estimate_transform, warp
 from torch.utils.data import Dataset
 
-# from gdl.datasets.FaceVideoDataModule import add_pretrained_deca_to_path
-from gdl.datasets.ImageDatasetHelpers import bbox2point
-from gdl.utils.FaceDetector import FAN
+# from inferno.datasets.FaceVideoDataModule import add_pretrained_deca_to_path
+from inferno.datasets.ImageDatasetHelpers import bbox2point
+from inferno.utils.FaceDetector import FAN
 
 from pytorch_lightning import LightningDataModule
 

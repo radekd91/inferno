@@ -21,8 +21,8 @@ from pathlib import Path
 from omegaconf import OmegaConf
 import os, sys
 
-from gdl.models.talkinghead.FaceFormer import FaceFormer
-from gdl.models.IO import locate_checkpoint
+from inferno.models.talkinghead.FaceFormer import FaceFormer
+from inferno.models.IO import locate_checkpoint
 
 
 def load_model(path_to_models,

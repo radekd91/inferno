@@ -1,10 +1,10 @@
-from gdl.models.temporal.Bases import SequenceEncoder 
+from inferno.models.temporal.Bases import SequenceEncoder 
 import torch 
 from torch import Tensor
 import math
 from omegaconf import OmegaConf
 import sys
-from gdl.utils.other import get_path_to_externals
+from inferno.utils.other import get_path_to_externals
 path_to_av_hubert = get_path_to_externals() / "av_hubert"
 # path_to_av_hubert = get_path_to_externals() / "av_hubert" / "avhubert"
 # path_to_fairseq = get_path_to_externals() / "av_hubert" / "fairseq"
@@ -99,7 +99,7 @@ def pos_enc_from_cfg(cfg):
     if cfg.type == "PositionalEncoding":
         return PositionalEncoding
     if cfg.type == "PeriodicPositionalEncoding":
-        from gdl.models.talkinghead.FaceFormerDecoder import PeriodicPositionalEncoding
+        from inferno.models.talkinghead.FaceFormerDecoder import PeriodicPositionalEncoding
         return PeriodicPositionalEncoding
     raise ValueError("Unknown positional encoding type: {}".format(cfg.type))
 

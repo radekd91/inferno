@@ -32,29 +32,29 @@ import hickle as hkl
 from tqdm import tqdm, auto
 # import subprocess
 from torchvision.transforms import Resize, Compose
-import gdl
-from gdl.datasets.ImageTestDataset import TestData
-from gdl.datasets.FaceDataModuleBase import FaceDataModuleBase
-from gdl.datasets.ImageDatasetHelpers import point2bbox, bbpoint_warp
-from gdl.datasets.UnsupervisedImageDataset import UnsupervisedImageDataset
+import inferno
+from inferno.datasets.ImageTestDataset import TestData
+from inferno.datasets.FaceDataModuleBase import FaceDataModuleBase
+from inferno.datasets.ImageDatasetHelpers import point2bbox, bbpoint_warp
+from inferno.datasets.UnsupervisedImageDataset import UnsupervisedImageDataset
 from facenet_pytorch import InceptionResnetV1
 from collections import OrderedDict
-from gdl.datasets.IO import (save_emotion, save_segmentation_list, save_reconstruction_list, 
+from inferno.datasets.IO import (save_emotion, save_segmentation_list, save_reconstruction_list, 
                              save_reconstruction_list_v2, save_emotion_list, save_emotion_list_v2, 
                              load_reconstruction_list_v2
                              )
 from PIL import Image, ImageDraw, ImageFont
-from gdl.utils.other import get_path_to_assets
+from inferno.utils.other import get_path_to_assets
 import cv2
 from skimage.io import imread
 from skvideo.io import vreader, vread
 import skvideo.io
 import torch.nn.functional as F
-from gdl.utils.batch import dict_to_device
-from gdl.datasets.VideoFaceDetectionDataset import VideoFaceDetectionDataset
+from inferno.utils.batch import dict_to_device
+from inferno.datasets.VideoFaceDetectionDataset import VideoFaceDetectionDataset
 import types
 
-from gdl.utils.FaceDetector import save_landmark, save_landmark_v2
+from inferno.utils.FaceDetector import save_landmark, save_landmark_v2
 
 # from memory_profiler import profile
 
@@ -620,7 +620,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
 
     def _get_emotion_net(self, device):
-        from gdl.layers.losses.EmonetLoader import get_emonet
+        from inferno.layers.losses.EmonetLoader import get_emonet
 
         net = get_emonet()
         net = net.to(device)
@@ -645,7 +645,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             print("[WARNING] PKL segmentation file does not exist. Skipping segmentations_to_hdf5")
             return
         
-        from gdl.datasets.IO import load_segmentation_list, save_segmentation_list_v2
+        from inferno.datasets.IO import load_segmentation_list, save_segmentation_list_v2
         seg_images, seg_types, seg_names = load_segmentation_list(old_file)
         save_segmentation_list_v2(new_file, seg_images, seg_types, seg_names, overwrite=False, compression_level=1)
 
@@ -788,7 +788,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
 
     def _get_emonet(self, device=None):
-        from gdl.utils.other import get_path_to_externals
+        from inferno.utils.other import get_path_to_externals
         device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         path_to_emonet = get_path_to_externals() / "emonet"
         if not(str(path_to_emonet) in sys.path  or str(path_to_emonet.absolute()) in sys.path):
@@ -889,7 +889,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             video_path = self.root_dir / self.video_list[sequence_id]
             landmark_file = self._get_path_to_sequence_landmarks(sequence_id) 
             
-            from gdl.datasets.VideoFaceDetectionDataset import VideoFaceDetectionDataset
+            from inferno.datasets.VideoFaceDetectionDataset import VideoFaceDetectionDataset
             dataset = VideoFaceDetectionDataset(video_path, landmark_file, output_im_range=255)
         else:
             dataset = UnsupervisedImageDataset(detections_fnames)
@@ -964,7 +964,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         if rec_method == 'resnet50':
             if hasattr(self, '_emo_resnet') and self._emo_resnet is not None: 
                 return self._emo_resnet.to(device)
-            from gdl.models.temporal.Preprocessors import EmotionRecognitionPreprocessor
+            from inferno.models.temporal.Preprocessors import EmotionRecognitionPreprocessor
             from munch import Munch
             cfg = Munch()
             cfg.model_name = "ResNet50"
@@ -976,7 +976,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             if hasattr(self, '_emo_swinb'):
                 return self._emo_swinb
             else:
-                from gdl.models.temporal.Preprocessors import EmotionRecognitionPreprocessor
+                from inferno.models.temporal.Preprocessors import EmotionRecognitionPreprocessor
                 from munch import Munch
                 cfg = Munch()
                 cfg.model_name = "SWIN-B"
@@ -997,7 +997,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 if not hasattr(self, '_facerecon') or self._facerecon is not None:
                     self._facerecon = {}
 
-            from gdl.models.temporal.Preprocessors import FaceRecPreprocessor
+            from inferno.models.temporal.Preprocessors import FaceRecPreprocessor
             from munch import Munch
             cfg = Munch()
             cfg.with_global_pose = True
@@ -1019,7 +1019,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     return self._emoca[rec_method].to(device)
             else: 
                 self._emoca = {}
-            from gdl.models.temporal.Preprocessors import EmocaPreprocessor
+            from inferno.models.temporal.Preprocessors import EmocaPreprocessor
             from munch import Munch
             cfg = Munch()
             cfg.with_global_pose = True
@@ -1042,7 +1042,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     return self._emica[rec_method].to(device)
             else: 
                 self._emica = {}
-            from gdl.models.temporal.Preprocessors import EmocaPreprocessor
+            from inferno.models.temporal.Preprocessors import EmocaPreprocessor
             from munch import Munch
             cfg = Munch()
             cfg.with_global_pose = True
@@ -1062,7 +1062,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         elif rec_method == "spectre": 
             if hasattr(self, '_spectre') and self._spectre is not None: 
                 return self._spectre.to(device)
-            from gdl.models.temporal.external.SpectrePreprocessor import SpectrePreprocessor
+            from inferno.models.temporal.external.SpectrePreprocessor import SpectrePreprocessor
             from munch import Munch
             cfg = Munch()
             cfg.return_vis = False
@@ -1103,10 +1103,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
         elif rec_method == "emoca":
             checkpoint_mode = 'best'
             mode = "test"
-            from gdl.models.IO import get_checkpoint_with_kwargs
+            from inferno.models.IO import get_checkpoint_with_kwargs
             from omegaconf import OmegaConf
             model_path = "/is/cluster/work/rdanecek/emoca/finetune_deca/2021_11_13_03-43-40_4753326650554236352_ExpDECA_Affec_clone_NoRing_EmoC_F2_DeSeggt_BlackC_Aug_early"
-            # model_path = Path(gdl.__file__).parents[1] / "assets" / "EMOCA" / "models" / "EMOCA"
+            # model_path = Path(inferno.__file__).parents[1] / "assets" / "EMOCA" / "models" / "EMOCA"
             cfg = OmegaConf.load(Path(model_path) / "cfg.yaml")
             stage = 'detail'
             cfg = cfg[stage]
@@ -1118,7 +1118,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             # cfg_pretrain_.model.deca_class = cfg_coarse.model.deca_class
             # checkpoint_kwargs["config"]["model"]["deca_class"] = cfg_coarse.model.deca_class
             # load from configs
-            from gdl.models.DECA import instantiate_deca
+            from inferno.models.DECA import instantiate_deca
             deca_checkpoint_kwargs = {
                 "model_params": checkpoint_kwargs["config"]["model"],
                 "learning_params": checkpoint_kwargs["config"]["learning"],
@@ -1126,13 +1126,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 "stage_name": "train",
             }
 
-            from gdl_apps.EMOCA.utils.load import load_model 
+            from inferno_apps.EMOCA.utils.load import load_model 
 
             deca = instantiate_deca(cfg, mode, "",  checkpoint, deca_checkpoint_kwargs )
             deca.to(device)
             deca.deca.config.detail_constrain_type = 'none'
 
-            # path_to_models = Path(gdl.__file__).parents[1] / "assets/EMOCA/models
+            # path_to_models = Path(inferno.__file__).parents[1] / "assets/EMOCA/models
             # model_name = "EMOCA"
             # mode = "detail"
             # deca, conf = load_model(path_to_models, model_name, mode)
@@ -1161,7 +1161,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             # initialize(config_path="../emoca_conf", job_name="test_face_model")
             # conf = compose(config_name=default, overrides=overrides)
 
-            from gdl.models.external.Deep3DFace import Deep3DFaceModule
+            from inferno.models.external.Deep3DFace import Deep3DFaceModule
             from omegaconf import DictConfig
 
             model_cfg = {
@@ -1288,7 +1288,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                                        save_video=True, rec_method='emoca', retarget_from=None, retarget_suffix=None):
         # add_pretrained_deca_to_path()
         # from decalib.utils import util
-        import gdl.utils.DecaUtils as util
+        import inferno.utils.DecaUtils as util
         from scipy.io.matlab import savemat
 
         if retarget_from is not None:
@@ -1624,11 +1624,11 @@ class FaceVideoDataModule(FaceDataModuleBase):
                                           device=None,
                                           wandb_logger=None,
                                      ):
-        from gdl.models.DecaFLAME import FLAME_mediapipe
-        from gdl.utils.PyRenderMeshSequenceRenderer import PyRenderMeshSequenceRenderer
-        from gdl.models.Renderer import SRenderY
-        import gdl.utils.DecaUtils as util
-        from gdl.utils.video import combine_video_audio, concatenate_videos
+        from inferno.models.DecaFLAME import FLAME_mediapipe
+        from inferno.utils.PyRenderMeshSequenceRenderer import PyRenderMeshSequenceRenderer
+        from inferno.models.Renderer import SRenderY
+        import inferno.utils.DecaUtils as util
+        from inferno.utils.video import combine_video_audio, concatenate_videos
             
         device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -2886,7 +2886,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # video = skvideo.io.vread(str(self.root_dir / self.video_list[sequence_id]))
         video = skvideo.io.vreader(str(self.root_dir / self.video_list[sequence_id]))
 
-        from gdl.datasets.FaceAlignmentTools import align_video, align_and_save_video
+        from inferno.datasets.FaceAlignmentTools import align_video, align_and_save_video
 
         # # aligned_video, aligned_landmarks = align_video(video, interpolated_centers, interpolated_sizes, interpolated_landmarks, 
         # #     target_size_height=desired_processed_video_size, target_size_width=desired_processed_video_size)
@@ -3185,7 +3185,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
 
     def _create_video_from_mediapipe_landmarks(self, video_frames, landmarks_mp): 
-        from gdl.utils.MediaPipeLandmarkDetector import np2mediapipe
+        from inferno.utils.MediaPipeLandmarkDetector import np2mediapipe
         landmarks_mp_list = [] 
         # landmarks_mp_scaled = landmarks_mp / self.image_size
         for i in range(landmarks_mp.shape[0]):
@@ -3214,7 +3214,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
 
     def _create_video_from_fan_landmarks(self, video_frames, landmarks_fan):
-        from gdl.utils.DecaUtils import tensor_vis_landmarks
+        from inferno.utils.DecaUtils import tensor_vis_landmarks
         N = video_frames.shape[0]
 
         lmk_im = np.copy(video_frames)
@@ -3230,7 +3230,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
 
     def _create_video_from_sequence(self, idx): 
-        from gdl.utils.video import save_video, concatenate_videos, save_video_with_audio
+        from inferno.utils.video import save_video, concatenate_videos, save_video_with_audio
         extract_audio=True
         # restore_videos=True
         detect_landmarks=True
@@ -3263,7 +3263,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
 
         # c) load the segmentations
-        from gdl.datasets.IO import load_emotion_list, load_segmentation_list, process_segmentation
+        from inferno.datasets.IO import load_emotion_list, load_segmentation_list, process_segmentation
         bisenet_segmentations = load_segmentation_list(bisenet_segmentations_path / f"segmentations.pkl")
         focus_segmentations = load_segmentation_list(focus_segmentations_path / f"segmentations.pkl")
 

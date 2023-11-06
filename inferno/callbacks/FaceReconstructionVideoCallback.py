@@ -8,9 +8,9 @@ from wandb import Image
 import pickle as pkl
 import numpy as np
 import torch
-from gdl.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase
+from inferno.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase
 from pytorch_lightning.loggers import WandbLogger
-from gdl.utils.lightning_logging import _log_array_video, _log_wandb_video
+from inferno.utils.lightning_logging import _log_array_video, _log_wandb_video
 
 
 def nested_dict_access(d, keys):

@@ -31,7 +31,7 @@ glctx = dr.RasterizeGLContext(device=torch.device('cuda:0'))
 del glctx
 ## END DANGER
 
-from gdl.utils.other import get_path_to_externals
+from inferno.utils.other import get_path_to_externals
 
 repo_dir = str(get_path_to_externals())
 if repo_dir not in sys.path:
@@ -48,10 +48,10 @@ import torch.nn.functional as F
 from omegaconf import OmegaConf, DictConfig
 
 import pytorch_lightning as pl
-from gdl.utils.lightning_logging import _log_array_image, _log_wandb_image, _torch_image2np
+from inferno.utils.lightning_logging import _log_array_image, _log_wandb_image, _torch_image2np
 from pytorch_lightning.loggers import WandbLogger
 from models import create_model
-import gdl.utils.DecaUtils as dutil
+import inferno.utils.DecaUtils as dutil
 
 
 class Deep3DFaceModule(pl.LightningModule):

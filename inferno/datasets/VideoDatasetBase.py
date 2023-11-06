@@ -20,25 +20,25 @@ All rights reserved.
 import torch
 import numpy as np 
 import imgaug
-from gdl.transforms.keypoints import KeypointNormalization, KeypointScale
-from gdl.utils.MediaPipeFaceOccluder import MediaPipeFaceOccluder, sizes_to_bb_batch
+from inferno.transforms.keypoints import KeypointNormalization, KeypointScale
+from inferno.utils.MediaPipeFaceOccluder import MediaPipeFaceOccluder, sizes_to_bb_batch
 from pathlib import Path
 from scipy.io import wavfile 
 from python_speech_features import logfbank
-from gdl.datasets.FaceDataModuleBase import FaceDataModuleBase
-from gdl.datasets.IO import (load_and_process_segmentation, process_segmentation, 
+from inferno.datasets.FaceDataModuleBase import FaceDataModuleBase
+from inferno.datasets.IO import (load_and_process_segmentation, process_segmentation, 
                              load_segmentation, load_segmentation_list, load_segmentation_list_v2,
                              load_reconstruction_list, load_emotion_list, 
                              load_reconstruction_list_v2, load_emotion_list_v2,
                              )
-from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
-from gdl.utils.FaceDetector import load_landmark
+from inferno.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
+from inferno.utils.FaceDetector import load_landmark
 import pandas as pd
 from skvideo.io import vread, vreader, FFmpegReader
 import torch.nn.functional as F
 import subprocess 
 import traceback
-from gdl.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
+from inferno.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
 import cv2
 from decord import VideoReader, cpu
 
@@ -212,7 +212,7 @@ class VideoDatasetBase(AbstractVideoDataset):
             assert not bool(self.return_mica_image), "return_mica_image is only supported when read_video is True"
 
         if bool(self.return_mica_image):
-            from gdl.models.mica.MicaInputProcessing import MicaInputProcessor
+            from inferno.models.mica.MicaInputProcessing import MicaInputProcessor
             if self.return_mica_image is True: 
                 self.return_mica_image = "fan"
             self.mica_preprocessor = MicaInputProcessor(self.return_mica_image)
@@ -246,7 +246,7 @@ class VideoDatasetBase(AbstractVideoDataset):
             "flame_lmk_embedding_path": "/ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy" 
             })
             flame_cfg.use_texture = False
-            from gdl.models.temporal.Preprocessors import FlamePreprocessor
+            from inferno.models.temporal.Preprocessors import FlamePreprocessor
             self.flame = FlamePreprocessor(flame_cfg)
             # prep = prep.to("cuda")
 
@@ -1528,7 +1528,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         return self._true_len()
 
     def visualize_sample(self, sample_or_index):
-        from gdl.utils.MediaPipeLandmarkDetector import np2mediapipe
+        from inferno.utils.MediaPipeLandmarkDetector import np2mediapipe
         
         if isinstance(sample_or_index, (int, np.int32, np.int64)):
             index = sample_or_index
@@ -1595,7 +1595,7 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         fan_lmk_images = None
         if "fan" in sample["landmarks"]:
-            from gdl.utils.DecaUtils import tensor_vis_landmarks
+            from inferno.utils.DecaUtils import tensor_vis_landmarks
             landmarks_fan = sample["landmarks"]["fan"]
             fan_lmk_images = tensor_vis_landmarks(sample["video"],
                             self.landmark_normalizer.inv(landmarks_fan),

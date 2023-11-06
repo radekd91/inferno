@@ -17,10 +17,10 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 
-from gdl.models.temporal.Renderers import FixedViewFlameRenderer
+from inferno.models.temporal.Renderers import FixedViewFlameRenderer
 import yaml
 from munch import munchify
-from gdl_apps.TalkingHead.utils.load import load_model
+from inferno_apps.TalkingHead.utils.load import load_model
 import torch
 import random as rand
 

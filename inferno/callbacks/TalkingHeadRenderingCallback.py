@@ -17,7 +17,7 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 import pytorch_lightning as pl 
-from gdl.utils.PyRenderMeshSequenceRenderer import PyRenderMeshSequenceRenderer
+from inferno.utils.PyRenderMeshSequenceRenderer import PyRenderMeshSequenceRenderer
 from pathlib import Path
 from skimage.io import imsave
 import os, sys

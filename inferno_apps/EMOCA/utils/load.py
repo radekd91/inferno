@@ -3,10 +3,10 @@ from pathlib import Path
 
 from omegaconf import OmegaConf
 
-from gdl.models.DECA import DecaModule, load_deca, load_model, replace_asset_dirs
-from gdl.models.IO import locate_checkpoint
-from gdl_apps.EMOCA.training.test_and_finetune_deca import prepare_data
-from gdl.utils.other import get_path_to_assets
+from inferno.models.DECA import DecaModule, load_deca, load_model, replace_asset_dirs
+from inferno.models.IO import locate_checkpoint
+from inferno_apps.EMOCA.training.test_and_finetune_deca import prepare_data
+from inferno.utils.other import get_path_to_assets
 
 
 def hack_paths(cfg, replace_root_path=None, relative_to_path=None):

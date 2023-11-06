@@ -1,13 +1,13 @@
 from pathlib import Path
 from time import time
-from gdl.datasets.FaceDataModuleBase import FaceDataModuleBase
-from gdl.datasets.FaceVideoDataModule import FaceVideoDataModule 
+from inferno.datasets.FaceDataModuleBase import FaceDataModuleBase
+from inferno.datasets.FaceVideoDataModule import FaceVideoDataModule 
 import numpy as np
 import torch
-from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
-from gdl.transforms.imgaug import create_image_augmenter
-from gdl.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
-from gdl.utils.collate import robust_collate
+from inferno.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
+from inferno.transforms.imgaug import create_image_augmenter
+from inferno.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
+from inferno.utils.collate import robust_collate
 from torch.utils.data import DataLoader
 import subprocess
 import random as rand
@@ -657,7 +657,7 @@ class EmotionalSpeechDataModule(FaceVideoDataModule):
                           batch_size=self.batch_size_test, drop_last=self.drop_last)
 
 import imgaug
-from gdl.datasets.VideoDatasetBase import VideoDatasetBase
+from inferno.datasets.VideoDatasetBase import VideoDatasetBase
 
 class EmotionalSpeechDataset(VideoDatasetBase):
 
@@ -923,7 +923,7 @@ def main():
 
     import yaml
     from munch import Munch, munchify
-    # augmenter = yaml.load(open(Path(__file__).parents[2] / "gdl_apps" / "Speech4D" / "tempface_conf" / "data" / "augmentations" / "default_no_jpeg.yaml"), 
+    # augmenter = yaml.load(open(Path(__file__).parents[2] / "inferno_apps" / "Speech4D" / "tempface_conf" / "data" / "augmentations" / "default_no_jpeg.yaml"), 
     #     Loader=yaml.FullLoader)["augmentation"]
     # augmenter = munchify(augmenter)
     augmenter = None

@@ -24,10 +24,10 @@ from skimage.io import imread
 import imgaug
 from torch.utils.data._utils.collate import default_collate
 
-# from gdl.datasets.FaceVideoDataset import FaceVideoDataModule
-from gdl.transforms.keypoints import KeypointScale, KeypointNormalization
-from gdl.utils.FaceDetector import load_landmark
-from gdl.utils.image import numpy_image_to_torch
+# from inferno.datasets.FaceVideoDataset import FaceVideoDataModule
+from inferno.transforms.keypoints import KeypointScale, KeypointNormalization
+from inferno.utils.FaceDetector import load_landmark
+from inferno.utils.image import numpy_image_to_torch
 from .IO import load_segmentation, process_segmentation
 
 # from timeit import default_timer as timer
@@ -285,7 +285,7 @@ class EmotionalImageDatasetBase(torch.utils.data.Dataset):
 
     def _plot(self, axs, K, k, sample):
 
-        from gdl.utils.DecaUtils import tensor_vis_landmarks
+        from inferno.utils.DecaUtils import tensor_vis_landmarks
 
         def index_axis(i, k):
             if K==1 or K is None:
@@ -402,7 +402,7 @@ class EmotionalImageDataset(EmotionalImageDatasetBase):
             
         self.mica_processor = None
         if return_mica_images is not None:
-            from gdl.models.mica.MicaInputProcessing import MicaInputProcessor
+            from inferno.models.mica.MicaInputProcessing import MicaInputProcessor
             self.mica_processor = MicaInputProcessor(return_mica_images)
 
     def __len__(self):

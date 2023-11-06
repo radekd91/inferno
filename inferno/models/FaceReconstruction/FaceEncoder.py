@@ -125,7 +125,7 @@ class MicaEncoder(FaceEncoderBase):
         if Path(self.cfg.mica_model_path).exists(): 
             mica_path = self.cfg.mica_model_path 
         else:
-            from gdl.utils.other import get_path_to_assets
+            from inferno.utils.other import get_path_to_assets
             mica_path = get_path_to_assets() / self.cfg.mica_model_path  
             assert mica_path.exists(), f"MICA model path does not exist: '{mica_path}'"
 

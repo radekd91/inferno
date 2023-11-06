@@ -19,18 +19,18 @@ All rights reserved.
 
 from pathlib import Path
 from time import time
-from gdl.datasets.FaceDataModuleBase import FaceDataModuleBase
-from gdl.datasets.FaceVideoDataModule import FaceVideoDataModule 
+from inferno.datasets.FaceDataModuleBase import FaceDataModuleBase
+from inferno.datasets.FaceVideoDataModule import FaceVideoDataModule 
 import numpy as np
 import torch
-from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
-from gdl.transforms.imgaug import create_image_augmenter
-from gdl.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
-from gdl.utils.collate import robust_collate
+from inferno.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
+from inferno.transforms.imgaug import create_image_augmenter
+from inferno.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
+from inferno.utils.collate import robust_collate
 from torch.utils.data import DataLoader
 import subprocess
 import random as rand
-from gdl.datasets.AffectNetDataModule import AffectNetExpressions
+from inferno.datasets.AffectNetDataModule import AffectNetExpressions
 
 
 def get_affectnet_index_from_mead_expression_str(expr_str): 
@@ -876,7 +876,7 @@ class MEADDataModule(FaceVideoDataModule):
 
 
 import imgaug
-from gdl.datasets.VideoDatasetBase import VideoDatasetBaseV2
+from inferno.datasets.VideoDatasetBase import VideoDatasetBaseV2
 
 # class MEADDataset(VideoDatasetBase):
 class MEADDataset(VideoDatasetBaseV2):

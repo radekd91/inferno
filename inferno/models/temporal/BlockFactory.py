@@ -20,16 +20,16 @@ All rights reserved.
 from pathlib import Path
 from turtle import forward
 
-from gdl.models.temporal.Bases import Preprocessor
-from gdl.models.temporal.Preprocessors import FlamePreprocessor, EmotionRecognitionPreprocessor, EmocaPreprocessor, SpeechEmotionRecognitionPreprocessor
-from gdl.models.temporal.external.SpectrePreprocessor import SpectrePreprocessor
-from gdl.models.temporal.SequenceEncoders import *
-from gdl.models.temporal.SequenceDecoders import *
-from gdl.models.temporal.TemporalFLAME import FlameShapeModel
-from gdl.models.temporal.Renderers import FlameRenderer, FixedViewFlameRenderer
-from gdl.models.temporal.AudioEncoders import AvHubertAudioEncoder, Wav2Vec2Encoder, Wav2Vec2SER
-from gdl.models.temporal.VideoEncoders import EmocaVideoEncoder
-from gdl.models.temporal.ResNetVideoEncoder import TemporalResNetEncoder
+from inferno.models.temporal.Bases import Preprocessor
+from inferno.models.temporal.Preprocessors import FlamePreprocessor, EmotionRecognitionPreprocessor, EmocaPreprocessor, SpeechEmotionRecognitionPreprocessor
+from inferno.models.temporal.external.SpectrePreprocessor import SpectrePreprocessor
+from inferno.models.temporal.SequenceEncoders import *
+from inferno.models.temporal.SequenceDecoders import *
+from inferno.models.temporal.TemporalFLAME import FlameShapeModel
+from inferno.models.temporal.Renderers import FlameRenderer, FixedViewFlameRenderer
+from inferno.models.temporal.AudioEncoders import AvHubertAudioEncoder, Wav2Vec2Encoder, Wav2Vec2SER
+from inferno.models.temporal.VideoEncoders import EmocaVideoEncoder
+from inferno.models.temporal.ResNetVideoEncoder import TemporalResNetEncoder
 import omegaconf
 from omegaconf import open_dict
 
@@ -167,7 +167,7 @@ def video_encoder_from_cfg(cfg):
         return None
     if cfg.type == "emoca": 
         # instantate EMOCA 
-        from gdl_apps.EMOCA.utils.io import load_model
+        from inferno_apps.EMOCA.utils.io import load_model
         mode = "detail"
         path_to_models = Path(cfg.path).parent 
         model_name = Path(cfg.path).name
@@ -180,7 +180,7 @@ def video_encoder_from_cfg(cfg):
                                 cfg.trainable, 
                                 cfg.get('discard_feature', False),)
     elif cfg.type == "deca": 
-        from gdl_apps.EMOCA.utils.io import load_model
+        from inferno_apps.EMOCA.utils.io import load_model
         mode = "detail"
         path_to_models = Path(cfg.path_to_models).parent 
         model_name = Path(cfg.path_to_models).name
@@ -259,56 +259,56 @@ def sequence_decoder_from_cfg(cfg):
 
         decoder = FairSeqModifiedDecoder(decoder_cfg)
 
-    ## FaceFormer related (TODP: probably should be moved to the gdl_apps part. maybe each project should have a BlockFactory)
+    ## FaceFormer related (TODP: probably should be moved to the inferno_apps part. maybe each project should have a BlockFactory)
     elif decoder_cfg.type == "FaceFormerDecoder":
-        from gdl.models.talkinghead.FaceFormerDecoder import FaceFormerDecoder
+        from inferno.models.talkinghead.FaceFormerDecoder import FaceFormerDecoder
         with open_dict(decoder_cfg):
             decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
         decoder = FaceFormerDecoder(decoder_cfg)
     elif decoder_cfg.type == "FlameFormerDecoder":
-        from gdl.models.talkinghead.FaceFormerDecoder import FlameFormerDecoder
+        from inferno.models.talkinghead.FaceFormerDecoder import FlameFormerDecoder
         with open_dict(decoder_cfg):
             decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
             decoder_cfg.predict_exp = cfg.model.output.predict_expcode
             decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
         decoder = FlameFormerDecoder(decoder_cfg)
     elif decoder_cfg.type == "LinearDecoder":
-        from gdl.models.talkinghead.FaceFormerDecoder import LinearDecoder
+        from inferno.models.talkinghead.FaceFormerDecoder import LinearDecoder
         with open_dict(decoder_cfg):
             decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
             decoder_cfg.predict_exp = cfg.model.output.predict_expcode
             decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
         decoder = LinearDecoder(decoder_cfg)
     elif decoder_cfg.type == "LinearAutoRegDecoder":
-        from gdl.models.talkinghead.FaceFormerDecoder import LinearAutoRegDecoder
+        from inferno.models.talkinghead.FaceFormerDecoder import LinearAutoRegDecoder
         with open_dict(decoder_cfg):
             decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
             decoder_cfg.predict_exp = cfg.model.output.predict_expcode
             decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
         decoder = LinearAutoRegDecoder(decoder_cfg)
     elif decoder_cfg.type == "BertDecoder":
-        from gdl.models.talkinghead.FaceFormerDecoder import BertDecoder 
+        from inferno.models.talkinghead.FaceFormerDecoder import BertDecoder 
         with open_dict(decoder_cfg):
             decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
             decoder_cfg.predict_exp = cfg.model.output.predict_expcode
             decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
         decoder = BertDecoder(decoder_cfg)
     elif decoder_cfg.type == "FlameBertDecoder":
-        from gdl.models.talkinghead.FaceFormerDecoder import FlameBertDecoder 
+        from inferno.models.talkinghead.FaceFormerDecoder import FlameBertDecoder 
         with open_dict(decoder_cfg):
             decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
             decoder_cfg.predict_exp = cfg.model.output.predict_expcode
             decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
         decoder = FlameBertDecoder(decoder_cfg)
     elif decoder_cfg.type == "MLPDecoder":
-        from gdl.models.talkinghead.FaceFormerDecoder import MLPDecoder 
+        from inferno.models.talkinghead.FaceFormerDecoder import MLPDecoder 
         with open_dict(decoder_cfg):
             decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
             decoder_cfg.predict_exp = cfg.model.output.predict_expcode
             decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
         decoder = MLPDecoder(decoder_cfg)
     elif decoder_cfg.type == "BertPriorDecoder":
-        from gdl.models.talkinghead.FaceFormerDecoder import BertPriorDecoder 
+        from inferno.models.talkinghead.FaceFormerDecoder import BertPriorDecoder 
         with open_dict(decoder_cfg):
             decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
             decoder_cfg.predict_exp = cfg.model.output.predict_expcode

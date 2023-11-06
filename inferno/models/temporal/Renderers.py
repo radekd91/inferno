@@ -1,9 +1,9 @@
-from gdl.models.temporal.Bases import Renderer
-from gdl.models.Renderer import *
-from gdl.utils.lbs import batch_rodrigues, batch_rigid_transform
+from inferno.models.temporal.Bases import Renderer
+from inferno.models.Renderer import *
+from inferno.utils.lbs import batch_rodrigues, batch_rigid_transform
 import torchvision.transforms.functional as F_v
 from pathlib import Path 
-from gdl.utils.other import get_path_to_assets
+from inferno.utils.other import get_path_to_assets
 
 
 class FlameLandmarkProjector(Renderer):

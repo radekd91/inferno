@@ -1,18 +1,18 @@
 import copy
 import omegaconf
 import torch
-from gdl.layers.losses.EmonetLoader import get_emonet
+from inferno.layers.losses.EmonetLoader import get_emonet
 from pathlib import Path
 import torch.nn.functional as F
-from gdl.models.video_emorec.VideoEmotionClassifier import VideoEmotionClassifier
-from gdl.models.IO import get_checkpoint_with_kwargs
-from gdl.utils.other import class_from_str
+from inferno.models.video_emorec.VideoEmotionClassifier import VideoEmotionClassifier
+from inferno.models.IO import get_checkpoint_with_kwargs
+from inferno.utils.other import class_from_str
 from .EmoNetLoss import create_emo_loss
-from gdl.layers.losses.emotion_loss_loader import emo_network_from_path
+from inferno.layers.losses.emotion_loss_loader import emo_network_from_path
 import sys
 from omegaconf import OmegaConf
 from .Metrics import metric_from_str
-from gdl.utils.other import get_path_to_assets
+from inferno.utils.other import get_path_to_assets
 
 
 def load_video_emotion_recognition_net(network_path):

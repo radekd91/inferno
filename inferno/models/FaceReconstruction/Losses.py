@@ -1,5 +1,5 @@
 import torch 
-import gdl.layers.losses.MediaPipeLandmarkLosses as mp_loss
+import inferno.layers.losses.MediaPipeLandmarkLosses as mp_loss
 
 
 def masking(tensor, mask):

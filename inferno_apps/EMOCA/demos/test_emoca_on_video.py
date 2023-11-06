@@ -17,13 +17,13 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 
-from gdl_apps.EMOCA.utils.load import load_model
-from gdl.datasets.FaceVideoDataModule import TestFaceVideoDM
-import gdl
+from inferno_apps.EMOCA.utils.load import load_model
+from inferno.datasets.FaceVideoDataModule import TestFaceVideoDM
+import inferno
 from pathlib import Path
 from tqdm import auto
 import argparse
-from gdl_apps.EMOCA.utils.io import save_obj, save_images, save_codes, test
+from inferno_apps.EMOCA.utils.io import save_obj, save_images, save_codes, test
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -107,7 +107,7 @@ def reconstruct_video(args):
     print("Video saved to: ", video_file_with_sound)
 
     if args.logger == "wandb":
-        from gdl_apps.EMOCA.training.test_and_finetune_deca import  create_logger, project_name
+        from inferno_apps.EMOCA.training.test_and_finetune_deca import  create_logger, project_name
         import wandb
         # project_name = 'EmotionalDeca'
         cfg_detail = conf.detail
@@ -130,11 +130,11 @@ def reconstruct_video(args):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_video', type=str, default=str(Path(gdl.__file__).parents[1] / "data/EMOCA_test_example_data/videos/82-25-854x480_affwild2.mp4"), 
+    parser.add_argument('--input_video', type=str, default=str(Path(inferno.__file__).parents[1] / "data/EMOCA_test_example_data/videos/82-25-854x480_affwild2.mp4"), 
         help="Filename of the video for reconstruction.")
     parser.add_argument('--output_folder', type=str, default="video_output", help="Output folder to save the results to.")
     parser.add_argument('--model_name', type=str, default='EMOCA', help='Name of the model to use. Currently EMOCA or DECA are available.')
-    parser.add_argument('--path_to_models', type=str, default=str(Path(gdl.__file__).parents[1] / "assets/EMOCA/models"))
+    parser.add_argument('--path_to_models', type=str, default=str(Path(inferno.__file__).parents[1] / "assets/EMOCA/models"))
     parser.add_argument('--mode', type=str, default="detail", choices=["detail", "coarse"], help="Which model to use for the reconstruction.")
     parser.add_argument('--save_images', type=str2bool, default=True, help="If true, output images will be saved")
     parser.add_argument('--save_codes', type=str2bool, default=False, help="If true, output FLAME values for shape, expression, jaw pose will be saved")

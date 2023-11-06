@@ -1,6 +1,6 @@
-from gdl.datasets.CelebVHQDataModule import CelebVHQDataModule, CelebVHQDataset, robust_collate
-from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp 
-from gdl.datasets.ConditionedVideoTestDatasetWrapper import ConditionedVideoTestDatasetWrapper
+from inferno.datasets.CelebVHQDataModule import CelebVHQDataModule, CelebVHQDataset, robust_collate
+from inferno.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp 
+from inferno.datasets.ConditionedVideoTestDatasetWrapper import ConditionedVideoTestDatasetWrapper
 
 import numpy as np
 import torch

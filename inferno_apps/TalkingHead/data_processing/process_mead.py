@@ -20,7 +20,7 @@ All rights reserved.
 from pathlib import Path
 import os, sys
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
-from gdl.datasets.MEADDataModule import MEADDataModule 
+from inferno.datasets.MEADDataModule import MEADDataModule 
 import numpy as np
 
 

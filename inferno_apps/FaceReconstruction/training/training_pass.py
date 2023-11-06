@@ -23,15 +23,15 @@ from pathlib import Path
 
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from gdl.models.temporal.AVFace import TemporalFace, instantiate
+from inferno.models.temporal.AVFace import TemporalFace, instantiate
 from pytorch_lightning.loggers import WandbLogger
-from gdl.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase
+from inferno.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase
 import datetime
 import time as t
 # import hydra
 from omegaconf import DictConfig, OmegaConf
 import copy
-from gdl.callbacks.FaceReconstructionImageCallback import FaceReconstructionImageCallback
+from inferno.callbacks.FaceReconstructionImageCallback import FaceReconstructionImageCallback
 
 project_name = 'FaceReconstruction'
 

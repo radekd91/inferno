@@ -2,8 +2,8 @@
 import sys
 import torch
 import math
-from gdl.models.temporal.Bases import TemporalAudioEncoder
-from gdl.utils.other import get_path_to_externals
+from inferno.models.temporal.Bases import TemporalAudioEncoder
+from inferno.utils.other import get_path_to_externals
 path_to_av_hubert = get_path_to_externals() / "av_hubert"
 # path_to_av_hubert = get_path_to_externals() / "av_hubert" / "avhubert"
 # path_to_fairseq = get_path_to_externals() / "av_hubert" / "fairseq"
@@ -12,7 +12,7 @@ if str(path_to_av_hubert) not in sys.path:
 import avhubert
 
 from torch.nn import Dropout
-from gdl.utils.other import class_from_str
+from inferno.utils.other import class_from_str
 
 class AvHubertAudioEncoder(TemporalAudioEncoder):
 

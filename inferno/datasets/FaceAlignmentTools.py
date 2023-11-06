@@ -1,6 +1,6 @@
 import numpy as np
 from pathlib import Path
-from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
+from inferno.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 import skvideo
 import types
 

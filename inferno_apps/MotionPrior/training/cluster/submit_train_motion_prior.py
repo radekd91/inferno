@@ -16,9 +16,9 @@ All rights reserved.
 # For comments or questions, please email us at emote@tue.mpg.de
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
-from gdl.utils.condor import execute_on_cluster
+from inferno.utils.condor import execute_on_cluster
 from pathlib import Path
-import gdl_apps.MotionPrior.training.train_motion_prior as script
+import inferno_apps.MotionPrior.training.train_motion_prior as script
 import datetime
 from omegaconf import DictConfig, OmegaConf, open_dict
 import time as t

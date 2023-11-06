@@ -21,7 +21,7 @@ queue <<NJOBS>>
 # requirements=TARGET.CUDACapability>=6.0
 
 # script_template = """
-# export PYTHONPATH=/~rdanecek/workspace/repos/gdl
+# export PYTHONPATH=/~rdanecek/workspace/repos/inferno
 # source /is/ps2/tbolkart/.virtualenvs/frankengeist_cluster/bin/activate
 # source /etc/profile.d/modules.sh
 # module load cuda/9.0
@@ -79,7 +79,7 @@ export PYTHONPATH=$PYTHONPATH:<<REPO_ROOT>>
 # def execute_on_cluster(config_fname):
 def execute_on_cluster(cluster_script_path, args, submission_dir_local_mount,
                        submission_dir_cluster_side=None,
-                       cluster_repo_dir='/home/rdanecek/workspace/repos/gdl',
+                       cluster_repo_dir='/home/rdanecek/workspace/repos/inferno',
                        cpus=1, gpus=0, mem_gb=4, num_jobs=1, bid=10, max_time_h=None,
                        max_price=None,
                        job_name="skynet",

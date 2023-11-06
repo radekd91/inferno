@@ -1,25 +1,25 @@
 from cv2 import imread
 import torchaudio
-from gdl.datasets.FaceDataModuleBase import FaceDataModuleBase
-from gdl.datasets.FaceVideoDataModule import FaceVideoDataModule 
+from inferno.datasets.FaceDataModuleBase import FaceDataModuleBase
+from inferno.datasets.FaceVideoDataModule import FaceVideoDataModule 
 from pathlib import Path
 import torch
 import torch.nn.functional as F
 import os, sys
-from gdl.utils.FaceDetector import load_landmark
-from gdl.utils.MediaPipeLandmarkDetector import np2mediapipe
-from gdl.utils.other import get_path_to_externals
-from gdl.utils.MediaPipeFaceOccluder import MediaPipeFaceOccluder, sizes_to_bb, sizes_to_bb_batch
+from inferno.utils.FaceDetector import load_landmark
+from inferno.utils.MediaPipeLandmarkDetector import np2mediapipe
+from inferno.utils.other import get_path_to_externals
+from inferno.utils.MediaPipeFaceOccluder import MediaPipeFaceOccluder, sizes_to_bb, sizes_to_bb_batch
 import numpy as np
 import pandas as pd
 from skvideo.io import vread, vreader
 from scipy.io import wavfile
 import time
 from python_speech_features import logfbank
-from gdl.datasets.IO import load_segmentation, process_segmentation, load_segmentation_list
-from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
-from gdl.transforms.imgaug import create_image_augmenter
-from gdl.utils.collate import robust_collate
+from inferno.datasets.IO import load_segmentation, process_segmentation, load_segmentation_list
+from inferno.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
+from inferno.transforms.imgaug import create_image_augmenter
+from inferno.utils.collate import robust_collate
 import imgaug
 import traceback
 
@@ -193,14 +193,14 @@ class LRS3DataModule(FaceVideoDataModule):
 
     def _get_restoration_network(self, method):
         # try:
-        from gdl.models.external.GPENFaceRestoration import GPENFaceRestoration
+        from inferno.models.external.GPENFaceRestoration import GPENFaceRestoration
         # except ImportError: 
         #     print("Could not import GPENFaceRestoration. Skipping.") 
         return GPENFaceRestoration(method)
 
     def _get_jpeg_network(self):
         # try:
-        from gdl.models.external.SwinIRTranslation import SwinIRCompressionArtifact
+        from inferno.models.external.SwinIRTranslation import SwinIRCompressionArtifact
         # except ImportError: 
         #     print("Could not import SwinIRTranslation. Skipping.") 
         return SwinIRCompressionArtifact( 256)
@@ -208,12 +208,12 @@ class LRS3DataModule(FaceVideoDataModule):
     def _get_superres_network(self, method="swin_ir"):
         # try:
         if method == "swin_ir":
-            from gdl.models.external.SwinIRTranslation import SwinIRRealSuperRes
+            from inferno.models.external.SwinIRTranslation import SwinIRRealSuperRes
             # except ImportError: 
                 # print("Could not import SwinIRTranslation. Skipping.") 
             return SwinIRRealSuperRes( 256)
         elif method == "bsrgan":
-            from gdl.models.external.BSRGANSuperRes import BSRSuperRes
+            from inferno.models.external.BSRGANSuperRes import BSRSuperRes
             # return BSRSuperRes( 256, 4)
             return BSRSuperRes( 256, 2)
         raise ValueError(f"Unknown super-resolution method: {method}")
@@ -724,8 +724,8 @@ class LRS3DataModule(FaceVideoDataModule):
 
 
 
-from gdl.transforms.keypoints import KeypointNormalization, KeypointScale
-from gdl.datasets.VideoDatasetBase import VideoDatasetBase
+from inferno.transforms.keypoints import KeypointNormalization, KeypointScale
+from inferno.datasets.VideoDatasetBase import VideoDatasetBase
 
 
 

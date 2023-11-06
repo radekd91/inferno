@@ -20,7 +20,7 @@ All rights reserved.
 
 import torch
 import torch.nn.functional as F
-from gdl.layers.losses.EmonetLoader import get_emonet
+from inferno.layers.losses.EmonetLoader import get_emonet
 
 
 class EmoNetRegressor(torch.nn.Module):

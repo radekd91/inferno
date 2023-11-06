@@ -218,8 +218,8 @@ class CombinedDataModule(LightningDataModule):
 
 
 if __name__ == '__main__':
-    from gdl.datasets.AffectNetDataModule import AffectNetEmoNetSplitModuleValTest
-    from gdl.datasets.DecaDataModule import DecaDataModule
+    from inferno.datasets.AffectNetDataModule import AffectNetEmoNetSplitModuleValTest
+    from inferno.datasets.DecaDataModule import DecaDataModule
     from omegaconf import OmegaConf, DictConfig
     import yaml
     from pathlib import Path
@@ -280,7 +280,7 @@ if __name__ == '__main__':
     deca_dm = DecaDataModule(cfg)
 
     augmenter = yaml.load(open(Path(__file__).parents[
-                                   2] / "gdl_apps" / "EmotionRecognition" / "emodeca_conf" / "data" / "augmentations" / "default_with_resize.yaml"))[
+                                   2] / "inferno_apps" / "EmotionRecognition" / "emodeca_conf" / "data" / "augmentations" / "default_with_resize.yaml"))[
         "augmentation"]
     affn_dm = AffectNetEmoNetSplitModuleValTest(
     # dm = AffectNetDataModule(

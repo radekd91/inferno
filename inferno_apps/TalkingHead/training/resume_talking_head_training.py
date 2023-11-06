@@ -18,7 +18,7 @@ All rights reserved.
 """
 
 
-from gdl_apps.TalkingHead.training.train_talking_head import resume_training
+from inferno_apps.TalkingHead.training.train_talking_head import resume_training
 import sys, os
 
 

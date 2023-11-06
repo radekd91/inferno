@@ -1,16 +1,16 @@
 import numpy as np
 # import torch
 import pickle as pkl
-from gdl.utils.FaceDetector import FaceDetector
+from inferno.utils.FaceDetector import FaceDetector
 import os, sys
-# from gdl.utils.other import get_path_to_externals 
+# from inferno.utils.other import get_path_to_externals 
 from pathlib import Path
 
 import mediapipe as mp
 import numpy as np 
 import matplotlib.pyplot as plt
 from pathlib import Path
-from gdl.utils.MediaPipeLandmarkUtils import *
+from inferno.utils.MediaPipeLandmarkUtils import *
 # from google.protobuf.pyext._message import RepeatedCompositeContainer
 
 

@@ -24,7 +24,7 @@ import pytorch_lightning as pl
 import glob, os, sys
 from pathlib import Path
 import pyvista as pv
-# from gdl.utils.mesh import load_mesh
+# from inferno.utils.mesh import load_mesh
 # from scipy.io import wavfile
 # import resampy
 import numpy as np
@@ -521,7 +521,7 @@ class EmoSpeechDataModule(pl.LightningDataModule):
         self._unpose_flame_fits(global_unpose=True,neck_unpose=True, jaw_unpose=False)
 
     def _fit_flame(self, visualize=False, specify_sequence_indices=None):
-        from gdl_apps.FLAME.fit import load_FLAME, fit_FLAME_to_registered
+        from inferno_apps.FLAME.fit import load_FLAME, fit_FLAME_to_registered
 
         self.fitted_vertex_array = np.memmap(self.fitted_vertex_array_path, dtype=np.float32, mode=memmap_mode(self.fitted_vertex_array_path),
                                         shape=(self.num_samples, 3 * self.num_verts))
@@ -588,7 +588,7 @@ class EmoSpeechDataModule(pl.LightningDataModule):
 
 
     def _unpose_flame_fits(self, specify_sequence_indices=None, global_unpose=True, neck_unpose=True, jaw_unpose=False):
-        from gdl_apps.FLAME.fit import load_FLAME
+        from inferno_apps.FLAME.fit import load_FLAME
 
 
         if global_unpose:
@@ -667,7 +667,7 @@ class EmoSpeechDataModule(pl.LightningDataModule):
         print("FLAME unposing finished")
 
     def _raw_audio_to_deepspeech(self, audio_scaler=32500):
-        from gdl.utils.DeepSpeechConverter import DeepSpeechConverter
+        from inferno.utils.DeepSpeechConverter import DeepSpeechConverter
         ah = DeepSpeechConverter('/home/rdanecek/Workspace/Repos/voca/ds_graph/output_graph.pb')
         self.ds_array = np.memmap(self.ds_array_path, dtype='float32', mode=memmap_mode(self.ds_array_path),
                                          shape=(self.num_samples, self.temporal_window, self.ds_alphabet))
@@ -1087,7 +1087,7 @@ def main2():
     with open('/home/rdanecek/Workspace/Repos/voca/processed_test_audio.pkl', 'rb') as f:
         processed_original_audio = pkl.load(f)
 
-    from gdl.utils.DeepSpeechConverter import DeepSpeechConverter
+    from inferno.utils.DeepSpeechConverter import DeepSpeechConverter
     # ah = DeepSpeechConverter('/home/rdanecek/Workspace/Repos/voca/ds_graph/output_graph.pb')
     ah = DeepSpeechConverter()
     seq1_ds_wav = ah.convert_to_deepspeech(audio_data_resampled_wav, target_sample_rate, 16, 1)
@@ -1101,7 +1101,7 @@ def main2():
 
     pass
     # import deepspeech
-    # model_file_path = '/home/rdanecek/Workspace/Data/deepspeech/deepspeech-0.9.2-from gdl.models.pbmm'
+    # model_file_path = '/home/rdanecek/Workspace/Data/deepspeech/deepspeech-0.9.2-from inferno.models.pbmm'
     # print(os.path.exists(model_file_path))
     # model = deepspeech.Model(model_file_path)
     # # model.enableExternalScorer(scorer_file_path)

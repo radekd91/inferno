@@ -4,7 +4,7 @@ from pathlib import Path
 from wandb import Image, Video
 import numpy as np
 import soundfile as sf
-from gdl.utils.video import combine_video_audio
+from inferno.utils.video import combine_video_audio
 
 
 def _fix_image(image):

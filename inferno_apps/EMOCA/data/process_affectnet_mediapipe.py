@@ -10,7 +10,7 @@ else:
     sid = 0
 
 
-from gdl.datasets.AffectNetDataModule import AffectNetDataModule, AffectNetEmoNetSplitModule
+from inferno.datasets.AffectNetDataModule import AffectNetDataModule, AffectNetEmoNetSplitModule
 
 print("Detecting mediapipe landmarks in subset %d" % sid)
 

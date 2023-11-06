@@ -22,13 +22,13 @@ import os, sys
 from pathlib import Path
 sys.path += [str(Path(__file__).parent.parent)]
 
-from gdl.datasets.FaceVideoDataModule import FaceVideoDataModule
-from gdl.datasets.AffWild2Dataset import AffWild2DMBase
-from gdl.datasets.EmotionalDataModule import AffWild2DataModule
+from inferno.datasets.FaceVideoDataModule import FaceVideoDataModule
+from inferno.datasets.AffWild2Dataset import AffWild2DMBase
+from inferno.datasets.EmotionalDataModule import AffWild2DataModule
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
-from gdl.models.DECA import DecaModule, instantiate_deca
+from inferno.models.DECA import DecaModule, instantiate_deca
 from pytorch_lightning.loggers import WandbLogger
 import datetime
 import time as t

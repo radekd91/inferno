@@ -1,9 +1,9 @@
-from gdl.datasets.LRS3DataModule import LRS3DataModule, LRS3Dataset, robust_collate
-from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp 
+from inferno.datasets.LRS3DataModule import LRS3DataModule, LRS3Dataset, robust_collate
+from inferno.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp 
 import imgaug
 import numpy as np
 import torch
-from gdl.datasets.ConditionedVideoTestDatasetWrapper import ConditionedVideoTestDatasetWrapper
+from inferno.datasets.ConditionedVideoTestDatasetWrapper import ConditionedVideoTestDatasetWrapper
 import omegaconf
 
 

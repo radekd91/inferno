@@ -32,17 +32,17 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Resize, Compose, Normalize
 from tqdm import tqdm
 
-# from gdl.datasets.FaceVideoDataset import FaceVideoDataModule
-from gdl.datasets.IO import save_segmentation, save_segmentation_list, save_segmentation_list_v2
-from gdl.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
-from gdl.datasets.UnsupervisedImageDataset import UnsupervisedImageDataset
-from gdl.utils.FaceDetector import FAN, MTCNN, save_landmark
+# from inferno.datasets.FaceVideoDataset import FaceVideoDataModule
+from inferno.datasets.IO import save_segmentation, save_segmentation_list, save_segmentation_list_v2
+from inferno.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
+from inferno.datasets.UnsupervisedImageDataset import UnsupervisedImageDataset
+from inferno.utils.FaceDetector import FAN, MTCNN, save_landmark
 # try:
-#     from gdl.utils.TFabRecLandmarkDetector import TFabRec
+#     from inferno.utils.TFabRecLandmarkDetector import TFabRec
 # except ImportError:
 #     pass
 # try:
-    # from gdl.utils.Deep3DFaceLandmarkDetector import Deep3DFaceLandmarkDetector
+    # from inferno.utils.Deep3DFaceLandmarkDetector import Deep3DFaceLandmarkDetector
 # except ImportError:
 #     pass
 import pickle as pkl
@@ -122,14 +122,14 @@ class FaceDataModuleBase(pl.LightningDataModule):
         elif self.face_detector_type == 'mtcnn':
             self.face_detector = MTCNN(self.device)
         elif self.face_detector_type == '3fabrec': 
-            from gdl.utils.TFabRecLandmarkDetector import TFabRec
+            from inferno.utils.TFabRecLandmarkDetector import TFabRec
             self.face_detector = TFabRec(instantiate_detector='sfd', threshold=self.face_detector_threshold)
         elif self.face_detector_type == 'mediapipe': 
-            from gdl.utils.MediaPipeLandmarkDetector import MediaPipeLandmarkDetector
+            from inferno.utils.MediaPipeLandmarkDetector import MediaPipeLandmarkDetector
             self.face_detector = MediaPipeLandmarkDetector(threshold=self.face_detector_threshold, 
                 video_based=self._is_video_dataset(), max_faces=self._get_max_faces_per_image())
         elif self.face_detector_type == 'deep3dface': 
-            from gdl.utils.Deep3DFaceLandmarkDetector import Deep3DFaceLandmarkDetector
+            from inferno.utils.Deep3DFaceLandmarkDetector import Deep3DFaceLandmarkDetector
             self.face_detector = Deep3DFaceLandmarkDetector(instantiate_detector='mtcnn')
         else:
             raise ValueError("Invalid face detector specifier '%s'" % self.face_detector)
@@ -354,9 +354,9 @@ class FaceDataModuleBase(pl.LightningDataModule):
                     segmentation_path.parent.mkdir(exist_ok=True, parents=True)
                     # im = images[j]
                     # im = im.permute(1,2,0).cpu().numpy()
-                    # from gdl.datasets.IO import process_segmentation 
+                    # from inferno.datasets.IO import process_segmentation 
                     # import matplotlib.pyplot as plt
-                    # from gdl.datasets.FaceVideoDataModule import FaceDataModuleBase
+                    # from inferno.datasets.FaceVideoDataModule import FaceDataModuleBase
                     # seg = process_segmentation(segmentation[j], seg_type)
                     # imsave("seg.png", seg)
                     # imsave("im.png", im)
@@ -401,7 +401,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
             if hasattr(self, "_bisenet" ): 
                 net = self._bisenet
             else:
-                from gdl.models.external.BiSeNetFaceParsing import BiSeNetFaceParsing
+                from inferno.models.external.BiSeNetFaceParsing import BiSeNetFaceParsing
                 net = BiSeNetFaceParsing()
                 self._bisenet = net
             batch_size = 64
@@ -410,7 +410,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
             if hasattr(self, "_gpen" ): 
                 net = self._gpen
             else:
-                from gdl.models.external.GPENFaceParsing import GPENFaceParsing
+                from inferno.models.external.GPENFaceParsing import GPENFaceParsing
                 net = GPENFaceParsing()
                 self._gpen = net
             batch_size = 16
@@ -419,7 +419,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
             if hasattr(self, "_focus" ): 
                 net = self._focus
             else:
-                from gdl.models.external.FocusSegmentation import FocusSegmentation
+                from inferno.models.external.FocusSegmentation import FocusSegmentation
                 net = FocusSegmentation()
                 self._focus = net
             batch_size = 16
@@ -427,7 +427,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
         else: 
             raise ValueError(f"Unknown segmentation type: {method}" )
 
-        # from gdl.utils.other import get_path_to_externals
+        # from inferno.utils.other import get_path_to_externals
         # path_to_segnet = get_path_to_externals() / "face-parsing.PyTorch"
         # if not(str(path_to_segnet) in sys.path  or str(path_to_segnet.absolute()) in sys.path):
         #     sys.path += [str(path_to_segnet)]
