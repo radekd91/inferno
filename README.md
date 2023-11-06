@@ -1,12 +1,12 @@
 
 <!-- # INFERNO -->
-<h1 align="center">INFERNO: Set the world on fire with FLAME</h1>
+<h1 align="center">🔥🔥🔥 INFERNO: Set the world on fire with FLAME 🔥🔥🔥</h1>
 
   <p align="center">
     <a href="https://ps.is.tuebingen.mpg.de/person/rdanecek"><strong>Radek Daněček</strong></a>
   </p>
 
-<p align="center">
+<!-- <p align="center">
 <!-- 
   <p align="center">
     <a href="https://ps.is.tuebingen.mpg.de/person/rdanecek"><strong>Radek Daněček</strong></a>    
@@ -22,18 +22,18 @@
 
   <!-- <a href="">
     <img src="./assets/teaser.jpeg" alt="Logo" width="100%">
-  </a> -->
-Welcome to INFERNO. Inferno is a library of tools and applications for deep-learning-based in-the-wild face reconstruction, animation and accompanying tasks. 
-It contains many tools, from processing face video datasets, training face reconstruction networks, applying those face reconstruction networks to get 3D faces and then using these 3D faces to do other things (such as speech driven animation). 
+  </a> --> 
+  -->
+Welcome to INFERNO. INFERNO is a library of tools and applications for deep-learning-based in-the-wild face reconstruction, animation and accompanying tasks. 
+It contains many tools, from processing face video datasets, training face reconstruction networks, applying those face reconstruction networks to get 3D faces and then using these 3D faces to do other things (such as speech-driven animation). 
 
-INFERNO makes use of [FLAME](https://flame.is.tue.mpg.de/), PyTorch and Pytorch Lightning.
-
+INFERNO makes use of [FLAME](https://flame.is.tue.mpg.de/), [PyTorch](https://pytorch.org/) and [Pytorch Lightning](https://lightning.ai/docs/pytorch/stable/).
 
 
   <!-- 
 <p align="center"> 
-<img src="gdl_apps/EMOCA/EMOCA_gif_sparse_det.gif">
-<img src="gdl_apps/EMOCA/EMOCA_gif_sparse_rec.gif">
+<img src="inferno_apps/EMOCA/EMOCA_gif_sparse_det.gif">
+<img src="inferno_apps/EMOCA/EMOCA_gif_sparse_rec.gif">
 </p>
 -->
 
@@ -71,7 +71,6 @@ bash pull_submodules.sh
 
 
 2) Set up a conda environment with one of the provided conda files. I recommend using `conda-environment_py38_cu11_ubuntu.yml`.  
-<!-- This is the one I use for the cluster `conda-environment_py36_cu11_cluster.yml`. The differences between tehse two are probably not important but I include both for completeness.  -->
 
 You can use [mamba](https://github.com/mamba-org/mamba) to create a conda environment (strongly recommended):
 
@@ -101,7 +100,7 @@ conda activate work38_cu11
 pip install Cython==0.29.14
 ```
 
-4) Install `gdl` using pip install. I recommend using the `-e` option and I have not tested otherwise. 
+4) Install `inferno` using pip install. I recommend using the `-e` option and I have not tested otherwise. 
 
 ```bash
 pip install -e .
@@ -125,10 +124,10 @@ The install script installs `opencv-python~=4.5.1.48` installed via `pip`.
 
 
 ## Structure 
-This repo has two subpackages. `gdl` and `gdl_apps` 
+This repo has two subpackages. `inferno` and `inferno_apps` 
 
-### GDL
-`gdl` is a library full of research code. Some things are OK organized, some things less so. It includes but is not limited to the following: 
+### INFERNO
+`inferno` is a library full of research code. Some things are OK organized, some things less so. It includes but is not limited to the following: 
 
 - `models` is a module with (larger) deep learning modules (pytorch based) 
 - `layers` contains individual deep learning layers 
@@ -137,28 +136,28 @@ This repo has two subpackages. `gdl` and `gdl_apps`
 
 The repo is heavily based on PyTorch, Pytorch Lightning, makes us of Hydra for configuration and 
 
-### GDL_APPS 
-`gdl_apps` contains prototypes that use the GDL library. These can include scripts on how to train, evaluate, test and analyze models from `gdl` and/or data for various tasks. 
+### INFERNO_APPS 
+`inferno_apps` contains prototypes that use the GDL library. These can include scripts on how to train, evaluate, test and analyze models from `inferno` and/or data for various tasks. 
 
 Look for individual READMEs in each sub-projects. 
 
 Current projects: 
-- [FaceReconstruction](gdl_apps/EMOCA)  
+- [FaceReconstruction](inferno_apps/EMOCA)  
   - contains EMICA - a combination of [DECA](https://deca.is.tue.mpg.de/), [EMOCA](https://emoca.is.tue.mpg.de/), [SPECTRE](https://filby89.github.io/spectre/) and [MICA](https://zielon.github.io/mica/) which produces excellent results
   - tools to run, train or fine-tune state-of-the-art in-the-wild face reconstruction 
-- [TalkingHead](gdl_apps/TalkingHead) 
+- [TalkingHead](inferno_apps/TalkingHead) 
   - official release of [EMOTE: Emotional Speech- Driven Animation with Content- Emotion Disentanglement](https://emote.is.tue.mpg.de/index.html)
   - tools to run, train or finetune speech-driven 3D avatars 
-- [MotionPrior](gdl_apps/MotionPrior) 
+- [MotionPrior](inferno_apps/MotionPrior) 
   - contains FLINT - facial motion prior used in [EMOTE](https://emote.is.tue.mpg.de/index.html)
-- [EmotionRecognition](gdl_apps/EmotionRecognition)
+- [EmotionRecognition](inferno_apps/EmotionRecognition)
   - tools to run and train single-image emotion recognition networks 
-- [VideoEmotionRecognition](gdl_apps/VideoEmotionRecognition)
+- [VideoEmotionRecognition](inferno_apps/VideoEmotionRecognition)
   - contains the vide emotion network used to supervise [EMOTE](https://emote.is.tue.mpg.de/index.html)
   - tools to run and train emotion recognition networks on videos
-- [EMOCA](gdl_apps/EMOCA) (deprecated)
+- [EMOCA](inferno_apps/EMOCA) (deprecated)
   - emotion-driven face reconstruction 
-  - (deprecated, for a much better version of face reconstruction go to FaceReconstruction [FaceReconstruction](gdl_apps/FaceReconstruction))
+  - (deprecated, for a much better version of face reconstruction go to FaceReconstruction [FaceReconstruction](inferno_apps/FaceReconstruction))
 
 
 ## Usage 
@@ -173,10 +172,11 @@ conda activate work38_cu11
 Contributions to INFERNO are very welcome. Here are two ways to contribute.
 #### Projects building on top of INFERNO: 
   - Create a submodule repo in apps and use INFERNO tools to build something cool. I will be happy to promote and/or merge your project if you do so. 
-  
-#### Improving INFERNO 
-  - INFERNO can do many things, but there is many more it cannot do. If you implement a feature (such as a dataset, add an architecture etc.), you are most welcome to create a PR. We will merge it.
 
+#### Improving INFERNO 
+  - INFERNO can do many things, but there is many more it cannot do or it should do better. If you implement a new feature (such as a dataset, add an architecture etc.) or upgrade an existing feature, you are most welcome to create a PR. We will merge it.
+
+  - If you want to build your own tools with INFERNO, refer to [this](./inferno_apps/sandbox_apps/README.md) and [this](./inferno/sandboxes/README.md)
 
 
 ## License

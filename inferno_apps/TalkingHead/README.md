@@ -1,5 +1,24 @@
 # EMOTE : Emotional Speech-Driven Animation with Content-Emotion Disentanglement
 
+  <p align="center">
+    <a href="https://ps.is.tuebingen.mpg.de/person/rdanecek"><strong>Radek Daněček</strong></a>    
+    ·
+    <a href="https://www.kth.se/profile/chhatre"><strong>Kiran Chhatre</strong></a>
+    .
+    <a href="https://ps.is.tuebingen.mpg.de/person/stripathi"><strong>Shashank Tripathi</strong></a>
+    .
+    <a href="https://ps.is.tuebingen.mpg.de/person/ywen"><strong>Yandong Wen</strong></a>
+    .
+    <a href="https://ps.is.tuebingen.mpg.de/person/black"><strong>Michael J. Black</strong></a>
+    ·
+    <a href="https://sites.google.com/site/bolkartt"><strong>Timo Bolkart</strong></a>
+  </p>
+  
+  <h2 align="center">Siggraph Asia 2023, Sydney, Australia</h2>
+  
+  <div align="center">
+  </div> 
+
 This is the official implementation of [EMOTE : Emotional Speech-Driven Animation with Content-Emotion Disentanglement](https://emote.is.tue.mpg.de/). 
 EMOTE takes speech audio and an emotion and intensity labels on the input and produces a talking head avatar that correctly articulates the words spoken in the audio while expressing the specified emotion.
 

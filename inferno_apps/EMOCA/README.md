@@ -1,4 +1,19 @@
 # EMOCA : Emotion-Driven Monocular Face Capture and Animation 
+ 
+  <p align="center">
+    <a href="https://ps.is.tuebingen.mpg.de/person/rdanecek"><strong>Radek Daněček</strong></a>    
+    ·
+    <a href="https://ps.is.tuebingen.mpg.de/person/black"><strong>Michael J. Black</strong></a>
+    ·
+    <a href="https://sites.google.com/site/bolkartt"><strong>Timo Bolkart</strong></a>
+  </p>
+  <h2 align="center">CVPR 2022</h2>
+  <div align="center">
+  </div> 
+
+  <!-- <a href="">
+    <img src="./assets/teaser.jpeg" alt="Logo" width="100%">
+  </a>  -->
 
 This is the official implementation of [EMOCA: Emotion-Driven Monocular Face Capture and Animation](https://emoca.is.tue.mpg.de/). EMOCA takes a single in-the-wild image as input and reconstructs a 3D face with sufficient facial expression detail to convey the emotional state of the
 input image. 
