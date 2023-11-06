@@ -54,7 +54,7 @@ def submit(resume_folder, subset, max_videos,
            bid=10, 
            max_price=None,
            ):
-    cluster_repo_path = "/home/rdanecek/workspace/repos/gdl"
+    cluster_repo_path = "/home/rdanecek/workspace/repos/inferno"
     submission_dir_local_mount = "/is/cluster/work/rdanecek/talking_head_eval/submission_lrs3_lipread"
     submission_dir_cluster_side = "/is/cluster/work/rdanecek/talking_head_eval/submission_lrs3_lipread"
 

@@ -48,14 +48,14 @@ coarse:
       - Identity:
         - name: identity
   model:
-    topology_path: /home/rdanecek/Workspace/Repos/gdl/assets/FLAME/geometry/head_template.obj
-    fixed_displacement_path: /home/rdanecek/Workspace/Repos/gdl/assets/FLAME/geometry/fixed_uv_displacements/fixed_displacement_256.npy
-    flame_model_path: /home/rdanecek/Workspace/Repos/gdl/assets/FLAME/geometry/generic_model.pkl
-    flame_lmk_embedding_path: /home/rdanecek/Workspace/Repos/gdl/assets/FLAME/geometry/landmark_embedding.npy
-    face_mask_path: /home/rdanecek/Workspace/Repos/gdl/assets/FLAME/mask/uv_face_mask.png
-    face_eye_mask_path: /home/rdanecek/Workspace/Repos/gdl/assets/FLAME/mask/uv_face_eye_mask.png
-    pretrained_modelpath: /home/rdanecek/Workspace/Repos/gdl/assets/DECA/data/deca_model.tar
-    pretrained_vgg_face_path: /home/rdanecek/Workspace/Repos/gdl/assets/FaceRecognition/resnet50_ft_weight.pkl
+    topology_path: /home/rdanecek/Workspace/Repos/inferno/assets/FLAME/geometry/head_template.obj
+    fixed_displacement_path: /home/rdanecek/Workspace/Repos/inferno/assets/FLAME/geometry/fixed_uv_displacements/fixed_displacement_256.npy
+    flame_model_path: /home/rdanecek/Workspace/Repos/inferno/assets/FLAME/geometry/generic_model.pkl
+    flame_lmk_embedding_path: /home/rdanecek/Workspace/Repos/inferno/assets/FLAME/geometry/landmark_embedding.npy
+    face_mask_path: /home/rdanecek/Workspace/Repos/inferno/assets/FLAME/mask/uv_face_mask.png
+    face_eye_mask_path: /home/rdanecek/Workspace/Repos/inferno/assets/FLAME/mask/uv_face_eye_mask.png
+    pretrained_modelpath: /home/rdanecek/Workspace/Repos/inferno/assets/DECA/data/deca_model.tar
+    pretrained_vgg_face_path: /home/rdanecek/Workspace/Repos/inferno/assets/FaceRecognition/resnet50_ft_weight.pkl
     deca_class: ExpDECA
     expression_backbone: deca_clone
     max_epochs: 30
@@ -109,7 +109,7 @@ coarse:
     uv_size: 256
     neural_renderer: false
     tex_type: BFM
-    tex_path: /home/rdanecek/Workspace/Repos/gdl/assets/FLAME/texture/FLAME_albedo_from_BFM.npz
+    tex_path: /home/rdanecek/Workspace/Repos/inferno/assets/FLAME/texture/FLAME_albedo_from_BFM.npz
     emonet_model_path: ''
     emo_feat_loss: mse_loss
     photometric_normalization: mean
@@ -195,14 +195,14 @@ detail:
       - Identity:
         - name: identity
   model:
-    topology_path: /home/rdanecek/Workspace/Repos/gdl/assets/FLAME/geometry/head_template.obj
-    fixed_displacement_path: /home/rdanecek/Workspace/Repos/gdl/assets/FLAME/geometry/fixed_uv_displacements/fixed_displacement_256.npy
-    flame_model_path: /home/rdanecek/Workspace/Repos/gdl/assets/FLAME/geometry/generic_model.pkl
-    flame_lmk_embedding_path: /home/rdanecek/Workspace/Repos/gdl/assets/FLAME/geometry/landmark_embedding.npy
-    face_mask_path: /home/rdanecek/Workspace/Repos/gdl/assets/FLAME/mask/uv_face_mask.png
-    face_eye_mask_path: /home/rdanecek/Workspace/Repos/gdl/assets/FLAME/mask/uv_face_eye_mask.png
-    pretrained_modelpath: /home/rdanecek/Workspace/Repos/gdl/assets/DECA/data/deca_model.tar
-    pretrained_vgg_face_path: /home/rdanecek/Workspace/Repos/gdl/assets/FaceRecognition/resnet50_ft_weight.pkl
+    topology_path: /home/rdanecek/Workspace/Repos/inferno/assets/FLAME/geometry/head_template.obj
+    fixed_displacement_path: /home/rdanecek/Workspace/Repos/inferno/assets/FLAME/geometry/fixed_uv_displacements/fixed_displacement_256.npy
+    flame_model_path: /home/rdanecek/Workspace/Repos/inferno/assets/FLAME/geometry/generic_model.pkl
+    flame_lmk_embedding_path: /home/rdanecek/Workspace/Repos/inferno/assets/FLAME/geometry/landmark_embedding.npy
+    face_mask_path: /home/rdanecek/Workspace/Repos/inferno/assets/FLAME/mask/uv_face_mask.png
+    face_eye_mask_path: /home/rdanecek/Workspace/Repos/inferno/assets/FLAME/mask/uv_face_eye_mask.png
+    pretrained_modelpath: /home/rdanecek/Workspace/Repos/inferno/assets/DECA/data/deca_model.tar
+    pretrained_vgg_face_path: /home/rdanecek/Workspace/Repos/inferno/assets/FaceRecognition/resnet50_ft_weight.pkl
     deca_class: ExpDECA
     expression_backbone: deca_clone
     exp_deca_global_pose: false
@@ -271,7 +271,7 @@ detail:
     uv_size: 256
     neural_renderer: false
     tex_type: BFM
-    tex_path: /home/rdanecek/Workspace/Repos/gdl/assets/FLAME/texture/FLAME_albedo_from_BFM.npz
+    tex_path: /home/rdanecek/Workspace/Repos/inferno/assets/FLAME/texture/FLAME_albedo_from_BFM.npz
     emonet_model_path: ''
   learning:
     learning_rate: 0.0001

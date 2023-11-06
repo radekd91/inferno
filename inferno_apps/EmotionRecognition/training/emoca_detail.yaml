@@ -78,14 +78,14 @@ model:
         - Identity:
           - name: identity
     model:
-      topology_path: /mnt/500gb/Workspace/Repos/gdl/assets/FLAME/geometry/head_template.obj
-      fixed_displacement_path: /mnt/500gb/Workspace/Repos/gdl/assets/FLAME/geometry/fixed_uv_displacements/fixed_displacement_256.npy
-      flame_model_path: /mnt/500gb/Workspace/Repos/gdl/assets/FLAME/geometry/generic_model.pkl
-      flame_lmk_embedding_path: /mnt/500gb/Workspace/Repos/gdl/assets/FLAME/geometry/landmark_embedding.npy
-      face_mask_path: /mnt/500gb/Workspace/Repos/gdl/assets/FLAME/mask/uv_face_mask.png
-      face_eye_mask_path: /mnt/500gb/Workspace/Repos/gdl/assets/FLAME/mask/uv_face_eye_mask.png
-      pretrained_modelpath: /mnt/500gb/Workspace/Repos/gdl/assets/DECA/data/deca_model.tar
-      pretrained_vgg_face_path: /mnt/500gb/Workspace/Repos/gdl/assets/FaceRecognition/resnet50_ft_weight.pkl
+      topology_path: /mnt/500gb/Workspace/Repos/inferno/assets/FLAME/geometry/head_template.obj
+      fixed_displacement_path: /mnt/500gb/Workspace/Repos/inferno/assets/FLAME/geometry/fixed_uv_displacements/fixed_displacement_256.npy
+      flame_model_path: /mnt/500gb/Workspace/Repos/inferno/assets/FLAME/geometry/generic_model.pkl
+      flame_lmk_embedding_path: /mnt/500gb/Workspace/Repos/inferno/assets/FLAME/geometry/landmark_embedding.npy
+      face_mask_path: /mnt/500gb/Workspace/Repos/inferno/assets/FLAME/mask/uv_face_mask.png
+      face_eye_mask_path: /mnt/500gb/Workspace/Repos/inferno/assets/FLAME/mask/uv_face_eye_mask.png
+      pretrained_modelpath: /mnt/500gb/Workspace/Repos/inferno/assets/DECA/data/deca_model.tar
+      pretrained_vgg_face_path: /mnt/500gb/Workspace/Repos/inferno/assets/FaceRecognition/resnet50_ft_weight.pkl
       deca_class: ExpDECA
       expression_backbone: deca_clone
       max_epochs: 30
@@ -139,7 +139,7 @@ model:
       uv_size: 256
       neural_renderer: false
       tex_type: BFM
-      tex_path: /mnt/500gb/Workspace/Repos/gdl/assets/FLAME/texture/FLAME_albedo_from_BFM.npz
+      tex_path: /mnt/500gb/Workspace/Repos/inferno/assets/FLAME/texture/FLAME_albedo_from_BFM.npz
       emonet_model_path: ''
       emo_feat_loss: mse_loss
       photometric_normalization: mean
@@ -219,9 +219,9 @@ learning:
   - GT_MASK
   - NEW_SPLIT
 inout:
-  output_dir: /mnt/500gb/Workspace/Repos/gdl/assets/EmotionRecognition/facerec_based_models
-  full_run_dir: /mnt/500gb/Workspace/Repos/gdl/assets/EmotionRecognition/facerec_based_models/EMOCA_detail-emorec
-  checkpoint_dir: /mnt/500gb/Workspace/Repos/gdl/assets/EmotionRecognition/facerec_based_models/EMOCA_detail-emorec/checkpoints
+  output_dir: /mnt/500gb/Workspace/Repos/inferno/assets/EmotionRecognition/facerec_based_models
+  full_run_dir: /mnt/500gb/Workspace/Repos/inferno/assets/EmotionRecognition/facerec_based_models/EMOCA_detail-emorec
+  checkpoint_dir: /mnt/500gb/Workspace/Repos/inferno/assets/EmotionRecognition/facerec_based_models/EMOCA_detail-emorec/checkpoints
   name: EmotionRecognition_Affec_ExpDECA_nl-4BatchNorm1d_id_exp_jaw_shake_samp-balanced_expr_early
   time: 2022_01_29_21-59-07
   random_id: '3822537833951552856'

@@ -78,4 +78,4 @@ wget https://download.is.tue.mpg.de/emoca/assets/data/EMOCA_test_example_data.zi
 unzip EMOCA_test_example_data.zip
 echo "Example test data downloaded and extracted."
 
-cd ../gdl_apps/EMOCA/demos
+cd ../inferno_apps/EMOCA/demos

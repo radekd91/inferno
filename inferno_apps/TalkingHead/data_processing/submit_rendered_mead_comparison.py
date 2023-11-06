@@ -8,7 +8,7 @@ import random
 
 def submit(rec_methods, subject_idx,
         bid=10):
-    cluster_repo_path = "/home/rdanecek/workspace/repos/gdl"
+    cluster_repo_path = "/home/rdanecek/workspace/repos/inferno"
 
     submission_dir_local_mount = "/is/cluster/work/rdanecek/mead_processing/submission"
     submission_dir_cluster_side = "/is/cluster/work/rdanecek/mead_processing/submission"

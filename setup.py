@@ -15,7 +15,7 @@ setuptools.setup(
     author="Radek Danecek",
     author_email="danekradek@gmail.com",
     version="0.0.3",
-    packages=["gdl", "gdl_apps"],
+    packages=["inferno", "inferno_apps"],
     package_dir={"": "."},
     # install_requires=requirements,
     # extras_require={"dev": dev_requirements},

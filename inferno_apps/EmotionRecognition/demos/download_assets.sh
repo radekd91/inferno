@@ -68,4 +68,4 @@ echo "Example test data downloaded and extracted."
 
 
 echo "Assets for  Emotion Recognition downloaded and extracted."
-cd ../../gdl_apps/EmotionRecognition/demos
+cd ../../inferno_apps/EmotionRecognition/demos

@@ -8,6 +8,6 @@ source /home/rdanecek/anaconda3/etc/profile.d/conda.sh
 # conda activate work38
 conda activate /is/cluster/fast/rdanecek/envs/work38_fast_clone
 module load cuda/11.4
-cd /home/rdanecek/workspace/repos/gdl/gdl_apps/TalkingHead/evaluation
+cd /home/rdanecek/workspace/repos/inferno/inferno_apps/TalkingHead/evaluation
 /is/cluster/fast/rdanecek/envs/work38_fast_clone/bin/python eval_talking_head_on_audio.py $@
 
