@@ -1,0 +1,12 @@
+executable = process_celebvtext.sh
+arguments = 100 $(Process)
+error = logs_celebvtext/celebvtext.$(Process).err
+output = logs_celebvtext/celebvtext.$(Process).out
+log = logs_celebvtext/celebvtext.$(Process).log
+request_memory = 32000
+request_cpus = 4
+request_gpus = 1
+requirements=TARGET.CUDACapability>=7.0
+requirements=TARGET.CUDAGlobalMemoryMb>=30000
+concurrency_limits = user.process_celebvtext:100
+queue 654

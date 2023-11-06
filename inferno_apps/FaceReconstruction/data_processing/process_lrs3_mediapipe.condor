@@ -1,0 +1,10 @@
+executable = process_lrs3.sh
+arguments = 50 $(Process) 0 0 1 0 0
+error = logs_mediapipe/process_lrs3.$(Process).err
+output = logs_mediapipe/process_lrs3.$(Process).out
+log = logs_mediapipe/process_lrs3.$(Process).log
+request_memory = 32000
+request_cpus = 2
+request_gpus = 0
+concurrency_limits = user.process_lrs_mediapipe:100
+queue 3010

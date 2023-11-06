@@ -23,7 +23,6 @@ from pathlib import Path
 
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from inferno.models.temporal.AVFace import TemporalFace, instantiate
 from pytorch_lightning.loggers import WandbLogger
 from inferno.models.FaceReconstruction.FaceRecBase import FaceReconstructionBase
 import datetime

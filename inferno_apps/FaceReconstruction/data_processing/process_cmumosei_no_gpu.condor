@@ -1,0 +1,9 @@
+executable = process_cmumosei.sh
+arguments = 100 $(Process)
+error = logs_cmumosei/cmumosei.$(Process).err
+output = logs_cmumosei/cmumosei.$(Process).out
+log = logs_cmumosei/cmumosei.$(Process).log
+request_memory = 32000
+request_cpus = 4
+concurrency_limits = user.process_cmumosei:100
+queue 125

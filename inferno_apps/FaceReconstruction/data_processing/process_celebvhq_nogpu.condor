@@ -1,0 +1,9 @@
+executable = process_celebvhq.sh
+arguments = 100 $(Process)
+error = logs_celebvhq/process.$(Process).err
+output = logs_celebvhq/process.$(Process).out
+log = logs_celebvhq/process.$(Process).log
+request_memory = 32000
+request_cpus = 4
+concurrency_limits = user.celebvhq:100
+queue 357
