@@ -1,6 +1,6 @@
 """
 Code taken over from: https://github.com/sebastianstarke/AI4Animation/blob/master/AI4Animation/SIGGRAPH_2022/PyTorch/PAE/PAE.py
-and adapted to the GDL framework.
+and adapted to the INFERNO framework.
 """
 from .MotionPrior import * 
 from torch import nn

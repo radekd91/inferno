@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="GDL",
+    name="INFERNO",
     description="Official release of code accompanying EMOCA, CVPR2022",
     long_description=long_description,
     long_description_content_type="text/markdown",
