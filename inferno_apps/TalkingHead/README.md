@@ -19,7 +19,21 @@
   <div align="center">
   </div> 
 
-This is the official implementation of [EMOTE : Emotional Speech-Driven Animation with Content-Emotion Disentanglement](https://emote.is.tue.mpg.de/). 
+
+<p align="center">
+  <br>
+    <a href="https://pytorch.org/get-started/locally/"><img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white"></a>
+    <a href="https://pytorchlightning.ai/"><img alt="Lightning" src="https://img.shields.io/badge/-Lightning-792ee5?logo=pytorchlightning&logoColor=white"></a>
+    <a href='https://arxiv.org/abs/2306.08990'>
+      <img src='https://img.shields.io/badge/Paper-PDF-green?style=for-the-badge&logo=arXiv&logoColor=green' alt='Paper PDF'>
+    </a>
+    <a href='https://emote.is.tue.mpg.de/' style='padding-left: 0.5rem;'>
+      <img src='https://img.shields.io/badge/EMOTE-Page-orange?style=for-the-badge&logo=Google%20chrome&logoColor=orange' alt='Project Page'>
+    </a>
+</p>
+
+
+This is the official implementation of [EMOTE : Emotional Speech-Driven Animation with Copntent-Emotion Disentanglement](https://emote.is.tue.mpg.de/). 
 EMOTE takes speech audio and an emotion and intensity labels on the input and produces a talking head avatar that correctly articulates the words spoken in the audio while expressing the specified emotion.
 
 
