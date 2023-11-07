@@ -20,7 +20,6 @@ All rights reserved.
 import pytorch_lightning as pl 
 from typing import Any, Optional
 from inferno.models.temporal.AudioEncoders import TemporalAudioEncoder
-from inferno.models.temporal.MultiModalTemporalNet import *
 from inferno.models.temporal.Bases import *
 # from inferno.models.temporal.BlockFactory import norm_from_cfg
 import random
