@@ -19,6 +19,8 @@
   <div align="center">
   </div> 
 
+ ![emotion_recog](teaser.png)
+
 
 <p align="center">
   <br>
