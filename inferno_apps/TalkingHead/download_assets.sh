@@ -28,7 +28,7 @@ done
 echo "Downloading assets to run EMOTE..." 
 
 echo "Downloading FLAME related assets"
-wget https://download.is.tue.mpg.de/emoca/assets/FLAME.zip -O FLAME.zip
+wget https://download.is.tue.mpg.de/emote/FLAME.zip -O FLAME.zip
 echo "Extracting FLAME..."
 ## unzip without overwriting existing files
 unzip -n FLAME.zip
@@ -62,7 +62,7 @@ echo "Assets for EMOTE downloaded and extracted."
 mkdir data 
 cd data
 echo "Downloading example test data"
-wget https://download.is.tue.mpg.de/emote/assets/data/EMOTE_test_example_data.zip -O EMOTE_test_example_data.zip
-unzip -n EMOCA_test_example_data.zip
+wget https://download.is.tue.mpg.de/emote/EMOTE_test_example_data.zip -O EMOTE_test_example_data.zip
+unzip -n EMOTE_test_example_data.zip
 echo "Example test data downloaded and extracted."
 cd ../../inferno_apps/TalkingHead/demos
