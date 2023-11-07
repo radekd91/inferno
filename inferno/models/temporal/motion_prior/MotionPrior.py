@@ -24,7 +24,7 @@ from typing import Any, Optional
 from inferno.models.temporal.Bases import ShapeModel, Preprocessor
 from torch.nn.functional import mse_loss, l1_loss, cosine_similarity
 from inferno.utils.other import class_from_str
-from inferno.models.rotation_loss import compute_rotation_loss, convert_rot
+from inferno.layers.losses.RotationLosses import compute_rotation_loss, convert_rot
 import numpy as np
 
 class MotionEncoder(torch.nn.Module): 

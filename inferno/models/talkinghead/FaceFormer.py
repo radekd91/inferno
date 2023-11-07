@@ -21,7 +21,7 @@ from inferno.models.talkinghead.TalkingHeadBase import TalkingHeadBase
 import numpy as np
 import torch.nn.functional as F
 from inferno.models.temporal.BlockFactory import *
-from inferno.models.rotation_loss import compute_rotation_loss, convert_rot
+from inferno.layers.losses.RotationLosses import compute_rotation_loss, convert_rot
 from inferno.layers.losses.EmoNetLoss import create_emo_loss
 from omegaconf import open_dict
 from munch import Munch

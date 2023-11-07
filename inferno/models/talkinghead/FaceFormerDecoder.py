@@ -20,7 +20,7 @@ All rights reserved.
 import torch 
 from torch import nn
 import math
-from inferno.models.rotation_loss import convert_rot
+from inferno.layers.losses.RotationLosses import convert_rot
 from inferno.models.MLP import MLP
 from pytorch3d.transforms import rotation_6d_to_matrix, matrix_to_rotation_6d
 from omegaconf import DictConfig, OmegaConf, open_dict
