@@ -48,6 +48,7 @@ def load_avhubert_model(ckpt_path):
 
 def sequence_encoder_from_cfg(cfg):
     if cfg.type == "avhubert": 
+        from inferno.models.temporal.external.AvHubertSequenceEncoder import AvHubertSequenceEncoder
         path = Path(cfg.checkpoint_folder) / cfg.model_filename
         models, saved_cfg, task = load_avhubert_model(str(path))
         encoder = AvHubertSequenceEncoder(models[0])
