@@ -1,0 +1,78 @@
+# @package data
+data_class: MEADDataModule
+# data_class: DecaAdaptedMeadDataModule
+
+# input_dir: /is/cluster/work/rdanecek/data/mead_25fps/resampled_videos
+# output_dir: /is/cluster/work/rdanecek/data/mead_25fps/
+input_dir: /is/cluster/fast/rdanecek/data/mead_25fps/resampled_videos
+output_dir: /is/cluster/fast/rdanecek/data/mead_25fps/
+processed_subfolder: processed
+# num_workers: 0 # debug
+num_workers: 16 # if nto preloading 
+# num_workers: 4 # if preloading 
+
+image_size: 224
+scale: 1.25
+face_detector: mediapipe
+face_detector_threshold: 0.05
+# landmarks_from: sr_res
+
+include_processed_audio: False
+include_raw_audio: False
+preload_videos: False
+# preload_videos: True
+inflate_by_video_size: False
+
+ring_type: none
+ring_size: none
+
+# occlusion_settings_train:
+#     occlusion_length: 0
+#     occlusion_probability_mouth: 0.
+#     occlusion_probability_left_eye: 0.
+#     occlusion_probability_right_eye: 0.
+#     occlusion_probability_face: 0.
+
+# occlusion_settings_val:
+#     occlusion_length: 0
+#     occlusion_probability_mouth: 0.
+#     occlusion_probability_left_eye: 0.
+#     occlusion_probability_right_eye: 0.
+#     occlusion_probability_face: 0.
+
+# occlusion_settings_test:
+#     occlusion_length: 0
+#     occlusion_probability_mouth: 0.
+#     occlusion_probability_left_eye: 0.
+#     occlusion_probability_right_eye: 0.
+#     occlusion_probability_face: 0.
+
+
+drop_last: true
+training_sampler: uniform
+
+# landmark_types: [mediapipe, fan]
+landmark_types: [mediapipe, fan3d]
+landmark_sources: [original, aligned]
+
+# landmark_types: mediapipe
+# landmark_sources: original
+
+segmentation_source: aligned
+segmentation_type: focus
+
+# split: random_70_15_15
+# split: random_by_identity_70_15_15
+split: random_by_sequence_sorted_85_15_0
+# split: random_by_identityV2_sorted_70_15_15
+
+train_subjects: []
+
+val_subjects: []
+test_subjects: []
+
+read_video: True
+
+# align_images: False
+align_images: True
+return_mica_images: "fan"

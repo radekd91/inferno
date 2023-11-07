@@ -1,0 +1,8 @@
+# @package model
+sequence_length: todo # to be passed from data
+quant_sequence_length: todo # to be computed from data upon instantiation
+quant_factor: 3 # number of times the sequence get halved. so the quant_sequence_length == sequence_length / (2^quant_factor)
+# quant_factor: 0
+# quant_factor: 1 
+# quant_factor: 2 
+# quant_factor: 4 

@@ -1,0 +1,18 @@
+# @package model
+
+pl_module_class: VideoEmotionClassifier
+max_epochs: 200
+min_steps: 7000
+
+input_feature_size: 2048
+
+modality_list: 
+  - gt_emo_feature
+  - audio_feature 
+
+fusion_type: tensor_low_rank 
+fusion_cfg: 
+  rank: 16
+  # rank: 8
+  # rank: 4
+  output_dim: 1024

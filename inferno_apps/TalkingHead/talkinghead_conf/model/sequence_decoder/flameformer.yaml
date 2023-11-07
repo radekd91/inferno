@@ -1,0 +1,39 @@
+# @package model
+type: FlameFormerDecoder 
+num_layers: 1
+feature_dim: 64
+nhead: 4
+max_len: 600 
+
+# dropout: 0.25
+# activation: relu
+activation: gelu
+vertices_dim: 15069
+period: 30
+
+positional_encoding: 
+  # type: none
+  # type: PositionalEncoding
+
+  type: PeriodicPositionalEncoding
+  op: add
+  # op: concat
+  max_len: 600 
+  dropout: 0.1
+
+flame: 
+  flame_model_path: /ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl 
+  # n_shape: 100 
+  n_shape: 300 
+  # n_exp: 50
+  n_exp: 100
+  flame_lmk_embedding_path: /ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy 
+
+# predict_exp: True 
+# predict_jaw: True 
+
+flame_space_loss: False 
+rotation_loss_space: 6d 
+
+# rotation_representation: 6d
+rotation_representation: aa

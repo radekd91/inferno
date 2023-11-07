@@ -1,0 +1,18 @@
+# @package model 
+type: flame
+
+flame: 
+  flame_model_path: /ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl 
+  # n_shape: 100 
+  n_shape: 300 
+  # n_exp: 100
+  n_exp: 50
+  flame_lmk_embedding_path: /ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy 
+
+use_texture: true
+
+flame_tex:
+  tex_type: BFM
+  tex_path: /ps/scratch/rdanecek/data/FLAME/texture/FLAME_albedo_from_BFM.npz
+  n_tex: 50
+

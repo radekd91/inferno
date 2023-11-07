@@ -1,0 +1,90 @@
+# @package learning
+losses:
+  vertex_loss:
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+
+  lip_reading_loss:
+    # metric: cosine_similarity
+    # metric: l1_loss
+    metric: mse_loss
+    ## assuming cosine_similarity
+    # weight: 10.0 
+    # weight: 1.0
+    # weight: 0.1 # for MSE this breaks
+    # weight: 0.01 # for MSE this seems stable (but is it good?)
+    # weight: 0.001
+    # weight: 0.0001
+    # weight: 0.00005
+    # weight: 0.00001 
+    # weight: 0.000005
+    # weight: 0.000003 
+    # weight: 0.000001 # default
+    # weight: 0.0000008 # too strong (weirdly flapping lips)
+    # weight: 0.0000005 # still a little too strong
+    # weight: 0.0000004 # looking for the sweet spot
+    # weight: 0.0000003 # looking for the sweet spot - slightly uncanny (the flapping is small but still there)
+    weight: 0.000000275 # looking for the sweet spot
+    # weight: 0.00000025 # looking for the sweet spot
+    # weight: 0.000000225 # looking for the sweet spot
+    # weight: 0.0000002 # looking for the sweet spot
+    # weight: 0.000000175 # looking for the sweet spot
+    # weight: 0.00000015 # looking for the sweet spot
+    # weight: 0.0000001 # # too weak but let's recheck that
+    # weight: 0.00000001
+    # weight: 0.000000001
+    # weight: 0.0000000001
+    # weight: 0.0
+    # emo_feat_loss: mse_loss
+    trainable: false 
+    normalize_features: false 
+    target_method_image: spectre # trying to make lips behave as spectre
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+
+  expression_reg: 
+    # weight: 0.0001 # too high
+    weight: 1.e-9
+    # weight: 1.e-10
+
+metrics: 
+  emotion_loss:
+    # weight: 10.0 
+    # weight: 1.0
+    # weight: 0.1
+    # weight: 0.01
+    weight: 0.0001
+    network_path: /is/cluster/work/rdanecek/emoca/emodeca/2021_11_09_05-15-38_-8198495972451127810_EmoCnn_resnet50_shake_samp-balanced_expr_Aug_early
+    # emo_feat_loss: mse_loss
+    emo_feat_loss: masked_mse_loss
+    trainable: false 
+    normalize_features: false 
+    target_method_image: emoca # trying to make emotion behave as emoca
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+
+  exp_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+
+  jaw_loss: 
+    weight: 1.    
+    rotation_rep: 6d
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+
+  vertex_velocity_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+  
+  exp_velocity_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+  
+  jaw_velocity_loss: 
+    weight: 1.    
+    rotation_rep: 6d
+    metric: l2
+    mask_invalid: mediapipe_landmarks

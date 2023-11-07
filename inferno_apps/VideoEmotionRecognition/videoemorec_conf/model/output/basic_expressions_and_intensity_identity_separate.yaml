@@ -1,0 +1,5 @@
+# @package model
+num_classes: 
+  - 8 # affectnet basic expressions 
+  - 3 # 3 for intensitites
+  - 47 # 47 identities (only will work when training on all of MEAD )

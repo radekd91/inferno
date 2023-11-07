@@ -1,0 +1,7 @@
+# @package model
+type: LinearDecoder 
+# num_layers: 1
+feature_dim: 64
+vertices_dim: 15069
+positional_encoding: 
+  type: none

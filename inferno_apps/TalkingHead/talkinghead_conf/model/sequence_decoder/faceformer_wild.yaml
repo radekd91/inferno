@@ -1,0 +1,175 @@
+# @package model
+type: FaceFormerDecoder 
+num_layers: 1
+# feature_dim: 64
+feature_dim: 128
+# feature_dim: 256
+# nhead: 4
+nhead: 8
+dropout: 0.25
+# activation: relu
+activation: gelu
+max_len: 600 
+period: 30
+vertices_dim: 15069
+positional_encoding: 
+  # type: none
+  # type: PositionalEncoding
+  type: PeriodicPositionalEncoding
+  op: add
+  # op: concat
+  max_len: 600 
+  dropout: 0.1
+
+
+# # # ## MEAD video expression, intensity and identity
+style_embedding: 
+
+  # use_shape: false
+  use_shape: true
+
+  type: emotion_linear 
+  use_video_expression: false 
+
+  gt_expression_label: True
+  # gt_expression_label: False
+  gt_expression_intensity: True
+  # gt_expression_intensity: False
+  n_intensities: 3
+  
+  gt_expression_identity: True
+  n_identities: todo
+  disentangle_identity: False
+
+  # use_expression: true
+  use_expression: false
+  n_expression: 8 # affectnet 
+  # n_expression: 8 # ravdess
+  # n_expression: 4 # iemocap
+#   use_valence: true
+#   use_arousal: true
+  use_valence: false
+  use_arousal: false
+  use_emotion_feature: false
+#   num_features: 2048 
+  use_bias: true
+
+
+# ## MEAD video expression
+# style_embedding: 
+
+#   # use_shape: false
+#   use_shape: true
+
+#   type: emotion_linear 
+#   use_video_expression: false 
+#   # use_video_expression: true 
+
+#   gt_expression_label: True
+#   # gt_expression_label: False
+#   # gt_expression_intensity: True
+#   gt_expression_intensity: False
+#   n_intensities: 3
+
+#   # use_expression: true
+#   use_expression: false
+#   n_expression: 8 # affectnet 
+#   # n_expression: 8 # ravdess
+#   # n_expression: 4 # iemocap
+# #   use_valence: true
+# #   use_arousal: true
+#   use_valence: false
+#   use_arousal: false
+#   use_emotion_feature: false
+# #   num_features: 2048 
+#   use_bias: true
+
+
+
+# ## expression
+# style_embedding: 
+
+#   # use_shape: false
+#   use_shape: true
+
+#   type: emotion_linear 
+#   use_expression: true
+#   use_video_expression: false
+#   # use_expression: false
+#   n_expression: 8 # affectnet 
+#   # n_expression: 8 # ravdess
+#   # n_expression: 4 # iemocap
+# #   use_valence: true
+# #   use_arousal: true
+#   use_valence: false
+#   use_arousal: false
+#   use_emotion_feature: false
+# #   num_features: 2048 
+#   use_bias: true
+
+
+# ## valence-arousal
+# style_embedding: 
+#   type: emotion_linear 
+#   # use_expression: true
+#   use_expression: false
+#   use_video_expression: false
+#   n_expression: 8
+
+#   use_valence: true
+#   use_arousal: true
+#   # use_valence: false
+#   # use_arousal: false
+
+#   use_emotion_feature: false
+# #   num_features: 2048 
+
+#   use_bias: true
+
+#   # use_shape: false
+#   use_shape: true
+
+
+# # ## valence-arousal-expression
+# style_embedding: 
+#   type: emotion_linear 
+#   use_expression: true
+#   use_video_expression: false
+#   # use_expression: false
+#   n_expression: 8
+
+#   use_valence: true
+#   use_arousal: true
+#   # use_valence: false
+#   # use_arousal: false
+
+#   use_emotion_feature: false
+# #   num_features: 2048 
+
+#   use_bias: true
+
+#   # use_shape: false
+#   use_shape: true
+
+
+
+# # ## valence-arousal
+# style_embedding: 
+#   type: emotion_linear 
+#   # use_expression: true
+#   use_expression: false
+#   use_video_expression: false
+#   n_expression: 8
+
+#   use_valence: true
+#   use_arousal: true
+#   # use_valence: false
+#   # use_arousal: false
+
+#   use_emotion_feature: false
+# #   num_features: 2048 
+
+#   use_bias: true
+
+#   # use_shape: false
+#   use_shape: true

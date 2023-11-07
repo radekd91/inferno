@@ -1,0 +1,10 @@
+# @package model 
+type: wav2vec2SER
+model_specifier: "superb/wav2vec2-base-superb-er" 
+# model_specifier: "ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition" 
+# model_specifier: "harshit345/xlsr-wav2vec-speech-emotion-recognition" 
+trainable: false
+with_processor: false
+model_expected_fps: 50
+target_fps: 25
+freeze_feature_extractor: true

@@ -1,0 +1,4 @@
+# @package model
+predict_vertices: false
+predict_expcode: true
+predict_jawpose: true

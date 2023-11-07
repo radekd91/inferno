@@ -1,0 +1,23 @@
+# @package model 
+type: nested
+preprocessors:
+  - emorec:
+        type: ser
+      #   model_specifier: superb/wav2vec2-base-superb-er
+        model_specifier: ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition
+        # model_specifier: harshit345/xlsr-wav2vec-speech-emotion-recognition
+        target_fps: 25 
+        expected_fps: 50
+
+  - flame: 
+        type: flame
+        flame: 
+            flame_model_path: /ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl 
+            # n_shape: 100 
+            n_shape: 300 
+            # n_exp: 100
+            n_exp: 50
+            flame_lmk_embedding_path: /ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy 
+
+        use_texture: false
+

@@ -1,0 +1,7 @@
+# @package model
+
+pl_module_class: FaceFormer
+max_epochs: 200
+min_steps: 7000
+
+disentangle_type: sample_condition

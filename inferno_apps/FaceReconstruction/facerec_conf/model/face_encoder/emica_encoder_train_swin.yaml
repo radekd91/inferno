@@ -1,0 +1,63 @@
+type: EmicaEncoder 
+
+trainable: true
+
+encoders: 
+
+  expression_encoder: 
+    type: ExpressionEncoder
+    backbone: Swin
+    swin_type: swin_tiny_patch4_window7_224
+    input_size: 224
+    predicts: 
+      expcode: 100
+      # jawpose: 3
+    representations: 
+      expcode: flame
+      # jawpose: aa
+    trainable: true
+    last_layer_init_zero: True # ininitializes the last layer of the backbone with zeros
+
+  mica_deca_encoder:
+
+    encoders: 
+
+      deca_encoder:
+        type: DecaEncoder
+        backbone: Swin
+        swin_type: swin_tiny_patch4_window7_224
+        input_size: 224
+      
+        predicts: 
+          texcode: 50
+          jawpose: 3
+          globalpose: 3
+          cam: 3 
+          lightcode: 27
+
+        representations: 
+          expcode: flame
+          texcode: flame
+          jawpose: aa
+          globalpose: aa
+          cam: orth 
+          lightcode: spherical_harmonics
+
+        trainable: false
+        last_layer_init_zero: True # ininitializes the last layer of the backbone with zeros
+
+      mica_encoder: 
+        type: MicaEncoder
+        backbone: ResNet50 
+        mica_model_path: 'MICA/model/mica.tar'
+        # mica_model_path: 'MICA/model/mica2023.tar'
+        # mica_preprocessing: ported_insightface
+        mica_preprocessing: fan
+
+        input_size: 224
+
+        predicts: 
+          shape: 300 
+
+        trainable: false
+

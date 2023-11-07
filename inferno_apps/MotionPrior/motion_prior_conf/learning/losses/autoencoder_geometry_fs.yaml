@@ -1,0 +1,37 @@
+# @package learning
+losses:
+  
+  geometry_reconstruction:
+    # weight: 1.
+    # weight: 10.
+    # weight: 100.
+    # weight: 1000.
+    # weight: 10000.
+    # weight: 100000.
+    weight: 1000000.
+    # weight: 10000000.
+    input_key: gt_vertices 
+    output_key: reconstructed_vertices
+    metric: mse_loss
+  
+  jaw_loss:
+    weight: 1000.
+    input_key: gt_jaw
+    output_key: reconstructed_jaw
+    rotation_rep: 6d
+    metric: l2
+
+  exp_loss:
+    weight: 0.5
+    input_key: gt_exp
+    output_key: reconstructed_exp
+    metric: mse_loss
+
+metrics: 
+
+  reconstruction:
+    weight: 1.
+    input_key: input_sequence 
+    output_key: decoded_sequence
+    metric: mse_loss
+    # mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation

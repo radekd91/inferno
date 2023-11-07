@@ -1,0 +1,7 @@
+# @package model
+
+pl_module_class: MostFrequentEmotionClassifier
+max_epochs: 1
+min_steps: 1
+max_steps: 1
+input_feature_size: 0

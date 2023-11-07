@@ -1,0 +1,109 @@
+# @package learning
+losses:
+
+  vertex_loss:
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+  
+  lip_reading_loss:
+    # metric: cosine_similarity
+    # metric: l1_loss
+    metric: mse_loss
+    # weight: 10.0 
+    # weight: 1.0
+    # weight: 0.1
+    # weight: 0.01 # too strong
+    # weight: 0.001 # candidate, about one order of magnitude stronger (for MSE metric)
+    # weight: 0.0001 # candidate about the same order of magnitude as vertex loss (for MSE metric)
+    # weight: 0.00001 # about one order of magnitude weaker (for MSE metric)
+    weight: 0.000001 # too weak
+    # weight: 0.0000001 
+    # emo_feat_loss: mse_loss
+    trainable: false 
+    normalize_features: false 
+    # target_method_image: spectre # trying to make lips behave as spectre
+    # reconstruction_type: EMOCA_v2_lr_mse_20_with_bfmtex
+    reconstruction_type: EMOCA_v2_lr_mse_15_with_bfmtex
+    # reconstruction_type: EMOCA_v2_lr_cos_1.5_with_bfmtex
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+
+
+metrics: 
+
+  emotion_video_loss:
+    weight: 1.0
+
+    # # mead (all ids) transformer
+    # network_path: /is/cluster/work/rdanecek/video_emotion_recognition/trainings/2023_01_09_12-42-15_7763968562013076567_VideoEmotionClassifier_MEADP_TSC_PE_Lnce
+
+    # mead, identity split, transformer 1, alibi, 128 dim
+    # network_path: /is/cluster/work/rdanecek/video_emotion_recognition/trainings/2023_02_20_15-33-33_6438932288293748658_VideoEmotionClassifier_MEADP__TSC_NPE_Lnce
+
+    # # mead, identity split, transformer 1, alibi, 64 dim
+    # network_path: /is/cluster/work/rdanecek/video_emotion_recognition/trainings/2023_02_20_15-33-16_-7404140082760850826_VideoEmotionClassifier_MEADP__TSC_NPE_Lnce
+
+    # # mead, sequence split, transformer 4, alibi, 512 dim
+    # network_path: /is/cluster/work/rdanecek/video_emotion_recognition/trainings/2023_02_24_18-15-33_-4018761067550400346_VideoEmotionClassifier_MEADP__TSC_NPE_Lnce_early
+
+    # # mead, sequence split, transformer 1, alibi, 512 dim
+    network_path: /is/cluster/work/rdanecek/video_emotion_recognition/trainings/2023_02_24_17-26-04_2542903326241699279_VideoEmotionClassifier_MEADP__TSC_NPE_Lnce_early
+
+    # # mead, sequence split, transformer 1, alibi, 256 dim
+    # network_path: /is/cluster/work/rdanecek/video_emotion_recognition/trainings/2023_02_24_17-25-44_-9109157203859697132_VideoEmotionClassifier_MEADP__TSC_NPE_Lnce_early
+
+    # # mead, sequence split, transformer 1, alibi, 128 dim
+    # network_path: /is/cluster/work/rdanecek/video_emotion_recognition/trainings/2023_02_24_17-25-08_8040047884583005506_VideoEmotionClassifier_MEADP__TSC_NPE_Lnce_early
+
+    # # mead, sequence split, transformer 1, alibi, 64 dim
+    # network_path: /is/cluster/work/rdanecek/video_emotion_recognition/trainings/2023_02_24_17-25-21_7058628279281220579_VideoEmotionClassifier_MEADP__TSC_NPE_Lnce_early
+
+
+    # affectnet-trained resnet used also in EMOCA
+    feature_extractor_path: /is/cluster/work/rdanecek/emoca/emodeca/2021_11_09_05-15-38_-8198495972451127810_EmoCnn_resnet50_shake_samp-balanced_expr_Aug_early
+
+    use_real_video_for_reference: False
+    # use_real_video_for_reference: True
+
+    metric: masked_mse_loss
+    trainable: false 
+    normalize_features: false 
+    # target_method_image: emoca # trying to make emotion behave as emoca
+      # reconstruction_type: EMOCA_v2_lr_mse_20_with_bfmtex
+    reconstruction_type: EMOCA_v2_lr_mse_15_with_bfmtex
+    # reconstruction_type: EMOCA_v2_lr_cos_1.5_with_bfmtex
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+
+
+  motion_prior_gaussian_reg: 
+    weight: 1.
+
+  expression_reg: 
+    weight: 0.0001
+
+  exp_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+
+  jaw_loss: 
+    weight: 1.    
+    rotation_rep: 6d
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+
+  vertex_velocity_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+  
+  exp_velocity_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+  
+  jaw_velocity_loss: 
+    weight: 1.    
+    rotation_rep: 6d
+    metric: l2
+    mask_invalid: mediapipe_landmarks

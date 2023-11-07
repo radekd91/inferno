@@ -1,0 +1,4 @@
+# @package model
+num_classes: 
+  - 8 # affectnet basic expressions 
+  - 3 # 3 for intensitites

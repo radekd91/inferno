@@ -1,0 +1,115 @@
+
+# @package learning 
+losses: 
+  landmark_loss_mediapipe: 
+    type: landmark_loss_mediapipe
+    # weight: 1.
+    weight: 32.
+    metric: l1
+    mask_invalid: mediapipe_landmarks
+    predicted_key: predicted_landmarks_mediapipe
+    target_key: landmarks,mediapipe
+
+  lip_distance_mediapipe: 
+    type: lip_distance_mediapipe
+    # weight: 1.
+    weight: 36.
+    metric: l1
+    # metric: l2
+    mask_invalid: mediapipe_landmarks
+    predicted_key: predicted_landmarks_mediapipe
+    target_key: landmarks,mediapipe
+  
+  mouth_corner_distance_mediapipe:
+    type: mouth_corner_distance_mediapipe
+    weight: 36.
+    metric: l1
+    # metric: l2
+    mask_invalid: mediapipe_landmarks
+    predicted_key: predicted_landmarks_mediapipe
+    target_key: landmarks,mediapipe
+
+  eye_distance_mediapipe: 
+    type: eye_distance_mediapipe
+    weight: 36.
+    metric: l1
+    # metric: l2
+    mask_invalid: mediapipe_landmarks
+    predicted_key: predicted_landmarks_mediapipe
+    target_key: landmarks,mediapipe 
+
+  photometric_loss: 
+    type: photometric_loss
+    weight: 2.
+    metric: l1
+    predicted_key: predicted_image
+    target_key: image_original
+    mask_key: focus
+    masking_type: gt 
+
+  emotion_loss:
+    # weight: 1000.0 
+    # weight: 500.0 
+    # weight: 100.0 
+    # weight: 50.0 
+    # weight: 20.0 
+    # weight: 10.0 
+    weight: 5.0
+    # weight: 2.5
+    # weight: 1.0
+    # weight: 0.1
+    # weight: 0.0
+    # weight: 0.01
+    # weight: 0.001
+    # weight: 0.0001
+    network_path: /is/cluster/work/rdanecek/emoca/emodeca/2021_11_09_05-15-38_-8198495972451127810_EmoCnn_resnet50_shake_samp-balanced_expr_Aug_early
+    emo_feat_loss: mse_loss
+    # emo_feat_loss: masked_mse_loss
+    # emo_feat_loss: cosine_similarity
+    trainable: false 
+    normalize_features: false 
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+    
+    predicted_key: predicted_image
+    target_key: image_original
+    mask_key: focus
+    masking_type: gt 
+
+  lip_reading_loss: 
+    type: lip_reading_loss
+    # metric: l1
+    metric: cosine_similarity
+    # metric: mse_loss
+    # weight: 0.0
+    # weight: 1.5
+    # weight: 3.0
+    # weight: 6.0
+    weight: 10.0
+    # weight: 15.0
+    # weight: 20.0
+    # weight: 20.0
+    # weight: 30.0
+    # weight: 50.0
+    # weight: 100.0
+    # weight: 500.0
+    # weight: 1000.0
+
+    mask_invalid: mediapipe_landmarks
+    predicted_key: predicted_image
+    target_key: image_original
+    predicted_landmarks: predicted_landmarks
+    target_landmarks: landmarks,fan3d
+    mask_key: focus
+    masking_type: gt 
+    per_frame: False ## if False, loss is computed per with temporal context, for that, the ring images need to be in sequence 
+    # per_frame: True ## if True, loss is computed per frame (no temporal context)
+
+  expression_reg: 
+    type: expression_reg
+    weight: 1e-4
+    metric: False
+    predicted_key: expcode
+    target_key: False
+
+metrics: 
+  {}

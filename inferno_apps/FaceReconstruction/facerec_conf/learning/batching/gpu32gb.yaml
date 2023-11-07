@@ -1,0 +1,21 @@
+# @package learning
+
+batch_size_train: 4
+batch_size_val: 4
+batch_size_test: 4
+
+# ring_size_train: 1
+# ring_size_val: 1
+# ring_size_test: 1
+
+ring_size_train: 2
+ring_size_val: 2
+ring_size_test: 2
+
+
+#K_policy: sequential
+num_gpus: 1
+gpu_memory_min_gb: 30
+gpu_memory_max_gb: 38
+
+log_every_n_steps: 10

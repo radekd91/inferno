@@ -1,0 +1,55 @@
+# @package learning 
+
+losses: 
+  landmark_loss_mediapipe: 
+    type: landmark_loss_mediapipe
+    weight: 1.
+    metric: l1
+    mask_invalid: mediapipe_landmarks
+    predicted_key: predicted_landmarks_mediapipe
+    target_key: landmarks,mediapipe
+
+  # landmark_loss_fan:
+  #   type: landmark_loss_fan
+  #   weight: 1.
+  #   metric: l1
+  #   mask_invalid: mediapipe_landmarks
+  #   predicted_key: mediapipe_landmarks
+  #   target_key: mediapipe_landmarks
+
+  landmark_loss_fan_contour:
+    type: landmark_loss_fan_contour
+    weight: 1.
+    metric: l1
+    mask_invalid: mediapipe_landmarks
+    # predicted_key: predicted_landmarks
+    predicted_key: predicted_landmarks_3d
+    # target_key: landmarks,fan
+    target_key: landmarks,fan3d
+
+
+  # we don't do photometric losses yet, but we want the predictions to be regularized and not go crazy
+  expression_reg: 
+    type: expression_reg
+    weight: 1e-4
+    metric: False
+    predicted_key: expcode
+    target_key: False
+
+  tex_reg: 
+    type: tex_reg
+    weight: 1e-7
+    metric: False
+    predicted_key: texcode
+    target_key: False
+
+  light_reg: 
+    type: light_reg
+    weight: 12.
+    metric: False
+    predicted_key: lightcode
+    target_key: False
+
+
+metrics: 
+  {}

@@ -1,0 +1,66 @@
+# @package model
+type: BertPriorDecoder 
+# num_layers: 0
+num_layers: 1
+feature_dim: 64
+nhead: 4
+dropout: 0.25
+# activation: relu
+activation: gelu
+max_len: 600 
+period: 30
+vertices_dim: 15069
+
+# squash_before: False
+squash_before: True
+
+# squash_after: True
+squash_after: False
+
+post_bug_fix: True
+
+squash_type: conv
+# squash_type: stack_linear
+
+positional_encoding: 
+  type: none
+  # # type: PositionalEncoding
+  # type: PeriodicPositionalEncoding
+  # op: add
+  # # op: concat
+  # max_len: 600 
+  # dropout: 0.1
+
+# flame: 
+#   flame_model_path: /ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl 
+# #   n_shape: 100 
+#   n_shape: 300 
+#   # n_exp: 50
+#   n_exp: 100
+#   flame_lmk_embedding_path: /ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy 
+
+motion_prior: 
+  ## ae, latent frame size 8, latent dim 256
+  # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_12-41-05_3297804622617422148_L2lVqVae_Facef_AE"  # 
+  
+  # # vae, latent frame size 8, latent dim 256, kl 0.005
+  # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_14_12-49-06_6680122724561188325_L2lVqVae_Facef_VAE"
+
+  # # vae, latent frame size 8, latent dim 128, kl 0.005
+  # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_16_02-21-23_-5452483093065417657_L2lVqVae_Facef_VAE"
+
+  # # vae, latent frame size 8, latent dim 64, kl 0.005
+  path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_16_02-21-23_8934882131247866579_L2lVqVae_Facef_VAE"
+
+  # # vae, latent frame size 8, latent dim 32, kl 0.005
+  # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_16_02-12-18_-8663630374053631856_L2lVqVae_Facef_VAE"
+
+  # # vae, latent frame size 8, latent dim 16, kl 0.005
+  # path: "/is/cluster/work/rdanecek/motion_prior/trainings/2023_02_16_01-54-57_1005062065405368989_L2lVqVae_Facef_VAE"
+  trainable: False
+  # trainable: True
+
+
+flame_space_loss: False 
+rotation_loss_space: 6d 
+rotation_representation: aa

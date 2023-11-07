@@ -1,0 +1,29 @@
+defaults:
+  - data/datasets: mead_pseudo_gt
+  - data/augmentations: none
+  # - model/paths : cluster
+  - model/settings : videoemorec
+  - model/output@model/output : basic_expressions
+  # - model/sizes@model/sizes : default
+  # - model/neural_rendering : none
+  # - model/flame_tex: bfm_desktop
+  # - model/audio@model/audio: avhubert
+  # - model/audio@model/audio: wav2vec2
+  # - model/audio@model/audio: wav2vec2_resampled_trainable_wild
+  # - model/audio@model/audio: hubert
+  # - model/face@model/face: flame
+  # - model/face@model/face: full_space
+  - model/sequence_encoder@model/sequence_encoder: gru_classifier
+  - model/classification_head@model/classification_head: linear
+  - model/feature_extractor@model/feature_extractor: none
+  ## - model/output@model/output: exp_jaw
+  # # - model/output@model/output: vertices
+  - learning/losses: cross_entropy
+  - learning/optimizer: adam
+  # - learning/batching@learning/batching: default
+  - learning/batching@learning/batching: fixed_length
+  # - learning/callbacks: none
+  - learning/callbacks: early_stopping
+  - learning/logging: wandb
+  # - learning/logging: none
+  - inout: cluster

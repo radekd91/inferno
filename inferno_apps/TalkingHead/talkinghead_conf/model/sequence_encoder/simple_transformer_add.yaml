@@ -1,0 +1,18 @@
+# @package model 
+# type: simple_transformer
+type: stf
+num_layers: 1
+# feature_dim: 1024
+feature_dim: 64
+nhead: 16
+dropout: 0.25
+# activation: relu
+activation: gelu
+positional_encoding: 
+  # type: none
+  # type: PositionalEncoding
+  type: PeriodicPositionalEncoding
+  op: add
+  # op: concat
+  max_len: 600 
+  dropout: 0.1

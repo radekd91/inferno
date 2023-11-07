@@ -1,0 +1,29 @@
+# @package model 
+type: GumbelVectorQuantizer
+codebook_size: 200 # default
+# codebook_size: 20
+# codebook_size: 50
+# codebook_size: 100
+# codebook_size: 150
+# codebook_size: 200
+# codebook_size: 300
+# codebook_size: 500
+# codebook_size: 1000
+# codebook_size: 2000
+
+vector_dim: 256
+# tau: 1
+
+tau: 
+  schedule_type: linear
+  start:
+    step: 0
+    value: 1.
+  end:
+    step: 10000
+    # value: 0.0625
+    # value: 0.2
+    # value: 0.4
+    # value: 0.6
+    # value: 0.8
+    value: 1.0

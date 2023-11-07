@@ -1,0 +1,43 @@
+# @package model 
+type: L2lEncoderWithGaussianHead
+# num_layers: 12
+# num_layers: 8
+# num_layers: 6
+# num_layers: 4
+# num_layers: 2
+num_layers: 1
+
+# input_dim: 56
+input_dim: todo # will be set upon instantiation
+feature_dim: 256
+intermediate_size: 384
+nhead: 8
+dropout: 0.
+# activation: relu
+activation: gelu
+
+positional_encoding: 
+  type: none
+  # type: PositionalEncoding
+
+
+# positional_encoding: 
+#   type: LearnedPositionEmbedding
+#   op: add
+#   # # op: concat
+#   # max_len: 600 
+#   # dropout: 0.
+
+
+#     # "in_dim": 56,
+#     # "hidden_size": 256,
+#     # "num_hidden_layers": 12,
+#     # "num_attention_heads": 8,
+#     # "intermediate_size": 384,
+#     # "quant_sequence_length": 4,
+#     # "sequence_length": 32,
+#     # "quant_factor": 3
+
+temporal_bias: 
+  type: alibi_future
+  max_len: 600 

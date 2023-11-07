@@ -1,0 +1,74 @@
+# @package learning
+losses:
+  vertex_loss:
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+  
+  emotion_loss:
+    # weight: 10.0 
+    # weight: 1.0
+    # weight: 0.1
+    # weight: 0.01
+    # weight: 0.001
+    # weight: 0.0001
+    weight: 0.00001 # default
+    # weight: 0.000001 #
+    # weight: 0.0000001
+    # weight: 0.00000001
+    # weight: 0.000000001
+    # weight: 0.0000000001
+    # weight: 0.0
+    network_path: /is/cluster/work/rdanecek/emoca/emodeca/2021_11_09_05-15-38_-8198495972451127810_EmoCnn_resnet50_shake_samp-balanced_expr_Aug_early
+    # emo_feat_loss: mse_loss
+    emo_feat_loss: masked_mse_loss
+    trainable: false 
+    normalize_features: false 
+    target_method_image: emoca
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+
+  expression_reg: 
+    # weight: 0.0001 # too strong 
+    weight: 1.e-9
+
+metrics: 
+  lip_reading_loss:
+    # weight: 10.0 
+    # weight: 1.0
+    # weight: 0.1
+    # weight: 0.01
+    # weight: 0.001
+    # weight: 0.0001
+    weight: 0.00001
+    # emo_feat_loss: mse_loss
+    trainable: false 
+    normalize_features: false 
+    target_method_image: spectre # trying to make lips behave as spectre
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+
+  exp_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+
+  jaw_loss: 
+    weight: 1.    
+    rotation_rep: 6d
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+
+  vertex_velocity_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+  
+  exp_velocity_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+  
+  jaw_velocity_loss: 
+    weight: 1.    
+    rotation_rep: 6d
+    metric: l2
+    mask_invalid: mediapipe_landmarks

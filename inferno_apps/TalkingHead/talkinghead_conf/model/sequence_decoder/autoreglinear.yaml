@@ -1,0 +1,5 @@
+# @package model
+type: LinearAutoRegDecoder 
+# num_layers: 1
+feature_dim: 64
+vertices_dim: 15069

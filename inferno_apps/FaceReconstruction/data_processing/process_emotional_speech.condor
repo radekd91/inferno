@@ -1,0 +1,12 @@
+executable = process_emotional_speech.sh
+arguments = 20 $(Process)
+error = logs_es/process_es.$(Process).err
+output = logs_es/process_es.$(Process).out
+log = logs_es/process_es.$(Process).log
+request_memory = 30000
+request_cpus = 2
+request_gpus = 1
+requirements=TARGET.CUDACapability>=7.0
+requirements=TARGET.CUDAGlobalMemoryMb>=35000
+concurrency_limits = user.process_es:100
+queue 28

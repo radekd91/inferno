@@ -1,0 +1,13 @@
+executable = process_mead.sh
+arguments = /is/cluster/fast/rdanecek/data/mead_25fps/resampled_videos /is/cluster/fast/rdanecek/data/mead_25fps/ 200 $(Process)
+error = logs_mead/process_mead.$(Process).err
+output = logs_mead/process_mead.$(Process).out
+log = logs_mead/process_mead.$(Process).log
+request_memory = 30000
+request_cpus = 2
+request_gpus = 1
+requirements=TARGET.CUDACapability>=7.0
+requirements=TARGET.CUDAGlobalMemoryMb>=35000
+requirements=TARGET.CUDAGlobalMemoryMb<=42000
+concurrency_limits = user.process_mead:150
+queue 156

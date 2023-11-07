@@ -1,0 +1,79 @@
+# @package learning
+losses:
+  vertex_loss:
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+  
+  emotion_loss:
+    # weight: 10.0 
+    # weight: 1.0
+    # weight: 0.1
+    # weight: 0.01
+    # weight: 0.001
+    weight: 0.0001
+    network_path: /is/cluster/work/rdanecek/emoca/emodeca/2021_11_09_05-15-38_-8198495972451127810_EmoCnn_resnet50_shake_samp-balanced_expr_Aug_early
+    # emo_feat_loss: mse_loss
+    emo_feat_loss: masked_mse_loss
+    trainable: false 
+    normalize_features: false 
+    target_method_image: EMOCA_v2_lr_mse_15_with_bfmtex # trying to make emotion behave as emoca
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+
+  lip_reading_loss:
+    metric: cosine_similarity
+    # metric: l1_loss
+    # metric: mse_loss
+    # weight: 10.0 
+    # weight: 1.0
+    # weight: 0.1
+    # weight: 0.01
+    # weight: 0.001
+    # weight: 0.0001
+    # weight: 0.00001
+    weight: 0.000001 
+    # weight: 0.0000001 
+    # emo_feat_loss: mse_loss
+    trainable: false 
+    normalize_features: false 
+    # target_method_image: spectre # trying to make lips behave as spectre
+    # reconstruction_type: EMOCA_v2_lr_mse_20_with_bfmtex
+    reconstruction_type: EMOCA_v2_lr_mse_15_with_bfmtex
+    # reconstruction_type: EMOCA_v2_lr_cos_1.5_with_bfmtex
+    mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+
+
+metrics: 
+
+  motion_prior_gaussian_reg: 
+    weight: 1.
+
+  expression_reg: 
+    weight: 0.0001
+
+  exp_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+
+  jaw_loss: 
+    weight: 1.    
+    rotation_rep: 6d
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+
+  vertex_velocity_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+  
+  exp_velocity_loss: 
+    weight: 1.
+    metric: l2
+    mask_invalid: mediapipe_landmarks
+  
+  jaw_velocity_loss: 
+    weight: 1.    
+    rotation_rep: 6d
+    metric: l2
+    mask_invalid: mediapipe_landmarks

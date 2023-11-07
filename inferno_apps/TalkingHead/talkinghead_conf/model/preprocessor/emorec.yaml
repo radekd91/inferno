@@ -1,0 +1,6 @@
+# @package model 
+type: emorec
+model_path: False
+model_name: ResNet50
+
+

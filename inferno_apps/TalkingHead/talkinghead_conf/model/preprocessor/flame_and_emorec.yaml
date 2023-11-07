@@ -1,0 +1,19 @@
+# @package model 
+type: nested
+preprocessors:
+  - emorec:
+      type: emorec
+      model_path: False
+      model_name: ResNet50
+
+  - flame: 
+        type: flame
+        flame: 
+            flame_model_path: /ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl 
+            # n_shape: 100 
+            n_shape: 300 
+            # n_exp: 100
+            n_exp: 50
+            flame_lmk_embedding_path: /ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy 
+
+        use_texture: false

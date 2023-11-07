@@ -1,0 +1,60 @@
+# @package learning
+losses:
+  
+  geometry_reconstruction:
+    # weight: 1.
+    # weight: 10.
+    # weight: 100.
+    # weight: 1000.
+    # weight: 10000.
+    # weight: 100000.
+    weight: 1000000.
+    # weight: 10000000.
+    input_key: gt_vertices 
+    output_key: reconstructed_vertices
+    metric: mse_loss
+
+  kl_divergence: 
+    # weight: 1.0
+    # weight: 0.5
+    # weight: 0.1
+    # weight: 0.05
+    # weight: 0.01
+    # weight: 0.05
+    # weight: 0.005
+    # weight: 0.001
+    # weight: 0.0005
+    weight: 0.0001
+    # weight: 0.00005
+    # weight: 0.00001
+    # weight: 0.000005
+    # weight: 0.000001
+  
+metrics: 
+  perplexity: 
+    weight: 1.0
+
+  jaw_loss:
+    weight: 1.
+    input_key: gt_jaw
+    output_key: reconstructed_jaw
+    rotation_rep: 6d
+    metric: l2
+
+  exp_loss:
+    weight: 1.
+    input_key: gt_exp
+    output_key: reconstructed_exp
+    metric: mse_loss
+
+  reconstruction:
+    weight: 1.
+    input_key: input_sequence 
+    output_key: decoded_sequence
+    metric: mse_loss
+    # mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+
+
+  gumble_tau:
+    weight: 1.
+  

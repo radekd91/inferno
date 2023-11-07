@@ -1,0 +1,64 @@
+# @package learning
+losses:
+  
+  geometry_reconstruction:
+    # weight: 1.
+    # weight: 10.
+    # weight: 100.
+    # weight: 1000.
+    # weight: 10000.
+    # weight: 100000.
+    weight: 1000000.
+    # weight: 10000000.
+    input_key: gt_vertices 
+    output_key: reconstructed_vertices
+    metric: mse_loss
+
+  codebook_alignment: # this is the beta in l2l VQ-VAE formulation
+    # weight: 2.5 # interesting values
+    weight: 1.25 # interesting values
+    # weight: 0.25 # interesting values
+    # weight: 0.125 
+    # weight: 0.025 
+    # weight: 0.0125 
+    # weight: 0.0025 
+    # weight: 0.00125 
+    # weight: 0.00025 
+    # weight: 0.000125     
+    
+
+  codebook_commitment:   
+    # weight: 10  # interesting values
+    weight: 5.0 # interesting values
+    # weight: 1.0 # interesting values
+    # weight: 0.5
+    # weight: 0.1
+    # weight: 0.05
+    # weight: 0.01
+    # weight: 0.005
+    # weight: 0.001
+
+  
+metrics: 
+  perplexity: 
+    weight: 1.0
+
+  jaw_loss:
+    weight: 1.
+    input_key: gt_jaw
+    output_key: reconstructed_jaw
+    rotation_rep: 6d
+    metric: l2
+
+  exp_loss:
+    weight: 1.
+    input_key: gt_exp
+    output_key: reconstructed_exp
+    metric: mse_loss
+
+  reconstruction:
+    weight: 1.
+    input_key: input_sequence 
+    output_key: decoded_sequence
+    metric: mse_loss
+    # mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation

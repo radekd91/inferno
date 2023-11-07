@@ -1,0 +1,19 @@
+type: DecaEncoder 
+
+encoders: 
+  - DecaEncoder:
+      type: DecaEncoder
+      backbone: ResNet50 
+
+      input_size: 224
+
+      predicts: 
+        shape: 300 
+        expression: 100
+        jaw_pose: 3
+        global_pose: 3
+
+      jaw_pose_rep: aa
+      global_pose_rep: aa
+
+

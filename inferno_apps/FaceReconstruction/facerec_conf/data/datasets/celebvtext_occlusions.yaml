@@ -1,0 +1,60 @@
+# @package data
+data_class: CelebVTextDataModule
+input_dir: /ps/project/EmotionalFacialAnimation/data/celebvtext/CelebV-Text/downloaded_celebvtext/processed_25fps
+output_dir: /is/cluster/fast/rdanecek/data/celebvtext
+processed_subfolder: processed
+# num_workers: 0 # debug
+num_workers: 8 # 
+
+image_size: 224
+scale: 1.25
+face_detector: mediapipe
+face_detector_threshold: 0.05
+# landmarks_from: sr_res
+
+include_processed_audio: True
+include_raw_audio: True
+preload_videos: False
+inflate_by_video_size: False
+
+ring_type: none
+ring_size: none
+
+occlusion_settings_train:
+    occlusion_length: [2, 4]
+    occlusion_probability_mouth: 0.1
+    occlusion_probability_left_eye: 0.1
+    occlusion_probability_right_eye: 0.1
+    occlusion_probability_face: 0
+
+occlusion_settings_val:
+    occlusion_length: [2, 4]
+    occlusion_probability_mouth: 0.1
+    occlusion_probability_left_eye: 0.1
+    occlusion_probability_right_eye: 0.1
+    occlusion_probability_face: 0
+
+occlusion_settings_test:
+    occlusion_length: [2, 4]
+    occlusion_probability_mouth: 0.1
+    occlusion_probability_left_eye: 0.1
+    occlusion_probability_right_eye: 0.1
+    occlusion_probability_face: 0
+
+
+drop_last: true
+training_sampler: uniform
+
+
+landmark_types: [mediapipe, fan3d]
+# landmark_types: [mediapipe, fan]
+landmark_sources: [original, aligned]
+
+segmentation_source: aligned
+segmentation_type: focus
+
+split: random_70_15_15
+align_images: True
+# align_images: False
+
+return_mica_images: "fan"

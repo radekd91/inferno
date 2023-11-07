@@ -1,0 +1,16 @@
+# @package model 
+type: nested
+preprocessors:
+  - emorec:
+      type: emorec
+      model_path: False
+      model_name: ResNet50
+  - emoca:
+      type: emoca
+      model_path: False
+      model_name: EMOCA
+      stage: detail 
+      with_global_pose: False
+      average_shape_decode: True
+      
+

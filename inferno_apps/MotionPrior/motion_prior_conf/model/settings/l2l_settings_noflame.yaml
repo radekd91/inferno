@@ -1,0 +1,11 @@
+# @package model
+pl_module_class: L2lVqVae
+# max_epochs: 300
+# max_epochs: 600
+max_epochs: 1200
+
+rotation_representation: aa
+sequence_components: 
+  # vertices: flame_verts # num FLAME vertices * 3 = 5023 * 3 = 15069
+  vertex_offsets: flame_verts # num FLAME vertices * 3 = 5023 * 3 = 15069
+

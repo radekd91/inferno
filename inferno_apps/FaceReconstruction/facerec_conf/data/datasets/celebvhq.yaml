@@ -1,0 +1,59 @@
+# @package data
+data_class: CelebVHQDataModule
+input_dir: /ps/project/EmotionalFacialAnimation/data/celebvhq/auto_processed_combined_25fps
+# output_dir: /is/cluster/work/rdanecek/data/celebvhq/
+output_dir: /is/cluster/fast/rdanecek/data/celebvhq/
+processed_subfolder: processed_orig
+# num_workers: 0 # debug
+num_workers: 8 # 
+
+image_size: 224
+scale: 1.25
+face_detector: mediapipe
+face_detector_threshold: 0.05
+# landmarks_from: sr_res
+
+include_processed_audio: True
+include_raw_audio: True
+preload_videos: False
+inflate_by_video_size: False
+
+ring_type: none
+ring_size: none
+
+occlusion_settings_train:
+    occlusion_length: [1, 15]
+    occlusion_probability_mouth: 0.125
+    occlusion_probability_left_eye: 0.125
+    occlusion_probability_right_eye: 0.125
+    occlusion_probability_face: 0.125
+
+occlusion_settings_val:
+    occlusion_length: [1, 15]
+    occlusion_probability_mouth: 0.125
+    occlusion_probability_left_eye: 0.125
+    occlusion_probability_right_eye: 0.125
+    occlusion_probability_face: 0.125
+
+occlusion_settings_test:
+    occlusion_length: [1, 15]
+    occlusion_probability_mouth: 0.125
+    occlusion_probability_left_eye: 0.125
+    occlusion_probability_right_eye: 0.125
+    occlusion_probability_face: 0.125
+
+
+drop_last: true
+training_sampler: uniform
+
+
+landmark_types: [mediapipe, fan3d]
+# landmark_types: [mediapipe, fan]
+landmark_sources: [original, aligned]
+
+segmentation_source: aligned
+
+split: random_70_15_15
+align_images: False
+
+return_mica_images: "fan"

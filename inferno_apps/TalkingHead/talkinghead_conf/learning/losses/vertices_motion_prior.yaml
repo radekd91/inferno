@@ -1,0 +1,50 @@
+# @package learning
+losses:
+  vertex_loss:
+    weight: 1.
+    metric: l2
+
+  # motion_prior_gaussian_reg: 
+  #   # weight: 1000.
+  #   # weight: 100.
+  #   # weight: 10.
+  #   # weight: 0.1
+  #   # weight: 0.01
+  #   # weight: 0.001
+  #   # weight: 0.0001
+  #   # weight: 0.00001
+  #   # weight: 0.000001
+  #   # weight: 0.0000001
+  #   weight: 0.00000001
+  #   # weight: 0.000000001
+
+
+metrics: 
+
+  motion_prior_gaussian_reg: 
+    weight: 1.
+
+  expression_reg: 
+    weight: 0.0001
+
+  exp_loss: 
+    weight: 1.
+    metric: l2
+    
+  jaw_loss: 
+    weight: 1.    
+    rotation_rep: 6d
+    metric: l2
+
+  vertex_velocity_loss: 
+    weight: 1.
+    metric: l2
+  
+  exp_velocity_loss: 
+    weight: 1.
+    metric: l2
+  
+  jaw_velocity_loss: 
+    weight: 1.    
+    rotation_rep: 6d
+    metric: l2

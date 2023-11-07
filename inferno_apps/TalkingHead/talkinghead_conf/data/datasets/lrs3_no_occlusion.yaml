@@ -1,0 +1,57 @@
+# @package data
+data_class: LRS3Pseudo3DDM
+input_dir: /ps/project/EmotionalFacialAnimation/data/lrs3/extracted
+output_dir: /is/cluster/work/rdanecek/data/lrs3/
+processed_subfolder: processed2
+num_workers: 8 # debug
+# num_workers: 6 # 
+
+ignore_invalid: like_emonet
+# default parameters:
+
+image_size: 224
+scale: 1.25
+face_detector: mediapipe
+face_detector_threshold: 0.05
+# landmarks_from: sr_res
+
+
+include_processed_audio: False
+include_raw_audio: True
+preload_videos: False
+inflate_by_video_size: False
+
+ring_type: none
+ring_size: none
+
+# occlusion_settings_train:
+#     occlusion_length: 0
+#     occlusion_probability_mouth: 0.
+#     occlusion_probability_left_eye: 0.
+#     occlusion_probability_right_eye: 0.
+#     occlusion_probability_face: 0.
+
+# occlusion_settings_val:
+#     occlusion_length: 0
+#     occlusion_probability_mouth: 0.
+#     occlusion_probability_left_eye: 0.
+#     occlusion_probability_right_eye: 0.
+#     occlusion_probability_face: 0.
+
+# occlusion_settings_test:
+#     occlusion_length: 0
+#     occlusion_probability_mouth: 0.
+#     occlusion_probability_left_eye: 0.
+#     occlusion_probability_right_eye: 0.
+#     occlusion_probability_face: 0.
+
+
+train_subjects: []
+val_subjects: []
+test_subjects: []
+
+
+drop_last: true
+sampler: uniform
+
+split: "original"

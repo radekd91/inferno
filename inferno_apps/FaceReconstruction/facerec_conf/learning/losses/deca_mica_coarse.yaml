@@ -1,0 +1,81 @@
+# @package learning 
+losses: 
+
+  landmark_loss_fan_contour:
+    type: landmark_loss_fan_contour
+    weight: 0.5
+    metric: l1
+    mask_invalid: mediapipe_landmarks
+    # predicted_key: predicted_landmarks
+    predicted_key: predicted_landmarks_3d
+    # target_key: landmarks,fan
+    target_key: landmarks,fan3d
+
+  landmark_loss_mediapipe: 
+    type: landmark_loss_mediapipe
+    weight: 0.5
+    metric: l1
+    mask_invalid: mediapipe_landmarks
+    predicted_key: predicted_landmarks_mediapipe
+    target_key: landmarks,mediapipe
+
+  lip_distance_mediapipe: 
+    type: lip_distance_mediapipe
+    weight: 0.5
+    metric: l1
+    mask_invalid: mediapipe_landmarks
+    predicted_key: predicted_landmarks_mediapipe
+    target_key: landmarks,mediapipe
+  
+  mouth_corner_distance_mediapipe:
+    type: mouth_corner_distance_mediapipe
+    weight: 0.5
+    metric: l1
+    mask_invalid: mediapipe_landmarks
+    predicted_key: predicted_landmarks_mediapipe
+    target_key: landmarks,mediapipe
+
+  eye_distance_mediapipe: 
+    type: eye_distance_mediapipe
+    weight: 0.5
+    metric: l1
+    mask_invalid: mediapipe_landmarks
+    predicted_key: predicted_landmarks_mediapipe
+    target_key: landmarks,mediapipe 
+
+  photometric_loss: 
+    type: photometric_loss
+    weight: 2.
+    metric: l1
+    predicted_key: predicted_image
+    target_key: image_original
+    mask_key: focus
+    masking_type: gt 
+
+  expression_reg: 
+    type: expression_reg
+    weight: 1e-4
+    metric: False
+    predicted_key: expcode
+    target_key: False
+
+  tex_reg: 
+    type: tex_reg
+    # weight: 1e-4
+    # weight: 1e-5
+    # weight: 1e-6
+    # weight: 1e-7
+    weight: 1e-8
+    metric: False
+    predicted_key: texcode
+    target_key: False
+
+  light_reg: 
+    type: light_reg
+    weight: 12.
+    metric: False
+    predicted_key: lightcode
+    target_key: False
+
+metrics: 
+  {}

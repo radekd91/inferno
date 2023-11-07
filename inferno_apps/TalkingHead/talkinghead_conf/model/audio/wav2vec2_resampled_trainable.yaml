@@ -1,0 +1,8 @@
+# @package model 
+type: wav2vec2
+model_specifier: "facebook/wav2vec2-base-960h" 
+trainable: true
+with_processor: false
+model_expected_fps: 50
+target_fps: 30
+freeze_feature_extractor: true

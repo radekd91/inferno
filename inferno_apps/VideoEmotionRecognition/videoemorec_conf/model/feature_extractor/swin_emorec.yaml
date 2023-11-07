@@ -1,0 +1,8 @@
+# @package model 
+type: emoswin
+model_specifier: "facebook/wav2vec2-base-960h" 
+trainable: false
+# model_path: /is/cluster/work/rdanecek/emoca/emodeca/2021_11_09_04-04-01_-3592833751800073730_EmoSwin_swin_base_patch4_window7_224_shake_samp-balanced_expr_Aug_early"
+model_path: SWIN-B
+# model_path: SWIN-T
+

@@ -1,0 +1,25 @@
+# @package learning
+losses:
+  # reconstruction:
+  #   weight: 1.
+  #   input_key: input_sequence 
+  #   output_key: decoded_sequence
+  #   metric: mse_loss
+  #   # mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+
+  geometry_reconstruction:
+    weight: 1000000.
+    input_key: gt_vertex_offsets
+    output_key: reconstructed_vertex_offsets
+    metric: mse_loss
+
+  codebook_alignment: 
+    weight: 0.25 # this is the beta in l2l VQ-VAE formulation
+
+  codebook_commitment: 
+    weight: 1.0
+  
+metrics: 
+  perplexity: 
+    weight: 1.0
+  

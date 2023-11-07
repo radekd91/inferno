@@ -1,0 +1,16 @@
+# @package learning
+losses:
+  cross_entropy_expression:
+    weight: 1.
+    input_key: predicted_logits_expression 
+    output_key: gt_expression_label
+    # metric: nce
+    # mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+  cross_entropy_intensity:
+    weight: 1.
+    input_key: predicted_logits_intensity
+    output_key: gt_expression_intensity
+    # metric: nce
+    # mask_invalid: mediapipe_landmarks # frames with invalid mediapipe landmarks will be masked for loss computation
+
+metrics: {}

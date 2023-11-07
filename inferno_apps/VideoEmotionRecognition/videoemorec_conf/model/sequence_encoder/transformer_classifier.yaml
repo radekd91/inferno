@@ -1,0 +1,51 @@
+# @package model
+type: TransformerSequenceClassifier 
+
+encoder: 
+  type: TransformerEncoder
+  num_layers: 1
+  # num_layers: 2
+  # num_layers: 4
+  # num_layers: 6
+  # num_layers: 8
+
+  # feature_dim: 64
+  # feature_dim: 128
+  feature_dim: 256
+  # feature_dim: 512
+  # feature_dim: 2048 # the size of resnet feature
+  
+  # nhead: 4
+  nhead: 8
+  # nhead: 16
+
+  dropout: 0.25
+  # activation: relu
+  activation: gelu
+  max_len: 600 
+
+  # period: 30
+
+  #1) classic PE
+  # positional_encoding: 
+  #   # type: none
+  #   type: PositionalEncoding
+  #   # type: PeriodicPositionalEncoding
+  #   op: add
+  #   # op: concat
+  #   max_len: 600 
+  #   dropout: 0.1
+
+  # 2) alibi-style -> no PE but biased mask
+  positional_encoding: 
+    type: none
+    max_len: 600 
+
+  temporal_bias_type: alibi_future
+    
+
+pooler: 
+  type:  TransformerPooler
+  hidden_size: 20 # TODO 
+
+temporal_bias_type: False

@@ -1,0 +1,4 @@
+# @package learning
+logger_type: WandbLogger
+training_vis_frequency: 1000
+validation_vis_frequency: 100

@@ -1,0 +1,159 @@
+type: EmicaEncoder 
+
+trainable: true
+
+encoders: 
+
+  expression_encoder: 
+    type: ExpressionEncoder
+    backbone: SwinToken
+    swin_type: swin_tiny_patch4_window7_224
+    input_size: 224
+    predicts: 
+      expcode: 100
+      # jawpose: 3
+    representations: 
+      expcode: flame
+      # jawpose: aa
+    trainable: true
+    last_layer_init_zero: True # ininitializes the last layer of the backbone with zeros
+
+
+    transformer:
+      num_layers: 1
+      # num_layers: 2
+      # num_layers: 4
+      # num_layers: 6
+      # num_layers: 8
+
+      # hidden_feature_dim: 64
+      # hidden_feature_dim: 128
+      # hidden_feature_dim: 256
+      # hidden_feature_dim: 512
+      hidden_feature_dim: 1024 #
+      # hidden_feature_dim: 2048 #
+      
+      # nhead: 4
+      nhead: 8
+      # nhead: 16
+
+      dropout: 0.1
+      # activation: relu
+      activation: gelu
+      max_len: 600 
+
+      # period: 30
+
+      #1) classic PE
+      # positional_encoding: 
+      #   # type: none
+      #   type: PositionalEncoding
+      #   # type: PeriodicPositionalEncoding
+      #   op: add
+      #   # op: concat
+      #   max_len: 600 
+      #   dropout: 0.1
+
+      # no PE
+      # positional_encoding: 
+        # type: none
+
+      positional_encoding: 
+        type: LearnedPositionEmbedding
+        seq_length: 54
+
+      # temporal_bias_type: alibi_future
+      temporal_bias_type: none
+      
+
+
+  mica_deca_encoder:
+
+    encoders: 
+
+      deca_encoder:
+        type: DecaEncoder
+        backbone: SwinToken
+        swin_type: swin_tiny_patch4_window7_224
+
+        input_size: 224
+      
+        predicts: 
+          texcode: 50
+          jawpose: 3
+          globalpose: 3
+          cam: 3 
+          lightcode: 27
+
+        representations: 
+          expcode: flame
+          texcode: flame
+          jawpose: aa
+          globalpose: aa
+          cam: orth 
+          lightcode: spherical_harmonics
+
+        trainable: false
+        last_layer_init_zero: True # ininitializes the last layer of the backbone with zeros
+
+        transformer:
+          num_layers: 1
+          # num_layers: 2
+          # num_layers: 4
+          # num_layers: 6
+          # num_layers: 8
+
+          # hidden_feature_dim: 64
+          # hidden_feature_dim: 128
+          # hidden_feature_dim: 256
+          # hidden_feature_dim: 512
+          hidden_feature_dim: 1024 #
+          # hidden_feature_dim: 2048 #
+          
+          # nhead: 4
+          nhead: 8
+          # nhead: 16
+
+          dropout: 0.1
+          # activation: relu
+          activation: gelu
+          max_len: 600 
+
+          # period: 30
+
+          #1) classic PE
+          # positional_encoding: 
+          #   # type: none
+          #   type: PositionalEncoding
+          #   # type: PeriodicPositionalEncoding
+          #   op: add
+          #   # op: concat
+          #   max_len: 600 
+          #   dropout: 0.1
+
+          # 2) alibi-style -> no PE but biased mask
+          # positional_encoding: 
+          #   type: none
+
+          positional_encoding: 
+            type: LearnedPositionEmbedding
+            seq_length: 54
+
+          # temporal_bias_type: alibi_future
+          temporal_bias_type: none
+
+      mica_encoder: 
+        type: MicaEncoder
+        backbone: ResNet50 
+        mica_model_path: 'MICA/model/mica.tar'
+        # mica_model_path: 'MICA/model/mica2023.tar'
+        # mica_preprocessing: ported_insightface
+        mica_preprocessing: fan
+        
+        input_size: 224
+
+        predicts: 
+          shape: 300 
+
+        trainable: false
+

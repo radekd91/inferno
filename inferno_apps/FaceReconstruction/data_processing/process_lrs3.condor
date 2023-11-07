@@ -1,0 +1,12 @@
+executable = process_lrs3.sh
+arguments = 200 $(Process)
+error = logs/process_lrs3.$(Process).err
+output = logs/process_lrs3.$(Process).out
+log = logs/process_lrs3.$(Process).log
+request_memory = 48000
+request_cpus = 2
+request_gpus = 1
+requirements=TARGET.CUDACapability>=7.0
+requirements=TARGET.CUDAGlobalMemoryMb>=35000
+concurrency_limits = user.process_lrs:150
+queue 753

@@ -1,0 +1,20 @@
+# @package model
+type: FaceFormerDecoder 
+num_layers: 1
+feature_dim: 64
+nhead: 4
+dropout: 0.25
+# activation: relu
+activation: gelu
+max_len: 600 
+period: 30
+vertices_dim: 15069
+positional_encoding: 
+  # type: none
+  # type: PositionalEncoding
+  type: PeriodicPositionalEncoding
+  op: add
+  # op: concat
+  max_len: 600 
+  dropout: 0.1
+

@@ -1,0 +1,10 @@
+executable = /ps/project/EmotionalFacialAnimation/data/mead/MEAD /is/cluster/work/rdanecek/data/ resample_mead.sh
+arguments = 200 $(Process)
+error = logs_mead_resample/resample_mead.$(Process).err
+output = logs_mead_resample/resample_mead.$(Process).out
+log = logs_mead_resample/resample_mead.$(Process).log
+request_memory = 16000
+request_cpus = 1
+request_gpus = 0
+concurrency_limits = user.resample_mead:100
+queue 156

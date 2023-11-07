@@ -1,0 +1,28 @@
+# @package model 
+type: nested
+preprocessors:
+  - emorec:
+      type: emorec
+      model_path: False
+      model_name: ResNet50
+
+  - spectre:
+      type: spectre
+      return_vis: False
+      # return_vis: True
+      render: False
+      # render: True
+      with_global_pose: False
+      average_shape_decode: True
+
+      # paths
+      flame_model_path: /ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl
+      flame_lmk_embedding_path: /ps/scratch/rdanecek/data/FLAME/geometry/landmark_embedding.npy
+      face_mask_path: /ps/scratch/rdanecek/data/FLAME/mask/uv_face_mask.png
+      face_eye_mask_path: /ps/scratch/rdanecek/data/FLAME/mask/uv_face_eye_mask.png
+      tex_type: BFM
+      tex_path: /ps/scratch/rdanecek/data/FLAME/texture/FLAME_albedo_from_BFM.npz
+      fixed_displacement_path: /ps/scratch/rdanecek/data/FLAME/geometry/fixed_uv_displacements/fixed_displacement_256.npy
+      pretrained_modelpath: pretrained/spectre_model.tar
+      
+

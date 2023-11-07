@@ -1,0 +1,56 @@
+# @package data
+data_class: LRS3DataModule
+input_dir: /ps/project/EmotionalFacialAnimation/data/lrs3/extracted
+# output_dir: /is/cluster/work/rdanecek/data/lrs3/
+output_dir: /is/cluster/fast/rdanecek/data/lrs3/
+processed_subfolder: processed2
+# num_workers: 0 # debug
+num_workers: 8 # 
+
+ignore_invalid: like_emonet
+# default parameters:
+
+image_size: 224
+scale: 1.25
+face_detector: mediapipe
+face_detector_threshold: 0.05
+# landmarks_from: sr_res
+
+ring_type: none
+ring_size: none
+
+occlusion_settings_train:
+    occlusion_length: [5, 10]
+    occlusion_probability_mouth: 0.125
+    occlusion_probability_left_eye: 0.125
+    occlusion_probability_right_eye: 0.125
+    occlusion_probability_face: 0.125
+
+occlusion_settings_val:
+    occlusion_length: [5, 10]
+    occlusion_probability_mouth: 0.125
+    occlusion_probability_left_eye: 0.125
+    occlusion_probability_right_eye: 0.125
+    occlusion_probability_face: 0.125
+
+occlusion_settings_test:
+    occlusion_length: [5, 10]
+    occlusion_probability_mouth: 0.125
+    occlusion_probability_left_eye: 0.125
+    occlusion_probability_right_eye: 0.125
+    occlusion_probability_face: 0.125
+
+
+
+# landmark_types: [mediapipe, fan]
+landmark_types: [mediapipe, fan3d]
+landmark_sources: [original, aligned]
+
+segmentation_source: aligned
+
+
+drop_last: true
+sampler: uniform
+
+split: "original"
+return_mica_images: "fan"

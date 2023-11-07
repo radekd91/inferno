@@ -1,0 +1,3 @@
+# @package model
+# num_classes: 8 # affectnet basic expressions 
+num_classes: 22 # affectnet basic expressions * 3 intensities = 24, neutral only has one level, so 22 (after subtracting to levels)
