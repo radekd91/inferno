@@ -102,7 +102,7 @@ def main():
     
     parser = argparse.ArgumentParser()
     # add the input folder arg 
-    parser.add_argument('--path_to_audio', type=str, default= str(get_path_to_assets() / "data/EMOTE_test_audio/01_gday.wav"))
+    parser.add_argument('--path_to_audio', type=str, default= str(get_path_to_assets() / "data/EMOTE_test_example_data/01_gday.wav"))
     parser.add_argument('--output_folder', type=str, default="results", help="Output folder to save the results to.")
     parser.add_argument('--model_name', type=str, default='EMOTE', help='Name of the model to use.')
     parser.add_argument('--path_to_models', type=str, default=str(get_path_to_assets() / "TalkingHead/models"))
@@ -141,10 +141,10 @@ def main():
             emotion_name = e[0].upper() + e[1:].lower()
             emotion_index_list += [AffectNetExpressions.index(emotion_name)]
     
-    if args.intensities == 'all': 
+    if args.intensity == 'all': 
         intensity_list = list(range(3))
     else:
-        intensities = args.intensities.split(',')
+        intensities = args.intensity.split(',')
         intensity_list = []
         for i in intensities:
             intensity_list += [int(i)]
