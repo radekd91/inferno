@@ -23,7 +23,7 @@
   <!-- <a href="">
     <img src="./assets/teaser.jpeg" alt="Logo" width="100%">
   </a> --> 
-  -->
+  
 Welcome to INFERNO. INFERNO is a library of tools and applications for deep-learning-based in-the-wild face reconstruction, animation and accompanying tasks. 
 It contains many tools, from processing face video datasets, training face reconstruction networks, applying those face reconstruction networks to get 3D faces and then using these 3D faces to do other things (such as speech-driven animation). 
 
