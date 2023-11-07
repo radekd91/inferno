@@ -18,8 +18,6 @@ All rights reserved.
 """
 
 from pathlib import Path
-from turtle import forward
-
 from inferno.models.temporal.Bases import Preprocessor
 from inferno.models.temporal.Preprocessors import FlamePreprocessor, EmotionRecognitionPreprocessor, EmocaPreprocessor, SpeechEmotionRecognitionPreprocessor
 from inferno.models.temporal.external.SpectrePreprocessor import SpectrePreprocessor
@@ -28,27 +26,16 @@ from inferno.models.temporal.SequenceDecoders import *
 from inferno.models.temporal.TemporalFLAME import FlameShapeModel
 from inferno.models.temporal.Renderers import FlameRenderer, FixedViewFlameRenderer
 from inferno.models.temporal.AudioEncoders import AvHubertAudioEncoder, Wav2Vec2Encoder, Wav2Vec2SER
-from inferno.models.temporal.VideoEncoders import EmocaVideoEncoder
-from inferno.models.temporal.ResNetVideoEncoder import TemporalResNetEncoder
+
 import omegaconf
 from omegaconf import open_dict
 
 import torch.nn.functional as F
 
 
-def load_avhubert_model(ckpt_path):
-    from fairseq import checkpoint_utils, options, tasks, utils
-    if str(path_to_av_hubert) not in sys.path:
-        sys.path.insert(0, str(path_to_av_hubert))
-    import avhubert
-    models, saved_cfg, task = checkpoint_utils.load_model_ensemble_and_task([ckpt_path])
-    #   models = [model.eval().cuda() for model in models]
-    return models, saved_cfg, task
-
-
 def sequence_encoder_from_cfg(cfg):
     if cfg.type == "avhubert": 
-        from inferno.models.temporal.external.AvHubertSequenceEncoder import AvHubertSequenceEncoder
+        from inferno.models.temporal.external.AvHubertSequenceEncoder import AvHubertSequenceEncoder, load_avhubert_model
         path = Path(cfg.checkpoint_folder) / cfg.model_filename
         models, saved_cfg, task = load_avhubert_model(str(path))
         encoder = AvHubertSequenceEncoder(models[0])
@@ -162,68 +149,6 @@ def norm_from_cfg(cfg, input_tensor_shape):
     else:
         raise ValueError(f"Unknown norm type '{cfg.type}'")
 
-
-def video_encoder_from_cfg(cfg):
-    if cfg.type == "none":
-        return None
-    if cfg.type == "emoca": 
-        # instantate EMOCA 
-        from inferno_apps.EMOCA.utils.io import load_model
-        mode = "detail"
-        path_to_models = Path(cfg.path).parent 
-        model_name = Path(cfg.path).name
-        emoca, emoca_cfg =  load_model(path_to_models, model_name, mode)
-        return EmocaVideoEncoder(emoca,  cfg.use_features, cfg.use_shapecode, 
-                                cfg.use_expcode, cfg.use_texcode, cfg.use_jawpose, cfg.use_globalpose,
-                                cfg.use_lightcode, 
-                                # cfg.use_posecode, 
-                                cfg.use_cam, 
-                                cfg.trainable, 
-                                cfg.get('discard_feature', False),)
-    elif cfg.type == "deca": 
-        from inferno_apps.EMOCA.utils.io import load_model
-        mode = "detail"
-        path_to_models = Path(cfg.path_to_models).parent 
-        model_name = Path(cfg.path_to_models).name
-        deca =  load_model(path_to_models, model_name, mode)
-        return deca
-    elif cfg.type == "ResNetVideoEncoder": 
-        return TemporalResNetEncoder(cfg)
-
-    # elif cfg.type == "linear":
-    #     LinearVideoEncoder
-
-    raise ValueError(f"Unknown video encoder type '{cfg.type}'")
-
-
-def audio_model_from_cfg(cfg):
-    if cfg.type == "none":
-        return None
-    if cfg.type == "avhubert": 
-        path = Path(cfg.checkpoint_folder) / cfg.model_filename
-        models, saved_cfg, task = load_avhubert_model(str(path))
-        if 'audio' not in saved_cfg.task.modalities:
-            raise ValueError("This AVHubert model does not support audio")
-        encoder = AvHubertAudioEncoder(models[0], cfg.trainable)
-    elif cfg.type == "wav2vec2": 
-        encoder = Wav2Vec2Encoder(cfg.model_specifier, cfg.trainable, 
-            with_processor=cfg.get('with_processor', True), 
-            expected_fps=cfg.get('model_expected_fps', 50), # 50 fps is the default for wav2vec2 (but not sure if this holds universally)
-            target_fps=cfg.get('target_fps', 25), # 25 fps is the default since we use 25 fps for the videos 
-            freeze_feature_extractor=cfg.get('freeze_feature_extractor', True),
-            dropout_cfg=cfg.get('dropout_cfg', None),
-        )
-    elif cfg.type == "wav2vec2SER": 
-        encoder = Wav2Vec2SER(cfg.model_specifier, cfg.trainable, cfg.get('with_processor', True), 
-            expected_fps=cfg.get('model_expected_fps', 50), # 50 fps is the default for wav2vec2 (but not sure if this holds universally)
-            target_fps=cfg.get('target_fps', 25), # 25 fps is the default since we use 25 fps for the videos 
-            freeze_feature_extractor=cfg.get('freeze_feature_extractor', False),
-            dropout_cfg=cfg.get('dropout_cfg', None),
-        )
-    else: 
-        raise ValueError(f"Unknown audio model type '{cfg.type}'")
-
-    return encoder
 
 
 def sequence_decoder_from_cfg(cfg):
@@ -376,3 +301,33 @@ def preprocessor_from_cfg(cfg):
         return SpeechEmotionRecognitionPreprocessor(cfg)
     else: 
         raise ValueError(f"Unknown preprocess model type '{cfg.model.preprocess.type}'")
+
+
+def audio_model_from_cfg(cfg):
+    if cfg.type == "none":
+        return None
+    if cfg.type == "avhubert": 
+        path = Path(cfg.checkpoint_folder) / cfg.model_filename
+        models, saved_cfg, task = load_avhubert_model(str(path))
+        if 'audio' not in saved_cfg.task.modalities:
+            raise ValueError("This AVHubert model does not support audio")
+        encoder = AvHubertAudioEncoder(models[0], cfg.trainable)
+    elif cfg.type == "wav2vec2": 
+        encoder = Wav2Vec2Encoder(cfg.model_specifier, cfg.trainable, 
+            with_processor=cfg.get('with_processor', True), 
+            expected_fps=cfg.get('model_expected_fps', 50), # 50 fps is the default for wav2vec2 (but not sure if this holds universally)
+            target_fps=cfg.get('target_fps', 25), # 25 fps is the default since we use 25 fps for the videos 
+            freeze_feature_extractor=cfg.get('freeze_feature_extractor', True),
+            dropout_cfg=cfg.get('dropout_cfg', None),
+        )
+    elif cfg.type == "wav2vec2SER": 
+        encoder = Wav2Vec2SER(cfg.model_specifier, cfg.trainable, cfg.get('with_processor', True), 
+            expected_fps=cfg.get('model_expected_fps', 50), # 50 fps is the default for wav2vec2 (but not sure if this holds universally)
+            target_fps=cfg.get('target_fps', 25), # 25 fps is the default since we use 25 fps for the videos 
+            freeze_feature_extractor=cfg.get('freeze_feature_extractor', False),
+            dropout_cfg=cfg.get('dropout_cfg', None),
+        )
+    else: 
+        raise ValueError(f"Unknown audio model type '{cfg.type}'")
+
+    return encoder

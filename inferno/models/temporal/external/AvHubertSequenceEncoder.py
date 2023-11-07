@@ -8,6 +8,15 @@ if str(path_to_av_hubert) not in sys.path:
 import avhubert
 
 
+def load_avhubert_model(ckpt_path):
+    from fairseq import checkpoint_utils, options, tasks, utils
+    if str(path_to_av_hubert) not in sys.path:
+        sys.path.insert(0, str(path_to_av_hubert))
+    models, saved_cfg, task = checkpoint_utils.load_model_ensemble_and_task([ckpt_path])
+    #   models = [model.eval().cuda() for model in models]
+    return models, saved_cfg, task
+
+
 class AvHubertSequenceEncoder(SequenceEncoder): 
 
     def __init__(self, avhubert_model):
