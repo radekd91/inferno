@@ -6,36 +6,29 @@
     <a href="https://ps.is.tuebingen.mpg.de/person/rdanecek"><strong>Radek Daněček</strong></a>
   </p>
 
-<!-- <p align="center">
-<!-- 
-  <p align="center">
-    <a href="https://ps.is.tuebingen.mpg.de/person/rdanecek"><strong>Radek Daněček</strong></a>    
-    ·
-    <a href="https://ps.is.tuebingen.mpg.de/person/black"><strong>Michael J. Black</strong></a>
-    ·
-    <a href="https://sites.google.com/site/bolkartt"><strong>Timo Bolkart</strong></a>
 
-  </p>
-  <h2 align="center">CVPR 2022</h2>
-  <div align="center">
-  </div> -->
-
-  <!-- <a href="">
-    <img src="./assets/teaser.jpeg" alt="Logo" width="100%">
-  </a> --> 
-  
 Welcome to INFERNO. INFERNO is a library of tools and applications for deep-learning-based in-the-wild face reconstruction, animation and accompanying tasks. 
 It contains many tools, from processing face video datasets, training face reconstruction networks, applying those face reconstruction networks to get 3D faces and then using these 3D faces to do other things (such as speech-driven animation). 
 
-INFERNO makes use of [FLAME](https://flame.is.tue.mpg.de/), [PyTorch](https://pytorch.org/) and [Pytorch Lightning](https://lightning.ai/docs/pytorch/stable/).
+INFERNO makes heavy use of [FLAME](https://flame.is.tue.mpg.de/), [PyTorch](https://pytorch.org/) and [Pytorch Lightning](https://lightning.ai/docs/pytorch/stable/).
 
-
-  <!-- 
-<p align="center"> 
-<img src="inferno_apps/EMOCA/EMOCA_gif_sparse_det.gif">
-<img src="inferno_apps/EMOCA/EMOCA_gif_sparse_rec.gif">
-</p>
--->
+Current infernal projects: 
+- [TalkingHead](inferno_apps/TalkingHead) 
+  - official release of [EMOTE: Emotional Speech- Driven Animation with Content- Emotion Disentanglement](https://emote.is.tue.mpg.de/index.html)
+  - tools to run, train or finetune speech-driven 3D avatars 
+- [FaceReconstruction](inferno_apps/EMOCA)
+  - contains EMICA - a combination of [DECA](https://deca.is.tue.mpg.de/), [EMOCA](https://emoca.is.tue.mpg.de/), [SPECTRE](https://filby89.github.io/spectre/) and [MICA](https://zielon.github.io/mica/) which produces excellent results
+  - tools to run, train or fine-tune state-of-the-art in-the-wild face reconstruction 
+- [MotionPrior](inferno_apps/MotionPrior) 
+  - contains FLINT - facial motion prior used in [EMOTE](https://emote.is.tue.mpg.de/index.html)
+- [EmotionRecognition](inferno_apps/EmotionRecognition)
+  - tools to run and train single-image emotion recognition networks 
+- [VideoEmotionRecognition](inferno_apps/VideoEmotionRecognition)
+  - contains the vide emotion network used to supervise [EMOTE](https://emote.is.tue.mpg.de/index.html)
+  - tools to run and train emotion recognition networks on videos
+- [EMOCA](inferno_apps/EMOCA) (deprecated)
+  - emotion-driven face reconstruction 
+  - (deprecated, for a much better version of face reconstruction go to FaceReconstruction [FaceReconstruction](inferno_apps/FaceReconstruction))
 
 
 ## Installation 
@@ -117,7 +110,7 @@ pip install git+https://github.com/facebookresearch/pytorch3d.git@v0.6.2
 Pytorch3D installation (which is part of the requirements file) can unfortunately be tricky and machine specific. EMOCA was developed with is Pytorch3D 0.6.2 and the previous command includes its installation from source (to ensure its compatibility with pytorch and CUDA). If it fails to compile, you can try to find another way to install Pytorch3D.
 
 Notes: 
-1) EMOCA was developed with Pytorch 1.12.1 and Pytorch3d 0.6.2 running on CUDA toolkit 11.1.1 with cuDNN 8.0.5. If for some reason installation of these failed on your machine (which can happen), feel free to install these dependencies another way. The most important thing is that version of Pytorch and Pytorch3D match. The version of CUDA is probably less important.
+1) INFERNO was developed with Pytorch 1.12.1 and Pytorch3d 0.6.2 running on CUDA toolkit 11.3. If for some reason installation of these failed on your machine (which can happen), feel free to install these dependencies another way. The most important thing is that version of Pytorch and Pytorch3D match. The version of CUDA is probably less important.
 2) Some people experience import issues with opencv-python from either pip or conda. If the OpenCV version installed by the automated script does not work for you (i.e. it does not import without errors), try updating with `pip install -U opencv-python` or installing it through other means. 
 The install script installs `opencv-python~=4.5.1.48` installed via `pip`.
 
@@ -137,28 +130,9 @@ This repo has two subpackages. `inferno` and `inferno_apps`
 The repo is heavily based on PyTorch, Pytorch Lightning, makes us of Hydra for configuration and 
 
 ### INFERNO_APPS 
-`inferno_apps` contains prototypes that use the GDL library. These can include scripts on how to train, evaluate, test and analyze models from `inferno` and/or data for various tasks. 
+`inferno_apps` contains prototypes that use the INFERNO library. These can include scripts on how to train, evaluate, test and analyze models from `inferno` and/or data for various tasks. 
 
-Look for individual READMEs in each sub-projects. 
-
-Current projects: 
-- [FaceReconstruction](inferno_apps/EMOCA)  
-  - contains EMICA - a combination of [DECA](https://deca.is.tue.mpg.de/), [EMOCA](https://emoca.is.tue.mpg.de/), [SPECTRE](https://filby89.github.io/spectre/) and [MICA](https://zielon.github.io/mica/) which produces excellent results
-  - tools to run, train or fine-tune state-of-the-art in-the-wild face reconstruction 
-- [TalkingHead](inferno_apps/TalkingHead) 
-  - official release of [EMOTE: Emotional Speech- Driven Animation with Content- Emotion Disentanglement](https://emote.is.tue.mpg.de/index.html)
-  - tools to run, train or finetune speech-driven 3D avatars 
-- [MotionPrior](inferno_apps/MotionPrior) 
-  - contains FLINT - facial motion prior used in [EMOTE](https://emote.is.tue.mpg.de/index.html)
-- [EmotionRecognition](inferno_apps/EmotionRecognition)
-  - tools to run and train single-image emotion recognition networks 
-- [VideoEmotionRecognition](inferno_apps/VideoEmotionRecognition)
-  - contains the vide emotion network used to supervise [EMOTE](https://emote.is.tue.mpg.de/index.html)
-  - tools to run and train emotion recognition networks on videos
-- [EMOCA](inferno_apps/EMOCA) (deprecated)
-  - emotion-driven face reconstruction 
-  - (deprecated, for a much better version of face reconstruction go to FaceReconstruction [FaceReconstruction](inferno_apps/FaceReconstruction))
-
+Look for individual READMEs in each sub-projects in [`inferno_apps`](./inferno_apps/)
 
 ## Usage 
 
