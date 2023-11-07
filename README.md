@@ -184,5 +184,9 @@ This code and model are **available for non-commercial scientific research purpo
 
 ## Acknowledgements 
 There are many people who deserve to get credited. These include but are not limited to: 
-Yao Feng and Haiwen Feng and their original implementation of [DECA](https://github.com/YadiraF/DECA).
-Antoine Toisoul and colleagues for [EmoNet](https://github.com/face-analysis/emonet).
+- [Timo Bolkart](https://sites.google.com/site/bolkartt/) and [Michael Black]() for valuable research guidance
+- [Yao Feng](https://is.mpg.de/~yfeng) and [Haiwen Feng](https://is.mpg.de/~hfeng) and their original implementation of [DECA](https://github.com/YadiraF/DECA).
+- [Wojciech Zielonka](https://zielon.github.io/) for the original implementation of [MICA](https://zielon.github.io/mica/) 
+- [Evelyn Fan](https://github.com/EvelynFan) for the original implementation of [FaceFormer] (https://github.com/EvelynFan/FaceFormer)
+- [Panagiotis P. Filntisis](https://filby89.github.io/) and [George Retsinas](https://georgeretsi.github.io/) for the original implementation of [SPECTRE](https://github.com/filby89/spectre)
+- Antoine Toisoul and colleagues for [EmoNet](https://github.com/face-analysis/emonet).
