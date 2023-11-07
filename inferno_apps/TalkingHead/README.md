@@ -43,7 +43,6 @@ EMOTE takes speech audio and an emotion and intensity labels on the input and pr
 
 2) In order to run the demos you will need to download and unzip a few assets. Run `download_assets.sh` to do that: 
 ```bash 
-cd demos 
 bash download_assets.sh
 ```
 3) (Optional for inference, required for training) [Basel Face Model](https://faces.dmi.unibas.ch/bfm/bfm2019.html) texture space adapted to FLAME. Unfortunately, we are not allowed to distribute the texture space, since the license does not permit it. Therefore, please go to the [BFM page](https://faces.dmi.unibas.ch/bfm/bfm2019.html) sign up and dowload BFM. Then use the tool from this [repo](https://github.com/TimoBolkart/BFM_to_FLAME) to convert the texture space to FLAME. Put the resulting texture model file file into [`../../assets/FLAME/texture`](../../assets/FLAME/texture) as `FLAME_albedo_from_BFM.npz`

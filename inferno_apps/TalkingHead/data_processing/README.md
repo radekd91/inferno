@@ -1,4 +1,7 @@
-# Video data processing 
+# Preprocessed MEAD video data
+Coming soon...
+
+# MEAD video data processing 
 
 This README will describe all you need to process the MEAD dataset. 
 
@@ -11,3 +14,4 @@ This includes the following steps:
 6) Pseudo-GT 3D face reconstruction 
 
 Detailed step-by-step manual is coming soon. Meanwhile you can inspect the [`process_mead.py`](./process_mead.py) script.
+
