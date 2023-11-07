@@ -25,7 +25,6 @@ from inferno.models.temporal.SequenceModels import *
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from inferno.models.EmoSwinModule import EmoSwinModule
 from pathlib import Path
 from inferno.utils.other import get_path_to_assets
 from omegaconf import OmegaConf
@@ -365,6 +364,7 @@ class EmoSwin(TemporalFeatureEncoder):
         if not swin_cfg_path.is_absolute():
             swin_cfg_path = get_path_to_assets() / "EmotionRecognition" / "image_based_networks" / swin_cfg_path / "cfg.yaml"
         # read the config file using omegaconf
+        from inferno.models.EmoSwinModule import EmoSwinModule
         with open(swin_cfg_path, "r") as f:
             swin_cfg = OmegaConf.load(f)
         self.swin = EmoSwinModule(swin_cfg)

@@ -22,10 +22,10 @@ from inferno.models.temporal.Bases import Preprocessor
 from inferno.models.temporal.Preprocessors import FlamePreprocessor, EmotionRecognitionPreprocessor, EmocaPreprocessor, SpeechEmotionRecognitionPreprocessor
 from inferno.models.temporal.external.SpectrePreprocessor import SpectrePreprocessor
 from inferno.models.temporal.SequenceEncoders import *
-from inferno.models.temporal.SequenceDecoders import *
+# from inferno.models.temporal.SequenceDecoders import *
 from inferno.models.temporal.TemporalFLAME import FlameShapeModel
 from inferno.models.temporal.Renderers import FlameRenderer, FixedViewFlameRenderer
-from inferno.models.temporal.AudioEncoders import AvHubertAudioEncoder, Wav2Vec2Encoder, Wav2Vec2SER
+from inferno.models.temporal.AudioEncoders import Wav2Vec2Encoder, Wav2Vec2SER
 
 import omegaconf
 from omegaconf import open_dict
@@ -307,6 +307,8 @@ def audio_model_from_cfg(cfg):
     if cfg.type == "none":
         return None
     if cfg.type == "avhubert": 
+        from inferno.models.temporal.external.AvHubertAudioEncoder import AvHubertAudioEncoder
+        from inferno.models.temporal.external.AvHubertSequenceEncoder import load_avhubert_model
         path = Path(cfg.checkpoint_folder) / cfg.model_filename
         models, saved_cfg, task = load_avhubert_model(str(path))
         if 'audio' not in saved_cfg.task.modalities:
