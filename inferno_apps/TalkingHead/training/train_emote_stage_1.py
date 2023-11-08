@@ -130,7 +130,10 @@ def submit(cfg , bid=10,
 
 def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
-
+    ## 0) Set your data paths and result path
+    # model_output_dir = None ## default from configs
+    model_output_dir = str(get_path_to_assets().absolute() / "TalkingHead/trainings")
+    
     ## 1) Base EMOTE config - bert-like model with motion prior
     conf = "bertprior_wild" 
     
@@ -172,6 +175,15 @@ def submit_trainings():
     # split = "specific_identity_sorted_80_20_M003"
     ## split = "specific_identity_random_80_20_M005"
     # split = "specific_identity_sorted_80_20_M005"
+    
+    ## 3b) set paths to the data (where you store MEAD), or use the default paths which are set in the config    
+    # mead_input_dir = "/is/cluster/fast/rdanecek/data/mead_25fps/resampled_videos"
+    # mead_processed_dir = "/is/cluster/fast/rdanecek/data/mead_25fps/"
+    # mead_processed_subfolder = "processed"
+    mead_input_dir = None
+    mead_processed_dir = None
+    mead_processed_subfolder = None
+    
 
     ## 4) Motion prior - Choose your motion prior (aka FLINT)
     motion_prior_path = get_path_to_assets() / "MotionPrior" / "models"
@@ -199,6 +211,18 @@ def submit_trainings():
         fixed_overrides += [f'+model/preprocessor@model.preprocessor={preprocessor}']
     if split is not None:
         fixed_overrides += [f'data.split={split}']
+
+    if model_output_dir is not None:
+        fixed_overrides += [f'inout/output_dir={model_output_dir}']
+        
+    # override the paths to the data
+    if mead_input_dir is not None:
+        fixed_overrides += [f'data.input_dir={mead_input_dir}']
+    if mead_processed_dir is not None:
+        fixed_overrides += [f'data.output_dir={mead_processed_dir}']
+    if mead_processed_subfolder is not None:
+        fixed_overrides += [f'data.processed_subfolder={mead_processed_subfolder}']
+    
 
     # bid = 1000
     bid = 250

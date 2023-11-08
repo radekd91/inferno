@@ -21,10 +21,10 @@ os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 from inferno.utils.condor import execute_on_cluster
 from pathlib import Path
 import inferno_apps.MotionPrior.training.train_motion_prior as script
+from inferno.utils.other import get_path_to_assets
 import datetime
 from omegaconf import DictConfig, OmegaConf, open_dict
 import time as t
-import copy
 import random
 
 submit_ = False
@@ -124,6 +124,10 @@ def submit(cfg , bid=10):
 def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
+    ## 0) Set your data paths and result path
+    # model_output_dir = None ## default from configs
+    model_output_dir = str(get_path_to_assets().absolute() / "TalkingHead/trainings")
+    
     ## 1) Base FLINT config
     conf = "l2l-vae_geometry"
 
@@ -148,6 +152,15 @@ def submit_trainings():
     dataset = "mead_pseudo_gt"
     # reconstruction_type = "EMICA_mead_mp_lr_mse_15" ## old version of data used in EMOTE paper
     reconstruction_type = "EMICA-MEAD_flame2020" ## new version of data with much better reconstructions
+
+    ## b) set paths to the data (where you store MEAD), or use the default paths which are set in the config    
+    # mead_input_dir = "/is/cluster/fast/rdanecek/data/mead_25fps/resampled_videos"
+    # mead_processed_dir = "/is/cluster/fast/rdanecek/data/mead_25fps/"
+    # mead_processed_subfolder = "processed"
+    mead_input_dir = None
+    mead_processed_dir = None
+    mead_processed_subfolder = None
+    
     
     ## b) batching config name
     # batching = "fixed_length"
@@ -178,7 +191,17 @@ def submit_trainings():
         fixed_overrides += [f'+model/preprocessor@model.preprocessor={preprocessor}']
     if split is not None:
         fixed_overrides += [f'data.split={split}']
-
+    if model_output_dir is not None:
+        fixed_overrides += [f'inout/output_dir={model_output_dir}']
+    
+    # override the paths to the data
+    if mead_input_dir is not None:
+        fixed_overrides += [f'data.input_dir={mead_input_dir}']
+    if mead_processed_dir is not None:
+        fixed_overrides += [f'data.output_dir={mead_processed_dir}']
+    if mead_processed_subfolder is not None:
+        fixed_overrides += [f'data.processed_subfolder={mead_processed_subfolder}']
+    
     bid = 200
     
     # ## optionally disable logging (wand by default)

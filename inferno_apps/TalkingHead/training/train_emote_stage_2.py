@@ -30,7 +30,10 @@ submit_ = False
 
 def submit_reconfigured_trainings():
     from hydra.core.global_hydra import GlobalHydra
-
+    ## 0) Set your data paths and result path
+    # model_output_dir = None ## default from configs
+    model_output_dir = str(get_path_to_assets().absolute() / "TalkingHead/trainings")
+    
     ## 1) EMOTE base config for stage 2
     conf = "bertprior_wild_rendering_ex_vid" 
 
@@ -122,6 +125,15 @@ def submit_reconfigured_trainings():
     ## split = "specific_identity_random_80_20_M005"
     # split = "specific_identity_sorted_80_20_M005"
 
+    ## b) set paths to the data (where you store MEAD), or use the default paths which are set in the config    
+    # mead_input_dir = "/is/cluster/fast/rdanecek/data/mead_25fps/resampled_videos"
+    # mead_processed_dir = "/is/cluster/fast/rdanecek/data/mead_25fps/"
+    # mead_processed_subfolder = "processed"
+    mead_input_dir = None
+    mead_processed_dir = None
+    mead_processed_subfolder = None
+    
+
 
     fixed_overrides = [
     ]
@@ -134,7 +146,17 @@ def submit_reconfigured_trainings():
         fixed_overrides += [f'+model/preprocessor@model.preprocessor={preprocessor}']
     if split is not None:
         fixed_overrides += [f'data.split={split}']
-
+        
+    if model_output_dir is not None:
+        fixed_overrides += [f'inout/output_dir={model_output_dir}']
+    
+    # override the paths to the data
+    if mead_input_dir is not None:
+        fixed_overrides += [f'data.input_dir={mead_input_dir}']
+    if mead_processed_dir is not None:
+        fixed_overrides += [f'data.output_dir={mead_processed_dir}']
+    if mead_processed_subfolder is not None:
+        fixed_overrides += [f'data.processed_subfolder={mead_processed_subfolder}']
     
     bid = 30
     max_price = 450
