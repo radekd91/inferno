@@ -27,8 +27,8 @@ import time as t
 import copy
 import random
 
-# submit_ = False
-submit_ = True
+submit_ = False
+# submit_ = True
 
 if submit_ or __name__ != "__main__":
     config_path = Path(__file__).parent / "submission_settings.yaml"

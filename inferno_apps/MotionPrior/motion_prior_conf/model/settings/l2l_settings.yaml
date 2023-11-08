@@ -6,5 +6,6 @@ max_epochs: 1200
 
 rotation_representation: aa
 sequence_components: 
-  exp : 50
+  # exp : 50
+  exp : 100
   jaw : rot

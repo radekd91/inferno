@@ -3,14 +3,9 @@ defaults:
   - data/augmentations: none
   # - model/paths : cluster
   - model/settings : l2l_settings
-  # - model/output@model/output : basic_expressions
   - model/sequence_encoder@model/sequence_encoder: l2l_encoder_vae
   - model/sequence_decoder@model/sequence_decoder: l2l_decoder
-  # - model/quantizer@model/quantizer: l2l_quantizer
   - model/sizes@model/sizes: l2l_sizes
-  # - model/feature_extractor@model/feature_extractor: none
-  ## - model/output@model/output: exp_jaw
-  # # - model/output@model/output: vertices
   - learning/losses: vae_geometry
   - learning/optimizer: adam
   # - learning/batching@learning/batching: default
