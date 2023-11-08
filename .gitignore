@@ -34,6 +34,7 @@ assets/
 *.mtl 
 *.stl
 *.ply 
+*.egg-info
 
 # cluster submission (user-specific settings)
 *submission_settings.yaml
