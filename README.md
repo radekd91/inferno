@@ -5,10 +5,19 @@
   <p align="center">
     <a href="https://ps.is.tuebingen.mpg.de/person/rdanecek"><strong>Radek Daněček</strong></a>
   </p>
+<!-- <p align="center">
+  <br>
+    <a href="https://discord.gg/BHtMqaePUN"><img alt="Discord" src="https://img.shields.io/discord/:BHtMqaePUN"></a>
+</p> -->
+<a href="https://pytorch.org/get-started/locally/"><img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white"></a>
+<a href="https://pytorchlightning.ai/"><img alt="Lightning" src="https://img.shields.io/badge/-Lightning-792ee5?logo=pytorchlightning&logoColor=white"></a>
+<a href="https://discord.gg/3sJSPSVgSm"><img alt="Discord Shield" src="https://discordapp.com/api/guilds/BHtMqaePUN/widget.png?style=shield"/></a>
 
 
 Welcome to INFERNO. INFERNO is a library of tools and applications for deep-learning-based in-the-wild face reconstruction, animation and accompanying tasks. 
 It contains many tools, from processing face video datasets, training face reconstruction networks, applying those face reconstruction networks to get 3D faces and then using these 3D faces to do other things (such as speech-driven animation). 
+
+If you are planning to use INFERNO, consider joining the [Discord Community](https://discord.gg/3sJSPSVgSm).
 
 INFERNO makes heavy use of [FLAME](https://flame.is.tue.mpg.de/), [PyTorch](https://pytorch.org/) and [Pytorch Lightning](https://lightning.ai/docs/pytorch/stable/).
 
