@@ -17,6 +17,7 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 import os, sys
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 from inferno.utils.condor import execute_on_cluster
 from pathlib import Path
 import inferno_apps.MotionPrior.training.train_motion_prior as script
@@ -123,14 +124,13 @@ def submit_trainings():
     from hydra.core.global_hydra import GlobalHydra
 
     ## 0) Set your data paths and result path
-    # model_output_dir = None ## default from configs
-    model_output_dir = str(get_path_to_assets().absolute() / "TalkingHead/trainings")
+    model_output_dir = None ## default from configs
+    # model_output_dir = str(get_path_to_assets().absolute() / "TalkingHead/trainings")
     
     ## 1) Base FLINT config
     conf = "l2l-vae_geometry"
 
     tags = []
-    tags += ['EMICA_v2']
 
     training_modes = [
         # [], # no modifications to default config
@@ -148,8 +148,12 @@ def submit_trainings():
     ## 2) FLINT config dataset settings
     ## a) dataset config name
     dataset = "mead_pseudo_gt"
+    # reconstruction_type = "EMICA_v0_mp_lr_mse_15"
+    # tags += ['EMICA_v0'] 
     # reconstruction_type = "EMICA_mead_mp_lr_mse_15" ## old version of data used in EMOTE paper
+    # tags += ['EMICA_v1']
     reconstruction_type = "EMICA-MEAD_flame2020" ## new version of data with much better reconstructions
+    tags += ['EMICA_v2']
 
     ## b) set paths to the data (where you store MEAD), or use the default paths which are set in the config    
     # mead_input_dir = "/is/cluster/fast/rdanecek/data/mead_25fps/resampled_videos"
@@ -161,9 +165,6 @@ def submit_trainings():
     
     
     ## b) batching config name
-    # batching = "fixed_length"
-    # batching = "fixed_length_bs16_35gb"
-    # batching = "fixed_length150_bs16_35gb"
     batching = "fixed_length_bs32_35gb"
     # batching = "fixed_length_bs64_35gb"
     preprocessor = "flame" ## the dataset is saved in FLAME format, so we need to use the FLAME preprocessor
