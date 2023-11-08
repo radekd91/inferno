@@ -888,17 +888,19 @@ class VideoDatasetBase(AbstractVideoDataset):
             else:
                 features = None
         elif (emotions_dir / "emotions.pkl").exists(): # emotions are saved in a single pickle
-            emotions = load_emotion_list(emotions_dir / "emotions.pkl")
+            emotions = load_emotion_list(emotions_dir / "emotions.pkl", start_frame, end_frame)
             if features:
-                features = load_emotion_list(emotions_dir / "features.pkl")
+                features = load_emotion_list(emotions_dir / "features.pkl", start_frame, end_frame)
                 assert "feature" in features.keys(), "Features not found in emotion file. This is likely due to a bug in emotions saving. " \
                     "Please delete the emotion feature file and recompute them."
             else: 
                 features = None
-            if start_frame is not None and end_frame is not None:
-                emotions = emotions[start_frame: end_frame]
-                if features is not None:
-                    features = features[start_frame: end_frame]
+                
+            ### should no longer be necessary as the start/end frame is now handled in the load_reconstruction_list function
+            # if start_frame is not None and end_frame is not None:
+            #     emotions = emotions[start_frame: end_frame]
+            #     if features is not None:
+            #         features = features[start_frame: end_frame]
         else: 
             raise RuntimeError(f"Emotion file not found in {emotions_dir}")
         return emotions, features
