@@ -49,14 +49,12 @@ def submit_reconfigured_trainings():
         (w_lip_reading,      w_lip_reading_dis,        w_emotion,         w_emotion_dis)
     ]
 
-    
     ## 4) Set the paths to the models 
-    path_to_talkinghead_models = "/is/cluster/work/rdanecek/talkinghead/trainings/"
-    path_to_video_emotion = Path("/is/cluster/work/rdanecek/video_emotion_recognition/trainings/")
+    path_to_talkinghead_models = "<YOUR_TALKINGHEAD_EXPERIMENT_FOLDER>"
     
-    ##5)  EMOTE-stage-1 model names to be finetuned
+    ##5) EMOTE-stage-1 model names to be finetuned
     resume_folders = []
-    resume_folders += ["<EMOTE_STAGE_1_MODEL>"]
+    # resume_folders += ["<YOUR_EMOTE_STAGE_1_MODEL>"]
 
 
     ## 6) Set additional hyperparameters
@@ -79,8 +77,9 @@ def submit_reconfigured_trainings():
 
 
     ## 7) set the video emotion network(s) to be used
+    path_to_video_emotion = get_path_to_assets() / "VideoEmotionRecognition" / "models"
     video_emotion_networks = []
-    # video_emotion_networks += ["<YOUR_OWN_VIDEO_EMOTION_NETWORK>"]
+    video_emotion_networks += ["VideoEmotionAndIntensityClassifier"]
     # video_emotion_networks += ["<YOUR_OWN_VIDEO_EMOTION_NETWORK>"]
     
     
