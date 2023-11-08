@@ -99,3 +99,21 @@ Training EMOTE is a multi-step process which consists of:
 5) Training the second stage of EMOTE 
     - finetuning the previous stage with neural renderering, with perceptual losses, with content-emotion disentanglement mechanism
  -->
+
+
+
+## Citation 
+
+If you use this work in your publication, please cite the following:
+```
+@inproceedings{EMOTE,
+  title = {Emotional Speech-Driven Animation with Content-Emotion Disentanglement},
+  author = {Daněček, Radek and Chhatre, Kiran and Tripathi, Shashank and Wen, Yandong and Black, Michael and Bolkart, Timo},
+  publisher = {ACM},
+  month = dec,
+  year = {2023},
+  doi = {10.1145/3610548.3618183},
+  url = {https://emote.is.tue.mpg.de/index.html},
+  month_numeric = {12}
+}
+```
