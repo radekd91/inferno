@@ -27,8 +27,8 @@ import time as t
 import copy
 import random
 
-submit_ = False
-# submit_ = True
+# submit_ = False
+submit_ = True
 
 if submit_ or __name__ != "__main__":
     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -85,7 +85,7 @@ def submit(cfg , bid=10):
     max_time_h = 36
     max_price = 10000
     job_name = "train_motion_prior"
-    cuda_capability_requirement = 7
+    cuda_capability_requirement = 7.5
     # mem_gb = 40
     mem_gb = 45
 
@@ -160,9 +160,9 @@ def submit_trainings():
     ### MEAD splits
     ## split = "random_70_15_15"
     ## split = "random_by_sequence_random_70_15_15" 
-    split = "random_by_sequence_sorted_70_15_15" 
+    # split = "random_by_sequence_sorted_70_15_15" 
     ## split = "random_by_identityV2_random_70_15_15" 
-    # split = "random_by_identityV2_sorted_70_15_15" 
+    split = "random_by_identityV2_sorted_70_15_15" 
     ## split = "specific_identity_random_80_20_M003"
     # split = "specific_identity_sorted_80_20_M003"
 
@@ -218,8 +218,6 @@ def submit_trainings():
                 for quant_factor in quant_factor_list:
                     if quant_factor is not None:
                         overrides += ['model.sizes.quant_factor=' + str(quant_factor)]
-
-
 
                     # kl_weights = [None]
                     # kl_weights = [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05]

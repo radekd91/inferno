@@ -20,7 +20,7 @@ Please refer to [`training/train_flint.py`](./training/train_flint.py) for addit
 
 
 ## Contribute with your own Motion Prior 
-If you design a new motion prior, please create a PR. Wwe will merge it. :-) 
+If you design a new motion prior, please create a PR. We will merge it. :-) 
 
 
 
