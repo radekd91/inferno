@@ -57,11 +57,11 @@ def submit_reconfigured_trainings():
     # resume_folders += ["<YOUR_EMOTE_STAGE_1_MODEL>"]
 
 
-    ## 6) Set additional hyperparameters
+    ## 6) Set additional hyperparameters - these need to be the same as the for the model you're finetuning
     # use_shape = True
     use_shape = False ## EMOTE does not condition on SHAPE
     # use_identity = False 
-    use_identity = True
+    use_identity = True ## use identity one-hot as part of style
 # 
     # style_operation = 'add'
     style_operation = 'cat'
@@ -101,6 +101,8 @@ def submit_reconfigured_trainings():
     ]
 
     dataset = "mead_pseudo_gt"
+    # reconstruction_type = "EMICA_mead_mp_lr_mse_15" ## old version of data used in EMOTE paper
+    reconstruction_type = "EMICA-MEAD_flame2020" ## new version of data with much better reconstructions
     batching = "fixed_length_bs4_45gb"
 
     if "rendering" in conf: 
@@ -124,8 +126,8 @@ def submit_reconfigured_trainings():
     fixed_overrides = [
     ]
 
-    if dataset is not None: 
-        fixed_overrides += [f'data/datasets={dataset}']
+    fixed_overrides += [f'data/datasets={dataset}']
+    fixed_overrides += [f'data.reconstruction_type={reconstruction_type}']
     if batching is not None:
         fixed_overrides += [f'+learning/batching@learning.batching={batching}']
     if preprocessor is not None:

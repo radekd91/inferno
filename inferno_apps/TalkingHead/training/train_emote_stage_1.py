@@ -136,13 +136,14 @@ def submit_trainings():
     
     tags = [] 
     
+    ## 2) Set hyperparameters
     # use_shape = True
     use_shape = False ## EMOTE does not condition on shape
 
     # style_operation = 'add'
     style_operation = 'cat' ## concatenation is used in EMOTE to incorporate style
 
-    use_identity = True
+    use_identity = True ## use identity one-hot as part of style
     # use_identity = False
 
     training_modes = [
@@ -153,10 +154,10 @@ def submit_trainings():
         ],
     ]
 
+    ## 3) Dataset, splits, batching
     dataset = "mead_pseudo_gt"
     # reconstruction_type = "EMICA_mead_mp_lr_mse_15" ## old version of data used in EMOTE paper
     reconstruction_type = "EMICA-MEAD_flame2020" ## new version of data with much better reconstructions
-    
     batching = "fixed_length_bs32_seq32"
 
     preprocessor = "flame_tex"
@@ -172,6 +173,7 @@ def submit_trainings():
     ## split = "specific_identity_random_80_20_M005"
     # split = "specific_identity_sorted_80_20_M005"
 
+    ## 4) Motion prior - Choose your motion prior (aka FLINT)
     motion_prior_path = get_path_to_assets() / "MotionPrior" / "models"
     motion_prior_name = "FLINT"
 
@@ -187,6 +189,8 @@ def submit_trainings():
     #     f"Reconstruction '{reconstruction_type}' does not match motion prior split '{motion_prior_cfg.data.reconstruction_type}'. " \
     #     f"This is probably not what you want."
 
+
+    ## 5) Submit the training
     fixed_overrides += [f'data/datasets={dataset}']
     fixed_overrides += [f'data.reconstruction_type={reconstruction_type}']
     if batching is not None:

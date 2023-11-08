@@ -75,9 +75,7 @@ You may also specify more of them and seperate them with `,`.
 
 
 ## Training 
-Details coming soon...
 
-<!-- 
 Training EMOTE is a multi-step process which consists of: 
 
 1) MEAD data processing 
@@ -95,11 +93,11 @@ Training EMOTE is a multi-step process which consists of:
 
 4) Training the first stage of EMOTE 
     - training only with vertex error loss
+    - refer to [`training/train_emote_stage_1.py`](./training/train_emote_stage_1.py). Please read the instruction in the comments and then run the script.
 
 5) Training the second stage of EMOTE 
     - finetuning the previous stage with neural renderering, with perceptual losses, with content-emotion disentanglement mechanism
- -->
-
+    - refer to [`training/train_emote_stage_1.py`](./training/train_emote_stage_1.py). Please read the instruction in the comments, replace the paths to the models you want to be finetuning with, and then run the script.
 
 
 ## Citation 
