@@ -154,8 +154,8 @@ def submit_trainings():
     ]
 
     dataset = "mead_pseudo_gt"
-    reconstruction_type = "EMICA_mead_mp_lr_mse_15" ## old version of data used in EMOTE paper
-    # reconstruction_type = "EMICA-MEAD_flame2020" ## new version of data with much better reconstructions
+    # reconstruction_type = "EMICA_mead_mp_lr_mse_15" ## old version of data used in EMOTE paper
+    reconstruction_type = "EMICA-MEAD_flame2020" ## new version of data with much better reconstructions
     
     batching = "fixed_length_bs32_seq32"
 

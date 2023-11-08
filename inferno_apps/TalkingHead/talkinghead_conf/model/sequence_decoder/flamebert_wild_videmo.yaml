@@ -17,6 +17,7 @@ positional_encoding:
   # op: concat
   max_len: 600 
   dropout: 0.1
+temporal_bias_type: faceformer_future
 
 flame: 
   flame_model_path: /ps/scratch/rdanecek/data/FLAME/geometry/generic_model.pkl 

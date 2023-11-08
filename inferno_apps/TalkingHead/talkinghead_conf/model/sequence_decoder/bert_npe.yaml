@@ -18,4 +18,6 @@ positional_encoding:
   # max_len: 600 
   # dropout: 0.1
 
+temporal_bias_type: faceformer_future
+
 post_bug_fix: True
