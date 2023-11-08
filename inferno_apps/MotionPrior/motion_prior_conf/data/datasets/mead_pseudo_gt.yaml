@@ -1,7 +1,5 @@
 # @package data
 data_class: MEADPseudo3DDM
-# input_dir: /is/cluster/work/rdanecek/data/mead_25fps/resampled_videos
-# output_dir: /is/cluster/work/rdanecek/data/mead_25fps/
 input_dir: /is/cluster/fast/rdanecek/data/mead_25fps/resampled_videos
 output_dir: /is/cluster/fast/rdanecek/data/mead_25fps/
 processed_subfolder: processed
@@ -25,27 +23,6 @@ inflate_by_video_size: False
 ring_type: none
 ring_size: none
 
-# occlusion_settings_train:
-#     occlusion_length: 0
-#     occlusion_probability_mouth: 0.
-#     occlusion_probability_left_eye: 0.
-#     occlusion_probability_right_eye: 0.
-#     occlusion_probability_face: 0.
-
-# occlusion_settings_val:
-#     occlusion_length: 0
-#     occlusion_probability_mouth: 0.
-#     occlusion_probability_left_eye: 0.
-#     occlusion_probability_right_eye: 0.
-#     occlusion_probability_face: 0.
-
-# occlusion_settings_test:
-#     occlusion_length: 0
-#     occlusion_probability_mouth: 0.
-#     occlusion_probability_left_eye: 0.
-#     occlusion_probability_right_eye: 0.
-#     occlusion_probability_face: 0.
-
 
 drop_last: true
 training_sampler: uniform
@@ -58,45 +35,20 @@ landmark_sources: original
 
 segmentation_source: aligned
 
-# split: random_70_15_15
-split: random_by_identity_70_15_15
-# split: random_by_identityV2_sorted_70_15_15
-
-train_subjects: []
-#   - FaceTalk_170728_03272_TA 
-#   - FaceTalk_170904_00128_TA 
-#   - FaceTalk_170915_00223_TA 
-#   - FaceTalk_170811_03274_TA 
-#   - FaceTalk_170913_03279_TA 
-#   - FaceTalk_170904_03276_TA 
-#   - FaceTalk_170912_03278_TA
-
-val_subjects: []
-#   - FaceTalk_170811_03275_TA 
-#   - FaceTalk_170908_03277_TA
-
-test_subjects: []
-#   - FaceTalk_170809_00138_TA 
-#   - FaceTalk_170731_00024_TA 
-
+## split: "random_70_15_15"
+## split:"random_by_sequence_random_70_15_15" 
+split: "random_by_sequence_sorted_70_15_15" 
+## split: "random_by_identityV2_random_70_15_15" 
+# split: "random_by_identityV2_sorted_70_15_15" 
+## split: "specific_identity_random_80_20_M003"
+# split: "specific_identity_sorted_80_20_M003"
 
 read_video: False
 # read_video: True
 read_audio: False
-# reconstruction_type: spectre
-# reconstruction_type: emoca
-# reconstruction_type: [spectre, emoca] # if more, the first one is primary
-# reconstruction_type: [emoca, spectre]
-# reconstruction_type: [EMOCA_v2_lr_mse_20_with_bfmtex, spectre]
-## reconstruction_type: [EMOCA_v2_lr_mse_15_with_bfmtex, spectre]
-# reconstruction_type: [EMOCA_v2_lr_cos_1.5_with_bfmtex, spectre]
-## reconstruction_type: [EMOCA_v2_mp_with_bfmtex, spectre]
-# reconstruction_type: EMOCA_v2_lr_mse_15_with_bfmtex
-# reconstruction_type: EMOCA_v2_mp_with_bfmtex
-# reconstruction_type: EMOCA_v2_lr_cos_1.5_with_bfmtex
-# reconstruction_type: EMOCA_v2_lr_mse_20_with_bfmtex
-# reconstruction_type: EMICA_v0_mp_lr_mse_15
-reconstruction_type: EMICA_mead_mp_lr_mse_15
+
+# reconstruction_type: EMICA_mead_mp_lr_mse_15
+reconstruction_type: EMICA-MEAD_flame2020
 
 return_global_pose: False
 # return_appearance: False
@@ -104,6 +56,6 @@ return_appearance: True
 average_shape_decode: True
 
 
-emotion_type: resnet50
+# emotion_type: resnet50
 # return_emotion_feature: False
-return_emotion_feature: True
+# # return_emotion_feature: True
