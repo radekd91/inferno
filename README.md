@@ -60,10 +60,12 @@ If this ran without any errors, you now have a functioning conda environment wit
 
 ### Long version
 
-1) Pull the relevant submodules using: 
+1) (Optional) Pull the relevant submodules using: 
 ```bash
 bash pull_submodules.sh
 ```
+Some functionalities of INFERNO rely on these external submodules (for instance using SWIN transformer or SPECTRE-like lip reading network). You will most likely not need them to run demos. However, if you wish to train your own models or process datasets, you may need some of the submodules. 
+If you experience issues with some of them, leave an issue.
 
 
 2) Set up a conda environment with one of the provided conda files. I recommend using `conda-environment_py38_cu11_ubuntu.yml`.  
