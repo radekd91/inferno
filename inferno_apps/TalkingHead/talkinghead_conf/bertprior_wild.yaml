@@ -3,8 +3,8 @@ defaults:
   - data/augmentations: none
   - model/sizes@model/sizes : default
   # - model/audio@model/audio: wav2vec2
-  # - model/audio@model/audio: wav2vec2_resampled_trainable_wild 
-  - model/audio@model/audio: wav2vec2_resampled_nontrainable_wild
+  - model/audio@model/audio: wav2vec2_resampled_trainable_wild 
+  # - model/audio@model/audio: wav2vec2_resampled_nontrainable_wild
   - model/settings: faceformer
   # - model/sequence_encoder@model/sequence_encoder: linear 
   - model/sequence_encoder@model/sequence_encoder: linear_bertprior
