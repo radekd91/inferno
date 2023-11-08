@@ -148,7 +148,7 @@ def submit_reconfigured_trainings():
         fixed_overrides += [f'data.split={split}']
         
     if model_output_dir is not None:
-        fixed_overrides += [f'inout/output_dir={model_output_dir}']
+        fixed_overrides += [f'inout.output_dir={model_output_dir}']
     
     # override the paths to the data
     if mead_input_dir is not None:

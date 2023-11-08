@@ -17,7 +17,6 @@ All rights reserved.
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
 import os, sys
-os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 from inferno.utils.condor import execute_on_cluster
 from pathlib import Path
 import inferno_apps.MotionPrior.training.train_motion_prior as script
@@ -46,7 +45,6 @@ if submit_ or __name__ != "__main__":
         if value == 'todo': 
             print("Please fill in the submission_settings.yaml file")
             sys.exit(0)
-
 
 
 def submit(cfg , bid=10):
@@ -192,7 +190,7 @@ def submit_trainings():
     if split is not None:
         fixed_overrides += [f'data.split={split}']
     if model_output_dir is not None:
-        fixed_overrides += [f'inout/output_dir={model_output_dir}']
+        fixed_overrides += [f'inout.output_dir={model_output_dir}']
     
     # override the paths to the data
     if mead_input_dir is not None:
