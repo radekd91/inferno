@@ -35,7 +35,10 @@ Current infernal projects:
 
 ### Dependencies
 
-1) Install [conda](https://docs.conda.io/en/latest/miniconda.html)
+1) Install [conda](https://docs.conda.io/en/latest/miniconda.html) and update its base environment: 
+```bash
+conda update -n base -c defaults conda
+```
 
 <!-- 2) Install [mamba](https://github.com/mamba-org/mamba) -->
 
@@ -67,14 +70,21 @@ bash pull_submodules.sh
 
 You can use [mamba](https://github.com/mamba-org/mamba) to create a conda environment (strongly recommended):
 
-```bash
+<!-- ```bash
 mamba env create python=3.8 --file conda-environment_py38_cu11_ubuntu.yml
+``` -->
+```bash
+mamba env create python=3.8 --file conda-environment_py38_cu11.yml
 ```
 
 but you can also use plain conda if you want (but it will be slower): 
-```bash
+<!-- ```bash
 conda env create python=3.8 --file conda-environment_py38_cu11_ubuntu.yml
+``` -->
+```bash
+conda env create python=3.8 --file conda-environment_py38_cu11.yml
 ```
+
 
 In case the specified pytorch version somehow did not install, try again manually: 
 ```bash

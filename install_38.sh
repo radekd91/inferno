@@ -20,7 +20,8 @@ else
     exit
 fi
 echo "Installing conda packages"
-mamba env update -n work38 --file conda-environment_py38_cu11_ubuntu.yml 
+# mamba env update -n work38 --file conda-environment_py38_cu11_ubuntu.yml 
+mamba env update -n work38 --file conda-environment_py38_cu11.yml 
 echo "Installing other requirements"
 pip install -r requirements38.txt
 pip install Cython==0.29
