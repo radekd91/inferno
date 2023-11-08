@@ -79,6 +79,10 @@ class FlamePreprocessor(Preprocessor):
             # B, T = nested_dict_access(batch, 'gt_exp', rec_type).shape[:2]
             
             exp = rec_dict['gt_exp'].view(B * T, -1)[..., :self.cfg.flame.n_exp]#.contiguous()
+            ## ensure that exp is of the correct size, if not pad with zeros
+            if exp.shape[-1] < self.cfg.flame.n_exp:
+                exp = F.pad(exp, (0, self.cfg.flame.n_exp - exp.shape[-1]), mode='constant', value=0)
+                
             jaw = rec_dict['gt_jaw'].view(B * T, -1)
             # exp = nested_dict_access(batch, 'gt_exp', rec_type).view(B * T, -1)[..., :self.cfg.flame.n_exp]#.contiguous()
             # jaw = nested_dict_access(batch, 'gt_jaw', rec_type).view(B * T, -1)

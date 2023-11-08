@@ -19,6 +19,7 @@ All rights reserved.
 
 import pytorch_lightning as pl 
 import torch
+import torch.nn.functional as F
 from torch import nn
 from typing import Any, Optional 
 from inferno.models.temporal.Bases import ShapeModel, Preprocessor
@@ -287,7 +288,12 @@ class MotionPrior(pl.LightningModule):
             elif self.cfg.model.sequence_components[key] == "flame_verts":
                 input_sequences += [rec_dict[prefix + key][..., :5023 * 3]]
             else:
-                input_sequences += [rec_dict[prefix + key][..., :self.cfg.model.sequence_components[key]]]
+                dim = self.cfg.model.sequence_components[key]
+                seq = rec_dict[prefix + key][..., :dim]
+                if seq.shape[-1] < dim and key in ['shape', 'exp']: # pad with zeros if the not using all dimensions
+                    difference = dim - seq.shape[-1]
+                    seq = F.pad(seq, (0, difference), mode='constant', value=0)
+                input_sequences += [seq]
         batch["input_sequence"] = torch.cat(input_sequences, dim=2)
         return batch
 
@@ -412,7 +418,10 @@ class MotionPrior(pl.LightningModule):
             metric_from_cfg = loss_cfg.get("metric", "mse_loss")
             metric = class_from_str(metric_from_cfg, torch.nn.functional)
             d = sample[loss_cfg.output_key].shape[-1]
-            loss_value = metric(rec_dict[loss_cfg.input_key][...,:d], sample[loss_cfg.output_key])
+            gt_exp = sample[loss_cfg.output_key]
+            if gt_exp.shape[-1] < d: ## pad GT with zeros if the not using all dimensions
+                gt_exp = F.pad(gt_exp, (0, d - gt_exp.shape[-1]), mode='constant', value=0)
+            loss_value = metric(gt_exp, sample[loss_cfg.output_key])
             return loss_value
         elif loss_name in ["jawpose_loss", "jaw_loss"]:
             # loss = class_from_str(loss_cfg["loss"])(metric=metric)
