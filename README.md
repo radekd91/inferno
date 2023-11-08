@@ -11,7 +11,7 @@
 </p> -->
 <a href="https://pytorch.org/get-started/locally/"><img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white"></a>
 <a href="https://pytorchlightning.ai/"><img alt="Lightning" src="https://img.shields.io/badge/-Lightning-792ee5?logo=pytorchlightning&logoColor=white"></a>
-<a href="https://discord.gg/3sJSPSVgSm"><img alt="Discord Shield" src="https://discordapp.com/api/guilds/BHtMqaePUN/widget.png?style=shield"/></a>
+<a href="https://discord.gg/3sJSPSVgSm"><img alt="Discord Shield" src="https://img.shields.io/discord/1171863785355628585?style=shield"/></a>
 
 
 Welcome to INFERNO. INFERNO is a library of tools and applications for deep-learning-based in-the-wild face reconstruction, animation and accompanying tasks. 
@@ -23,7 +23,7 @@ INFERNO makes heavy use of [FLAME](https://flame.is.tue.mpg.de/), [PyTorch](http
 
 Current infernal projects: 
 - [TalkingHead](inferno_apps/TalkingHead) 
-  - official release of [EMOTE: Emotional Speech- Driven Animation with Content- Emotion Disentanglement](https://emote.is.tue.mpg.de/index.html)
+  - official release of [EMOTE: Emotional Speech- Driven Animation with C ontent- Emotion Disentanglement](https://emote.is.tue.mpg.de/index.html)
   - tools to run, train or finetune speech-driven 3D avatars 
 - [FaceReconstruction](inferno_apps/EMOCA)
   - contains EMICA - a combination of [DECA](https://deca.is.tue.mpg.de/), [EMOCA](https://emoca.is.tue.mpg.de/), [SPECTRE](https://filby89.github.io/spectre/) and [MICA](https://zielon.github.io/mica/) which produces excellent results
