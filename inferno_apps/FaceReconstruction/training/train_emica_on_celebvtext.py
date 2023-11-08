@@ -208,17 +208,12 @@ def submit_trainings():
         # 'data/augmentations=none', ## no image augmentation
     ]
 
-    fixed_overrides_coarse = []
-    fixed_overrides_coarse += dataset_options
-
-    if not submit_: 
-        fixed_overrides_coarse += [
-            'inout.output_dir=/is/cluster/work/rdanecek/face_reconstruction/debug_trainings/',
-        ]
+    fixed_overrides = []
+    fixed_overrides += dataset_options
 
     # config_pairs = []
     for fmode in finetune_modes:
-        conf_overrides = fixed_overrides_coarse.copy()
+        conf_overrides = fixed_overrides.copy()
         conf_overrides += fmode[0]
 
         conf = script.configure(
