@@ -40,12 +40,12 @@ unzip -n MotionPrior.zip
 
 echo "Downloading static emotion feature extractor" 
 
-mkdir -p EmotionRecognition/face_reconstruction_based/image_based_networks 
-cd EmotionRecognition/face_reconstruction_based/image_based_networks 
+mkdir -p EmotionRecognition/image_based_networks 
+cd EmotionRecognition/image_based_networks 
 wget https://download.is.tue.mpg.de/emoca/assets/EmotionRecognition/image_based_networks/ResNet50.zip -O ResNet50.zip 
 echo "Extracting ResNet 50"
 unzip -n ResNet50.zip
-cd ../../..
+cd ../..
 
 echo "Downloading Video Emotion Recognition net"
 wget https://download.is.tue.mpg.de/emote/VideoEmotionRecognition.zip 
