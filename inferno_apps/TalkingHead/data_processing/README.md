@@ -1,7 +1,19 @@
-# Preprocessed MEAD video data
-Coming soon...
+# Preparing MEAD video data
+In order to train EMOTE, you will need the processed MEAD dataset. 
 
-# MEAD video data processing 
+1) Go to the [MEAD website](https://github.com/uniBruce/Mead) and download the dataset.
+
+2) Download the processed data by running:
+
+```bash
+download_processed_mead.sh
+```
+Instead of downloading the processed data, you can also process the dataset yourself. You can find the instructions on that below.
+
+3) Coming soon
+
+
+# Processing MEAD video data processing 
 
 This README will describe all you need to process the MEAD dataset. 
 
