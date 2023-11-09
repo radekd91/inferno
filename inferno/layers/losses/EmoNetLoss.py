@@ -85,6 +85,8 @@ def create_emo_loss(device, emoloss = None, trainable=False, dual=False, normali
                                                normalize_features=normalize_features, emo_feat_loss=emo_feat_loss)
         else:
             raise ValueError("Please specify the directory which contains the config of the trained Emonet.")
+    else: 
+        raise TypeError(f"Wrong type of emoloss: {type(emoloss)}")
 
 
 def create_au_loss(device, au_loss):

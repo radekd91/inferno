@@ -1827,6 +1827,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                         video_writer = None
 
                     output_path = out_file_video[rec_method].parent / f"rec_unposed_audio.mp4"
+                    output_path.parent.mkdir(exist_ok=True, parents=True)
 
                     if not output_path.is_file():
                         audio_path = self._get_path_to_sequence_audio(sequence_id)

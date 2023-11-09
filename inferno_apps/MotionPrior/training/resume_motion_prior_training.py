@@ -16,7 +16,8 @@ All rights reserved.
 # For comments or questions, please email us at emote@tue.mpg.de
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 """
-
+import os, sys
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 from inferno_apps.MotionPrior.training.train_motion_prior import resume_training
 import sys, os
 

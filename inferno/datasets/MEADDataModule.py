@@ -410,7 +410,8 @@ class MEADDataModule(FaceVideoDataModule):
             self._detect_landmarkes_in_aligned_sequence(idx)
 
         if reconstruct_faces: 
-            rec_methods = ["EMICA-MEAD_flame2020"]
+            # rec_methods = ["EMICA-MEAD_flame2020"]
+            rec_methods = ["/is/cluster/work/rdanecek/face_reconstruction/trainings/2023_11_02_18-40-00_3717850753128516540_FaceReconstructionBase_MEADD_ResNet50_Pe"]
             # rec_methods = ["EMICA-MEAD_flame2023"]
             self._reconstruct_faces_in_sequence_v2(
                         idx, reconstruction_net=None, device=None,
