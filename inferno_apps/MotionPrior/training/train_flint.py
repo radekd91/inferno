@@ -27,8 +27,8 @@ from omegaconf import DictConfig, OmegaConf, open_dict
 import time as t
 import random
 
-submit_ = False
-# submit_ = True
+# submit_ = False
+submit_ = True
 
 if submit_ or __name__ != "__main__":
     config_path = Path(__file__).parent / "submission_settings.yaml"
@@ -148,8 +148,6 @@ def submit_trainings():
     ## 2) FLINT config dataset settings
     ## a) dataset config name
     dataset = "mead_pseudo_gt"
-    # reconstruction_type = "EMICA_v0_mp_lr_mse_15"
-    # tags += ['EMICA_v0'] 
     # reconstruction_type = "EMICA_mead_mp_lr_mse_15" ## old version of data used in EMOTE paper
     # tags += ['EMICA_v1']
     reconstruction_type = "EMICA-MEAD_flame2020" ## new version of data with much better reconstructions
@@ -244,6 +242,7 @@ def submit_trainings():
                     # kl_weights = [None]
                     # kl_weights = [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05]
                     kl_weights = [0.001] ## final setting
+                    # kl_weights = [0.1] 
                     for kl_weight in kl_weights:
                         if kl_weight is not None:
                             overrides += ['learning.losses.kl_divergence.weight=' + str(kl_weight)]
