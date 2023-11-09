@@ -361,7 +361,10 @@ class MotionPrior(pl.LightningModule):
         The sequence lenghts must be divisible by the 2 ** model's quant size """
         quant_factor = self.cfg.model.sizes.quant_factor 
         factor = 2 ** quant_factor
-        T = batch["gt_expression"].shape[1] if "gt_expression" in batch.keys() else batch["gt_vertices"].shape[1]
+        try:
+            T = batch["gt_expression"].shape[1] if "gt_expression" in batch.keys() else batch["gt_vertices"].shape[1]
+        except KeyError:
+            T = batch["frame_indices"].shape[1]
         T_trim = (T // factor) * factor
         batch = temporal_trim_dict(batch, start_frame=0, end_frame=T_trim, is_batched=True)
         return batch

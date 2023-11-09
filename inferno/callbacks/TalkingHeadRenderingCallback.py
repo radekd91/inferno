@@ -149,7 +149,10 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
                     mesh_path = path / (self.image_format % frame_index + ".obj")
                     mesh.export(mesh_path)
 
-                raw_audio_chunk = batch["raw_audio"][b,t].detach().cpu().numpy()
+                if 'raw_audio' in batch.keys():
+                    raw_audio_chunk = batch["raw_audio"][b,t].detach().cpu().numpy()
+                else: 
+                    raw_audio_chunk = None
                 if self.save_frames_to_disk:
                     if 'raw_audio' in batch.keys():
                         audio_chunk_path = path / (self.image_format % frame_index + ".pkl")
@@ -158,12 +161,14 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
                 else: 
                     if not hasattr(self, "_audio_cache"):
                         self._audio_cache = []
-                    self._audio_cache += [raw_audio_chunk]
+                    if raw_audio_chunk is not None:
+                        self._audio_cache += [raw_audio_chunk]
 
             if not self.save_frames_to_disk and len(self._image_cache) > 0:
                 # write the video
                 # self._compose_chunked_audio(path, samplerate=self.audio_samplerates_to_process[path])
-                self._compose_chunked_audio(path, samplerate=self.audio_samplerates_to_process[path], audio_chunks=self._audio_cache)
+                if len(self._audio_cache) > 0:
+                    self._compose_chunked_audio(path, samplerate=self.audio_samplerates_to_process[path], audio_chunks=self._audio_cache)
                 self._save_video_from_tensor(self._image_cache, self.video_framerates_to_process[path], path)
 
                 self._image_cache = []
@@ -194,11 +199,10 @@ class TalkingHeadTestRenderingCallback(pl.Callback):
             # remove the video without audio
             video_path.unlink()
             # remove the audio file
+            audio_path.unlink()
         else: 
             video_path.rename(path / "output.mp4")
 
-        # remove the audio file
-        audio_path.unlink()
         
 
     def on_test_epoch_end(self, trainer, pl_module):
