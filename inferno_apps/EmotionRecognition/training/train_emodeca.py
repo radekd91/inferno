@@ -23,6 +23,8 @@ try:
     from inferno.models.external.EmoDeep3DFace import EmoDeep3DFace
 except ImportError as e:
     print("Could not import EmoDeep3DFace")
+except OSError as e:
+    print("Could not import EmoDeep3DFace")
 # warning: external import collision
 # try:
     # from inferno.models.external.Emo3DDFA_V2 import Emo3DDFA_v2
@@ -52,6 +54,12 @@ import datetime
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from inferno_apps.EMOCA.utils.load import hack_paths
+
+
+try:
+    from inferno.sandbox.infernal.models.EmotionRecognition.EmoFocus import EmoFocus
+except ImportError as e:
+    print("Could not import EmoShapeCycle")
 
 
 # project_name = 'EmoDECA'
@@ -188,6 +196,8 @@ def single_stage_deca_pass(deca, cfg, stage, prefix, dm=None, logger=None,
                 try:
                     from inferno.models.external.EmoDeep3DFace import EmoDeep3DFace
                 except ImportError as e:
+                    print("Could not import EmoDeep3DFace")
+                except OSError as e: 
                     print("Could not import EmoDeep3DFace")
             if cfg.model.emodeca_type == 'Emo3DDFA_v2':
                 ## ugly and yucky import but otherwise there's import collisions with EmoDeep3DFace

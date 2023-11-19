@@ -34,6 +34,7 @@ import copy
 import soundfile as sf
 from psbody.mesh import Mesh
 from inferno.utils.other import get_path_to_assets
+import omegaconf
 
 
 def create_condition(talking_head, sample, emotions=None, intensities=None, identities=None):
@@ -150,13 +151,14 @@ def create_base_sample(talking_head, audio_path, smallest_unit=1, silent_frames_
     if silence_all:
         sample["raw_audio"] = np.zeros_like(sample["raw_audio"])
     T = sample["raw_audio"].shape[0]
+    reconstruction_type = talking_head.cfg.data.reconstruction_type[0] if isinstance(talking_head.cfg.data.reconstruction_type, (list, omegaconf.ListConfig)) else talking_head.cfg.data.reconstruction_type
     sample["reconstruction"] = {}
-    sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]] = {} 
-    sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]]["gt_exp"] = np.zeros((T, 50), dtype=np.float32)
-    sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]]["gt_shape"] = np.zeros((300), dtype=np.float32)
-    # sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]]["gt_shape"] = np.zeros((T, 300), dtype=np.float32)
-    sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]]["gt_jaw"] = np.zeros((T, 3), dtype=np.float32)
-    sample["reconstruction"][talking_head.cfg.data.reconstruction_type[0]]["gt_tex"] = np.zeros((50), dtype=np.float32)
+    sample["reconstruction"][reconstruction_type] = {} 
+    sample["reconstruction"][reconstruction_type]["gt_exp"] = np.zeros((T, 50), dtype=np.float32)
+    sample["reconstruction"][reconstruction_type]["gt_shape"] = np.zeros((300), dtype=np.float32)
+    # sample["reconstruction"][reconstruction_type]["gt_shape"] = np.zeros((T, 300), dtype=np.float32)
+    sample["reconstruction"][reconstruction_type]["gt_jaw"] = np.zeros((T, 3), dtype=np.float32)
+    sample["reconstruction"][reconstruction_type]["gt_tex"] = np.zeros((50), dtype=np.float32)
     sample = create_condition(talking_head, sample)
     return sample
 
