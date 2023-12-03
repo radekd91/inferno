@@ -24,8 +24,8 @@ from omegaconf import DictConfig, OmegaConf, open_dict
 from inferno.utils.other import get_path_to_assets
 
 
-submit_ = False
-# submit_ = True
+# submit_ = False
+submit_ = True
 
 
 def submit_reconfigured_trainings():
@@ -49,14 +49,20 @@ def submit_reconfigured_trainings():
     w_lip_reading_dis = w_emotion_dis * wl_multiplier
 
     lr_emo_weights = [
-        (w_lip_reading,      w_lip_reading_dis,        w_emotion,         w_emotion_dis)
+        # (w_lip_reading,      w_lip_reading_dis,        w_emotion,         w_emotion_dis), ## good weight for EMOTE v1
+        # (w_lip_reading,      w_lip_reading_dis,        w_emotion*1.2,         w_emotion_dis*1.2),
+        # (w_lip_reading,      w_lip_reading_dis,        w_emotion*0.8,         w_emotion_dis*0.8), ## to strong for EMOTE v2
+        # (w_lip_reading,      w_lip_reading_dis,        w_emotion*0.7,         w_emotion_dis*0.7),
+        (w_lip_reading,      w_lip_reading_dis,        w_emotion*0.6,         w_emotion_dis*0.6),
+        # (w_lip_reading,      w_lip_reading_dis,        w_emotion*0.5,         w_emotion_dis*0.5), ## ok for EMOTE v2
+        # (w_lip_reading,      w_lip_reading_dis,        w_emotion*0.25,         w_emotion_dis*0.25),
+        # (w_lip_reading,      w_lip_reading_dis,        w_emotion*0.1,         w_emotion_dis*0.1),
     ]
 
     ## 4) Set the paths to the models 
     path_to_talkinghead_models = "<YOUR_TALKINGHEAD_EXPERIMENT_FOLDER>"
     
-    ##5) EMOTE-stage-1 model names to be finetuned
-    resume_folders = []
+    ##5) EMOTE-stage-1 model names to be finetuned  
     # resume_folders += ["<YOUR_EMOTE_STAGE_1_MODEL>"]
 
 
@@ -80,9 +86,10 @@ def submit_reconfigured_trainings():
 
 
     ## 7) set the video emotion network(s) to be used
-    path_to_video_emotion = get_path_to_assets() / "VideoEmotionRecognition" / "models"
+    # path_to_video_emotion = get_path_to_assets() / "VideoEmotionRecognition" / "models"
+    path_to_video_emotion = Path("/is/cluster/work/rdanecek/video_emotion_recognition/trainings/")
     video_emotion_networks = []
-    video_emotion_networks += ["VideoEmotionAndIntensityClassifier"]
+    video_emotion_networks += ["2023_04_12_15-14-44_6653765603916292046_VideoEmotionClassifier_MEADP__TSC_NPE_L_early"]
     # video_emotion_networks += ["<YOUR_OWN_VIDEO_EMOTION_NETWORK>"]
     
     
@@ -107,6 +114,9 @@ def submit_reconfigured_trainings():
     # reconstruction_type = "EMICA_mead_mp_lr_mse_15" ## old version of data used in EMOTE paper
     reconstruction_type = "EMICA-MEAD_flame2020" ## new version of data with much better reconstructions
     batching = "fixed_length_bs4_45gb"
+    
+    # if not submit_:
+        # batching = "fixed_length_bs2" ## small for debugging on workstations
 
     if "rendering" in conf: 
         preprocessor = None
@@ -119,7 +129,7 @@ def submit_reconfigured_trainings():
     ## split = "random_by_sequence_random_70_15_15" 
     # split = "random_by_sequence_sorted_70_15_15" 
     ## split = "random_by_identityV2_random_70_15_15" 
-    split = "random_by_identityV2_sorted_70_15_15" 
+    split = "random_by_identityV2_sorted_70_15_15"  ## EMOTE split
     ## split = "specific_identity_random_80_20_M003"
     # split = "specific_identity_sorted_80_20_M003"
     ## split = "specific_identity_random_80_20_M005"
@@ -186,12 +196,14 @@ def submit_reconfigured_trainings():
                 if "bertprior_wild_rendering_ex_vid" in conf:
                     fixed_overrides += [f'learning.losses.emotion_video_loss_disentangled.network_path={str(path_to_video_emotion / video_emo_net)}']
                     fixed_overrides += [f'learning.losses.emotion_video_loss_disentangled.use_real_video_for_reference={str(use_real_video_for_emotion_reference)}']
-                    fixed_overrides += ['model.max_epochs=2']
+                    fixed_overrides += [f'learning.losses.emotion_video_loss_disentangled.target_method_image={str(reconstruction_type)}']
+                    # fixed_overrides += ['model.max_epochs=2']
             
             if "bertprior_wild_rendering_ex" == conf:
                     fixed_overrides += [f'learning.losses.emotion_loss.use_real_video_for_reference={str(use_real_video_for_emotion_reference)}']
                     fixed_overrides += [f'learning.losses.emotion_loss_disentangled.use_real_video_for_reference={str(use_real_video_for_emotion_reference)}']
-                    fixed_overrides += ['model.max_epochs=2']
+                    fixed_overrides += [f'learning.losses.emotion_loss_disentangled.target_method_image={str(reconstruction_type)}']
+                    # fixed_overrides += ['model.max_epochs=2']
 
             if "bertprior_wild_rendering_ex" in conf:
                 fixed_overrides += [f'+learning.losses.lip_reading_loss.use_real_video_for_reference={str(use_real_video_for_lip_reference)}']                

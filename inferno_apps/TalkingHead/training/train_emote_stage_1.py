@@ -161,18 +161,19 @@ def submit_trainings():
     dataset = "mead_pseudo_gt"
     # reconstruction_type = "EMICA_mead_mp_lr_mse_15" ## old version of data used in EMOTE paper
     reconstruction_type = "EMICA-MEAD_flame2020" ## new version of data with much better reconstructions
-    batching = "fixed_length_bs32_seq32"
+    # batching = "fixed_length_bs32_seq32"
+    batching = "fixed_length_bs4_45gb"
 
     preprocessor = "flame_tex"
         
     ### MEAD splits
     ## split = "random_70_15_15"
     ## split = "random_by_sequence_random_70_15_15" 
-    # split = "random_by_sequence_sorted_70_15_15" 
+    # split = "random_by_sequence_sorted_70_15_15" ## identity overlap between train/val/test (not used in paper EMOTE)
     ## split = "random_by_identityV2_random_70_15_15" 
-    split = "random_by_identityV2_sorted_70_15_15" 
+    split = "random_by_identityV2_sorted_70_15_15" ## split used to train EMOTE (no identity overlap between train/val/test)
     ## split = "specific_identity_random_80_20_M003"
-    # split = "specific_identity_sorted_80_20_M003"
+    # split = "specific_identity_sorted_80_20_M003" ## specific identity (M003) for quick testing
     ## split = "specific_identity_random_80_20_M005"
     # split = "specific_identity_sorted_80_20_M005"
     
@@ -186,9 +187,10 @@ def submit_trainings():
     
 
     ## 4) Motion prior - Choose your motion prior (aka FLINT)
-    motion_prior_path = get_path_to_assets() / "MotionPrior" / "models"
-    motion_prior_name = "FLINT"
-
+    # motion_prior_path = get_path_to_assets() / "MotionPrior" / "models"
+    motion_prior_path = Path("MotionPrior") / "models"
+    # motion_prior_name = "FLINT" ## FLINT in EMOTE paper
+    motion_prior_name = "FLINTv2"  ## FLINT of EMOTE v2
     fixed_overrides = []
 
     ## specify the motion prior for EMOTE 

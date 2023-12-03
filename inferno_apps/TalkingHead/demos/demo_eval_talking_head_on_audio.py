@@ -97,14 +97,14 @@ training_ids = ['M003', 'M005', 'M007', 'M009', 'M011', 'M012', 'M013', 'M019',
 # val_ids = ['M032', 'M033', 'M034', 'M035', 'W033', 'W035', 'W036'] 
 # test_ids = ['M037', 'M039', 'M040', 'M041', 'M042', 'W037', 'W038', 'W040']
 
-
 def main(): 
     
     parser = argparse.ArgumentParser()
     # add the input folder arg 
     parser.add_argument('--path_to_audio', type=str, default= str(get_path_to_assets() / "data/EMOTE_test_example_data/01_gday.wav"))
     parser.add_argument('--output_folder', type=str, default="results", help="Output folder to save the results to.")
-    parser.add_argument('--model_name', type=str, default='EMOTE', help='Name of the model to use.')
+    # parser.add_argument('--model_name', type=str, default='EMOTE', help='Name of the model to use.')
+    parser.add_argument('--model_name', type=str, default='EMOTEv2', help='Name of the model to use.')
     parser.add_argument('--path_to_models', type=str, default=str(get_path_to_assets() / "TalkingHead/models"))
     parser.add_argument('--save_video', type=bool, default=True, help="If true, output images will be saved")
     parser.add_argument('--save_flame', type=bool, default=False, help="If true, output FLAME values for shape, expression, jaw pose will be saved")
@@ -116,11 +116,8 @@ def main():
     parser.add_argument('--subject_style', type=str, default='M003', help=f"Which subject style to use. Styles available: \n{training_ids}")
     parser.add_argument('--neutral_mesh_path', type=str, default='', help="Path to the neutral mesh. If blank, the default FLAME mean face will be used")
     parser.add_argument('--emotion', type=str, default='all', help="The emotion to generate. One of: neutral, Happy, Sad, Surprise, Fear, Disgust, Anger, Contempt. If 'all', all emotions will be generated.")
-    parser.add_argument('--intensity', type=str, default='2', help="The emotion intesntiy. One of: 0, 1, 2. If 'all', all emotions will be generated.")
-    # parser.add_argument('--neutral_mesh_path', type=str, default='/is/cluster/work/rdanecek/faceformer/templates/FaceTalk_170809_00138_TA.ply', 
-    # parser.add_argument('--neutral_mesh_path', type=str, default='/is/cluster/work/rdanecek/faceformer/templates/FaceTalk_170731_00024_TA.ply', 
-    #                     help="Path to the neutral mesh. If blank, the default FLAME mean face will be used")
-    
+    parser.add_argument('--intensity', type=str, default='2', help="The emotion intentsity. One of: 0, 1, 2. If 'all', all emotions will be generated.")
+
     args = parser.parse_args()
 
     root = args.path_to_models
@@ -155,7 +152,7 @@ def main():
         silent_frames_end=args.silent_frames_end, 
         silent_emotion_start=args.silent_emotion_start,
         silent_emotion_end=args.silent_emotion_end,
-        outfolder=args.output_folder,
+        outfolder=str(Path(args.output_folder) / args.model_name),
         identity_idx = subject_id, 
         save_flame=args.save_flame,
         save_meshes=args.save_mesh,
