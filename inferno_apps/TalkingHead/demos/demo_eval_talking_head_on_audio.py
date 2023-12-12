@@ -104,7 +104,7 @@ def main():
     parser.add_argument('--path_to_audio', type=str, default= str(get_path_to_assets() / "data/EMOTE_test_example_data/01_gday.wav"))
     parser.add_argument('--output_folder', type=str, default="results", help="Output folder to save the results to.")
     # parser.add_argument('--model_name', type=str, default='EMOTE', help='Name of the model to use.')
-    parser.add_argument('--model_name', type=str, default='EMOTEv2', help='Name of the model to use.')
+    parser.add_argument('--model_name', type=str, default='EMOTE_v2', help='Name of the model to use.')
     parser.add_argument('--path_to_models', type=str, default=str(get_path_to_assets() / "TalkingHead/models"))
     parser.add_argument('--save_video', type=bool, default=True, help="If true, output images will be saved")
     parser.add_argument('--save_flame', type=bool, default=False, help="If true, output FLAME values for shape, expression, jaw pose will be saved")

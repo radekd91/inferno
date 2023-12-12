@@ -38,6 +38,9 @@
 This is the official implementation of [EMOTE : Emotional Speech-Driven Animation with Copntent-Emotion Disentanglement](https://emote.is.tue.mpg.de/). 
 EMOTE takes speech audio and an emotion and intensity labels on the input and produces a talking head avatar that correctly articulates the words spoken in the audio while expressing the specified emotion.
 
+## News 
+- (13th Dec. 2023) EMOTE v2 is now out! It is trained on a newer iteration of the data and should give better results overall. EMOTE v1 is still available. Please see the demo script for details.
+
 
 ## Installation 
 
