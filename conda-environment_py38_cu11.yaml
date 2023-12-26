@@ -1,4 +1,4 @@
-name: work38_clean
+name: work38
 channels:
   - tensorly
   - pytorch
