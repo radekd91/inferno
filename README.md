@@ -135,7 +135,8 @@ Notes:
 2) Some people experience import issues with opencv-python from either pip or conda. If the OpenCV version installed by the automated script does not work for you (i.e. it does not import without errors), try updating with `pip install -U opencv-python` or installing it through other means. 
 The install script installs `opencv-python~=4.5.1.48` installed via `pip`.
 
-
+### Docker 
+Docker installation now available. Please go to the [docker folder](./docker/README.md)
 
 ## Structure 
 This repo has two subpackages. `inferno` and `inferno_apps` 
