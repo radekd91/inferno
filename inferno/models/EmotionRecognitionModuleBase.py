@@ -29,7 +29,6 @@ from inferno.layers.losses.EmonetLoader import get_emonet
 from inferno.utils.emotion_metrics import *
 from torch.nn.functional import mse_loss, cross_entropy, nll_loss, l1_loss, log_softmax
 import sys
-import adabound
 from inferno.datasets.EmotioNetDataModule import ActionUnitTypes
 
 
@@ -141,6 +140,7 @@ class EmotionRecognitionBaseModule(pl.LightningModule):
                 lr=self.config.learning.learning_rate,
                 amsgrad=False)
         elif self.config.learning.optimizer == 'AdaBound':
+            import adabound
             opt = adabound.AdaBound(
                 trainable_params,
                 lr=self.config.learning.learning_rate,

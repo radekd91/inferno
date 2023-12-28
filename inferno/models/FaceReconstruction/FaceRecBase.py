@@ -27,7 +27,6 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
-import adabound
 import cv2
 import numpy as np
 import pytorch_lightning.plugins.environments.lightning_environment as le
@@ -226,6 +225,7 @@ class FaceReconstructionBase(LightningModule):
                 lr=self.cfg.learning.learning_rate,
                 amsgrad=False)
         elif self.cfg.learning.optimizer == 'AdaBound':
+            import adabound
             opt = adabound.AdaBound(
                 trainable_params,
                 lr=self.cfg.learning.learning_rate,

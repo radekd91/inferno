@@ -26,7 +26,6 @@ import torch
 import torchvision
 import torch.nn.functional as F
 import torchvision.transforms.functional as F_v
-import adabound
 from pytorch_lightning import LightningModule
 from pytorch_lightning.loggers import WandbLogger
 from inferno.layers.losses.EmoNetLoss import EmoNetLoss, create_emo_loss, create_au_loss
@@ -2721,6 +2720,7 @@ class DecaModule(LightningModule):
                 lr=self.learning_params.learning_rate,
                 amsgrad=False)
         elif self.config.learning.optimizer == 'AdaBound':
+            import adabound
             self.deca.opt = adabound.AdaBound(
                 trainable_params,
                 lr=self.config.learning.learning_rate,
