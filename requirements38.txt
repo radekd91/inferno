@@ -31,4 +31,4 @@ torchfile==0.1.0
 transformers==4.22.2
 trimesh==3.6.43
 wandb==0.10.33
-prototobuf==3.13.0
+protobuf==3.13.0
