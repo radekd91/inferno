@@ -24,8 +24,8 @@ INFERNO makes heavy use of [FLAME](https://flame.is.tue.mpg.de/), [PyTorch](http
 Current infernal projects: 
 - [TalkingHead](inferno_apps/TalkingHead) 
   - official release of [EMOTE: Emotional Speech- Driven Animation with C ontent- Emotion Disentanglement](https://emote.is.tue.mpg.de/index.html)
-  - tools to run, train or finetune speech-driven 3D avatars 
-- [FaceReconstruction](inferno_apps/EMOCA)
+  - tools to run, train or finetune speech-driven 3D avatars
+- [FaceReconstruction](inferno_apps/FaceReconstruction)
   - contains EMICA - a combination of [DECA](https://deca.is.tue.mpg.de/), [EMOCA](https://emoca.is.tue.mpg.de/), [SPECTRE](https://filby89.github.io/spectre/) and [MICA](https://zielon.github.io/mica/) which produces excellent results
   - tools to run, train or fine-tune state-of-the-art in-the-wild face reconstruction 
 - [MotionPrior](inferno_apps/MotionPrior) 
