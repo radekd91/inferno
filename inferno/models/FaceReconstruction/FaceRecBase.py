@@ -409,11 +409,12 @@ class FaceReconstructionBase(LightningModule):
         visdict['landmarks_pred_fan'] =  []
         visdict['landmarks_pred_mediapipe'] = []
         
-        if isinstance(batch['segmentation'], torch.Tensor):
-            visdict["mask"] = []
-        else:
-            for key, value in batch["segmentation"].items():
-                visdict["mask_" + key] = []
+        if 'segmentation' in batch.keys():
+            if isinstance(batch['segmentation'], torch.Tensor):
+                visdict["mask"] = []
+            else:
+                for key, value in batch["segmentation"].items():
+                    visdict["mask_" + key] = []
 
         verts = batch['verts']
         trans_verts = batch['trans_verts']
@@ -423,18 +424,22 @@ class FaceReconstructionBase(LightningModule):
             image = _torch_image2np(batch['image'][b]).clip(0, 1)
             visdict['image'] += [(image * 255.).astype(np.uint8)]
             
-            image_original = _torch_image2np(batch['image_original'][b]).clip(0, 1) 
-            visdict['image_original'] += [(image_original* 255.).astype(np.uint8)]
+            if 'image_original' in batch.keys():
+                image_original = _torch_image2np(batch['image_original'][b]).clip(0, 1) 
+                visdict['image_original'] += [(image_original* 255.).astype(np.uint8)]
+            else:
+                image_original = image
 
-            if isinstance(batch['segmentation'], torch.Tensor):
-                mask = batch['segmentation'][b].cpu().numpy().clip(0, 1)
-                mask = (mask * 255.).astype(np.uint8)
-                visdict['mask'] += [mask]
-            else: 
-                for key, value in batch["segmentation"].items():
-                    mask = value[b].cpu().numpy().clip(0, 1)
+            if 'segmentation' in batch.keys():
+                if isinstance(batch['segmentation'], torch.Tensor):
+                    mask = batch['segmentation'][b].cpu().numpy().clip(0, 1)
                     mask = (mask * 255.).astype(np.uint8)
-                    visdict["mask_" + key] = [mask]
+                    visdict['mask'] += [mask]
+                else: 
+                    for key, value in batch["segmentation"].items():
+                        mask = value[b].cpu().numpy().clip(0, 1)
+                        mask = (mask * 255.).astype(np.uint8)
+                        visdict["mask_" + key] = [mask]
 
             if 'predicted_image' in batch.keys():
                 visdict['predicted_image'] += [(_torch_image2np(batch['predicted_image'][b]).clip(0, 1) * 255.).astype(np.uint8)]
@@ -442,14 +447,15 @@ class FaceReconstructionBase(LightningModule):
             if 'predicted_mask' in batch.keys():
                 visdict['predicted_mask'] += [(_torch_image2np(batch['predicted_mask'][b]).clip(0, 1) * 255.).astype(np.uint8)]
 
-            if 'fan3d' in batch['landmarks'].keys():
-                landmark_gt_fan = util.tensor_vis_landmarks_single_image(
-                image_original, batch['landmarks']['fan3d'][b].cpu().numpy()) 
-                visdict['landmarks_gt_fan'] += [(landmark_gt_fan * 255.).astype(np.uint8)]
-            
-            landmarks_gt_mediapipe = draw_mediapipe_landmarks(image_original, 
-                        batch['landmarks']['mediapipe'][b].cpu().numpy()).astype(np.uint8)
-            visdict['landmarks_gt_mediapipe'] += [landmarks_gt_mediapipe]
+            if "landmarks" in batch.keys():
+                if 'fan3d' in batch['landmarks'].keys():
+                    landmark_gt_fan = util.tensor_vis_landmarks_single_image(
+                    image_original, batch['landmarks']['fan3d'][b].cpu().numpy()) 
+                    visdict['landmarks_gt_fan'] += [(landmark_gt_fan * 255.).astype(np.uint8)]
+                
+                landmarks_gt_mediapipe = draw_mediapipe_landmarks(image_original, 
+                            batch['landmarks']['mediapipe'][b].cpu().numpy()).astype(np.uint8)
+                visdict['landmarks_gt_mediapipe'] += [landmarks_gt_mediapipe]
             
             landmarks_pred_fan = util.tensor_vis_landmarks_single_image(
                 image_original, batch['predicted_landmarks'][b].detach().cpu().numpy())
@@ -741,7 +747,7 @@ class FaceReconstructionBase(LightningModule):
 
 
     @classmethod
-    def instantiate(cls, cfg, stage=None, prefix=None, checkpoint=None, checkpoint_kwargs=None) -> 'FaceReconstructionBase':
+    def instantiate(cls, cfg, stage=None, prefix=None, checkpoint=None, checkpoint_kwargs=None, strict=True) -> 'FaceReconstructionBase':
         """
         Function that instantiates the model from checkpoint or config
         """
@@ -752,7 +758,7 @@ class FaceReconstructionBase(LightningModule):
             model = FaceReconstructionBase.load_from_checkpoint(
                 checkpoint_path=checkpoint, 
                 cfg=cfg, 
-                strict=True, 
+                strict=strict,
                 **checkpoint_kwargs
             )
         return model

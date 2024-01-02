@@ -28,6 +28,11 @@ class MicaInputProcessor(object):
             self.app.prepare(det_size=(224, 224))
         elif mode == 'fan': 
             self.app = None
+
+    def _instantiate_face_analysis(self): 
+        from .FaceAnalysisAppTorch import FaceAnalysis as FaceAnalysisTorch
+        self.app = FaceAnalysisTorch(name='antelopev2')
+        self.app.prepare(det_size=(224, 224))
         
     def to(self, *args, device=None, **kwargs):
         if device is not None:
@@ -45,7 +50,12 @@ class MicaInputProcessor(object):
         elif self.mode in [False, 'none']: 
             mica_image = F.interpolate(input_image, (112,112), mode='bilinear', align_corners=False)
         elif self.mode == 'fan':
-            mica_image = self._fan_image_preprocessing(input_image, fan_landmarks, landmarks_validity=landmarks_validity)
+            if fan_landmarks is not None:
+                mica_image = self._fan_image_preprocessing(input_image, fan_landmarks, landmarks_validity=landmarks_validity)
+            else: 
+                if self.app is None:
+                    self._instantiate_face_analysis()
+                mica_image = self._dirty_image_preprocessing(input_image)
         else: 
             raise ValueError(f"Invalid mica_preprocessing option: '{self.mode}'")
         if not batched:

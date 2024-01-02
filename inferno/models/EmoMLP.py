@@ -29,7 +29,6 @@ from inferno.layers.losses.EmonetLoader import get_emonet
 from inferno.utils.emotion_metrics import *
 from torch.nn.functional import mse_loss, cross_entropy, nll_loss, l1_loss, log_softmax
 import sys
-import adabound
 from inferno.datasets.EmotioNetDataModule import ActionUnitTypes
 from torch.nn import BatchNorm1d, InstanceNorm1d
 from .EmotionRecognitionModuleBase import EmotionRecognitionBaseModule

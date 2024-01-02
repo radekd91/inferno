@@ -2207,7 +2207,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 # vis_im = vis_im[:, :, ...]
 
                 # vis_mask = np.prod(vis_im, axis=2) == 0
-                mask_name = vis_name.parent / "geometry_coarse.png"
+                mask_name = vis_name.parent / "geometry.png"
                 mask_im = imread(mask_name)
 
                 # a hacky way to get the mask
@@ -3756,7 +3756,7 @@ class TestFaceVideoDM(FaceVideoDataModule):
             out_folder = Path(out_folder)
         if image_type is None:
             image_type = "geometry_detail"
-        assert image_type in ["geometry_detail", "geometry_coarse", "out_im_detail", "out_im_coarse"], f"Invalid image type: '{image_type}'"
+        assert image_type in ["geometry_detail", "geometry_coarse", "out_im_detail", "out_im_coarse", "geometry"], f"Invalid image type: '{image_type}'"
         # use subprocess to find all the image_type.png files in the out_folder, 
         # and sort them. 
         # vis_fnames = subprocess.check_output(["find", str(out_folder), "-name", f"{image_type}.png"])

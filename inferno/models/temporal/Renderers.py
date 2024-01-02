@@ -137,7 +137,22 @@ class FlameRenderer(Renderer):
 
     def forward(self, sample): 
         verts = sample["verts"]
-        albedo = sample["albedo"]
+        
+        if verts.ndim == 4:
+            B = verts.shape[0]
+            T = verts.shape[1]
+        else: 
+            B = verts.shape[0]
+            T = None
+
+        if "albedo" in sample:
+            albedo = sample["albedo"]
+        else:
+            # albedo is [batch_size, 3, h, w], uv map
+            ## set to gray albedo if missing
+            albedo = torch.zeros(B, 3, self.render.uv_size, self.render.uv_size).to(verts.device)
+            if T is not None:
+                albedo = albedo.unsqueeze(1).expand(B, T, *albedo.shape[1:])
         if self.project_landmarks:
             landmarks2d = None 
             landmarks3d = None
@@ -150,13 +165,6 @@ class FlameRenderer(Renderer):
                 landmarks2d_mediapipe = sample["predicted_landmarks2d_mediapipe_flame_space"]
         cam = sample["cam"]
         lightcode = sample["lightcode"]
-
-        if verts.ndim == 4:
-            B = verts.shape[0]
-            T = verts.shape[1]
-        else: 
-            B = verts.shape[0]
-            T = None
 
         # batch temporal squeeze
         if T is not None:
