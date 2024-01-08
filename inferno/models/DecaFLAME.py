@@ -428,9 +428,15 @@ class FLAMETex(nn.Module):
             pc_key = 'PC'
             n_pc = 199
             tex_path = config.tex_path
-            tex_space = np.load(tex_path)
-            texture_mean = tex_space[mu_key].reshape(1, -1)
-            texture_basis = tex_space[pc_key].reshape(-1, n_pc)
+            try:
+                tex_space = np.load(tex_path)
+                texture_mean = tex_space[mu_key].reshape(1, -1)
+                texture_basis = tex_space[pc_key].reshape(-1, n_pc)
+            except FileNotFoundError as e: 
+                im_size = 512 
+                texture_mean = np.ones((1, im_size*im_size*3)) * 0.5
+                texture_basis = np.eye(im_size*im_size*3, n_pc) * 0.5
+                print("[WARNING] texture file not found. Setting texture space with dummy values.")
 
         elif config.tex_type == 'FLAME':
             mu_key = 'mean'
