@@ -193,7 +193,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
             out_format = '-r 1 -i %s -r 1 ' % str(video_file) + ' "' + str(out_format) + '"'
             # out_format = ' -r 1 -i %s ' % str(video_file) + ' "' + "$frame.%03d.png" + '"'
             # subprocess.call(['ffmpeg', out_format])
-            os.system("ffmpeg " + out_format)
+            # os.system("ffmpeg " + out_format)
+
+            args = ['ffmpeg', '-r', '1', '-i', str(video_file), '-r', '1', str(out_format)]
+            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE) 
+            out, err = p.communicate()
+            if p.returncode != 0: 
+                raise Exception('ffprobe', out, err)
 
             # import ffmpeg
             # stream = ffmpeg.input(str(video_file))
@@ -3669,9 +3675,12 @@ def attach_audio_to_reconstruction_video(input_video, input_video_with_audio, ou
     if output_video.exists() and not overwrite:
         return
     output_video = str(output_video)
-    cmd = "ffmpeg -y -i %s -i %s -c copy -map 0:0 -map 1:1 -shortest %s" \
-          % (input_video, input_video_with_audio, output_video)
-    os.system(cmd)
+    # cmd = "ffmpeg -y -i %s -i %s -c copy -map 0:0 -map 1:1 -shortest %s" \
+    #       % (input_video, input_video_with_audio, output_video)
+    # os.system(cmd) 
+    cmd = ["ffmpeg", "-y", "-i", str(input_video), "-i", str(input_video_with_audio), "-c", "copy", "-map", "0:0", "-map", "1:1", "-shortest", str(output_video)],  
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  
+    out, err =  p.communicate()
     return output_video
 
 
