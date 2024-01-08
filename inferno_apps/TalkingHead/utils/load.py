@@ -37,11 +37,11 @@ def load_model(path_to_models,
         cfg.learning.losses = {}
         cfg.learning.metrics = {}
 
-    faceformer = load_faceformer(cfg, mode,)
-    return faceformer, cfg
+    talkinghead_model = load_talking_head(cfg, mode,)
+    return talkinghead_model, cfg
 
 
-def load_faceformer(
+def load_talking_head(
               cfg,
               mode,
               relative_to_path=None,

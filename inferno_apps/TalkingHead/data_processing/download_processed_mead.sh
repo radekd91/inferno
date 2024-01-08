@@ -74,8 +74,8 @@ echo "Unzipping the detected ladmarks..."
 unzip -q landmarks.zip
 echo "Unzipping the recognized emotions..."
 unzip -q emotions.zip
-# echo "Unzipping the reconstructions used in the EMOTE paper"
-# unzip -q reconstruction_v0.zip
+echo "Unzipping the reconstructions used in the EMOTE paper"
+unzip -q reconstruction_v0.zip
 echo "Unzipping the newer version of the reconstructions..."
 unzip -q reconstruction_v1.zip
 
