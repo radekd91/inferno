@@ -82,9 +82,20 @@ class FAN(FaceDetector):
         }
         self.flip_input = False
         if mode == '2D':
-            mode = face_alignment.LandmarksType._2D
+            try:
+                mode = face_alignment.LandmarksType._2D
+            except AttributeError:
+                mode = face_alignment.LandmarksType.TWO_D
+        elif mode == '2.5D':
+            try:
+                mode = face_alignment.LandmarksType._2halfD
+            except AttributeError:
+                mode = face_alignment.LandmarksType.TWO_HALF_D
         elif mode == '3D':
-            mode = face_alignment.LandmarksType._3D
+            try:
+                mode = face_alignment.LandmarksType._3D
+            except AttributeError:
+                mode = face_alignment.LandmarksType.THREE_D
         else:
             raise ValueError('mode must be 2D or 3D')
         self.model = face_alignment.FaceAlignment(mode,
