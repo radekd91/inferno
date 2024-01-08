@@ -74,6 +74,8 @@ class VideoFaceDetectionDataset(torch.utils.data.Dataset):
             self.total_len += len(self.landmark_list[i])
 
         self.output_im_range = output_im_range
+        self.next_frame_idx = 0 
+        self.previous_frame = None
 
 
     def __getitem__(self, index):
@@ -92,6 +94,25 @@ class VideoFaceDetectionDataset(torch.utils.data.Dataset):
             img = self.video_frames[frame_index, ...]
         elif isinstance(self.video_frames, GeneratorType):
             img = next(self.video_frames)
+
+            ## make sure the next frame to be read and the current frame are the same 
+            if frame_index > self.next_frame_idx: 
+                ## this can happen if a bunch of frames had no detections
+                while True:
+                    self.next_frame_idx +=1 
+                    img = next(self.video_frames)
+                    if self.next_frame_idx == frame_index:
+                        break
+            if self.next_frame_idx == detection_in_frame_index: 
+                self.video_frames = vreader(str(self.video_name))
+                self.next_frame_idx = frame_index 
+                img = next(self.video_frames)
+                self.previous_frame = img.copy()
+                self.next_frame_idx += 1
+            elif self.next_frame_idx -1  == frame_index:
+                assert self.previous_frame is not None, "No previous frame has been read yet"
+            else: 
+                raise RuntimeError("This dataset is meant to be accessed in ordered way only (and with 0 or 1 workers)")
         else: 
             raise NotImplementedError() 
 
