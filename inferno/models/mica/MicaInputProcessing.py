@@ -14,7 +14,7 @@ class MicaInputProcessor(object):
 
     def __init__(self, mode, crash_on_no_detection=False):
         super().__init__()
-        assert mode in ['default', 'ported_insightface', 'none', 'fan'], "mode must be one of 'default', 'ported_insightface', 'none'"
+        assert mode in ['default', 'ported_insightface', 'none', 'fan', 'fan3d', 'mediapipe'], "mode must be one of 'default', 'ported_insightface', 'fan', 'fan3d', 'mediapipe', 'none'"
         self.mode = mode
         self.crash_on_no_detection = crash_on_no_detection
         
@@ -26,7 +26,7 @@ class MicaInputProcessor(object):
             from .FaceAnalysisAppTorch import FaceAnalysis as FaceAnalysisTorch
             self.app = FaceAnalysisTorch(name='antelopev2')
             self.app.prepare(det_size=(224, 224))
-        elif mode == 'fan': 
+        elif mode in ['fan', 'mediapipe']: 
             self.app = None
 
     def _instantiate_face_analysis(self): 
@@ -56,11 +56,35 @@ class MicaInputProcessor(object):
                 if self.app is None:
                     self._instantiate_face_analysis()
                 mica_image = self._dirty_image_preprocessing(input_image)
+        elif self.mode == 'mediapipe':
+            if fan_landmarks is not None:
+                mica_image = self._mediapipe_image_preprocessing(input_image, fan_landmarks, landmarks_validity=landmarks_validity)
+            else: 
+                if self.app is None:
+                    self._instantiate_face_analysis()
+                mica_image = self._dirty_image_preprocessing(input_image)
         else: 
             raise ValueError(f"Invalid mica_preprocessing option: '{self.mode}'")
         if not batched:
             mica_image = mica_image.squeeze(0)
         return mica_image
+
+    def _mediapipe_image_preprocessing(self, input_image, mediapipe_landmarks, landmarks_validity=None): 
+        # landmarks_torch = False
+        if isinstance(mediapipe_landmarks, torch.Tensor):
+            mediapipe_landmarks = mediapipe_landmarks.detach().cpu().numpy()
+            # landmarks_torch = True
+
+        ## see this image: https://storage.googleapis.com/mediapipe-assets/documentation/mediapipe_face_landmark_fullsize.png 
+        ## mediapipe indices of left eye, right eye, nose, left mouth, right mouth
+        kpss = mediapipe_landmarks[:, [160, 387, 4, 78, 308], :]  # left eye, right eye, nose, left mouth, right mouth
+        kpss[:, 0, :] = mediapipe_landmarks[:, [158, 144], :].mean(1)  # center of eye
+        kpss[:, 1, :] = mediapipe_landmarks[:, [386, 374], :].mean(1) # 
+
+        ## from [-1, 1] to [o, input_image_size]
+        kpss = (kpss + 1) * (input_image.shape[1] / 2)
+
+        return self._landmark_image_preprocessing(input_image, kpss, landmarks_validity=landmarks_validity)
 
     def _fan_image_preprocessing(self, input_image, fan_landmarks, landmarks_validity=None):
         # landmarks_torch = False
@@ -68,6 +92,18 @@ class MicaInputProcessor(object):
             fan_landmarks = fan_landmarks.detach().cpu().numpy()
             # landmarks_torch = True
 
+        ## see this image: https://github.com/Rubikplayer/flame-fitting/blob/master/data/landmarks_51_annotated.png
+        lmk51 = fan_landmarks[:, 17:, :]
+        kpss = lmk51[:, [20, 27, 13, 43, 47], :]  # left eye, right eye, nose, left mouth, right mouth
+        kpss[:, 0, :] = lmk51[:, [21, 24], :].mean(1)  # center of eye
+        kpss[:, 1, :] = lmk51[:, [27, 29], :].mean(1)
+        
+        ## from [-1, 1] to [0, input_image_size]
+        kpss = (kpss + 1) * (input_image.shape[1] / 2)
+
+        return self._landmark_image_preprocessing(input_image, kpss, landmarks_validity=landmarks_validity)
+
+    def _landmark_image_preprocessing(self, input_image, kpss, landmarks_validity=None):
         image_torch = False
         if isinstance(input_image, torch.Tensor):
             dev = input_image.device
@@ -80,15 +116,6 @@ class MicaInputProcessor(object):
         if input_image.dtype == np.float32:
             is_float=True
             input_image = (input_image * 255).astype(np.uint8)
-
-
-        lmk51 = fan_landmarks[:, 17:, :]
-        kpss = lmk51[:, [20, 27, 13, 43, 47], :]  # left eye, right eye, nose, left mouth, right mouth
-        kpss[:, 0, :] = lmk51[:, [21, 24], :].mean(1)  # center of eye
-        kpss[:, 1, :] = lmk51[:, [27, 29], :].mean(1)
-        
-        ## from [-1, 1] to [o, input_image_size]
-        kpss = (kpss + 1) * (input_image.shape[1] / 2)
 
         B = input_image.shape[0]
         # norm_crop_images = norm_crop(input_image, torch.tensor(kpss), image_size=112, mode='arcface')
@@ -147,20 +174,23 @@ class MicaInputProcessor(object):
             bboxes, kpss = self.app.det_model.detect(img, max_num=0, metric='default')
             if bboxes.shape[0] == 0:
                 aimg = resize(img, output_shape=(112,112), preserve_range=True)
+                bbox = np.array([0,0, img.shape[1], img.shape[0]]) 
+                face = Face(bbox=bbox, kps=np.zeros((5,2)), det_score=min_det_score)
+                blob, _ = get_arcface_input(face, img)
                 aligned_image_list.append(aimg)
                 if self.crash_on_no_detection:
                     raise RuntimeError("No faces detected")
                 else: 
                     print("[WARNING] No faces detected in MicaInputProcessor")
                     continue
-            i = get_center(bboxes, image)
-            bbox = bboxes[i, 0:4]
-            det_score = bboxes[i, 4]
+            bb_i = get_center(bboxes, image)
+            bbox = bboxes[bb_i, 0:4]
+            det_score = bboxes[bb_i, 4]
             # if det_score < min_det_score:
             #     continue
             kps = None
             if kpss is not None:
-                kps = kpss[i]
+                kps = kpss[bb_i]
 
             face = Face(bbox=bbox, kps=kps, det_score=det_score)
             blob, aimg = get_arcface_input(face, img)
@@ -170,7 +200,9 @@ class MicaInputProcessor(object):
         aligned_images = aligned_images.transpose((0,3,1,2))
         # to torch to correct device 
         aligned_images = torch.from_numpy(aligned_images).to(input_image.device)
-        return aligned_images
+        blob = torch.from_numpy(blob).to(input_image.device).unsqueeze(0)
+        # return aligned_images
+        return blob
     
 
 # # Assuming arcface_src and src_map are defined somewhere else in your code
