@@ -61,6 +61,14 @@ else
     echo "reconstruction_v1.zip already exists, skipping download"
 fi
 
+
+echo "Downloading the dataset metadata..."
+if [ ! -f metadata.pkl]; then
+    wget https://download.is.tue.mpg.de/emote/mead_25fps/processed/metadata.pkl -O metadata.pkl
+else
+    echo "metadata.pkl already exists, skipping download"
+fi
+
 echo "Processed data downloaded successfully."
 
 ## Unzip the downloaded files
