@@ -1,7 +1,5 @@
 # Start from an NVIDIA CUDA base image
-# FROM nvidia/cuda:11.0-base-ubuntu20.04
-# FROM nvidia/cuda:11.8.0-runtime-ubuntu20.04
-FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
+FROM nvidia/cuda:12.3.1-devel-ubuntu20.04
 LABEL maintainer="RadekDanecek"
 
 # Set a non-interactive shell to avoid prompts during the build process
