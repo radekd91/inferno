@@ -14,7 +14,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     author="Radek Danecek",
     author_email="danekradek@gmail.com",
-    version="0.0.3",
+    version="0.1.0",
     packages=["inferno", "inferno_apps"],
     package_dir={"": "."},
     # install_requires=requirements,
