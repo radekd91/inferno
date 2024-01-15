@@ -35,7 +35,7 @@ from inferno.models.EmotionRecognitionModuleBase import EmotionRecognitionBaseMo
 import torchvision.models.vgg as vgg # vgg19, vgg11, vgg13, vgg16, vgg11_bn, vgg13_bn, vgg16_bn, vgg19_bn
 from inferno.layers.losses.FRNet import resnet50, load_state_dict
 from torch.nn import Linear
-import pytorch_lightning.plugins.environments.lightning_environment as le
+
 
 
 class EmoCnnModule(EmotionRecognitionBaseModule):

@@ -29,7 +29,7 @@ from typing import Any, Optional
 
 import cv2
 import numpy as np
-import pytorch_lightning.plugins.environments.lightning_environment as le
+
 import torch
 import torch.nn.functional as F
 from munch import Munch

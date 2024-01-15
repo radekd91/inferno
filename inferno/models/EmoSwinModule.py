@@ -34,7 +34,7 @@ from inferno.utils.lightning_logging import _log_array_image, _log_wandb_image, 
 from inferno.models.EmotionRecognitionModuleBase import EmotionRecognitionBaseModule
 from omegaconf import open_dict
 from .Swin import create_swin_backbone
-import pytorch_lightning.plugins.environments.lightning_environment as le
+
 
 class EmoSwinModule(EmotionRecognitionBaseModule):
     """

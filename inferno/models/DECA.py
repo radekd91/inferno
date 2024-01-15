@@ -55,7 +55,7 @@ from inferno.utils.other import class_from_str, get_path_to_assets
 from inferno.layers.losses.VGGLoss import VGG19Loss
 from omegaconf import OmegaConf, open_dict
 
-import pytorch_lightning.plugins.environments.lightning_environment as le
+
 
 
 class DecaMode(Enum):

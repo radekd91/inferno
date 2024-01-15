@@ -31,7 +31,7 @@ from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.loggers import WandbLogger
 from inferno.layers.losses.EmonetLoader import get_emonet
 import sys
-import pytorch_lightning.plugins.environments.lightning_environment as le
+
 
 
 class EmoDECA(EmotionRecognitionBaseModule):
