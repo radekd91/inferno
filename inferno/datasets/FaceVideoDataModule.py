@@ -1737,9 +1737,9 @@ class FaceVideoDataModule(FaceDataModuleBase):
                         else: 
                             raise ValueError(f"Unknown reconstruction net {reconstruction_net.__class__.__name__}")
                         
-                        global_pose = torch.from_numpy(reconstruction_['global_pose']).float().to(device).squeeze(0)
-                        if 'jaw' in reconstruction_.keys():
-                            jaw = torch.from_numpy(reconstruction_['jaw']).float().to(device).squeeze(0)
+                        global_pose = torch.from_numpy(reconstruction['global_pose']).float().to(device).squeeze(0)
+                        if 'jaw' in reconstruction.keys():
+                            jaw = torch.from_numpy(reconstruction['jaw']).float().to(device).squeeze(0)
                         else:
                             jaw = torch.zeros_like(global_pose).to(device)
                         pose = torch.cat([global_pose, jaw], dim=-1)
@@ -1756,7 +1756,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                             pose_params=pose_jaw_only,
                             eye_pose_params=None)
                         
-                        trans_verts = util.batch_orth_proj(vertices, 
+                        trans_verts = util.batch_orth_proj(vertices_, 
                                                         torch.from_numpy(reconstruction['cam']).float().to(device).squeeze(0), 
                                                         )
                         trans_verts[:, :, 1:] = -trans_verts[:, :, 1:]
