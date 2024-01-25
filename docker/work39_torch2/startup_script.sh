@@ -1,8 +1,9 @@
 #!/bin/bash
-source /root/.bashrc
-mamba activate work38
+## source this script first from the entry point script you call the docker task with
+source ~/.bashrc
+mamba activate work39_torch2
 
-cd /workspace/repos/inferno
+cd ~/workspace/repos/inferno
 
 # if inferno is not installed, install it
 if ! python -c "import inferno" &> /dev/null

@@ -1,8 +1,9 @@
 #!/bin/bash
-source /root/.bashrc
+## source this script first from the entry point script you call the docker task with
+source ~/.bashrc
 mamba activate work38
 
-cd /workspace/repos/inferno
+cd ~/workspace/repos/inferno
 
 # if inferno is not installed, install it
 if ! python -c "import inferno" &> /dev/null
