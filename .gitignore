@@ -5,6 +5,8 @@ wandb/
 */wandb/*
 .idea*
 .idea/
+.vscode/
+keybindings.json
 .idea_backup/
 *.pyc
 #data/
