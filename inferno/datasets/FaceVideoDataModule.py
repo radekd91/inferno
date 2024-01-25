@@ -141,6 +141,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
         self.read_audio=read_audio
         self.align_images = align_images # will align the images when data loading (use if videos not already aligned)
 
+        self._aligned_face_detector_type = "fan3d"
+
     @property
     def metadata_path(self):
         return os.path.join(self.output_dir, "metadata.pkl")
@@ -474,7 +476,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         video_file = self._get_path_to_aligned_videos(sequence_id)
         print("Detecting landmarks in aligned sequence: '%s'" % video_file)
 
-        out_landmark_folder = self._get_path_to_sequence_landmarks(sequence_id, use_aligned_videos=True)
+        out_landmark_folder = self._get_path_to_sequence_landmarks(sequence_id, use_aligned_videos=True, landmark_method=self._aligned_face_detector_type)
         out_landmark_folder.mkdir(exist_ok=True, parents=True)
 
         if self.save_landmarks_one_file: 
@@ -534,7 +536,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # ref_size = Resize((ref_im.shape[0], ref_im.shape[1]), interpolation=Image.NEAREST)
         # ref_size = None
 
-        optimal_landmark_detector_size = self.face_detector.optimal_landmark_detector_im_size()
+        optimal_landmark_detector_size = self._aligned_landmark_detector.optimal_landmark_detector_im_size()
 
         transforms = Compose([
             Resize((optimal_landmark_detector_size, optimal_landmark_detector_size)),
@@ -569,7 +571,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             images = batch['image'].cuda()
             # start = time.time()
             with torch.no_grad():
-                landmarks, landmark_scores = self.face_detector.landmarks_from_batch_no_face_detection(images)
+                landmarks, landmark_scores = self._aligned_landmark_detector.landmarks_from_batch_no_face_detection(images)
             # end = time.time()
 
             # import matplotlib.pyplot as plt 
@@ -589,13 +591,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     else:
                         landmark_path = out_landmark_folder / (Path(image_path).stem + ".pkl")
                     landmark_path.parent.mkdir(exist_ok=True, parents=True)
-                    save_landmark_v2(landmark_path, landmarks[j], landmark_scores[j], self.face_detector.landmark_type())
+                    save_landmark_v2(landmark_path, landmarks[j], landmark_scores[j], self._aligned_landmark_detector.landmark_type())
                 print(f" Saving batch {i} took: {end - start}")
                 end = time.time()
             if self.save_landmarks_one_file: 
                 out_landmarks += [landmarks]
                 out_landmarks_scores += [landmark_scores]
-                out_landmark_types += [self.face_detector.landmark_type()] * len(landmarks)
+                out_landmark_types += [self._aligned_landmark_detector.landmark_type()] * len(landmarks)
 
         if self.save_landmarks_one_file: 
             out_landmarks = np.concatenate(out_landmarks, axis=0)
@@ -1639,12 +1641,16 @@ class FaceVideoDataModule(FaceDataModuleBase):
         device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
         if not hasattr(self, 'torch_renderer_'):
-            obj_filename = "/ps/scratch/rdanecek/data/FLAME/geometry/head_template.obj"
+            obj_filename = str(get_path_to_assets() / "FLAME/geometry/head_template.obj")
             self.torch_renderer_ = SRenderY(image_size=224, obj_filename=obj_filename, uv_size=256)
             self.torch_renderer_ = self.torch_renderer_.to(device=device)
 
+        if not hasattr(self, 'torch_renderer_large_'):
+            self.torch_renderer_large_ = SRenderY(image_size=800, obj_filename=obj_filename, uv_size=256)
+            self.torch_renderer_large_ = self.torch_renderer_large_.to(device=device)
+
         if not hasattr(self, 'py_renderer_'):
-            flame_template_path = Path("/ps/scratch/rdanecek/data/FLAME/geometry/FLAME_sample.ply")
+            flame_template_path = Path(get_path_to_assets() / "FLAME/geometry/FLAME_sample.ply")
             self.py_renderer_ = PyRenderMeshSequenceRenderer(flame_template_path)
 
 
@@ -1670,6 +1676,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
             in_folder[rec_method].mkdir(exist_ok=True, parents=True)
             out_file_video[rec_method] = self._get_path_to_sequence_reconstructions_videos(sequence_id, rec_method=rec_method_name) \
                 / f"rec_video.mp4" 
+            if out_file_video[rec_method].is_file():
+                return
             out_file_video[rec_method].parent.mkdir(exist_ok=True, parents=True)
 
         exists = True
@@ -1689,56 +1697,94 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # batch_size = 64
         loader = DataLoader(dataset, batch_size=batch_size, num_workers=0, shuffle=False)
 
-        for i, batch in enumerate(tqdm(loader)):
+        import math 
+        from inferno.utils.batch import slice_tensors_in_dict
+
+        for i, batch_ in enumerate(tqdm(loader)):
             with torch.no_grad():
-                batch = dict_to_device(batch, device)
+                batch_ = dict_to_device(batch_, device)
                 for rec_method in rec_methods:
                     # if in_file_reconstruction[rec_method].is_file() and out_file_video[rec_method].is_file(): 
                     #     continue
-                    assert batch['video'].shape[0] == 1
-                    T = batch['video'].shape[1]
+                    assert batch_['video'].shape[0] == 1
+                    T = batch_['video'].shape[1]
+                    chunks = int(math.ceil(T / batch_size))
                     
                     if in_file_reconstruction[rec_method].suffix == '.hdf5':
-                        reconstruction = load_reconstruction_list_v2(in_file_reconstruction[rec_method])
+                        reconstruction_ = load_reconstruction_list_v2(in_file_reconstruction[rec_method])
                     elif in_file_reconstruction[rec_method].suffix == '.pkl':
-                        reconstruction = load_reconstruction_list_v2(in_file_reconstruction[rec_method])
+                        reconstruction_ = load_reconstruction_list_v2(in_file_reconstruction[rec_method])
                     else: 
                         raise ValueError(f"Unknown file format {in_file_reconstruction[rec_method].suffix}")
 
                     reconstruction_net = self._get_reconstruction_net_v2(device, rec_method=rec_method)
+                    vertices = [] 
+                    unposed_vertices = []
+                    shape_im = []
+                    shape_im_large = [] 
+                    shape_im_unposed = [] 
+
+                    for chunk_i in range(chunks):
+                        start_i = chunk_i * batch_size
+                        end_i = min((chunk_i + 1) * batch_size, T)
+                        batch = slice_tensors_in_dict(batch_, start_i, end_i)
+                        reconstruction = slice_tensors_in_dict(reconstruction_, start_i, end_i)
+
+                        if reconstruction_net.__class__.__name__ == "EmocaPreprocessor": ## old f or backwards compatibility 
+                            flame = reconstruction_net.model.deca.flame 
+                        elif "FaceRecPreprocessor" in reconstruction_net.__class__.__name__: ## new
+                            flame = reconstruction_net.model.shape_model.flame
+                        else: 
+                            raise ValueError(f"Unknown reconstruction net {reconstruction_net.__class__.__name__}")
+                        
+                        global_pose = torch.from_numpy(reconstruction_['global_pose']).float().to(device).squeeze(0)
+                        if 'jaw' in reconstruction_.keys():
+                            jaw = torch.from_numpy(reconstruction_['jaw']).float().to(device).squeeze(0)
+                        else:
+                            jaw = torch.zeros_like(global_pose).to(device)
+                        pose = torch.cat([global_pose, jaw], dim=-1)
+                        pose_jaw_only = torch.cat([torch.zeros_like(global_pose), jaw], dim=-1)
+                        vertices_, _, _, _ = flame(
+                            shape_params=torch.from_numpy( reconstruction['shape']).float().to(device).squeeze(0), 
+                            expression_params=torch.from_numpy( reconstruction['exp']).float().to(device).squeeze(0), 
+                            pose_params=pose,
+                            eye_pose_params=None)
+                        
+                        unposed_vertices_, _, _, _ = flame(
+                            shape_params=torch.from_numpy( reconstruction['shape']).float().to(device).squeeze(0), 
+                            expression_params=torch.from_numpy( reconstruction['exp']).float().to(device).squeeze(0), 
+                            pose_params=pose_jaw_only,
+                            eye_pose_params=None)
+                        
+                        trans_verts = util.batch_orth_proj(vertices, 
+                                                        torch.from_numpy(reconstruction['cam']).float().to(device).squeeze(0), 
+                                                        )
+                        trans_verts[:, :, 1:] = -trans_verts[:, :, 1:]
+
+                        unposed_cam = np.zeros_like(reconstruction['cam'])
+                        unposed_cam[:,:,0] = 9. 
+                        trans_verts_unposed = util.batch_orth_proj(unposed_vertices_,
+                                                                    torch.from_numpy(unposed_cam).float().to(device).squeeze(0),
+                                                                    )
+                        trans_verts_unposed[:,:,1:] = -trans_verts_unposed[:,:,1:]
+
+                        shape_im_ = self.torch_renderer_.render_shape(vertices_, trans_verts, images=None, detail_normal_images=None, lights=None)
+                        shape_im_large_ = self.torch_renderer_large_.render_shape(vertices_, trans_verts, images=None, detail_normal_images=None, lights=None)
+                        shape_im_unposed_ = self.torch_renderer_large_.render_shape(unposed_vertices_, trans_verts_unposed, images=None, detail_normal_images=None, lights=None)
+                        
+                        vertices += [vertices_]
+                        unposed_vertices += [unposed_vertices_]
+                        shape_im += [shape_im_]
+                        shape_im_large += [shape_im_large_]
+                        shape_im_unposed += [shape_im_unposed_]
 
 
-                    if reconstruction_net.__class__.__name__ == "EmocaPreprocessor": ## old f or backwards compatibility 
-                        flame = reconstruction_net.model.deca.flame 
-                    elif "FaceRecPreprocessor" in reconstruction_net.__class__.__name__: ## new
-                        flame = reconstruction_net.model.shape_model.flame
-                    else: 
-                        raise ValueError(f"Unknown reconstruction net {reconstruction_net.__class__.__name__}")
-                    
-                    global_pose = torch.from_numpy(reconstruction['global_pose']).float().to(device).squeeze(0)
-                    if 'jaw' in reconstruction.keys():
-                        jaw = torch.from_numpy(reconstruction['jaw']).float().to(device).squeeze(0)
-                    else:
-                        jaw = torch.zeros_like(global_pose).to(device)
-                    pose = torch.cat([global_pose, jaw], dim=-1)
-                    pose_jaw_only = torch.cat([torch.zeros_like(global_pose), jaw], dim=-1)
-                    vertices, _, _, _ = flame(
-                        shape_params=torch.from_numpy( reconstruction['shape']).float().to(device).squeeze(0), 
-                        expression_params=torch.from_numpy( reconstruction['exp']).float().to(device).squeeze(0), 
-                        pose_params=pose,
-                        eye_pose_params=None)
-                    
-                    unposed_vertices, _, _, _ = flame(
-                        shape_params=torch.from_numpy( reconstruction['shape']).float().to(device).squeeze(0), 
-                        expression_params=torch.from_numpy( reconstruction['exp']).float().to(device).squeeze(0), 
-                        pose_params=pose_jaw_only,
-                        eye_pose_params=None)
-                    
-                    trans_verts = util.batch_orth_proj(vertices, 
-                                                       torch.from_numpy(reconstruction['cam']).float().to(device).squeeze(0), 
-                                                       )
-                    trans_verts[:, :, 1:] = -trans_verts[:, :, 1:]
-                    shape_im = self.torch_renderer_.render_shape(vertices, trans_verts, images=None, detail_normal_images=None, lights=None)
+                    ## join the tensors 
+                    vertices = torch.cat(vertices, dim=0).cpu()
+                    unposed_vertices = torch.cat(unposed_vertices, dim=0).cpu()
+                    shape_im = torch.cat(shape_im, dim=0).cpu()
+                    shape_im_large = torch.cat(shape_im_large, dim=0).cpu()
+                    shape_im_unposed = torch.cat(shape_im_unposed, dim=0).cpu()
 
                     ## add alpha channel 
                     shape_im = torch.cat([shape_im, torch.zeros_like(shape_im[:, :1, ...])], dim=1)
@@ -1750,7 +1796,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     image = torch.cat([image, torch.ones_like(image[:, :1,...])], dim=1)
 
                     # set alpha channel to 1 for all non-black pixels
-                    shape_im[:, 3:4, ...] = (1.- mask.float()) * 2
+                    shape_im[:, 3:4, ...] = (1.- mask.float()) * 1
                     image_blended = alpha_blend(image, shape_im)
 
                     shape_im[:, 3:4, ...] = (1.- mask.float()) * 10
@@ -1811,11 +1857,16 @@ class FaceVideoDataModule(FaceDataModuleBase):
                                                         fourcc, int(self.video_metas[sequence_id]['fps'].split('/')[0]),
                                                         (2 * final_video.shape[2], final_video.shape[2]))
                         for j in auto.tqdm(range(final_video.shape[0])):
-                            verts = vertices[j].cpu().numpy()
-                            py_render_image_global = self.py_renderer_.render(verts)
                             
-                            unposed_verts = unposed_vertices[j].cpu().numpy()
-                            py_render_image_unposed = self.py_renderer_.render(unposed_verts)
+                            ## This uses pyrender (slow)
+                            # verts = vertices[j].cpu().numpy()
+                            # py_render_image_global = self.py_renderer_.render(verts)
+                            # unposed_verts = unposed_vertices[j].cpu().numpy()
+                            # py_render_image_unposed = self.py_renderer_.render(unposed_verts)
+
+                            ## This uses pytorch3d renderered images (faster)
+                            py_render_image_global = (shape_im_large[j].cpu().permute(1,2,0).numpy() * 255.).astype(np.uint8)
+                            py_render_image_unposed = (shape_im_unposed[j].cpu().permute(1,2,0).numpy() * 255.).astype(np.uint8)
 
                             ## reshape image to final_video.shape[3] x final_video.shape[3] 
                             py_render_image_global = cv2.resize(py_render_image_global, (final_video.shape[2], final_video.shape[2]), 
@@ -2737,6 +2788,33 @@ class FaceVideoDataModule(FaceDataModuleBase):
                                                recognition_cov, recognition_fnames)
         print("Done identifying recognitions for sequence %d: '%s'" % (sequence_id, self.video_list[sequence_id]))
 
+    def _get_main_recognition(self, indices, labels, mean, cov, fnames, sequence_id):
+        exclusive_indices = OrderedDict({key: np.unique(value) for key, value in indices.items()})
+        exclusive_sizes = OrderedDict({key: value.size for key, value in exclusive_indices.items()})
+
+        max_size = max(exclusive_sizes.values())
+        max_size = -1 
+        max_index = -1
+        same_occurence_count = []
+        for k,v in exclusive_sizes.items():
+            if exclusive_sizes[k] > max_size:
+                max_size = exclusive_sizes[k]
+                max_index = k 
+                same_occurence_count.clear()
+                same_occurence_count.append(k)
+            elif exclusive_sizes[k] == max_size:
+                same_occurence_count.append(k) 
+                #TODO: handle this case - how to break the ambiguity?
+                
+        if len(same_occurence_count) > 1: 
+            print(f"Warning: ambiguous recognition for sequence {sequence_id}. There are {len(same_occurence_count)} of faces" 
+                "that have dominant detections across the video. Choosing the first one")
+
+        main_occurence_mean = mean[max_index]
+        main_occurence_cov = cov[max_index]
+        return max_index, main_occurence_mean
+
+
     def _extract_personal_recognition_sequences(self, sequence_id, distance_threshold = None): 
         detection_fnames, landmark_fnames, centers, sizes, embeddings, recognized_detections_fnames = \
             self._gather_detections_for_sequence(sequence_id, with_recognitions=True)
@@ -2765,29 +2843,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
         indices, labels, mean, cov, fnames = self._get_recognition_for_sequence(sequence_id, distance_threshold)
 
         # 1) extract the most numerous recognition 
-        exclusive_indices = OrderedDict({key: np.unique(value) for key, value in indices.items()})
-        exclusive_sizes = OrderedDict({key: value.size for key, value in exclusive_indices.items()})
+        main_recognition_index, main_occurence_mean = self._get_main_recognition(indices, labels, mean, cov, fnames, sequence_id)
 
-        max_size = max(exclusive_sizes.values())
-        max_size = -1 
-        max_index = -1
-        same_occurence_count = []
-        for k,v in exclusive_sizes.items():
-            if exclusive_sizes[k] > max_size:
-                max_size = exclusive_sizes[k]
-                max_index = k 
-                same_occurence_count.clear()
-                same_occurence_count.append(k)
-            elif exclusive_sizes[k] == max_size:
-                same_occurence_count.append(k) 
-                #TODO: handle this case - how to break the ambiguity?
-                
-        if len(same_occurence_count) > 1: 
-            print(f"Warning: ambiguous recognition for sequence {sequence_id}. There are {len(same_occurence_count)} of faces" 
-                "that have dominant detections across the video. Choosing the first one")
-
-        main_occurence_mean = mean[max_index]
-        main_occurence_cov = cov[max_index]
 
         # 2) retrieve its detections/landmarks
         total_len = 0
@@ -2803,7 +2860,6 @@ class FaceVideoDataModule(FaceDataModuleBase):
             frame_indices[i] = (total_len, total_len + len(landmarks[i]))
             total_len += len(landmarks[i])
 
-
         # main_occurence_sizes = OrderedDict()
         # main_occurence_centers = OrderedDict()
 
@@ -2812,7 +2868,6 @@ class FaceVideoDataModule(FaceDataModuleBase):
         main_occurence_centers = []
         main_occurence_sizes = []
         used_landmarks = []
-
 
         for frame_num in frame_indices.keys():
             first_index, last_index = frame_indices[frame_num]
@@ -3255,6 +3310,9 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # 0c) get path to the landmarks
         mp_landmarks_path = self._get_path_to_sequence_landmarks(idx, use_aligned_videos=False, landmark_method="mediapipe")
         fan_landmarks_path = self._get_path_to_sequence_landmarks(idx, use_aligned_videos=True, landmark_method="fan")
+        if not fan_landmarks_path.exists():
+            fan_landmarks_path = self._get_path_to_sequence_landmarks(idx, use_aligned_videos=True, landmark_method="fan3d")
+
         # 0d) get path to the segmentations
         bisenet_segmentations_path = self._get_path_to_sequence_segmentations(idx, use_aligned_videos=True, segmentation_net="bisenet")
         focus_segmentations_path = self._get_path_to_sequence_segmentations(idx, use_aligned_videos=True, segmentation_net="focus")

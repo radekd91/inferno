@@ -109,30 +109,33 @@ class FaceDataModuleBase(pl.LightningDataModule):
         return False
 
     # @profile
-    def _instantiate_detector(self, overwrite = False, face_detector=None):
-        face_detector = face_detector or self.face_detector_type
-        if hasattr(self, 'face_detector'):
-            if not overwrite:
-                return
-            del self.face_detector
-        if self.face_detector_type == 'fan':
-            self.face_detector = FAN(self.device, threshold=self.face_detector_threshold, mode='2D')
-        elif self.face_detector_type == 'fan3d':
-            self.face_detector = FAN(self.device, threshold=self.face_detector_threshold, mode='3D')
-        elif self.face_detector_type == 'mtcnn':
-            self.face_detector = MTCNN(self.device)
-        elif self.face_detector_type == '3fabrec': 
+    def _instantiate_detector(self, 
+                            #   overwrite = False, 
+                              face_detector=None):
+        face_detector_type = face_detector or self.face_detector_type
+        # if hasattr(self, 'face_detector'):
+        #     if not overwrite:
+        #         return
+        #     del self.face_detector
+        if face_detector_type == 'fan':
+            face_detector = FAN(self.device, threshold=self.face_detector_threshold, mode='2D')
+        elif face_detector_type == 'fan3d':
+            face_detector = FAN(self.device, threshold=self.face_detector_threshold, mode='3D')
+        elif face_detector_type == 'mtcnn':
+            face_detector = MTCNN(self.device)
+        elif face_detector_type == '3fabrec': 
             from inferno.utils.TFabRecLandmarkDetector import TFabRec
-            self.face_detector = TFabRec(instantiate_detector='sfd', threshold=self.face_detector_threshold)
-        elif self.face_detector_type == 'mediapipe': 
+            face_detector = TFabRec(instantiate_detector='sfd', threshold=self.face_detector_threshold)
+        elif face_detector_type == 'mediapipe': 
             from inferno.utils.MediaPipeLandmarkDetector import MediaPipeLandmarkDetector
-            self.face_detector = MediaPipeLandmarkDetector(threshold=self.face_detector_threshold, 
+            face_detector = MediaPipeLandmarkDetector(threshold=self.face_detector_threshold, 
                 video_based=self._is_video_dataset(), max_faces=self._get_max_faces_per_image())
-        elif self.face_detector_type == 'deep3dface': 
+        elif face_detector_type == 'deep3dface': 
             from inferno.utils.Deep3DFaceLandmarkDetector import Deep3DFaceLandmarkDetector
-            self.face_detector = Deep3DFaceLandmarkDetector(instantiate_detector='mtcnn')
+            face_detector = Deep3DFaceLandmarkDetector(instantiate_detector='mtcnn')
         else:
             raise ValueError("Invalid face detector specifier '%s'" % self.face_detector)
+        return face_detector
 
     # @profile
     def _detect_faces_in_image(self, image_or_path, detected_faces=None):
@@ -151,7 +154,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
             image = image[:, :, :3]
 
         h, w, _ = image.shape
-        self._instantiate_detector()
+        self.face_detector =  self._instantiate_detector()
         bounding_boxes, bbox_type, landmarks = self.face_detector.run(image,
                                                                       with_landmarks=True,
                                                                       detected_faces=detected_faces)

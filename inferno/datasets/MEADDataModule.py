@@ -451,8 +451,9 @@ class MEADDataModule(FaceVideoDataModule):
                 "Cannot detect landmarks for aligned videos and original videos at the same time"  +\
                 " since this requries instantiation of a new face detector."
             # self.face_detector_type = 'fan'
-            self.face_detector_type = 'fan3d'
-            self._instantiate_detector(overwrite=True)
+            # self._instantiate_detector(overwrite=True)
+            self._aligned_face_detector_type = 'fan3d'
+            self._aligned_landmark_detector = self._instantiate_detector(face_detector=self._aligned_face_detector_type)
 
         for i in range(start_idx, end_idx):
             idx = idxs[i]

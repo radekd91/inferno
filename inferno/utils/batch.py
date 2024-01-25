@@ -1,5 +1,31 @@
 import torch 
+import numpy as np
 from typing import Dict
+from collections.abc import Mapping
+
+def slice_tensors_in_dict(d, start, end, dim):
+    """
+    Recursively slices tensors in a nested dictionary along a specified dimension 
+
+    :param d: The input dictionary with tensors. 
+    :param start: The start index for slicing.
+    :param end: The end index for slicing.
+    :param dim: The dimension along which to slice.
+    :return: A new dictionary with sliced tensors.
+    """
+    new_dict = {}
+    for key, value in d.items():
+        if isinstance(value, torch.Tensor):
+            new_dict[key] = value.narrow(dim, start, end - start)
+        elif isinstance(value, np.ndarray):
+            # For numpy ndarrays 
+            slices = [slice(None)] * value.ndim
+            slices[dim] = slice(start, end)
+            new_dict[key] = value[slices]
+        elif isinstance(value, Mapping):
+            new_dict[key] = slice_tensors_in_dict(value, start, end, dim)
+        else:
+            new_dict[key] = value
 
 def dict_to_device(d, device): 
     for k, v in d.items():

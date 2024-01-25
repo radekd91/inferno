@@ -255,8 +255,10 @@ class CelebVHQDataModule(FaceVideoDataModule):
 
         if detect_aligned_landmarks: 
             # self.face_detector_type = 'fan'
-            self.face_detector_type = 'fan3d'
-            self._instantiate_detector(overwrite=True)
+            # self.face_detector_type = 'fan'
+            # self._instantiate_detector(overwrite=True)
+            self._aligned_face_detector_type = 'fan3d'
+            self._aligned_landmark_detector = self._instantiate_detector(face_detector=self._aligned_face_detector_type)
 
         for i in range(start_idx, end_idx):
             idx = idxs[i]
