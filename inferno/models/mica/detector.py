@@ -35,9 +35,9 @@ def dist(p1, p2):
     return math.sqrt(((p1[0] - p2[0]) ** 2) + ((p1[1] - p2[1]) ** 2))
 
 
-def get_arcface_input(face, img):
+def get_arcface_input(face, img, image_is_bgr=True):
     aimg = face_align.norm_crop(img, landmark=face.kps)
-    blob = cv2.dnn.blobFromImages([aimg], 1.0 / input_std, (112, 112), (input_mean, input_mean, input_mean), swapRB=True)
+    blob = cv2.dnn.blobFromImages([aimg], 1.0 / input_std, (112, 112), (input_mean, input_mean, input_mean), swapRB=image_is_bg)
     return blob[0], aimg
 
 

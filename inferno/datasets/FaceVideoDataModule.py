@@ -1727,8 +1727,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     for chunk_i in range(chunks):
                         start_i = chunk_i * batch_size
                         end_i = min((chunk_i + 1) * batch_size, T)
-                        batch = slice_tensors_in_dict(batch_, start_i, end_i)
-                        reconstruction = slice_tensors_in_dict(reconstruction_, start_i, end_i)
+                        batch = slice_tensors_in_dict(batch_, start_i, end_i, 1)
+                        reconstruction = slice_tensors_in_dict(reconstruction_, start_i, end_i, 1)
 
                         if reconstruction_net.__class__.__name__ == "EmocaPreprocessor": ## old f or backwards compatibility 
                             flame = reconstruction_net.model.deca.flame 
@@ -2008,7 +2008,6 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 if float(aud_info['start_time']) != 0:       
                     if not allow_later_audio_start:
                         # assert float(aud_info['start_time']) == 0, f"Audio start time is not zero: {aud_info['start_time']}"
-                        self.video_metas += [None]
                         self.audio_metas += [None]
                         invalid_videos += [vi]
                         continue

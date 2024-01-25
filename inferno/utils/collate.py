@@ -1,5 +1,9 @@
 import torch
-from torch.utils.data._utils.collate import default_collate, default_collate_err_msg_format, np_str_obj_array_pattern, string_classes
+from torch.utils.data._utils.collate import default_collate, default_collate_err_msg_format, np_str_obj_array_pattern 
+try: 
+    from torch.utils.data._utils.collate import string_classes
+except ImportError:
+    string_classes = (str, bytes)
 import collections
 
 class NestedKeyError(Exception):

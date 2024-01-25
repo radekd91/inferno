@@ -134,7 +134,7 @@ class FaceDataModuleBase(pl.LightningDataModule):
             from inferno.utils.Deep3DFaceLandmarkDetector import Deep3DFaceLandmarkDetector
             face_detector = Deep3DFaceLandmarkDetector(instantiate_detector='mtcnn')
         else:
-            raise ValueError("Invalid face detector specifier '%s'" % self.face_detector)
+            raise ValueError("Invalid face detector specifier '%s'" % face_detector_type)
         return face_detector
 
     # @profile
@@ -154,7 +154,9 @@ class FaceDataModuleBase(pl.LightningDataModule):
             image = image[:, :, :3]
 
         h, w, _ = image.shape
-        self.face_detector =  self._instantiate_detector()
+
+        if not hasattr(self, 'face_detector') or self.face_detector is None:
+            self.face_detector = self._instantiate_detector()
         bounding_boxes, bbox_type, landmarks = self.face_detector.run(image,
                                                                       with_landmarks=True,
                                                                       detected_faces=detected_faces)

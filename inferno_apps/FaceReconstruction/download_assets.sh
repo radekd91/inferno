@@ -39,6 +39,16 @@ else
     echo "FLAME already downloaded."
 fi
 
+# if MICA is not downloaded, download it
+if [ ! -d "MICA" ]; then
+    echo "Downloading MICA..."
+    mkdir -p MICA/model
+    wget -O MICA/model/mica.tar "https://keeper.mpdl.mpg.de/f/db172dc4bd4f4c0f96de/?dl=1"
+    echo "Assets for FaceReconstruction downloaded and extracted."
+else 
+    echo "MICA already downloaded."
+fi
+
 echo "Downloading FaceReconstruction models..."
 wget https://download.is.tue.mpg.de/emote/FaceReconstruction.zip 
 echo "Extracting FaceReconstruction models..."
