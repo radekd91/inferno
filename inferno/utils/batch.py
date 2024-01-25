@@ -26,6 +26,7 @@ def slice_tensors_in_dict(d, start, end, dim):
             new_dict[key] = slice_tensors_in_dict(value, start, end, dim)
         else:
             new_dict[key] = value
+    return new_dict
 
 def dict_to_device(d, device): 
     for k, v in d.items():
