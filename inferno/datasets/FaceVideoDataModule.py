@@ -91,6 +91,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                  inflate_by_video_size = False,
                  read_video=True,
                  read_audio=True,
+                 read_segmentations=True,
                  align_images=True,
                  return_mica_images = False,
                  ):
@@ -139,6 +140,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         self._must_include_audio = False
         self.read_video=read_video
         self.read_audio=read_audio
+        self.read_segmentations=read_segmentations
         self.align_images = align_images # will align the images when data loading (use if videos not already aligned)
 
         self._aligned_face_detector_type = "fan3d"

@@ -98,6 +98,7 @@ class VideoDatasetBase(AbstractVideoDataset):
             return_emotion_feature=False,
             read_video=True,
             read_audio=True,
+            read_segmentation=True,
             original_image_size=None, ## the processed videos may be different in size and if they are, the landmarks will be, too. This is to remember
             return_mica_images=False,
         ) -> None:
@@ -176,6 +177,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         # self.read_video = True
         self.read_video = read_video
         self.read_audio = read_audio
+        self.read_segmentation = read_segmentation
 
         self.reconstruction_type = reconstruction_type 
         if self.reconstruction_type is not None: 
@@ -357,7 +359,7 @@ class VideoDatasetBase(AbstractVideoDataset):
             lmk_read_time = timeit.default_timer() - start_time - video_read_time - audio_read_time
 
         # 4) SEGMENTATIONS
-        if self.read_video:
+        if self.read_segmentation:
             sample = self._get_segmentations(index, start_frame, num_read_frames, video_fps, num_frames, sample)
         if time:
             seg_read_time = timeit.default_timer() - start_time - video_read_time - audio_read_time - lmk_read_time
