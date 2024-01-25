@@ -21,7 +21,7 @@ def slice_tensors_in_dict(d, start, end, dim):
             # For numpy ndarrays 
             slices = [slice(None)] * value.ndim
             slices[dim] = slice(start, end)
-            new_dict[key] = value[slices]
+            new_dict[key] = value[tuple(slices)]
         elif isinstance(value, Mapping):
             new_dict[key] = slice_tensors_in_dict(value, start, end, dim)
         else:
