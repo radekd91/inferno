@@ -193,7 +193,7 @@ class MicaInputProcessor(object):
                 kps = kpss[bb_i]
 
             face = Face(bbox=bbox, kps=kps, det_score=det_score)
-            blob, aimg = get_arcface_input(face, img)
+            blob, aimg = get_arcface_input(face, img, image_is_bgr=False)
             aligned_image_list.append(aimg)
         aligned_images = np.array(aligned_image_list)
         # b,h,w,c to b,c,h,w

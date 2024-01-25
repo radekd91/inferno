@@ -261,6 +261,9 @@ class FaceRecPreprocessor(Preprocessor):
             for key in batch['landmarks'].keys():
                 batch_['landmarks'][key] = batch['landmarks'][key].view(B*T, -1, 2)
             
+            if 'mica_video' in batch: 
+                batch_['mica_video'] = batch['mica_video'].view(B*T, *batch['mica_video'].shape[-3:])
+            
             values = self.model(batch_, training=False, validation=False)
         else:
             outputs = []
@@ -270,8 +273,21 @@ class FaceRecPreprocessor(Preprocessor):
                 batch_['landmarks'] = {}
                 for key in batch['landmarks'].keys():
                     batch_['landmarks'][key] = batch['landmarks'][key].view(B*T, -1, 2)[i:i+self.max_b]
+                if 'mica_video' in batch: 
+                    batch_['mica_video'] = batch['mica_video'].view(B*T, *batch['mica_video'].shape[-3:])[i:i+self.max_b]
                 out = self.model(batch_, training=False, validation=False)
                 outputs.append(out)
+
+                if 'image' in out: 
+                    del out['image']
+                if 'mica_images' in out: 
+                    del out['mica_images']
+                if 'predicted_image' in out: 
+                    del out['predicted_image']
+                if 'predicted_mask' in out: 
+                    del out['predicted_mask']
+                if 'albedo' in out: 
+                    del out['albedo']
             
             # combine into a single output
             values = cat_tensor_or_dict(outputs, dim=0)
