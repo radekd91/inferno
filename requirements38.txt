@@ -21,7 +21,7 @@ onnxruntime-gpu==1.9.0
 opencv-contrib-python==4.7.0.72
 opencv-python==4.7.0.72
 opencv-python-headless==4.7.0.72
-psbody-mesh @ git+https://github.com/MPI-IS/mesh.git@v0.4
+psbody-mesh @ git+https://github.com/radek91/mesh.git@fix/openGLunavailable
 python-speech-features==0.6
 pytorch-lightning==1.4.9
 pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git@v0.6.2
