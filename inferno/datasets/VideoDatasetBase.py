@@ -257,38 +257,87 @@ class VideoDatasetBase(AbstractVideoDataset):
     def _preload_videos(self): 
         # indices = np.unique(self.video_indices)
         from tqdm import auto
+        unique_indices = set()
+        self.unique_index_mapping = {} 
+        self.unique_index_mapping_inv = {}
         for i in auto.tqdm( range(len(self.video_indices)), desc="Preloading videos" ):
+            
+            ## take a look if this video was already loaded (can happen if the video index is repeated in the dataset)
+            if self.video_indices[i] not in self.unique_index_mapping: 
+                self.unique_index_mapping[self.video_indices[i]] = i 
+            if i not in self.unique_index_mapping_inv:
+                self.unique_index_mapping_inv[i] = self.video_indices[i]
+            if self.video_indices[i] not in unique_indices:
+                unique_indices.add(self.video_indices[i])
+            else: 
+                ## the video was already loaded, skip to next iteration
+                continue
+
+            ## the video (and related data) is not loaded, so let's do that
             video_path = str(self._get_video_path(i))
-            if self.read_video:
-                if video_path not in self.video_cache:
-                    self.video_cache[video_path] = vread(video_path)
-                    self.seg_cache[video_path] = self._read_segmentations(i) 
-            if self.read_audio:
-                if video_path not in self.audio_cache:
-                    self.audio_cache[i] = self._read_audio(i)
-            for lmk_type, lmk_source in zip(self.landmark_types, self.landmark_source):
-                if i not in self.lmk_cache:
-                    self.lmk_cache[i] = {}
-                if lmk_type not in self.lmk_cache[i]:
-                    self.lmk_cache[i][lmk_type] = {}
-                # if lmk_source not in self.lmk_cache[i][lmk_type]:
-                self.lmk_cache[i][lmk_type][lmk_source] = self._read_landmarks(i, lmk_type, lmk_source)
-            if self.reconstruction_type is not None: 
-                for rec_type in self.reconstruction_type: 
-                    shape_pose_cam, appearance = self._load_reconstructions(i, rec_type, self.return_appearance)
-                    if i not in self.rec_cache:
-                        self.rec_cache[i] = {}
-                    video_dict = self.rec_cache[i]
-                    if rec_type not in video_dict:
-                        video_dict[rec_type] = {}
-                    self.rec_cache[i][rec_type]["shape_pose_cam"] = shape_pose_cam
-                    self.rec_cache[i][rec_type]["appearance"] = appearance
-            if self.emotion_type is not None: 
-                emotions, features = self._load_emotions(i, features=self.return_emotion_feature)
-                if i not in self.emo_cache:
-                    self.emo_cache[i] = {}
-                self.emo_cache[i]["emotions"] = emotions 
-                self.emo_cache[i]["features"] = features
+            try:
+                ## try to load the video and related data (if an IOError is thrown, catch it)
+                if self.read_video:
+                    if video_path not in self.video_cache:
+                        self.video_cache[video_path] = vread(video_path)
+                        self.seg_cache[video_path] = self._read_segmentations(i) 
+                if self.read_audio:
+                    if video_path not in self.audio_cache:
+                        self.audio_cache[i] = self._read_audio(i)
+                for lmk_type, lmk_source in zip(self.landmark_types, self.landmark_source):
+                    if i not in self.lmk_cache:
+                        self.lmk_cache[i] = {}
+                    if lmk_type not in self.lmk_cache[i]:
+                        self.lmk_cache[i][lmk_type] = {}
+                    # if lmk_source not in self.lmk_cache[i][lmk_type]:
+                    self.lmk_cache[i][lmk_type][lmk_source] = self._read_landmarks(i, lmk_type, lmk_source)
+                if self.reconstruction_type is not None: 
+                    for rec_type in self.reconstruction_type: 
+                        shape_pose_cam, appearance = self._load_reconstructions(i, rec_type, self.return_appearance)
+                        if i not in self.rec_cache:
+                            self.rec_cache[i] = {}
+                        video_dict = self.rec_cache[i]
+                        if rec_type not in video_dict:
+                            video_dict[rec_type] = {}
+                        self.rec_cache[i][rec_type]["shape_pose_cam"] = shape_pose_cam
+                        self.rec_cache[i][rec_type]["appearance"] = appearance
+                if self.emotion_type is not None: 
+                    emotions, features = self._load_emotions(i, features=self.return_emotion_feature)
+                    if i not in self.emo_cache:
+                        self.emo_cache[i] = {}
+                    self.emo_cache[i]["emotions"] = emotions 
+                    self.emo_cache[i]["features"] = features
+            except IOError as e: 
+                ## if there was an IOError, populate the corresponding caches with None 
+                if self.read_video: 
+                    if video_path not in self.video_cache:
+                        self.video_cache[video_path] = None
+                        self.seg_cache[video_path] = None
+                if self.read_audio:
+                    if video_path not in self.audio_cache:
+                        self.audio_cache[i] = None
+                for lmk_type, lmk_source in zip(self.landmark_types, self.landmark_source):
+                    if i not in self.lmk_cache:
+                        self.lmk_cache[i] = {}
+                    if lmk_type not in self.lmk_cache[i]:
+                        self.lmk_cache[i][lmk_type] = {}
+                    # if lmk_source not in self.lmk_cache[i][lmk_type]:
+                    self.lmk_cache[i][lmk_type][lmk_source] = None
+                if self.reconstruction_type is not None:
+                    for rec_type in self.reconstruction_type: 
+                        if i not in self.rec_cache:
+                            self.rec_cache[i] = {}
+                        video_dict = self.rec_cache[i]
+                        if rec_type not in video_dict:
+                            video_dict[rec_type] = {}
+                        self.rec_cache[i][rec_type]["shape_pose_cam"] = None
+                        self.rec_cache[i][rec_type]["appearance"] = None
+                if self.emotion_type is not None:
+                    if i not in self.emo_cache:
+                        self.emo_cache[i] = {}
+                    self.emo_cache[i]["emotions"] = None
+                    self.emo_cache[i]["features"] = None
+                continue
     
 
         print("Video cache loaded")
@@ -655,7 +704,9 @@ class VideoDatasetBase(AbstractVideoDataset):
 
     def _get_audio(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
         if self.preload_videos:
-            wavdata, sampling_rate = self.audio_cache[index]
+            # wavdata, sampling_rate = self.audio_cache[index]
+            cache_index = self.unique_index_mapping[self.unique_index_mapping_inv[index]]
+            wavdata, sampling_rate = self.audio_cache[cache_index]
         else:
             wavdata, sampling_rate = self._read_audio(index)
         sequence_length = self._get_sample_length(index)
@@ -736,7 +787,9 @@ class VideoDatasetBase(AbstractVideoDataset):
                     landmark_list = self._read_landmarks(index, landmark_type, landmark_source)
                     # landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
                 else: 
-                    landmark_list = self.lmk_cache[index][landmark_type][landmark_source]
+                    cache_index = self.unique_index_mapping[self.unique_index_mapping_inv[index]]
+                    landmark_list = self.lmk_cache[cache_index][landmark_type][landmark_source]
+                    # landmark_list = self.lmk_cache[index][landmark_type][landmark_source]
                     # landmark_types = self.lmk_cache[index]["landmark_types"]
                 landmarks = landmark_list[start_frame: sequence_length + start_frame] 
                 landmark_validity = np.ones((len(landmarks), 1), dtype=np.float32)
@@ -878,6 +931,22 @@ class VideoDatasetBase(AbstractVideoDataset):
         #     shape_pose_cam[key] = np.copy(shape_pose_cam[key])
             # for key in appearance.keys():
             #     appearance[key] = np.copy(appearance[key])
+        return shape_pose_cam, appearance
+
+    def _load_reconstructions_from_cache(self, index, rec_type, appearance=False, start_frame=None, end_frame=None): 
+        cache_index = self.unique_index_mapping[self.unique_index_mapping_inv[index]]
+        shape_pose_cam_ = self.rec_cache[cache_index][rec_type]["shape_pose_cam"]
+        appearance_ = self.rec_cache[cache_index][rec_type]["appearance"]
+        shape_pose_cam = shape_pose_cam_.copy() 
+        if appearance_ is not None: 
+            appearance = appearance_.copy() 
+        else: 
+            appearance = None 
+
+        if start_frame is not None and end_frame is not None:
+            shape_pose_cam = {key: shape_pose_cam[key][:, start_frame: end_frame] for key in shape_pose_cam.keys()}
+            if appearance is not None:
+                appearance = {key: appearance[key][:, start_frame: end_frame] for key in appearance.keys()}
         return shape_pose_cam, appearance
 
     def _load_emotions(self, index, features=False, start_frame=None, end_frame=None): 
@@ -1134,13 +1203,15 @@ class VideoDatasetBase(AbstractVideoDataset):
             shape_pose_cam, appearance = self._load_reconstructions(index, rec_type, self.return_appearance, 
                                                                     start_frame=start_frame, end_frame=start_frame+num_read_frames)
         else: 
-            shape_pose_cam_ = self.rec_cache[index][rec_type]["shape_pose_cam"]
-            appearance_ = self.rec_cache[index][rec_type]["appearance"]
-            shape_pose_cam = shape_pose_cam_.copy()
-            if appearance_ is not None:
-                appearance = appearance_.copy()
-            else:
-                appearance = None
+            shape_pose_cam, appearance = self._load_reconstructions_from_cache(index, rec_type, self.return_appearance,
+                                                                    start_frame=start_frame, end_frame=start_frame+num_read_frames)
+            # shape_pose_cam_ = self.rec_cache[index][rec_type]["shape_pose_cam"]
+            # appearance_ = self.rec_cache[index][rec_type]["appearance"]
+            # shape_pose_cam = shape_pose_cam_.copy()
+            # if appearance_ is not None:
+            #     appearance = appearance_.copy()
+            # else:
+            #     appearance = None
         for key in shape_pose_cam.keys():
             shape_pose_cam[key] = shape_pose_cam[key][0]
         if appearance is not None:
@@ -1272,9 +1343,15 @@ class VideoDatasetBase(AbstractVideoDataset):
             emotions, features = self._load_emotions(index, self.return_emotion_feature, 
                                                      start_frame=start_frame, end_frame=start_frame+num_read_frames)
         else: 
-            emotions = self.emo_cache[index]["emotions"].copy() 
-            emotions = emotions[start_frame:start_frame+num_read_frames]
-            features = self.emo_cache[index]["features"]
+            cache_index = self.unique_index_mapping[self.unique_index_mapping_inv[index]]
+            emotions = self.emo_cache[cache_index]["emotions"].copy()
+            features = self.emo_cache[cache_index]["features"]
+            if features is not None: 
+                features = features.copy()
+
+            # emotions = self.emo_cache[index]["emotions"].copy() 
+            # emotions = emotions[start_frame:start_frame+num_read_frames]
+            # features = self.emo_cache[index]["features"]
             if features is not None:
                 features = features.copy()
                 features = features[start_frame:start_frame+num_read_frames]
@@ -1727,7 +1804,9 @@ class VideoDatasetBaseV2(VideoDatasetBase):
                     if not self.preload_videos:
                         landmark_list, landmark_valid_indices = self._read_landmarks(index, landmark_type, landmark_source)
                     else:
-                        landmark_list, landmark_valid_indices = self.lmk_cache[index][landmark_type][landmark_source]
+                        cache_index = self.unique_index_mapping[self.unique_index_mapping_inv[index]]
+                        landmark_list, landmark_valid_indices = self.lmk_cache[cache_index][landmark_type][landmark_source]
+                        # landmark_list, landmark_valid_indices = self.lmk_cache[index][landmark_type][landmark_source]
                         
                     # landmark_list = FaceDataModuleBase.load_landmark_list(landmark_list_file)  
                     # landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
@@ -1753,7 +1832,9 @@ class VideoDatasetBaseV2(VideoDatasetBase):
                     landmarks, landmark_confidences = self._read_landmarks(index, landmark_type, landmark_source)
                     # landmarks, landmark_confidences, landmark_types = FaceDataModuleBase.load_landmark_list_v2(landmarks_dir / f"landmarks.pkl")  
                 else: 
-                    landmarks, landmark_confidences = self.lmk_cache[index][landmark_type][landmark_source]
+                    cache_index = self.unique_index_mapping[self.unique_index_mapping_inv[index]]
+                    landmarks, landmark_confidences = self.lmk_cache[cache_index][landmark_type][landmark_source]
+                    # landmarks, landmark_confidences = self.lmk_cache[index][landmark_type][landmark_source]
 
                 # scale by image size 
                 original_image_size =  self.original_image_size
