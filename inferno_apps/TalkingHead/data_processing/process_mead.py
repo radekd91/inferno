@@ -77,10 +77,6 @@ def main():
         extract_audio = bool(int(sys.argv[5]))
     else: 
         extract_audio = False
-    if len(sys.argv) > 6:
-        restore_videos = bool(int(sys.argv[6]))
-    else: 
-        restore_videos = False
     if len(sys.argv) > 7:
         detect_landmarks = bool(int(sys.argv[7]))
     else: 
@@ -114,7 +110,6 @@ def main():
         videos_per_shard, 
         shard_idx, 
         extract_audio=extract_audio,
-        restore_videos=restore_videos, 
         detect_landmarks=detect_landmarks, 
         segment_videos=segment_videos, 
         detect_aligned_landmarks=detect_aligned_landmarks,

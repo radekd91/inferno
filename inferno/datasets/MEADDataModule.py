@@ -376,7 +376,7 @@ class MEADDataModule(FaceVideoDataModule):
 
 
     def _process_video(self, idx, extract_audio=True, 
-            restore_videos=True, 
+            restore_videos=False, 
             detect_landmarks=True, 
             recognize_faces=True,
             # cut_out_faces=True,
@@ -428,7 +428,7 @@ class MEADDataModule(FaceVideoDataModule):
 
     def _process_shard(self, videos_per_shard, shard_idx, 
         extract_audio=True,
-        restore_videos=True, 
+        restore_videos=False, 
         detect_landmarks=True, 
         segment_videos=True, 
         detect_aligned_landmarks=False,
