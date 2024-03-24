@@ -524,9 +524,12 @@ class MotionPrior(pl.LightningModule):
     def test_step(self, batch, batch_idx, *args, **kwargs):
         training = False 
         # forward pass
-        sample = self.forward(batch, train=training, validation=False, **kwargs)
+        # sample = self.forward(batch, train=training, validation=False, **kwargs)
+        batch = self.encoding_step(batch, train=training, validation=False, )
+        batch = self.decoding_step(batch, train=training, validation=False, )
+
         # loss 
-        total_loss, losses, metrics = self.compute_loss(sample, training=training, validation=False, **kwargs)
+        total_loss, losses, metrics = self.compute_loss(batch, training=training, validation=False, **kwargs)
 
         losses_and_metrics_to_log = {**losses, **metrics}
         # losses_and_metrics_to_log = {"train_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}

@@ -50,7 +50,8 @@ def load_face_reconstruction(
     path = Path(cfg.inout.full_run_dir)
     if not path.is_absolute(): 
         # path = Path(get_path_to_assets()) / "FaceReconstruction/models" / path / "checkpoints"
-        path = Path(get_path_to_assets()) /  path / "checkpoints"
+        # path = Path(get_path_to_assets()) /  path / "checkpoints" 
+        path = Path(get_path_to_assets()) /  cfg.inout.full_run_dir 
     print(path)
     checkpoint = locate_checkpoint(path, mode = cfg.get("checkpoint_mode", "best"))
     assert checkpoint is not None, "No checkpoint found. Check the paths in the config file."
