@@ -44,20 +44,33 @@ class PeriodicPositionalEncoding(nn.Module):
         super(PeriodicPositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(p=dropout)        
         self.op = op
-        
-        pe = torch.zeros(period, d_model)
-        position = torch.arange(0, period, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0) # (1, period, d_model)
-        repeat_num = (max_seq_len//period) + 1
-        pe = pe.repeat(1, repeat_num, 1)
+        self.period = period
+        self.max_seq_len = max_seq_len
+        self.d_model = d_model
         self.batch_first = batch_first
+        pe = self._get_pe(max_seq_len)
+        # pe = torch.zeros(period, d_model)
+        # position = torch.arange(0, period, dtype=torch.float).unsqueeze(1)
+        # div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        # pe[:, 0::2] = torch.sin(position * div_term)
+        # pe[:, 1::2] = torch.cos(position * div_term)
+        # pe = pe.unsqueeze(0) # (1, period, d_model)
+        # repeat_num = (max_seq_len//period) + 1
+        # pe = pe.repeat(1, repeat_num, 1)
         if not self.batch_first:
             pe = pe.transpose(0,1).contiguous()
         self.register_buffer('pe', pe)
 
+    def _get_pe(self, max_seq_len): 
+        pe = torch.zeros(self.period, self.d_model)
+        position = torch.arange(0, self.period, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, self.d_model, 2).float() * (-math.log(10000.0) / self.d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0) # (1, period, d_model)
+        repeat_num = (max_seq_len//self.period) + 1
+        pe = pe.repeat(1, repeat_num, 1)
+        return pe
 
     def forward(self, x):
         """
@@ -66,10 +79,17 @@ class PeriodicPositionalEncoding(nn.Module):
         """
         if self.batch_first:
             T = x.size(1)
-            pe = self.pe[:, :T, :]
+            # pe = self.pe[:, :T, :] 
+            pe = self.pe 
+            if pe.shape[1] < T:
+                pe = self._get_pe(T).to(self.pe.device)
+            pe = pe[:, :T, :]
         else:
             T = x.size(0)
-            pe = self.pe[:T, :]
+            # pe = self.pe[:T, :]
+            if pe.shape[0] < T:
+                pe = self._get_pe(T).to(self.pe.device)
+            pe = pe[:T, :]
         if self.op in ['add', 'sum']:
             x = x + pe
         elif self.op in ['concat', 'cat', 'concatenate']:

@@ -33,6 +33,22 @@ from inferno.utils.other import class_from_str
 from inferno.models.IO import get_checkpoint_with_kwargs
 import sys
 
+
+def _get_biased_mask(decoder, cfg, max_len=None):
+    if decoder.temporal_bias_type == 'faceformer':
+        biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = max_len, period=cfg.period)
+    elif decoder.temporal_bias_type == 'faceformer_future':
+        biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = max_len, period=cfg.period)
+    elif decoder.temporal_bias_type == 'classic':
+        biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = max_len)
+    elif decoder.temporal_bias_type == 'classic_future':
+        biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = max_len)
+    elif decoder.temporal_bias_type == 'none':
+        biased_mask = None
+    else:
+        raise ValueError(f"Unsupported temporal bias type '{decoder.temporal_bias_type}'")
+    return biased_mask
+
 class AutoRegressiveDecoder(nn.Module):
     """
     A base class for auto-regressive decoders
@@ -281,18 +297,19 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
         self.max_len = cfg.max_len
         # temporal bias
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'faceformer')
-        if self.temporal_bias_type == 'faceformer':
-            self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
-        elif self.temporal_bias_type == 'faceformer_future':
-            self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
-        elif self.temporal_bias_type == 'classic':
-            self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
-        elif self.temporal_bias_type == 'classic_future':
-            self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
-        elif self.temporal_bias_type == 'none':
-            self.biased_mask = None
-        else:
-            raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
+        self.biased_mask = _get_biased_mask(self, cfg, max_len=self.max_len)
+        # if self.temporal_bias_type == 'faceformer':
+        #     self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+        # elif self.temporal_bias_type == 'faceformer_future':
+        #     self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+        # elif self.temporal_bias_type == 'classic':
+        #     self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        # elif self.temporal_bias_type == 'classic_future':
+        #     self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        # elif self.temporal_bias_type == 'none':
+        #     self.biased_mask = None
+        # else:
+        #     raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
 
         decoder_layer = nn.TransformerDecoderLayer(
             d_model = cfg.feature_dim, 
@@ -737,18 +754,19 @@ class BertDecoder(FeedForwardDecoder):
         self.decoder = nn.Linear(dim_factor*cfg.feature_dim, self.decoder_output_dim())
         self.post_bug_fix = cfg.get('post_bug_fix', False)
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'none')
-        if self.temporal_bias_type == 'faceformer':
-            self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
-        elif self.temporal_bias_type == 'faceformer_future':
-            self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
-        elif self.temporal_bias_type == 'classic':
-            self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
-        elif self.temporal_bias_type == 'classic_future':
-            self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
-        elif self.temporal_bias_type == 'none':
-            self.biased_mask = None
-        else:
-            raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
+        self.biased_mask = _get_biased_mask(self, cfg, max_len=self.max_len)
+        # if self.temporal_bias_type == 'faceformer':
+        #     self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+        # elif self.temporal_bias_type == 'faceformer_future':
+        #     self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
+        # elif self.temporal_bias_type == 'classic':
+        #     self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        # elif self.temporal_bias_type == 'classic_future':
+        #     self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
+        # elif self.temporal_bias_type == 'none':
+        #     self.biased_mask = None
+        # else:
+        #     raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
 
         # trying init to prevent the loss from exploding in the beginning
         nn.init.constant_(self.decoder.weight, 0)
@@ -987,18 +1005,19 @@ class BertPriorDecoder(FeedForwardDecoder):
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'none')
         # max_len = cfg.max_len
         max_len = 1200
-        if self.temporal_bias_type == 'faceformer':
-            self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = max_len, period=cfg.period)
-        elif self.temporal_bias_type == 'faceformer_future':
-            self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = max_len, period=cfg.period)
-        elif self.temporal_bias_type == 'classic':
-            self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = max_len)
-        elif self.temporal_bias_type == 'classic_future':
-            self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = max_len)
-        elif self.temporal_bias_type == 'none':
-            self.biased_mask = None
-        else:
-            raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
+        self.biased_mask = _get_biased_mask(self, cfg, max_len=max_len)
+        # if self.temporal_bias_type == 'faceformer':
+        #     self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = max_len, period=cfg.period)
+        # elif self.temporal_bias_type == 'faceformer_future':
+        #     self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = max_len, period=cfg.period)
+        # elif self.temporal_bias_type == 'classic':
+        #     self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = max_len)
+        # elif self.temporal_bias_type == 'classic_future':
+        #     self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = max_len)
+        # elif self.temporal_bias_type == 'none':
+        #     self.biased_mask = None
+        # else:
+        #     raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
 
         self.motion_prior : MotionPrior = load_motion_prior_net(cfg.motion_prior.path, cfg.motion_prior.get('trainable', False))
         self.latent_frame_size = self.motion_prior.latent_frame_size()
