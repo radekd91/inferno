@@ -49,6 +49,8 @@ def convert_rot(r, input_rep, output_rep):
     else:
         raise NotImplementedError(f"The conversion from {input_rep} {output_rep} is not yet implemented")
     # rot_mat = aa2euler_batch(r)
+    if output_rep in ['mat', 'matrix']:
+        return rot_mat
     if output_rep in ['quat', 'quaternion']: 
         return matrix_to_quaternion(rot_mat)
     elif output_rep == 'euler': 
