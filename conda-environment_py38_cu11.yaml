@@ -27,6 +27,7 @@ dependencies:
   - scikit-video=1.1.11
   - seaborn=0.11.0
   - tensorly=0.6.0
+  - ffmpeg-python=0.2.0
   - pip:
     - albumentations==1.0.3
     - compress-pickle==1.2.0
