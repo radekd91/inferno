@@ -15,14 +15,16 @@ download_processed_mead.sh
 ```
 Instead of downloading the processed data, you can also process the dataset yourself. You can find the instructions on that below.
 
-3) Coming soon
+3) Processing the data. Follow the the instructions below
 
 
 # Processing MEAD video data processing 
 
+The data processing is a multi-stage process.
+
 ## Processing stages
 
-This includes the following steps: 
+The individual processing stages include the following: 
 1) Face and landmark detection (mediapipe and FAN)
 2) Cropped video extraction 
 3) Audio extraction 
@@ -36,6 +38,7 @@ It is better, if these steps are executed separately. Please inspect the [`proce
 - `detect_aligned_landmarks`
 - `reconstruct_faces` 
 - `recognize_emotions` 
+
 I recommend setting only one to `True` (i.e. `extract_audio`), the others to `False` before procssing all of the dataset's samples. Once the processing pass finishes, 
 set the next one to `True`  (i.e. `detect_landmarks`) and the otherw to `False` and make another processing pass. Continue until you've finished all of the above steps. 
 
@@ -46,7 +49,7 @@ If you wish to save time, `extract_audio` and `detect_landmarks` can be ran toge
 Each run of the `process_mead.py` script processes one "shard" of data. You can set the variable `videos_per_shard` either in the script or by specifying it: 
 
 ```bash
-python <input_dir> <output_dir> <shard_index> <number_of_videos_per_shard>
+python process_mead.py <input_dir> <output_dir> <shard_index> <number_of_videos_per_shard>
 ```
 
 `<input_dir>` corresponds to the folder where your MEAD data (resampled to 25 fps lives)
