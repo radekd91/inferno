@@ -276,8 +276,11 @@ class FLAME_mediapipe(FLAME):
     def __init__(self, config):
         super().__init__(config)
         # static MEDIAPIPE landmark embeddings for FLAME
-        lmk_embeddings_mediapipe = np.load(config.flame_mediapipe_lmk_embedding_path, 
-            allow_pickle=True, encoding='latin1')
+        from pathlib import Path
+        lmk_embeddings_mediapipe_path = Path(config.flame_mediapipe_lmk_embedding_path)
+        if lmk_embeddings_mediapipe_path.exists():
+            lmk_embeddings_mediapipe_path = Path(config.flame_lmk_embedding_path).parent / Path(config.flame_mediapipe_lmk_embedding_path).name
+        lmk_embeddings_mediapipe = np.load(str(lmk_embeddings_mediapipe_path), allow_pickle=True, encoding='latin1')
         # indices = lmk_embeddings_mediapipe['landmark_indices']
         self.register_buffer('lmk_faces_idx_mediapipe', 
             torch.tensor(lmk_embeddings_mediapipe['lmk_face_idx'].astype(np.int64), dtype=torch.long))
