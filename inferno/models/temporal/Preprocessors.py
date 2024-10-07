@@ -78,17 +78,28 @@ class FlamePreprocessor(Preprocessor):
             B, T = rec_dict['gt_exp'].shape[:2]
             # B, T = nested_dict_access(batch, 'gt_exp', rec_type).shape[:2]
             
-            exp = rec_dict['gt_exp'].view(B * T, -1)[..., :self.cfg.flame.n_exp]#.contiguous()
+            # exp = rec_dict['gt_exp'].view(B * T, -1)[..., :self.cfg.flame.n_exp]#.contiguous()
+            exp = rec_dict['gt_exp'].reshape(B * T, -1)[..., :self.cfg.flame.n_exp]#.contiguous()
             ## ensure that exp is of the correct size, if not pad with zeros
             if exp.shape[-1] < self.cfg.flame.n_exp:
                 exp = F.pad(exp, (0, self.cfg.flame.n_exp - exp.shape[-1]), mode='constant', value=0)
                 
-            jaw = rec_dict['gt_jaw'].view(B * T, -1)
+            # jaw = rec_dict['gt_jaw'].view(B * T, -1)
+            jaw = rec_dict['gt_jaw'].reshape(B * T, -1)
             # exp = nested_dict_access(batch, 'gt_exp', rec_type).view(B * T, -1)[..., :self.cfg.flame.n_exp]#.contiguous()
             # jaw = nested_dict_access(batch, 'gt_jaw', rec_type).view(B * T, -1)
             
-            global_pose = torch.zeros_like(jaw, device=jaw.device, dtype=jaw.dtype)      
-            pose = torch.cat([global_pose, jaw], dim=-1)#.contiguous()
+            if "gt_neck" in rec_dict:
+                neck = rec_dict["gt_neck"].reshape(B * T, -1)
+            else: 
+                # neck = torch.zeros_like(jaw, device=jaw.device, dtype=jaw.dtype)
+                neck = None
+                
+            if "gt_global_pose" in rec_dict: 
+                global_pose = rec_dict["gt_global_pose"].reshape(B * T, -1) 
+            else: 
+                global_pose = torch.zeros_like(jaw, device=jaw.device, dtype=jaw.dtype)     
+            pose = torch.cat([global_pose, jaw], dim=-1) #.contiguous() ## uncomment if you get crashes due to contiguouity 
 
 
             # exp = torch.zeros((B * T, self.cfg.flame.n_exp))
@@ -150,7 +161,8 @@ class FlamePreprocessor(Preprocessor):
             verts, landmarks_2D, landmarks_3D = self.flame(
                 shape_params=shape, 
                 expression_params=exp,
-                pose_params=pose
+                pose_params=pose,
+                neck_pose=neck
             )
 
             template_verts, _, _ = self.flame(
