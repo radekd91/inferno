@@ -219,7 +219,7 @@ class FLAME(nn.Module):
                                          self.full_lmk_bary_coords.repeat(vertices.shape[0], 1, 1))
         return landmarks3d
 
-    def forward(self, shape_params=None, expression_params=None, pose_params=None, eye_pose_params=None):
+    def forward(self, shape_params=None, expression_params=None, pose_params=None, eye_pose_params=None, neck_pose=None,):
         """
             Input:
                 shape_params: N X number of shape parameters
@@ -234,12 +234,14 @@ class FLAME(nn.Module):
             pose_params = self.eye_pose.expand(batch_size, -1) # TODO: is this correct?
         if eye_pose_params is None:
             eye_pose_params = self.eye_pose.expand(batch_size, -1)
+        if neck_pose is None:
+            neck_pose = self.neck_pose.expand(batch_size, -1)
         if expression_params is None:
             expression_params = torch.zeros(batch_size, self.cfg.n_exp).to(shape_params.device)
 
         betas = torch.cat([shape_params, expression_params], dim=1)
         full_pose = torch.cat(
-            [pose_params[:, :3], self.neck_pose.expand(batch_size, -1), pose_params[:, 3:], eye_pose_params], dim=1)
+            [pose_params[:, :3], neck_pose, pose_params[:, 3:], eye_pose_params], dim=1)
         template_vertices = self.v_template.unsqueeze(0).expand(batch_size, -1, -1)
 
         vertices, _ = lbs(betas, full_pose, template_vertices,
