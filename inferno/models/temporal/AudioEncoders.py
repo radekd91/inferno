@@ -159,12 +159,19 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
             self.model.feature_extractor._freeze_parameters()
         if not trainable: 
             self.model.requires_grad_(False)
+            self.model.eval()
 
     def get_trainable_parameters(self): 
         if self.trainable:
             return [p for p in self.model.parameters() if p.requires_grad]
         return []
 
+    def train(self, mode: bool = True):
+        if self.trainable:
+            self.model.train(mode)
+        else: 
+            self.model.eval()
+            
     def _forward(self, sample, train=False, desired_output_length=None): 
         if self.input_processor is not None:
             B = sample["raw_audio"].shape[0]
