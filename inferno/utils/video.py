@@ -22,8 +22,7 @@ import numpy as np
 import cv2
 from pathlib import Path
 import os, sys
-from skimage.io import imread, imsave
-from skvideo.io import vread
+from skvideo.io import vread, vwrite
 
 
 def combine_video_audio(filename_out, video_in, audio_in):
