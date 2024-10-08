@@ -149,6 +149,8 @@ class MicaEncoder(FaceEncoderBase):
             image = batch['image']
             if 'mica_images' in batch.keys():
                 mica_image = batch['mica_images']
+            elif 'mica_video' in batch.keys():
+                mica_image = batch['mica_video']
             else:
                 # time = timeit.default_timer()
                 fan_landmarks = None
