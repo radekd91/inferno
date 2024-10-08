@@ -56,6 +56,33 @@ def save_video_with_audio(video_path, audio_path, video_tensor, fourcc='mp4v', f
     os.remove(video_tmp_path)
 
 
+def save_video_with_audio_scikit(video_path, audio_path, video_tensor, fps=25, overwrite=None):
+    """
+    A better function that uses scikit as opposed to openCV. 
+    The output videos (yuv) have a better chance of being viewable in VScode and various browser.
+    """
+    video_tmp_path = Path(video_path).with_suffix(".tmp.mp4") 
+    
+    # specify flags
+    input_dict = {'-r': str(fps)}
+    outputdict = {'-pix_fmt': 'yuv420p'}
+
+    vwrite(video_tmp_path, video_tensor, inputdict=input_dict, outputdict=outputdict)
+
+    if overwrite is not None: 
+        if overwrite: 
+            overwrite_str = "-y"
+        else: 
+            overwrite_str = "-n"
+    else:
+        overwrite_str = ""
+    
+    audio_codec_str = " -c:a mp3 "
+    ffmpeg_cmd = f"ffmpeg {overwrite_str} -i {str(video_tmp_path)} -i {audio_path} -c:v copy {audio_codec_str} -strict experimental -map 0:v:0 -map 1:a:0 {str(video_path)}"
+    os.system(ffmpeg_cmd) 
+    # remove out_video_path 
+    os.remove(video_tmp_path)
+
 
 def save_video(video_path, video_tensor, fourcc='mp4v', fps=25):
     if isinstance(video_tensor, torch.Tensor):
