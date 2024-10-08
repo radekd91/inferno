@@ -155,6 +155,51 @@ def concatenate_videos(video_list, output_path, horizontal=True, with_audio=True
     # os.system(f"ffmpeg {video_list_str} -filter_complex hstack=inputs={2} -map 1:a {output_path}")
 
 
+def concatenate_videos_with_frame_numbers(video_list, output_path, horizontal=True, with_audio=True, overwrite=None, write_frame_numbers=False):
+    assert len(video_list) > 0, "No videos to concatenate"
+    
+    # Save video list into a text file
+    video_list_path = Path(output_path).with_suffix(".txt")
+    with open(video_list_path, "w") as f:
+        f.write("\n".join([str(video_path) for video_path in video_list]))
+    print("Done")
+
+    # Construct the ffmpeg input and filter strings
+    video_list_str = "-i " + " -i ".join([str(video_path) for video_path in video_list])
+    
+    filter_str = ""
+    for n in range(len(video_list)):
+        if write_frame_numbers:
+            filter_str += f"[{n}:v]drawtext=text='%{{n}}':x=10:y=10:fontcolor=white:fontsize=24[v{n}]; "
+        else:
+            filter_str += f"[{n}:v][v{n}]; "
+    
+    inputs_str = "".join([f"[v{n}]" for n in range(len(video_list))])
+    if horizontal:
+        keyword = "hstack"
+    else:
+        keyword = "vstack"
+    filter_complex = f'"{filter_str}{inputs_str}{keyword}=inputs={len(video_list)}[v]"'
+
+    if with_audio:
+        audio = "-map 0:a"
+    else: 
+        audio = ""
+    
+    if overwrite is True: 
+        overwrite_str = "-y"
+    elif overwrite is False: 
+        overwrite_str = "-n"
+    else:
+        overwrite_str = ""
+
+    cmd = (
+        f'ffmpeg {overwrite_str} {video_list_str} -c:v libx264 -pix_fmt yuv420p -c:a mp3 '
+        f'-filter_complex {filter_complex} -map "[v]" {audio} {output_path}'
+    )
+    os.system(cmd)
+
+
 def resample_video(input_video_file, output_video_file, fps=25, audio_file=None, overwrite=None):
     # keep the audio if any
     audio_str = ""
