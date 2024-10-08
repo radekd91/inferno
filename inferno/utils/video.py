@@ -39,10 +39,18 @@ def combine_video_audio(filename_out, video_in, audio_in):
         # raise e
 
 
-def save_video_with_audio(video_path, audio_path, video_tensor, fourcc='mp4v', fps=25):
+def save_video_with_audio(video_path, audio_path, video_tensor, fourcc='mp4v', fps=25, overwrite=None):
     video_tmp_path = Path(video_path).with_suffix(".tmp.mp4") 
-    save_video(video_tmp_path, video_tensor, fourcc=fourcc, fps=fps)
-    ffmpeg_cmd = f"ffmpeg -i {str(video_tmp_path)} -i {audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {str(video_path)}"
+    save_video(video_tmp_path, video_tensor, fourcc=fourcc, fps=fps) 
+    if overwrite is not None: 
+        if overwrite: 
+            overwrite_str = "-y"
+        else: 
+            overwrite_str = "-n"
+    else:
+        overwrite_str = ""
+
+    ffmpeg_cmd = f"ffmpeg {overwrite_str} -i {str(video_tmp_path)} -i {audio_path} -c:v copy -c:a mp3 -strict experimental -map 0:v:0 -map 1:a:0 {str(video_path)}"
     os.system(ffmpeg_cmd) 
     # remove out_video_path 
     os.remove(video_tmp_path)
