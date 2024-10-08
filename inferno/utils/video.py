@@ -29,7 +29,11 @@ def combine_video_audio(filename_out, video_in, audio_in):
     import ffmpeg
     video = ffmpeg.input(video_in)
     audio = ffmpeg.input(audio_in)
-    out = ffmpeg.output(video, audio, filename_out, vcodec='copy', acodec='aac', strict='experimental')
+    out = ffmpeg.output(video, audio, filename_out, 
+                        vcodec='copy', 
+                        acodec='mp3', 
+                        strict='experimental'
+                        )
     try:
         out.run()
     except ffmpeg.Error as e:
@@ -143,7 +147,9 @@ def concatenate_videos(video_list, output_path, horizontal=True, with_audio=True
         overwrite_str = "-n"
     else:
         overwrite_str = ""
-    cmd = f'ffmpeg {overwrite_str} {video_list_str} -filter_complex "{filter_str}{keyword}=inputs={len(video_list)}[v]" -map "[v]" {audio} {output_path}'
+    video_codec_str = " -c:v libx264 -pix_fmt yuv420p "
+    audio_codec_str = " -c:a mp3 "
+    cmd = f'ffmpeg {overwrite_str} {video_list_str} {video_codec_str} {audio_codec_str}  -filter_complex "{filter_str}{keyword}=inputs={len(video_list)}[v]" -map "[v]" {audio} {output_path}'
     print(cmd)
     os.system(cmd)
     # os.system(f"ffmpeg {video_list_str} -filter_complex hstack=inputs={2} -map 1:a {output_path}")
