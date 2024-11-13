@@ -68,7 +68,7 @@ WORKDIR /home/$USER/workspace/repos
 ENV DISPLAY=:99
 
 # Add a startup script to the image
-COPY install_38_docker.sh /usr/local/bin/install_script.sh
+COPY install_39_docker.sh /usr/local/bin/install_script.sh
 COPY startup_script.sh /usr/local/bin/startup_script.sh
 COPY environment.yaml /workspace/environment.yaml
 COPY requirements.txt /workspace/requirements.txt
