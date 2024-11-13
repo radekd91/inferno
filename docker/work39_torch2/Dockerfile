@@ -33,16 +33,13 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-ins
     echo "${USER} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/$USER && \ 
     chmod 0440 /etc/sudoers.d/$USER
 
-# Switch to the newly created user
-USER ${USER}
-
-
 # Update and install necessary packages for X11 and OpenGL
-RUN DEBIAN_FRONTEND=noninteractive sudo apt-get update && DEBIAN_FRONTEND=noninteractive sudo apt-get install -y --no-install-recommends \
+USER root
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
     g++ \
-    libboost-dev \ 
+    libboost-dev \
     xorg \
     xvfb \
     libglvnd-dev \
@@ -53,11 +50,12 @@ RUN DEBIAN_FRONTEND=noninteractive sudo apt-get update && DEBIAN_FRONTEND=nonint
     cmake \
     curl \
     wget \
-    zip \ 
+    zip \
     unzip \
     nano \
     git \
     && rm -rf /var/lib/apt/lists/*
+USER ${USER}
 
 # Set the working directory in the container
 WORKDIR /home/$USER/workspace/repos
@@ -67,16 +65,21 @@ WORKDIR /home/$USER/workspace/repos
 # Set up the virtual display environment variable
 ENV DISPLAY=:99
 
-# Add a startup script to the image
+# Copy files
+USER root
 COPY install_39_docker.sh /usr/local/bin/install_script.sh
 COPY startup_script.sh /usr/local/bin/startup_script.sh
 COPY environment.yaml /workspace/environment.yaml
 COPY requirements.txt /workspace/requirements.txt
+
+# Set permissions
 RUN chmod +x /usr/local/bin/install_script.sh
 
-# Set the script to run on container start
-RUN bash /usr/local/bin/install_script.sh
+# Switch back to user
+USER ${USER}
 
+# Run installation
+RUN bash /usr/local/bin/install_script.sh
 RUN /home/$USER/miniforge3/bin/conda init bash
 RUN /home/$USER/miniforge3/bin/mamba init bash
 
