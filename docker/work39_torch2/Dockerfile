@@ -1,85 +1,121 @@
-# Start from an NVIDIA CUDA base image
-# FROM nvidia/cuda:11.0-base-ubuntu20.04
-# FROM nvidia/cuda:11.8.0-runtime-ubuntu20.04
 FROM nvidia/cuda:12.3.1-devel-ubuntu20.04
-LABEL maintainer="RadekDanecek"
 
-# Set a non-interactive shell to avoid prompts during the build process
-ARG DEBIAN_FRONTEND=noninteractive
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Berlin
+ENV DISPLAY=:99
+# Set CUDA architecture flags
+ENV TORCH_CUDA_ARCH_LIST="7.5;8.0;8.6;8.9;9.0"
+ENV FORCE_CUDA=1
 
-ENV TZ Europe/Berlin 
-
-# Pre-configure tzdata to avoid prompts during the build process
-RUN echo "tzdata tzdaata/Areas select Europe" | debconf-set-selections && \ 
-    echo "tzdata tzdata/Zones/Europe select Berlin" | debconf-set-selections && \
-    echo 'keyboard-configuration keyboard-configuration/variant select pc105' | debconf-set-selections && \
-    echo 'keyboard-configuration keyboard-configuration/layout select us' | debconf-set-selections 
-
-ARG USER 
-ARG USER_ID 
+# Create user arguments
+ARG USER
+ARG USER_ID
 ARG GROUP_ID
 
-# Create a user with the same user id as the host user
-RUN groupadd -g ${GROUP_ID} ${USER} && \
-    useradd -l -u ${USER_ID} -g ${USER} ${USER} 
-
-# Create the necessary directorires and set ownership 
-RUN mkdir -p /home/${USER}/workspace/repos && \
-    install -d -m 0755 -o ${USER} -g ${USER} /home/${USER} && \
-    install -d -m 0755 -o ${USER} -g ${USER} /home/${USER}/workspace && \
-    install -d -m 0755 -o ${USER} -g ${USER} /home/${USER}/workspace/repos 
-
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends tzdata sudo && \ 
-    echo "${USER} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/$USER && \ 
-    chmod 0440 /etc/sudoers.d/$USER
-
-# Switch to the newly created user
-USER ${USER}
-
-
-# Update and install necessary packages for X11 and OpenGL
-RUN DEBIAN_FRONTEND=noninteractive sudo apt-get update && DEBIAN_FRONTEND=noninteractive sudo apt-get install -y --no-install-recommends \
+# Install essential packages including gcc-11
+RUN apt-get update && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    sudo \
     build-essential \
-    gcc \
-    g++ \
-    libboost-dev \ 
-    xorg \
-    xvfb \
-    libglvnd-dev \
-    libgl1 \
-    libglx0 \
-    libegl1 \
-    libgles2 \
     cmake \
     curl \
-    wget \
-    zip \ 
-    unzip \
-    nano \
     git \
+    gcc-11 \
+    g++-11 \
+    nano \
+    tzdata \
+    unzip \
+    wget \
+    xorg \
+    xvfb \
+    zip \
+    libgl1 \
+    libgles2 \
+    libglvnd-dev \
+    libglx0 \
+    libegl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libxrender1 \
+    libfontconfig1 \
+    libgoogle-glog-dev \
+    libboost-all-dev \
+    libatlas-base-dev \
+    liblapack-dev \
+    libblas-dev \
+    libceres-dev \
+    pkg-config \
+    python3-dev \
+    python3-pip \
+    ninja-build \
+    freeglut3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Set the working directory in the container
-WORKDIR /home/$USER/workspace/repos
+# Set gcc-11 as default compiler
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 110 \
+    --slave /usr/bin/g++ g++ /usr/bin/g++-11 \
+    --slave /usr/bin/gcov gcov /usr/bin/gcov-11 \
+    --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-11 \
+    --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-11
 
-# # Set the DISPLAY environment variable for X11 forwarding
-# ENV DISPLAY=:0
-# Set up the virtual display environment variable
-ENV DISPLAY=:99
+# Setup cpp-11 separately
+RUN update-alternatives --install /usr/bin/cpp cpp /usr/bin/cpp-11 110
 
-# Add a startup script to the image
-COPY install_38_docker.sh /usr/local/bin/install_script.sh
-COPY startup_script.sh /usr/local/bin/startup_script.sh
+# Create user with sudo privileges
+RUN groupadd -g ${GROUP_ID} ${USER} \
+    && useradd -l -u ${USER_ID} -g ${USER} ${USER} \
+    && mkdir -p /home/${USER}/workspace/repos \
+    && chown -R ${USER}:${USER} /home/${USER} \
+    && echo "${USER} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/$USER \
+    && chmod 0440 /etc/sudoers.d/$USER
+
+# Copy installation files
+COPY install_39_docker.sh /usr/local/bin/install_script.sh
 COPY environment.yaml /workspace/environment.yaml
 COPY requirements.txt /workspace/requirements.txt
 RUN chmod +x /usr/local/bin/install_script.sh
 
-# Set the script to run on container start
-RUN bash /usr/local/bin/install_script.sh
+# Switch to user and set working directory
+USER ${USER}
+WORKDIR /home/${USER}/workspace/repos
 
-RUN /home/$USER/miniforge3/bin/conda init bash
-RUN /home/$USER/miniforge3/bin/mamba init bash
+# Run installation and setup environment
+SHELL ["/bin/bash", "-c"]
 
-# # Set the script to run on container start
-# CMD ["/usr/local/bin/startup_script.sh"] 
+# First install script and conda setup
+RUN bash /usr/local/bin/install_script.sh && \
+    /home/${USER}/miniforge3/bin/conda init bash && \
+    echo '. /home/${USER}/miniforge3/etc/profile.d/conda.sh' >> ~/.bashrc && \
+    echo 'conda activate' >> ~/.bashrc
 
+# Install PyTorch and dependencies first
+RUN /bin/bash -c "source /home/${USER}/miniforge3/etc/profile.d/conda.sh && \
+    source /home/${USER}/miniforge3/bin/activate && \
+    mamba install -y pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia && \
+    pip install fvcore iopath"
+
+# Now install PyTorch3D with CUDA architecture flags
+RUN /bin/bash -c "source /home/${USER}/miniforge3/etc/profile.d/conda.sh && \
+    source /home/${USER}/miniforge3/bin/activate && \
+    TORCH_CUDA_ARCH_LIST='7.5;8.0;8.6;8.9;9.0' \
+    MAX_JOBS=$(nproc) \
+    FORCE_CUDA=1 \
+    CC=gcc-11 \
+    CXX=g++-11 \
+    pip install --no-cache-dir 'pytorch3d@git+https://github.com/facebookresearch/pytorch3d.git'"
+
+# Set environment variables for gcc-11
+ENV CC=/usr/bin/gcc-11
+ENV CXX=/usr/bin/g++-11
+
+# Set default shell to bash
+SHELL ["/bin/bash", "-l", "-c"]
+
+# Set default command
+CMD ["/bin/bash", "-l"]
