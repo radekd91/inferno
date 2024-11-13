@@ -5,6 +5,38 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Function to install system dependencies
+install_system_dependencies() {
+    if ! command_exists unzip || ! command_exists wget; then
+        echo "Installing required system dependencies..."
+        sudo apt-get update
+        sudo apt-get install -y unzip wget
+    fi
+}
+
+# Function to setup mamba initialization
+setup_mamba_init() {
+    mamba init bash
+    
+    # Add mamba initialization to bashrc
+    echo '
+# >>> mamba initialize >>>
+# !! Contents within this block are managed by '"'mamba init'"' !!
+export MAMBA_EXE="/home/$USER/miniforge3/bin/mamba";
+export MAMBA_ROOT_PREFIX="/home/$USER/miniforge3";
+__mamba_setup="$('\''/home/$USER/miniforge3/bin/mamba'\'' shell hook --shell bash --root-prefix '\''/home/$USER/miniforge3'\'' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__mamba_setup"
+else
+    if [ -f "/home/$USER/miniforge3/etc/profile.d/mamba.sh" ]; then
+        . "/home/$USER/miniforge3/etc/profile.d/mamba.sh"
+    fi
+fi
+unset __mamba_setup
+# <<< mamba initialize <<<
+' >> ~/.bashrc
+    source ~/.bashrc
+}
 # Install Miniforge if not already installed
 if [ ! -d "$HOME/miniforge3" ]; then
     echo "Installing Miniforge..."
@@ -13,8 +45,7 @@ if [ ! -d "$HOME/miniforge3" ]; then
     bash $MINIFORGE_VERSION -b
     rm $MINIFORGE_VERSION
     export PATH="$HOME/miniforge3/bin:$PATH"
-    mamba init
-    source ~/.bashrc
+    setup_mamba_init
 fi
 
 # Source necessary profile files
@@ -32,6 +63,11 @@ fi
 
 # Activate the environment
 source "$HOME/miniforge3/bin/activate" "$ENV_NAME"
+
+# Ensure mamba is properly initialized in the active environment
+if ! command_exists mamba; then
+    setup_mamba_init
+fi
 
 # Install Cython if not present
 if ! python -c "import Cython" &> /dev/null; then
