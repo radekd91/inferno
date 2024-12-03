@@ -57,6 +57,9 @@ RUN DEBIAN_FRONTEND=noninteractive sudo apt-get update && DEBIAN_FRONTEND=nonint
     unzip \
     nano \
     git \
+    ssh \ 
+    screen \
+    software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
