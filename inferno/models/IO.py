@@ -71,7 +71,8 @@ def locate_checkpoint(cfg_or_checkpoint_dir, replace_root = None, relative_to = 
                     final_checkpoint_idx = idx
             if final_checkpoint_idx is None:
                 print(f"Did not find any checkpoint with filename 'last.ckpt'. Exiting.")
-                sys.exit()
+                return None
+                # sys.exit()
             checkpoint = str(checkpoints[final_checkpoint_idx])
             
         checkpoint = str(checkpoint)
