@@ -37,6 +37,7 @@ assets/
 *.stl
 *.ply 
 *.egg-info
-
+inferno/sandbox/*
+inferno_apps/sandbox_apps/*
 # cluster submission (user-specific settings)
 *submission_settings.yaml
