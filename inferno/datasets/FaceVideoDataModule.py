@@ -194,7 +194,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             out_folder.mkdir(exist_ok=True, parents=True)
 
             out_format = out_folder / (self.get_frame_number_format() + ".png")
-            out_format = '-r 1 -i %s -r 1 ' % str(video_file) + ' "' + str(out_format) + '"'
+            # out_format = '-r 1 -i %s -r 1 ' % str(video_file) + ' "' + str(out_format) + '"'
             # out_format = ' -r 1 -i %s ' % str(video_file) + ' "' + "$frame.%03d.png" + '"'
             # subprocess.call(['ffmpeg', out_format])
             # os.system("ffmpeg " + out_format)
@@ -203,7 +203,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
             p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE) 
             out, err = p.communicate()
             if p.returncode != 0: 
-                raise Exception('ffprobe', out, err)
+                raise Exception(args[0], out, err)
 
             # import ffmpeg
             # stream = ffmpeg.input(str(video_file))

@@ -170,6 +170,7 @@ class MicaInputProcessor(object):
         min_det_score = 0.5
         image_list = list(image)
         aligned_image_list = []
+        blob_list = []
         for i, img in enumerate(image_list):
             bboxes, kpss = self.app.det_model.detect(img, max_num=0, metric='default')
             if bboxes.shape[0] == 0:
@@ -178,6 +179,7 @@ class MicaInputProcessor(object):
                 face = Face(bbox=bbox, kps=np.zeros((5,2)), det_score=min_det_score)
                 blob, _ = get_arcface_input(face, img)
                 aligned_image_list.append(aimg)
+                blob_list.append(blob)
                 if self.crash_on_no_detection:
                     raise RuntimeError("No faces detected")
                 else: 
@@ -195,14 +197,17 @@ class MicaInputProcessor(object):
             face = Face(bbox=bbox, kps=kps, det_score=det_score)
             blob, aimg = get_arcface_input(face, img, image_is_bgr=False)
             aligned_image_list.append(aimg)
+            blob_list.append(blob)
         aligned_images = np.array(aligned_image_list)
         # b,h,w,c to b,c,h,w
         aligned_images = aligned_images.transpose((0,3,1,2))
         # to torch to correct device 
         aligned_images = torch.from_numpy(aligned_images).to(input_image.device)
-        blob = torch.from_numpy(blob).to(input_image.device).unsqueeze(0)
+        blobs = np.array(blob_list)
+        # blobs = blobs.transpose((0,3,1,2))
+        blobs = torch.from_numpy(blobs).to(input_image.device)
         # return aligned_images
-        return blob
+        return blobs
     
 
 # # Assuming arcface_src and src_map are defined somewhere else in your code
