@@ -60,7 +60,7 @@ dependencies:
     - opencv-contrib-python==4.9.0.80
     - opencv-python==4.9.0.80
     - opencv-python-headless==4.9.0.80
-    - psbody-mesh @ git+https://github.com/MPI-IS/mesh.git@v0.4
+    - psbody-mesh @ git+https://github.com/radekd91/mesh.git@fix/openGLunavailable
     - python-speech-features==0.6
     # - pytorch-lightning==1.4.9
     - pytorch-lightning==1.9

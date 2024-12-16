@@ -10,7 +10,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ Europe/Berlin 
 
 # Pre-configure tzdata to avoid prompts during the build process
-RUN echo "tzdata tzdaata/Areas select Europe" | debconf-set-selections && \ 
+RUN echo "tzdata tzdata/Areas select Europe" | debconf-set-selections && \ 
     echo "tzdata tzdata/Zones/Europe select Berlin" | debconf-set-selections && \
     echo 'keyboard-configuration keyboard-configuration/variant select pc105' | debconf-set-selections && \
     echo 'keyboard-configuration keyboard-configuration/layout select us' | debconf-set-selections 
