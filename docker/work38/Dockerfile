@@ -55,8 +55,7 @@ RUN sudo apt-get update && sudo apt-get install -y --no-install-recommends \
     unzip \
     nano \
     git 
-    # && rm -rf /var/lib/apt/lists/*
-
+RUN sudo apt-get autoremove -y && sudo apt-get autoclean -y 
 # Set the working directory in the container
 WORKDIR /home/$USER/workspace/repos
 
