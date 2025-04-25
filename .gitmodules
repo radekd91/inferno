@@ -33,7 +33,7 @@
 [submodule "external/spectre"]
 	path = external/spectre
 	url = https://github.com/radekd91/spectre
-	branch = feature/batchVidSupport
+	branch = master
 [submodule "external/FOCUS"]
 	path = external/FOCUS
 	url = https://github.com/radekd91/Occlusion-Robust-MoFA

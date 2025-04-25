@@ -1,7 +1,7 @@
 albumentations==1.0.3
 compress-pickle==1.2.0
 chumpy==0.70
-Cython==0.29
+Cython==0.29.14
 decord==0.6.0
 face-alignment==1.3.5
 facenet-pytorch==2.5.2
@@ -14,10 +14,8 @@ imgaug==0.4.0
 insightface==0.6.2
 kornia==0.6.5
 matplotlib==3.2.2
-mediapipe==0.8.10
 munch==2.5.0
 numpy==1.23.0
-onnxruntime-gpu==1.9.0
 opencv-contrib-python==4.7.0.72
 opencv-python==4.7.0.72
 opencv-python-headless==4.7.0.72
