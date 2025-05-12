@@ -4,4 +4,4 @@ git submodule update --init external/SwinTransformer
 git submodule update --init external/face-parsing.PyTorch
 git submodule update --init --recursive external/spectre
 git submodule update --init --recursive external/FOCUS
-
+echo "FINISHED"

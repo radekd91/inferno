@@ -3737,7 +3737,7 @@ def attach_audio_to_reconstruction_video(input_video, input_video_with_audio, ou
     # cmd = "ffmpeg -y -i %s -i %s -c copy -map 0:0 -map 1:1 -shortest %s" \
     #       % (input_video, input_video_with_audio, output_video)
     # os.system(cmd) 
-    cmd = ["ffmpeg", "-y", "-i", str(input_video), "-i", str(input_video_with_audio), "-c", "copy", "-map", "0:0", "-map", "1:1", "-shortest", str(output_video)],  
+    cmd = ["ffmpeg", "-y", "-i", str(input_video), "-i", str(input_video_with_audio), "-c", "copy", "-map", "0:0", "-map", "1:1", "-shortest", str(output_video)]  
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  
     out, err =  p.communicate()
     return output_video
