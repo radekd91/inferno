@@ -1,19 +1,39 @@
 # Start from an NVIDIA CUDA base image
-# FROM nvidia/cuda:11.0-base-ubuntu20.04
-# FROM nvidia/cuda:11.8.0-runtime-ubuntu20.04
 FROM nvidia/cuda:12.3.1-devel-ubuntu20.04
 LABEL maintainer="RadekDanecek"
 
 # Set a non-interactive shell to avoid prompts during the build process
 ARG DEBIAN_FRONTEND=noninteractive
 
-ENV TZ Europe/Berlin 
+ENV TZ=Europe/Berlin 
 
 # Pre-configure tzdata to avoid prompts during the build process
 RUN echo "tzdata tzdata/Areas select Europe" | debconf-set-selections && \ 
     echo "tzdata tzdata/Zones/Europe select Berlin" | debconf-set-selections && \
     echo 'keyboard-configuration keyboard-configuration/variant select pc105' | debconf-set-selections && \
     echo 'keyboard-configuration keyboard-configuration/layout select us' | debconf-set-selections 
+
+# Update and install necessary packages for X11 and OpenGL
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    libboost-dev \
+    xorg \
+    xvfb \
+    libglvnd-dev \
+    libgl1 \
+    libglx0 \
+    libegl1 \
+    libgles2 \
+    cmake \
+    curl \
+    wget \
+    zip \
+    unzip \
+    nano \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
 ARG USER 
 ARG USER_ID 
@@ -36,39 +56,14 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-ins
 # Switch to the newly created user
 USER ${USER}
 
-
-# Update and install necessary packages for X11 and OpenGL
-RUN DEBIAN_FRONTEND=noninteractive sudo apt-get update && DEBIAN_FRONTEND=noninteractive sudo apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
-    g++ \
-    libboost-dev \ 
-    xorg \
-    xvfb \
-    libglvnd-dev \
-    libgl1 \
-    libglx0 \
-    libegl1 \
-    libgles2 \
-    cmake \
-    curl \
-    wget \
-    zip \ 
-    unzip \
-    nano \
-    git \
-    && rm -rf /var/lib/apt/lists/*
-
 # Set the working directory in the container
 WORKDIR /home/$USER/workspace/repos
 
-# # Set the DISPLAY environment variable for X11 forwarding
-# ENV DISPLAY=:0
 # Set up the virtual display environment variable
 ENV DISPLAY=:99
 
 # Add a startup script to the image
-COPY install_38_docker.sh /usr/local/bin/install_script.sh
+COPY install_39_docker.sh /usr/local/bin/install_script.sh
 COPY startup_script.sh /usr/local/bin/startup_script.sh
 COPY environment.yaml /workspace/environment.yaml
 COPY requirements.txt /workspace/requirements.txt
