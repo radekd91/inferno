@@ -35,8 +35,34 @@
 </p>
 
 
-This is the official implementation of [EMOTE : Emotional Speech-Driven Animation with Copntent-Emotion Disentanglement](https://emote.is.tue.mpg.de/). 
+This is the official implementation of [EMOTE : Emotional Speech-Driven Animation with Content-Emotion Disentanglement](https://emote.is.tue.mpg.de/). 
 EMOTE takes speech audio and an emotion and intensity labels on the input and produces a talking head avatar that correctly articulates the words spoken in the audio while expressing the specified emotion.
+
+## Warning 
+- Some people experience issues getting the correct results EMOTE from the latest version of the repo. If the results have obviously wrong jitter, 
+please default to the [EMOTE 2.0 release commit](https://github.com/radekd91/inferno/commit/076e4acd5f476dba4d741462760d4011d341c4ec): 
+```bash
+git checkout 076e4acd5f476dba4d741462760d4011d341c4ec
+```
+- Furthermore, it appears a mismatch in versions one of the lower-level packages is behind the issue. For your reference, EMOTE models can be run successfully with the following CUDA/Pytorch versions. Running: 
+```python
+import torch
+
+print("PyTorch version:", torch.__version__)
+print("CUDA version used by PyTorch:", torch.version.cuda)
+print("cuDNN version used by PyTorch:", torch.backends.cudnn.version())
+print("Is CUDA available:", torch.cuda.is_available())
+```
+should produce: 
+```
+PyTorch version: 1.12.1
+CUDA version used by PyTorch: 11.3
+cuDNN version used by PyTorch: 8302
+Is CUDA available: True
+```
+
+- If the issue persists, please contribute to this issue: https://github.com/radekd91/inferno/issues/9. We are actively looking into a solution. 
+
 
 ## News 
 - (20th Dec 2023) Docker installation now available. Please go to the [docker folder](../../docker/README.md)
@@ -76,12 +102,7 @@ To run the demo on any audio, run:
 python demo/demo_eval_talking_head_on_audio.py --path_to_audio <your_wav_file> --output_folder <your_output_folder>
 ```
 If you only want results for a particular emotion, specify `--emotion` followed by one of: `Neutral`, `Happy`, `Sad`, `Surprise`, `Fear`, `Disgust`,`Anger`, `Contempt`. 
-You may also specify more of them and seperate them with `,`.
-
-
-## Training 
-
-Training EMOTE is a multi-step process which consists of: 
+You may also specify more of them and sepe.ch consists of: 
 
 1) MEAD data processing 
     - including pseudo-GT extraction

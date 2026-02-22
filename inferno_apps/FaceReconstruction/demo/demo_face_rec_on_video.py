@@ -82,6 +82,9 @@ def reconstruct_video(args):
 
         current_bs = batch["image"].shape[0]
         img = batch
+        if (Path(outfolder) /  batch["image_name"][0]).exists():
+            print(f"Skipping {batch['image_name'][0]}")
+            continue
         vals = test(model, img)
         visdict = model.visualize_batch(batch, j, None, in_batch_idx=None)
         for i in range(current_bs):

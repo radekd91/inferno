@@ -36,6 +36,10 @@ def dist(p1, p2):
 
 
 def get_arcface_input(face, img, image_is_bgr=True):
+    ## if all face keypoints are zero, then just return the image
+    if np.all(face.kps == 0):
+        blob = cv2.dnn.blobFromImages([img], 1.0 / input_std, (112, 112), (input_mean, input_mean, input_mean), swapRB=image_is_bgr)
+        return blob[0], img
     aimg = face_align.norm_crop(img, landmark=face.kps)
     blob = cv2.dnn.blobFromImages([aimg], 1.0 / input_std, (112, 112), (input_mean, input_mean, input_mean), swapRB=image_is_bgr)
     return blob[0], aimg
