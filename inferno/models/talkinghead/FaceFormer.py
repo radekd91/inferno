@@ -25,7 +25,7 @@ from inferno.layers.losses.RotationLosses import compute_rotation_loss, convert_
 from inferno.layers.losses.EmoNetLoss import create_emo_loss
 from omegaconf import open_dict
 from munch import Munch
-from inferno.layers.losses.Masked import MaskedTemporalMSELoss
+from inferno.layers.losses.Masked import MaskedTemporalMSELoss, MaskedTemporalMAELoss
 from inferno.layers.losses.VideoEmotionLoss import create_video_emotion_loss
 
 
@@ -43,6 +43,8 @@ class FaceFormer(TalkingHeadBase):
         sequence_decoder = sequence_decoder_from_cfg(cfg)
         preprocessor_cfg = cfg.model.get('preprocessor', None)
         preprocessor = preprocessor_from_cfg(preprocessor_cfg) if preprocessor_cfg is not None else None 
+        postprocessor_cfg = cfg.model.get('postprocessor', None)
+        postprocessor = preprocessor_from_cfg(postprocessor_cfg) if postprocessor_cfg is not None else None 
         renderer_cfg = cfg.model.get('renderer', None)
         renderer = renderer_from_cfg(renderer_cfg) if renderer_cfg is not None else None 
         
@@ -52,6 +54,7 @@ class FaceFormer(TalkingHeadBase):
             sequence_decoder= sequence_decoder, 
             # shape_model=face_model,
             preprocessor=preprocessor,
+            postprocessor=postprocessor,
             renderer=renderer,
             )
 
@@ -470,6 +473,115 @@ class FaceFormer(TalkingHeadBase):
                         )
 
             loss_value = sum(loss_values.values()) / len(loss_values)
+        
+
+        elif loss_type in ["mel_reconstruction_loss", "mel_vocoded_loss"]:
+            pred_key = loss_cfg.get('predicted_key', 'predicted_mel')
+            gt_key = loss_cfg.get('gt_key', 'gt_mel')
+            gt_mel = sample[gt_key]
+            predicted_mel = sample[pred_key]
+
+            T_mel = gt_mel.shape[1]
+            # assert T_mel % T == 0, f"gt_mel.shape[1] ({T_mel}) must be divisible by T ({T})" 
+            T_factor = T_mel // T
+            if T_factor > 1:
+                mask = mask.repeat_interleave(T_factor, dim=1)
+                # mask_sum = mask.sum().item()
+            T_gt = gt_mel.shape[1]
+            T_pred = predicted_mel.shape[1]
+
+            T_loss = min(T_gt, T_pred)
+
+            if mask.ndim == 3: 
+                mask = mask.squeeze(-1)
+
+            if loss_cfg.metric in ["mse", "l2"]:
+                loss_value = MaskedTemporalMSELoss()(predicted_mel[:,:T_loss,...], gt_mel[:,:T_loss,...], mask=mask[:,:T_loss])
+            
+            elif loss_cfg.metric in ["mae", "l1"]:
+                loss_value = MaskedTemporalMAELoss()(predicted_mel[:,:T_loss,...], gt_mel[:,:T_loss,...], mask=mask[:,:T_loss])
+            
+            else: 
+                raise ValueError(f"loss_cfg.metric '{loss_cfg.metric}' not supported")
+        
+        elif loss_type in ["unit_cross_entropy"]:
+            pred_key = loss_cfg.get('predicted_key', 'predicted_unit_classification_vectors')
+            gt_key = loss_cfg.get('gt_key', 'gt_units') 
+
+            gt_units = sample[gt_key]
+            predicted_unit_vectors = sample[pred_key]
+
+            T_units = min(gt_units.shape[1], predicted_unit_vectors.shape[1])
+            predicted_unit_vectors = predicted_unit_vectors[:, :T_units, :]
+            gt_units = gt_units[:, :T_units]
+            # assert T_units % T == 0 or (T_units+1) % T == 0, f"gt_units.shape[1] ({T_units}) must be divisible by T ({T})"
+            T_factor = T_units // T
+            if T_units % T != 0 :
+                T_factor += 1
+            mask = mask.repeat_interleave(T_factor, dim=1)
+            mask = mask[:, :T_units, :].squeeze(-1)
+            mask_sum = mask.sum().item()
+
+            gt_units = gt_units.reshape(B * T_units)
+            predicted_unit_vectors = predicted_unit_vectors.reshape(B * T_units, -1)
+
+            loss_values = torch.nn.functional.cross_entropy(predicted_unit_vectors, gt_units, reduction='none')
+            loss_values = loss_values.view(B, T_units)
+            
+            loss_values = loss_values * mask.squeeze(-1) 
+            loss_value = loss_values.sum() / mask_sum
+
+        elif loss_type in ["selftalk_ctc_loss", "selftalk_ctc"]:
+
+            T_text = sample["text_logits"].shape[1]
+            T_log_probs = sample["predicted_lip_logit_log_probs"].shape[0]
+
+            log_probs = sample["predicted_lip_logit_log_probs"]
+            text_logits = sample["text_logits"]
+            text_attention_mask = sample["text_attention_mask"]
+
+            input_lengths = torch.tensor([T_log_probs] * B_eff, device=log_probs.device)
+            ## target lengths are a bit different, since 
+            target_lenghts = text_attention_mask.sum(dim=1).to(dtype=torch.int32)
+
+            # # Remove padding and flatten targets
+            # targets = torch.cat([
+            #     text_logits[i, :target_lenghts[i]]
+            #     for i in range(B)
+            # ])
+
+
+            loss_value = torch.nn.functional.ctc_loss(
+                log_probs,
+                text_logits,
+                input_lengths,
+                target_lenghts,
+                blank=0,
+                reduction="mean",
+                zero_infinity=True,
+            )
+
+        elif loss_type in ["selftalk_feature_loss", "selftalk_feature"]:
+            lip_features = sample["predicted_lip_features"][:B_eff]
+            text_features = sample["text_feature"][:B_eff]
+
+            T_feat = min(text_features.shape[1], lip_features.shape[1])
+            lip_features = lip_features[:, :T_feat, :]
+            text_features = text_features[:, :T_feat, :]
+
+            # # assert T_units % T == 0 or (T_units+1) % T == 0, f"gt_units.shape[1] ({T_units}) must be divisible by T ({T})"
+            # T_factor = T_feat // T
+            # if T_feat % T != 0 :
+            #     T_factor += 1
+            # mask = mask.repeat_interleave(T_factor, dim=1)
+            # mask = mask[:, :T_feat, :].squeeze(-1)
+            # mask_sum = mask.sum().item()
+
+            if lip_features.shape[1] != text_features.shape[1]:
+                raise ValueError(f"lip_features.shape[1] ({lip_features.shape[1]}) must match text_features.shape[1] ({text_features.shape[1]})")
+            
+            # loss_value = MaskedTemporalMSELoss()(lip_features, text_features, mask=mask_)
+            loss_value = MaskedTemporalMSELoss()(lip_features, text_features, )
 
         else: 
             raise ValueError(f"Unknown loss type: {loss_type}")

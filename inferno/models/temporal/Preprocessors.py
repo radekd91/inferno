@@ -89,18 +89,17 @@ class FlamePreprocessor(Preprocessor):
             # exp = nested_dict_access(batch, 'gt_exp', rec_type).view(B * T, -1)[..., :self.cfg.flame.n_exp]#.contiguous()
             # jaw = nested_dict_access(batch, 'gt_jaw', rec_type).view(B * T, -1)
             
+            if "gt_global_pose" in rec_dict: 
+                global_pose = rec_dict["gt_global_pose"].reshape(B * T, -1)
+            else: 
+                global_pose = torch.zeros_like(jaw, device=jaw.device, dtype=jaw.dtype)     
+            pose = torch.cat([global_pose, jaw], dim=-1)#.contiguous()
+
+
             if "gt_neck" in rec_dict:
                 neck = rec_dict["gt_neck"].reshape(B * T, -1)
             else: 
-                # neck = torch.zeros_like(jaw, device=jaw.device, dtype=jaw.dtype)
-                neck = None
-                
-            if "gt_global_pose" in rec_dict: 
-                global_pose = rec_dict["gt_global_pose"].reshape(B * T, -1) 
-            else: 
-                global_pose = torch.zeros_like(jaw, device=jaw.device, dtype=jaw.dtype)     
-            pose = torch.cat([global_pose, jaw], dim=-1) #.contiguous() ## uncomment if you get crashes due to contiguouity 
-
+                neck = torch.zeros_like(jaw, device=jaw.device, dtype=jaw.dtype)
 
             # exp = torch.zeros((B * T, self.cfg.flame.n_exp))
             # pose = torch.zeros_like((B * T, 6))
@@ -146,8 +145,9 @@ class FlamePreprocessor(Preprocessor):
             # gt_shape = nested_dict_access(batch, 'gt_shape', rec_type)
 
             if gt_shape.ndim == 3:
-                template_shape_coeffs = gt_shape[:, 0 :self.cfg.flame.n_shape]#.contiguous()
+                template_shape_coeffs = gt_shape[:, 0, :self.cfg.flame.n_shape]#.contiguous()
                 shape =  gt_shape[..., :self.cfg.flame.n_shape]#.contiguous()
+                shape = shape.view(B * T, -1)
             else: 
                 template_shape_coeffs = gt_shape
                 ## shape = batch['gt_shape'].view(B, -1)[:, None, ...].repeat(1, T, 1).contiguous().view(B * T, -1)
@@ -157,6 +157,12 @@ class FlamePreprocessor(Preprocessor):
 
             # shape = torch.zeros((B * T, self.cfg.flame.n_exp))
             # template_shape = torch.zeros_like(template_shape)
+            
+            ## pad shape if necessary
+            if shape.shape[-1] < self.cfg.flame.n_shape:
+                shape = F.pad(shape, (0, self.cfg.flame.n_shape - shape.shape[-1]), mode='constant', value=0)
+            if template_shape_coeffs.shape[-1] < self.cfg.flame.n_shape:
+                template_shape_coeffs = F.pad(template_shape_coeffs, (0, self.cfg.flame.n_shape - template_shape_coeffs.shape[-1]), mode='constant', value=0)
 
             verts, landmarks_2D, landmarks_3D = self.flame(
                 shape_params=shape, 
@@ -238,7 +244,7 @@ class FaceRecPreprocessor(Preprocessor):
         assert checkpoint is not None, "No checkpoint found. Check the paths in the config file."
         face_rec_cfg.learning.losses = {}
         face_rec_cfg.learning.metrics = {}
-        self.model = FaceReconstructionBase.instantiate(face_rec_cfg, checkpoint=checkpoint)
+        self.model = FaceReconstructionBase.instantiate(face_rec_cfg, checkpoint=checkpoint, strict=False)
         
         for p in self.model.parameters():
             p.requires_grad = False

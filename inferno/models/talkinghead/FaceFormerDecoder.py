@@ -32,9 +32,12 @@ from inferno.models.temporal.motion_prior.L2lMotionPrior import L2lVqVae, create
 from inferno.utils.other import class_from_str
 from inferno.models.IO import get_checkpoint_with_kwargs
 import sys
+from pathlib import Path 
+import pickle as pkl
 
 
 def _get_biased_mask(decoder, cfg, max_len=None):
+    max_len = max_len or cfg.max_len 
     if decoder.temporal_bias_type == 'faceformer':
         biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = max_len, period=cfg.period)
     elif decoder.temporal_bias_type == 'faceformer_future':
@@ -207,8 +210,10 @@ class EmotionCondition(StyleConditioning):
             if "gt_expression_label_condition" in sample:
                 expressions = sample["gt_expression_label_condition"]
             else:
-                expressions = torch.nn.functional.one_hot(sample["gt_expression_label"], 
-                                                        num_classes=self.cfg.n_expression).to(device=sample["gt_expression_label"].device)
+                # expressions = torch.nn.functional.one_hot(sample["gt_expression_label"], 
+                key = "gt_expression_label" if "emotion_id" not in sample.keys() else "emotion_id"
+                expressions = torch.nn.functional.one_hot(sample[key], 
+                                                        num_classes=self.cfg.n_expression).to(device=sample[key].device)
                 # if expressions.ndim == 3: # B, T, num expressions
                 #     expressions = expressions.unsqueeze(1).expand(-1, T, -1)
             if expressions.ndim == 2: # B, num expressions, missing temporal dimension -> expand
@@ -223,8 +228,13 @@ class EmotionCondition(StyleConditioning):
             if "gt_expression_intensity_condition" in sample:
                 intensities = sample["gt_expression_intensity_condition"]
             else:
-                intensities = torch.nn.functional.one_hot(sample["gt_expression_intensity"] -1, 
-                    num_classes=self.cfg.n_intensities).to(device=sample["gt_expression_intensity"].device)
+                key = "gt_expression_intensity" if "intensity_id" not in sample.keys() else "intensity_id" 
+                if key == "intensity_id":
+                    intensities = torch.nn.functional.one_hot(sample[key], 
+                        num_classes=self.cfg.n_intensities).to(device=sample[key].device)
+                else:
+                    intensities = torch.nn.functional.one_hot(sample[key] -1, 
+                        num_classes=self.cfg.n_intensities).to(device=sample[key].device)
             if intensities.ndim == 2: # B, num intensities, missing temporal dimension -> expand
                 intensities = intensities.unsqueeze(1) 
             if intensities.shape[1] == 1: # B, 1, num intensities -> expand    
@@ -238,8 +248,9 @@ class EmotionCondition(StyleConditioning):
             if "gt_expression_identity_condition" in sample:
                 identities = sample["gt_expression_identity_condition"]
             else:
-                identities = torch.nn.functional.one_hot(sample["gt_expression_identity"], 
-                                                        num_classes=self.cfg.n_identities).to(device=sample["gt_expression_identity"].device)
+                key = "gt_expression_identity" if "subject_id" not in sample.keys() else "subject_id"
+                identities = torch.nn.functional.one_hot(sample[key], 
+                                                        num_classes=self.cfg.n_identities).to(device=sample[key].device)
             if identities.ndim == 2: # B, num identities, missing temporal dimension -> expand
                 identities = identities.unsqueeze(1)
             if identities.shape[1] == 1: # B, 1, num identities -> expand
@@ -297,19 +308,10 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
         self.max_len = cfg.max_len
         # temporal bias
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'faceformer')
-        self.biased_mask = _get_biased_mask(self, cfg, max_len=self.max_len)
-        # if self.temporal_bias_type == 'faceformer':
-        #     self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
-        # elif self.temporal_bias_type == 'faceformer_future':
-        #     self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
-        # elif self.temporal_bias_type == 'classic':
-        #     self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
-        # elif self.temporal_bias_type == 'classic_future':
-        #     self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
-        # elif self.temporal_bias_type == 'none':
-        #     self.biased_mask = None
-        # else:
-        #     raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
+
+        self.biased_mask = _get_biased_mask(self, cfg)
+
+        self.style_op = cfg.get('style_op', 'add')
 
         decoder_layer = nn.TransformerDecoderLayer(
             d_model = cfg.feature_dim, 
@@ -394,6 +396,36 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
 
         raise ValueError(f"Unsupported style type '{self.style_type}'")
 
+    # def _style(self, sample, hidden_states): 
+    #     if self.obj_vector is None:
+    #         return hidden_states
+        
+    #     if isinstance(self.obj_vector, StyleConditioning):
+    #         # the new way
+    #         style_emb = self.obj_vector(sample)
+    #         # return style_emb
+    #     else:
+    #         # backwards compatibility
+    #         one_hot = sample["one_hot"]
+    #         obj_embedding = self.obj_vector(one_hot)
+    #         style_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
+    #     if self.style_op == "add":
+    #         styled_hidden_states = hidden_states + style_emb
+    #     elif self.style_op == "cat":
+    #         if style_emb.ndim == 2:
+    #             style_emb = style_emb.unsqueeze(1)
+    #         if style_emb.shape[1] == 1:
+    #             style_emb = style_emb.repeat(1, hidden_states.shape[1], 1)
+    #         styled_hidden_states = torch.cat([hidden_states, style_emb], dim=-1)
+    #     elif self.style_op == "none": # no style, for debugging purposes only
+    #         styled_hidden_states = hidden_states
+    #     elif self.style_op == "style_only": # no hidden features, only style. for debugging purposes only
+    #         styled_hidden_states = style_emb
+    #     else: 
+    #         raise ValueError(f"Invalid operation: '{self.style_op}'")
+        
+    #     return styled_hidden_states
+
     def _teacher_forced_step(self, sample): 
         vertices = sample["gt_vertices"]
         template = sample["template"].unsqueeze(1)
@@ -403,7 +435,7 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
 
         # vertice_emb = obj_embedding.unsqueeze(1) # (1,1,feature_dim)
         # style_emb = vertice_emb  
-        style_emb = self._style(sample, hidden_states.device)
+        style_emb = self._style(sample, hidden_states)
 
         vertices_input = torch.cat((template, vertices[:,:-1]), 1) # shift one position
         vertices_input = vertices_input - template
@@ -422,7 +454,10 @@ class FaceFormerDecoderBase(AutoRegressiveDecoder):
     def _decode(self, sample, vertices_input, hidden_states):
         dev = vertices_input.device
         if self.biased_mask is not None:
-            tgt_mask = self.biased_mask[:, :vertices_input.shape[1], :vertices_input.shape[1]].clone().detach().to(device=dev)
+            biased_mask = self.biased_mask
+            if hidden_states.shape[1] > self.biased_mask.shape[1]: 
+                biased_mask = _get_biased_mask(self, self.cfg, max_len=hidden_states.shape[1]).to(device=hidden_states.device)
+            tgt_mask = biased_mask[:, :vertices_input.shape[1], :vertices_input.shape[1]].clone().detach().to(device=dev)
             if tgt_mask.ndim == 3: # the mask's first dimension needs to be num_head * batch_size
                 tgt_mask = tgt_mask.repeat(vertices_input.shape[0], 1, 1)
         else: 
@@ -754,23 +789,13 @@ class BertDecoder(FeedForwardDecoder):
         self.decoder = nn.Linear(dim_factor*cfg.feature_dim, self.decoder_output_dim())
         self.post_bug_fix = cfg.get('post_bug_fix', False)
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'none')
-        self.biased_mask = _get_biased_mask(self, cfg, max_len=self.max_len)
-        # if self.temporal_bias_type == 'faceformer':
-        #     self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
-        # elif self.temporal_bias_type == 'faceformer_future':
-        #     self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len, period=cfg.period)
-        # elif self.temporal_bias_type == 'classic':
-        #     self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
-        # elif self.temporal_bias_type == 'classic_future':
-        #     self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = cfg.max_len)
-        # elif self.temporal_bias_type == 'none':
-        #     self.biased_mask = None
-        # else:
-        #     raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
+        self.biased_mask = _get_biased_mask(self, cfg)
 
         # trying init to prevent the loss from exploding in the beginning
         nn.init.constant_(self.decoder.weight, 0)
         nn.init.constant_(self.decoder.bias, 0)
+
+
 
     def to(self, *args, **kwargs):
         super().to(*args, **kwargs)
@@ -786,7 +811,10 @@ class BertDecoder(FeedForwardDecoder):
 
     def _decode(self, sample, styled_hidden_states):
         if self.biased_mask is not None: 
-            mask = self.biased_mask[:, :styled_hidden_states.shape[1], :styled_hidden_states.shape[1]].clone() \
+            biased_mask = self.biased_mask
+            if styled_hidden_states.shape[1] > self.biased_mask.shape[1]: 
+                biased_mask = _get_biased_mask(self, self.cfg, max_len=styled_hidden_states.shape[1]).to(device=styled_hidden_states.device)
+            mask = biased_mask[:, :styled_hidden_states.shape[1], :styled_hidden_states.shape[1]].clone() \
                 .detach().to(device=styled_hidden_states.device)
             if mask.ndim == 3: # the mask's first dimension needs to be num_head * batch_size
                 mask = mask.repeat(styled_hidden_states.shape[0], 1, 1)
@@ -917,6 +945,89 @@ class FlameBertDecoder(BertDecoder):
         return vertices_neutral
 
 
+# linear interpolation layer
+def linear_interpolation(features, input_fps, output_fps, output_len=None):
+    # features: (N, C, L)
+    seq_len = features.shape[2] / float(input_fps)
+    if output_len is None:
+        output_len = int(seq_len * output_fps)
+    output_features = torch.nn.functional.interpolate(features, size=output_len, align_corners=False, mode='linear')
+    return output_features
+
+
+
+class SelfTalkBertDecoder(FlameBertDecoder):
+
+    def __init__(self, cfg) -> None:
+        super().__init__(cfg)
+        from transformers import Wav2Vec2CTCTokenizer, Wav2Vec2Processor, Wav2Vec2Config
+        self.processor = Wav2Vec2Processor.from_pretrained(cfg.asr_model_path)
+        self.tokenizer = Wav2Vec2CTCTokenizer.from_pretrained(cfg.asr_model_path)
+        config = Wav2Vec2Config.from_pretrained(cfg.asr_model_path)
+        
+        num_classes = self.tokenizer.vocab_size ## figure out if this hsould be the cfg.lm_logit_dim
+
+        f = Path(cfg.flame.flame_model_path).parents[1]/ "FLAME_masks" / "FLAME_masks.pkl"
+        with open(f, 'rb') as f:
+            self.lip_mask = pkl.load(f, encoding='latin1')["lips"]
+
+        self.d_model = config.hidden_size
+
+        self.lip_map = nn.Linear(self.lip_mask.size * 3, self.d_model) ## 254 is the number of lip vertices in FLAME 
+        ## the same transformer as in SelfTalk
+        self.text_transformer = nn.Transformer(d_model=self.d_model, batch_first=True)
+        self.lm_head = nn.Linear(self.d_model, cfg.lm_logit_dim)
+        self.geometry_frequency = cfg.geometry_frequency 
+        self.text_feature_frequency = cfg.language_feature_frequency
+
+
+    def _post_prediction(self, sample):
+        """
+        Adds the template vertices to the predicted offsets
+        """
+        B, T, V3 = sample["predicted_vertices"].shape
+        all_vertices = sample["predicted_vertices"]  # shape (B, T, 254)
+        lip_vertices = all_vertices.view(B,T, V3 // 3, 3)[:, :, self.lip_mask, :].view(B,T,-1) # extract the lip vertices
+        # lip_vertices = lip_vertices.view(lip_vertices.shape[0], lip_vertices.shape[1], -1)
+        lip_feat = self.lip_map(lip_vertices)  # shape (B, T, 1024) 
+
+        ## permute the dimension since the interpolation expects (B, C, L)
+        lip_feat = lip_feat.permute(0, 2, 1)  # shape (B, 1024, T)
+        lip_feat = linear_interpolation(lip_feat, self.geometry_frequency, self.text_feature_frequency) # shape (B, TF, 1024)
+        lip_feat = lip_feat.permute(0, 2, 1)  # shape (B, TF, 1024)
+
+        TF = lip_feat.shape[1]
+
+        lip_text_features = self.text_transformer(lip_feat,lip_feat)  # shape (B, TF, 1024)
+        logits = self.lm_head(lip_text_features)  # shape (B, TF, 33)
+
+        text_logits = sample["text_logits"]  # shape (B, T, 33)
+        text_logits = torch.argmax(text_logits, dim=-1)
+        log_probs = nn.functional.log_softmax(logits, dim=-1, dtype=torch.float32).transpose(0, 1)
+        text_logits = self.processor.batch_decode(text_logits)
+        tokenized = self.tokenizer(text_logits, padding=True, return_tensors="pt")
+        text_logits = tokenized.input_ids
+        text_attention_mask = tokenized.attention_mask
+        text_logits = text_logits.to(all_vertices.device)
+
+            # loss4 = nn.functional.ctc_loss(
+            #     log_probs,
+            #     text_logits,
+            #     torch.tensor([log_probs.shape[0]]),
+            #     torch.tensor([text_logits.shape[1]]),
+            #     blank=0,
+            #     reduction="mean",
+            #     zero_infinity=True,
+            # )
+
+        sample = super()._post_prediction(sample)
+        sample["predicted_lip_logits"] = logits
+        sample["predicted_lip_logit_log_probs"] = log_probs
+        sample["predicted_lip_features"] = lip_text_features
+        sample["text_attention_mask"] = text_attention_mask
+        sample["text_logits"] = text_logits
+        return sample
+
 
 def load_motion_prior_net(path, trainable=False):
     from pathlib import Path
@@ -1005,19 +1116,7 @@ class BertPriorDecoder(FeedForwardDecoder):
         self.temporal_bias_type = cfg.get('temporal_bias_type', 'none')
         # max_len = cfg.max_len
         max_len = 1200
-        self.biased_mask = _get_biased_mask(self, cfg, max_len=max_len)
-        # if self.temporal_bias_type == 'faceformer':
-        #     self.biased_mask = init_faceformer_biased_mask(num_heads = cfg.nhead, max_seq_len = max_len, period=cfg.period)
-        # elif self.temporal_bias_type == 'faceformer_future':
-        #     self.biased_mask = init_faceformer_biased_mask_future(num_heads = cfg.nhead, max_seq_len = max_len, period=cfg.period)
-        # elif self.temporal_bias_type == 'classic':
-        #     self.biased_mask = init_mask(num_heads = cfg.nhead, max_seq_len = max_len)
-        # elif self.temporal_bias_type == 'classic_future':
-        #     self.biased_mask = init_mask_future(num_heads = cfg.nhead, max_seq_len = max_len)
-        # elif self.temporal_bias_type == 'none':
-        #     self.biased_mask = None
-        # else:
-        #     raise ValueError(f"Unsupported temporal bias type '{self.temporal_bias_type}'")
+        self.biased_mask = _get_biased_mask(self, cfg, max_len)
 
         self.motion_prior : MotionPrior = load_motion_prior_net(cfg.motion_prior.path, cfg.motion_prior.get('trainable', False))
         self.latent_frame_size = self.motion_prior.latent_frame_size()
@@ -1198,7 +1297,10 @@ class BertPriorDecoder(FeedForwardDecoder):
 
         if self.bert_decoder is not None:
             if self.biased_mask is not None: 
-                mask = self.biased_mask[:, :styled_hidden_states.shape[1], :styled_hidden_states.shape[1]].clone() \
+                biased_mask = self.biased_mask
+                if styled_hidden_states.shape[1] > self.biased_mask.shape[1]: 
+                    biased_mask = _get_biased_mask(self, self.cfg, max_len=styled_hidden_states.shape[1]).to(device=styled_hidden_states.device)
+                mask = biased_mask[:, :styled_hidden_states.shape[1], :styled_hidden_states.shape[1]].clone() \
                     .detach().to(device=styled_hidden_states.device)
                 if mask.ndim == 3: # the mask's first dimension needs to be num_head * batch_size
                     mask = mask.repeat(styled_hidden_states.shape[0], 1, 1)
