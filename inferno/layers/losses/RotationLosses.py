@@ -27,8 +27,16 @@ def convert_rot(r, input_rep, output_rep):
     from pytorch3d.transforms import matrix_to_quaternion, matrix_to_rotation_6d, rotation_6d_to_matrix
     from inferno.utils.DecaUtils import batch_rodrigues, aa2euler_batch, rot_mat_to_euler
     # assert input_rep != output_rep
+    
+    if input_rep in ['aa_1', 'axis-angle_1', 'axisangle_1']:
+        input_rep = 'aa'  # Convert to standard representation
+        ## add the second and third dimension as zeros 
+        zeros = torch.zeros_like(r)
+        r = torch.cat([r, zeros, zeros], dim=-1)  # Convert
+
     if input_rep == output_rep: 
         return r
+
     if input_rep in ['aa', 'axis-angle', 'axisangle']:
         if output_rep in ['quat', 'quaternion']: 
             return matrix_to_quaternion(batch_rodrigues(r))
@@ -37,7 +45,9 @@ def convert_rot(r, input_rep, output_rep):
         elif output_rep in ['mat', 'matrix']:
             return batch_rodrigues(r)
         elif output_rep in ['6d', '6dof', '6dof']: 
-            return matrix_to_rotation_6d(batch_rodrigues(r))
+            return matrix_to_rotation_6d(batch_rodrigues(r))   
+        elif output_rep in ['aa_1', 'axis-angle_1', 'axisangle_1']:
+            return r[..., 0:1]  # Take only the first dimension (1d joint rotation hack from DiffPoseTalk)
         else: 
             raise NotImplementedError(f"The conversion from {input_rep} {output_rep} is not yet implemented")
     elif input_rep in ['quat', 'quaternion']: 
@@ -59,6 +69,9 @@ def convert_rot(r, input_rep, output_rep):
         return matrix_to_rotation_6d(rot_mat)
     elif output_rep in ['aa', 'axis-angle', 'axisangle']:
         return quaternion_to_angle_axis(matrix_to_quaternion(rot_mat))
+    elif output_rep in ['aa_1', 'axis-angle_1', 'axisangle_1']:
+        output_rot = quaternion_to_angle_axis(matrix_to_quaternion(rot_mat)) 
+        output_rot = output_rot[..., 0:1]  # Take only the first dimension (1d joint rotation hack from DiffPoseTalk)
     raise NotImplementedError(f"The conversion from {input_rep} {output_rep} is not yet implemented")
 
 
