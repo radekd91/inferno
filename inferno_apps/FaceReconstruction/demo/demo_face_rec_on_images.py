@@ -22,7 +22,7 @@ from inferno.datasets.ImageTestDataset import TestData
 import inferno
 import numpy as np
 import os
-import torch
+import torch 
 from skimage.io import imsave
 from pathlib import Path
 from tqdm import auto
@@ -37,12 +37,12 @@ def main():
     # add the input folder arg 
     parser.add_argument('--input_folder', type=str, default= str(Path(get_path_to_assets())/ "data/EMOCA_test_example_data/images/affectnet_test_examples"))
     parser.add_argument('--output_folder', type=str, default="image_output", help="Output folder to save the results to.")
-    parser.add_argument('--model_name', type=str, default='EMICA-CVT_flame2020_notexture', help='Name of the model to use.')
+    parser.add_argument('--model_name', type=str, default='EMICA-CVT_flame2020', help='Name of the model to use.')
     # parser.add_argument('--model_name', type=str, default='EMICA_flame2020_notexture', help='Name of the model to use.')
     parser.add_argument('--path_to_models', type=str, default=str(Path(get_path_to_assets()) / "FaceReconstruction/models"))
     parser.add_argument('--save_images', type=bool, default=True, help="If true, output images will be saved")
     parser.add_argument('--save_codes', type=bool, default=False, help="If true, output FLAME values for shape, expression, jaw pose will be saved")
-    parser.add_argument('--save_mesh', type=bool, default=False, help="If true, output meshes will be saved")
+    parser.add_argument('--save_mesh', type=bool, default=True, help="If true, output meshes will be saved")
     
     args = parser.parse_args()
 

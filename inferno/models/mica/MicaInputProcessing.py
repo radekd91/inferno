@@ -142,6 +142,15 @@ class MicaInputProcessor(object):
                 aimg = resize(input_image[i], output_shape=(112,112), preserve_range=True).astype(np.uint8)
             else:
                 aimg = face_align.norm_crop(input_image[i], landmark=kpss[i])
+
+                # import plotly.express as px
+                # import plotly.graph_objects as go
+                # fig = px.imshow(input_image[i])
+                # fig.add_trace(go.Scatter(x=kpss[i][:,0], y=kpss[i][:,1], mode='markers', marker=dict(size=10, color='red')))
+                # fig.show()
+                # fig = px.imshow(aimg)
+                # fig.show()
+
             aligned_image_list.append(aimg)
             # blob = cv2.dnn.blobFromImages([aimg], 1.0 / input_std, (112, 112), (input_mean, input_mean, input_mean), swapRB=False)
 
