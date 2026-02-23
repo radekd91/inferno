@@ -25,6 +25,9 @@ Current infernal projects:
 - [TalkingHead](inferno_apps/TalkingHead) 
   - official release of [EMOTE: Emotional Speech- Driven Animation with C ontent- Emotion Disentanglement](https://emote.is.tue.mpg.de/index.html)
   - tools to run, train or finetune speech-driven 3D avatars 
+- [TalkingHeadV2](inferno/sandbox/thunder/apps/TalkingHeadV2) 
+  - official release of [THUNDER:] 
+  - to run THUNDER, there is a [subrepository](https://github.com/radekd91/thunder) that should be cloned into `inferno/sandbox`. Please proceed to the relevant [README](inferno/sandbox/thunder/README.md) of the subrepo for more info
 - [FaceReconstruction](inferno_apps/FaceReconstruction)
   - contains EMICA - a combination of [DECA](https://deca.is.tue.mpg.de/), [EMOCA](https://emoca.is.tue.mpg.de/), [SPECTRE](https://filby89.github.io/spectre/) and [MICA](https://zielon.github.io/mica/) which produces excellent results
   - tools to run, train or fine-tune state-of-the-art in-the-wild face reconstruction 
@@ -129,6 +132,32 @@ pip install git+https://github.com/facebookresearch/pytorch3d.git@v0.6.2
 ```
 
 Pytorch3D installation (which is part of the requirements file) can unfortunately be tricky and machine specific. EMOCA was developed with is Pytorch3D 0.6.2 and the previous command includes its installation from source (to ensure its compatibility with pytorch and CUDA). If it fails to compile, you can try to find another way to install Pytorch3D.
+
+
+6) Pull submodules 
+
+Then clone the THUNDER sandbox into a subfolder:
+```bash
+cd inferno/sandbox 
+git clone https://github.com/radekd91/thunder_secret/ thunder
+git checkout master
+```
+Then proceed to the [readme in the sandbox](inferno/sandbox/thunder/README.md) and follow the setup steps there.
+
+7) Optional submodules 
+
+You may want to clone the following repos into the [externals](externals) folder for some of the functionality but for most things you will not need it. 
+
+```bash 
+cd externals 
+git clone -b feature/rdanecek_paper Syncnet_python_rdanecek
+git clone -b feature/rdanecek_paper DiffPoseTalk
+git clone https://github.com/facebookresearch/ImageBind 
+cd ImageBind
+pip install .
+cd ..
+cd ..
+```
 
 Notes: 
 1) INFERNO was developed with Pytorch 1.12.1 and Pytorch3d 0.6.2 running on CUDA toolkit 11.3. If for some reason installation of these failed on your machine (which can happen), feel free to install these dependencies another way. The most important thing is that version of Pytorch and Pytorch3D match. The version of CUDA is probably less important.
