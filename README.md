@@ -26,7 +26,7 @@ Current infernal projects:
   - official release of [EMOTE: Emotional Speech- Driven Animation with C ontent- Emotion Disentanglement](https://emote.is.tue.mpg.de/index.html)
   - tools to run, train or finetune speech-driven 3D avatars 
 - [TalkingHeadV2](inferno/sandbox/thunder/apps/TalkingHeadV2) 
-  - official release of [THUNDER:] 
+  - official release of [THUNDER: Supervising 3D Talking Head Avatars with Analysis-by-Audio-Synthesis](https://thunder.is.tue.mpg.de/index.html)
   - to run THUNDER, there is a [subrepository](https://github.com/radekd91/thunder) that should be cloned into `inferno/sandbox`. Please proceed to the relevant [README](inferno/sandbox/thunder/README.md) of the subrepo for more info
 - [FaceReconstruction](inferno_apps/FaceReconstruction)
   - contains EMICA - a combination of [DECA](https://deca.is.tue.mpg.de/), [EMOCA](https://emoca.is.tue.mpg.de/), [SPECTRE](https://filby89.github.io/spectre/) and [MICA](https://zielon.github.io/mica/) which produces excellent results
