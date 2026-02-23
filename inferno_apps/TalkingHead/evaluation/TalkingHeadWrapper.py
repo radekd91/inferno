@@ -117,7 +117,7 @@ class TalkingHeadWrapper(torch.nn.Module):
         return self.cfg.model.sequence_decoder.style_embedding.n_identities
 
     def forward(self, sample):
-        sample = self.talking_head_model(sample)
+        sample = self.talking_head_model(sample, with_postprocessor=False,)
 
         if self.renderer is not None:
             sample = self.renderer(sample, train=False, input_key_prefix='predicted_', output_prefix='predicted_')

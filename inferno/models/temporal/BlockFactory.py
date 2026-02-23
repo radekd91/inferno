@@ -309,6 +309,30 @@ def preprocessor_from_cfg(cfg):
         return SpectrePreprocessor(cfg)
     elif cfg.type == "ser":
         return SpeechEmotionRecognitionPreprocessor(cfg)
+    elif cfg.type == "MelPreprocessor":
+        try:
+            from inferno.sandbox.thunder.models.mesh2speech.MelPreprocessor import MelPreprocessor
+        except ImportError:
+            raise ImportError("MelPreprocessor is not available. Please install the THUNDER subrepo.")
+        return MelPreprocessor(**cfg)
+    elif cfg.type == "ClusteringHuBERTPreprocessor":
+        try:
+            from inferno.sandbox.thunder.models.mesh2speech.HuBERTPreprocessor import ClusteringHuBERTPreprocessor
+        except ImportError:
+            raise ImportError("ClusteringHuBERTPreprocessor is not available. Please install the THUNDER subrepo.")
+        return ClusteringHuBERTPreprocessor(**cfg)
+    elif cfg.type == "MeshToSpeechPreprocessor": 
+        try:
+            from inferno.sandbox.thunder.models.MeshToSpeechPreprocessor import MeshToSpeechPreprocessor
+        except ImportError:
+            raise ImportError("MeshToSpeechPreprocessor is not available. Please install the THUNDER subrepo.")
+        return MeshToSpeechPreprocessor(**cfg)
+    elif cfg.type == "ContrastiveSpeechMeshProcessor": 
+        try:
+            from inferno.sandbox.thunder.models.ContrastiveSpeechMeshProcessor import ContrastiveSpeechMeshProcessor
+        except ImportError:
+            raise ImportError("ContrastiveSpeechMeshProcessor is not available. Please install the THUNDER subrepo.")
+        return ContrastiveSpeechMeshProcessor(**cfg)
     else: 
         raise ValueError(f"Unknown preprocess model type '{cfg.model.preprocess.type}'")
 
