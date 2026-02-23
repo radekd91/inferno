@@ -1052,23 +1052,70 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     return self._emica[rec_method].to(device)
             else: 
                 self._emica = {}
-            from inferno.models.temporal.Preprocessors import EmocaPreprocessor
+            from inferno.models.temporal.Preprocessors import FaceRecPreprocessor
             from munch import Munch
             cfg = Munch()
             cfg.with_global_pose = True
             cfg.return_global_pose = True
             cfg.average_shape_decode = False
             cfg.return_appearance = True
-            cfg.model_name = rec_method
+            rec_method_ = rec_method
+            if "_unaligned" == rec_method.lower()[-10:]:
+                rec_method_ = rec_method[:-10]
+            cfg.model_name = rec_method_
             cfg.model_path = False
             cfg.stage = "coarse" 
             cfg.max_b = 16
             cfg.render = False
             cfg.crash_on_invalid = False
             # cfg.render = True
-            emica = EmocaPreprocessor(cfg).to(device)
+            emica = FaceRecPreprocessor(cfg).to(device)
             self._emica[rec_method] = emica
             return emica
+        if "smirk" in rec_method.lower():
+            if hasattr(self, '_smirk'): 
+                if rec_method in self._smirk.keys() :
+                    return self._smirk[rec_method].to(device)
+            else: 
+                self._smirk = {}
+            from inferno.models.temporal.external.SmirkPreprocessor import SmirkPreprocessor
+            from munch import Munch
+            cfg = Munch()
+            rec_method_ = rec_method
+            if "_unaligned" == rec_method.lower()[-10:]:
+                rec_method_ = rec_method[:-10]
+            cfg.model_name = rec_method_
+            cfg.model_path = False
+            cfg.max_b = 16
+            cfg.render = False
+            cfg.crash_on_invalid = False
+            cfg.use_smirk_generator = False
+            cfg.crop = False
+            cfg.with_global_pose = True
+            cfg.return_global_pose = True 
+            cfg.average_shape_decode = False 
+            cfg.slice_off_invalid = False 
+            cfg.crash_on_invalid = False 
+            cfg.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+            cfg.flame = Munch()
+            cfg.flame.flame_model_path = get_path_to_assets() / "FLAME/geometry/generic_model.pkl"
+            cfg.flame.flame_lmk_embedding_path = get_path_to_assets() / "FLAME/geometry/landmark_embedding.npy"
+            cfg.flame.flame_mediapipe_lmk_embedding_path = get_path_to_assets() / "FLAME/geometry/mediapipe_landmark_embedding.npz"
+            cfg.flame.n_shape = 300
+            # cfg.flame.n_exp = 100
+            cfg.flame.n_exp = 50
+            cfg.flame.use_texture = 1605
+            cfg.flame.use_eyelids = True
+
+            cfg.smirk_type = "smirk" 
+            if "spectre" in rec_method.lower():
+                cfg.smirk_type = "smirk_spectre"
+
+            # cfg.render = True
+            smirk = SmirkPreprocessor(cfg).to(device)
+            self._smirk[rec_method] = smirk
+            return smirk
         elif rec_method == "spectre": 
             if hasattr(self, '_spectre') and self._spectre is not None: 
                 return self._spectre.to(device)
@@ -1483,6 +1530,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         if exists: 
             return
 
+
         device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         # reconstruction_net = reconstruction_net or self._get_reconstruction_net_v2(device, rec_method=rec_method)
 
@@ -1504,13 +1552,18 @@ class FaceVideoDataModule(FaceDataModuleBase):
         #     from skvideo.io import vread
         #     detections_fnames_or_images = vread(str(in_folder))
              
-        dataset = self.get_single_video_dataset(sequence_id)
+        alignment_step = True
+        for rec_method in rec_methods:
+            if alignment_step: 
+                if 'unaligned' in rec_method:
+                    alignment_step = False 
+
+        dataset = self.get_single_video_dataset(sequence_id, align_images=alignment_step)
         # batch_size = 32
         batch_size = 64
         loader = DataLoader(dataset, batch_size=batch_size, num_workers=0, shuffle=False)
 
-        ## these keys will be kept. others will be deleted to conserve memory
-        result_keys_to_keep_geometry = ['shape', 'exp', 'jaw', 'global_pose', 'cam']
+        result_keys_to_keep_geometry = ['shape', 'exp', 'jaw', 'global_pose', 'cam', "eyelid"]
         result_keys_to_keep_appearance = ['tex', 'light', 'detail']
 
         for i, batch in enumerate(tqdm(loader)):
@@ -1536,21 +1589,20 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     reconstruction_net = self._get_reconstruction_net_v2(device, rec_method=rec_method)
 
                     if T > batch_size:
-                        num_temp_batches = T // batch_size
+                        num_t_batches = T // batch_size
                         if T % batch_size > 0:
-                            num_temp_batches += 1
+                            num_t_batches += 1
                         shape_pose = []
                         appearance = []
-                        for temp_batch in auto.tqdm(range(num_temp_batches)):
+                        for t_batch in auto.tqdm(range(num_t_batches)):
                             batch_ = batch.copy()
-                            start_frame = temp_batch * batch_size
-                            end_frame = min((temp_batch + 1) * batch_size, T)
+                            start_frame = t_batch * batch_size
+                            end_frame = min((t_batch + 1) * batch_size, T)
                             batch_ = slice_tensors_in_dict(batch_, start_frame, end_frame, 1)
                             batch_ = dict_to_device(batch_, device)
                             result = reconstruction_net(batch_, input_key='video', output_prefix="")
-                            shape_pose_ = {k: result[k].cpu().numpy() for k in result_keys_to_keep_geometry}
-                            assert shape_pose_['shape'].shape[1] == end_frame - start_frame, \
-                                f"Shape mismatch: {shape_pose_['shape'].shape[1]} != {end_frame - start_frame}"
+                            shape_pose_ = {k: result[k].cpu().numpy() for k in result_keys_to_keep_geometry if k in result.keys()}
+                            assert shape_pose_['shape'].shape[1] == end_frame - start_frame, f"{shape_pose_['shape'].shape[1]} != {end_frame - start_frame}"
                             appearance_ = {k: result[k].cpu().numpy() for k in result_keys_to_keep_appearance if k in result.keys()}
                             shape_pose.append(shape_pose_)
                             appearance.append(appearance_)
@@ -1561,7 +1613,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                         batch_ = dict_to_device(batch, device)
                         result = reconstruction_net(batch_, input_key='video', output_prefix="")
 
-                        shape_pose = {k: result[k].cpu().numpy() for k in result_keys_to_keep_geometry}
+                        shape_pose = {k: result[k].cpu().numpy() for k in result_keys_to_keep_geometry if k in result.keys()}
                         assert shape_pose['shape'].shape[1] == T, f"{shape_pose['shape'].shape[1]} != {T}"
 
                         appearance = {k: result[k].cpu().numpy() for k in result_keys_to_keep_appearance if k in result.keys()}
@@ -1738,8 +1790,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 return
             out_file_video[rec_method].parent.mkdir(exist_ok=True, parents=True)
 
-        exists = True
+        exists = True 
+        alignment_step = True
         for rec_method in rec_methods:
+            if alignment_step: 
+                if 'unaligned' in rec_method:
+                    alignment_step = False
+
             if not in_file_reconstruction[rec_method].is_file(): 
                 exists = False
                 break
@@ -1749,8 +1806,10 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # if exists: 
         #     return
         # emotion_net = emotion_net or self._get_emotion_recognition_net(device, rec_method=emo_method)
-             
-        dataset = self.get_single_video_dataset(sequence_id)
+
+
+        dataset = self.get_single_video_dataset(sequence_id, 
+                                                align_images=alignment_step, )
         batch_size = 32
         # batch_size = 64
         loader = DataLoader(dataset, batch_size=batch_size, num_workers=0, shuffle=False)
@@ -1801,6 +1860,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
                             flame = reconstruction_net.model.deca.flame 
                         elif "FaceRecPreprocessor" in reconstruction_net.__class__.__name__: ## new
                             flame = reconstruction_net.model.shape_model.flame
+                        elif reconstruction_net.__class__.__name__ == "SmirkPreprocessor": ## new
+                            flame = reconstruction_net.flame
                         else: 
                             raise ValueError(f"Unknown reconstruction net {reconstruction_net.__class__.__name__}")
                         
@@ -1811,17 +1872,24 @@ class FaceVideoDataModule(FaceDataModuleBase):
                             jaw = torch.zeros_like(global_pose).to(device)
                         pose = torch.cat([global_pose, jaw], dim=-1)
                         pose_jaw_only = torch.cat([torch.zeros_like(global_pose), jaw], dim=-1)
+                        eye_lid = reconstruction.get('eyelid', None) 
+                        if eye_lid is not None:
+                            eye_lid = torch.from_numpy(eye_lid ).float().to(device).squeeze(0)
                         vertices_, _, _, _ = flame(
                             shape_params=torch.from_numpy( reconstruction['shape']).float().to(device).squeeze(0), 
                             expression_params=torch.from_numpy( reconstruction['exp']).float().to(device).squeeze(0), 
                             pose_params=pose,
-                            eye_pose_params=None)
+                            eye_pose_params=None, 
+                            eyelid_params=eye_lid, 
+                            )
                         
                         unposed_vertices_, _, _, _ = flame(
                             shape_params=torch.from_numpy( reconstruction['shape']).float().to(device).squeeze(0), 
                             expression_params=torch.from_numpy( reconstruction['exp']).float().to(device).squeeze(0), 
                             pose_params=pose_jaw_only,
-                            eye_pose_params=None)
+                            eye_pose_params=None, 
+                            eyelid_params=eye_lid,
+                        )
                         
                         trans_verts = util.batch_orth_proj(vertices_, 
                                                         torch.from_numpy(reconstruction['cam']).float().to(device).squeeze(0), 
@@ -2073,6 +2141,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 aud_meta = {}
                 aud_meta['sample_rate'] = aud_info['sample_rate']
                 aud_meta['sample_fmt'] = aud_info['sample_fmt']
+                # aud_meta['num_samples'] = int(aud_info['nb_samples'])
                 aud_meta["num_frames"] = int(aud_info['nb_frames']) if 'nb_frames' in aud_info.keys() else None
                 if float(aud_info['start_time']) != 0:       
                     if not allow_later_audio_start:
@@ -3067,7 +3136,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         #     '-c:v': 'h264', 
         #     # '-q:v': '1',
         #     '-r': self.video_metas[sequence_id]['fps'],
-        #     '-b': self.video_metas[sequence_id].get('bit_rate', '300000000'),
+    #     '-b': self.video_metas[sequence_id].get('bit_rate', '300000000'),
         # }
         # writer = skvideo.io.FFmpegWriter(str(output_video_file), outputdict=output_dict)
         # for i in range(aligned_video.shape[0]):

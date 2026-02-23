@@ -154,7 +154,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         self.use_audio = use_audio
         self.use_original_video = use_original_video
         # self.transforms = transforms or imgaug.augmenters.Resize((image_size, image_size))
-        self.transforms = transforms
+        self.transforms = transforms #or imgaug.augmenters.Resize((image_size, image_size))
 
         self.hack_length = hack_length
         if self.hack_length == "auto": 
@@ -228,7 +228,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         for rec_type in self.reconstruction_type:
             if rec_type == "spectre": 
                 max_cutoff = max(max_cutoff, 2 )
-            elif rec_type in ["emoca", "deca"] or "emoca" in rec_type.lower() or "emica" in rec_type.lower() or "edeca" in rec_type.lower(): 
+            elif rec_type in ["emoca", "deca"] or "emoca" in rec_type.lower() or "emica" in rec_type.lower() or "edeca" in rec_type.lower() or "smirk" in rec_type.lower(): 
                 max_cutoff = max(max_cutoff, 0 )
             else:
                 raise ValueError(f"Invalid reconstruction type: '{rec_type}'")
@@ -257,17 +257,22 @@ class VideoDatasetBase(AbstractVideoDataset):
 
 
     def _preload_videos(self): 
+        # indices = np.unique(self.video_indices)
+        from tqdm import auto
+        # unique_indices = np.unique(self.video_indices)
         unique_indices = set()
         self.unique_index_mapping = {}
         self.unique_index_mapping_inv = {}
-        for i in auto.tqdm(range(len(self.video_indices)), desc="Preloading data" ):
+        for i in auto.tqdm(range(len(self.video_indices)), desc="Preloading videos" ):
             if self.video_indices[i] not in self.unique_index_mapping:
                 self.unique_index_mapping[self.video_indices[i]] = i
             if i not in self.unique_index_mapping_inv:
                 self.unique_index_mapping_inv[i] = self.video_indices[i]
             if self.video_indices[i] not in unique_indices:
                 unique_indices.add(self.video_indices[i])
+                # self.unique_index_mapping_order[i] = i
             else: 
+                # self.unique_index_mapping_order[i] = self.unique_index_mapping[self.unique_index_mapping_inv[self.video_indices[i]]]
                 continue
             video_path = str(self._get_video_path(i))
             try:
@@ -307,6 +312,7 @@ class VideoDatasetBase(AbstractVideoDataset):
                 print(f"Failed to preload data from video {i} : {video_path}. "\
                         "Saving the expected value as None. "\
                         "This will cause the sample to be skipped by the data loader.")
+                print(f"Failed to preload video {i} : {video_path}. Saving values as None which should cause the sample loading to fail and skip")
                 if self.read_video:
                     if video_path not in self.video_cache:
                         self.video_cache[video_path] = None
@@ -1121,6 +1127,15 @@ class VideoDatasetBase(AbstractVideoDataset):
                 
                 img_warped, lmk_warped = bbpoint_warp(video_frames[i], center[i], size[i], self.image_size, landmarks=lmk_to_warp)
                 
+                # import plotly.express as px
+                # import plotly.graph_objects as go
+                # fig = px.imshow(img_warped)
+                # ## add landmarks
+                # # for k,v in lmk_warped.items():
+                # fig.add_trace(go.Scatter(x=lmk_warped["fan3d"][:,0], y=lmk_warped["fan3d"][:,1], mode="markers", marker=dict(size=5)))
+                # fig.add_trace(go.Scatter(x=lmk_warped["mediapipe"][:,0], y=lmk_warped["mediapipe"][:,1], mode="markers", marker=dict(size=5)))
+                # fig.show()
+
                 if "segmentation" in sample.keys():
                     seg_warped = bbpoint_warp(seg_frames[i], center_seg[i], size_seg[i], self.image_size, 
                         order=0 # nearest neighbor interpolation for segmentation
@@ -1299,6 +1314,10 @@ class VideoDatasetBase(AbstractVideoDataset):
         sample["reconstruction"][rec_type]["gt_exp"] = shape_pose_cam['exp'].astype(np.float32)
         sample["reconstruction"][rec_type]["gt_shape"] = shape.astype(np.float32)
         sample["reconstruction"][rec_type]["gt_jaw"] = shape_pose_cam['jaw'].astype(np.float32)
+
+        if 'eyelid' in shape_pose_cam:
+            sample["reconstruction"][rec_type]["gt_eyelid"] = shape_pose_cam['eyelid'].astype(np.float32)
+
         if self.return_global_pose:
             sample["reconstruction"][rec_type]["gt_global_pose"]= shape_pose_cam['global_pose'].astype(np.float32)
             sample["reconstruction"][rec_type] ["gt_cam"] = shape_pose_cam['cam'].astype(np.float32)
@@ -1420,6 +1439,7 @@ class VideoDatasetBase(AbstractVideoDataset):
                         img.shape[2] / input_img_shape[1])
                 elif isinstance(self.landmark_normalizer, KeypointNormalization):
                     self.landmark_normalizer.set_scale(img.shape[1], img.shape[2])
+                    # self.landmark_normalizer.set_scale(input_img_shape[0], input_img_shape[1])
                 else:
                     raise ValueError(f"Unsupported landmark normalizer type: {type(self.landmark_normalizer)}")
                 landmark = self.landmark_normalizer(landmark)
@@ -1502,6 +1522,7 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         # images_aug, segmentation_aug, mediapipe_landmarks_aug = self._augment(images_aug, segmentation_aug, 
         #                     mediapipe_landmarks_aug, images.shape[2:])
+        # images_aug, segmentation_aug, mediapipe_landmarks_aug = self._augment(images_aug, segmentation_aug, 
         images_aug, segmentation_aug, landmarks_to_augment_aug = self._augment(images_aug, segmentation_aug, 
                     landmarks_to_augment_aug, 
                     # images.shape[2:]
