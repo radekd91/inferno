@@ -2,7 +2,7 @@ defaults:
   - data/datasets: vocaset
   - data/augmentations: none
   # - model/paths : cluster
-  - model/settings : l2l_settings
+  - model/settings : l2l_settings_globalpose
   - model/sequence_encoder@model/sequence_encoder: l2l_encoder_vae
   - model/sequence_decoder@model/sequence_decoder: l2l_decoder
   - model/sizes@model/sizes: l2l_sizes
