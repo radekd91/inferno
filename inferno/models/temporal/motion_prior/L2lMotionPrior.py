@@ -28,6 +28,10 @@ import sys
 from inferno.models.temporal.PositionalEncodings import positional_encoding_from_cfg
 from inferno.models.temporal.TransformerMasking import biased_mask_from_cfg
 from munch import Munch, munchify
+from inferno.models.temporal.TransformerCompatibility import (
+    FORCE_LEGACY_TRANSFORMER_ENCODER_PATH,
+    transformer_encoder_layer_class,
+)
 from omegaconf import OmegaConf
 
 class L2lVqVae(MotionPrior):
@@ -363,6 +367,15 @@ class L2lDecoder(MotionEncoder):
     def __init__(self, cfg, sizes, out_dim): 
         super().__init__()
         is_audio = False
+        # Standalone archived FLINT configs also predate the flag. When FLINT
+        # is embedded in EMOTE, the loader has already inherited EMOTE's value
+        # unless this decoder config contains an explicit override.
+        if FORCE_LEGACY_TRANSFORMER_ENCODER_PATH not in cfg:
+            with open_dict(cfg):
+                cfg[FORCE_LEGACY_TRANSFORMER_ENCODER_PATH] = True
+        force_legacy_transformer_encoder_path = bool(
+            cfg[FORCE_LEGACY_TRANSFORMER_ENCODER_PATH]
+        )
         self.cfg = cfg
         size = self.cfg.feature_dim
         dim = self.cfg.feature_dim
@@ -387,7 +400,10 @@ class L2lDecoder(MotionEncoder):
                                 nn.LeakyReLU(0.2, True),
                                 nn.BatchNorm1d(dim),
                                 ))
-        decoder_layer = torch.nn.TransformerEncoderLayer(
+        decoder_layer_class = transformer_encoder_layer_class(
+            force_legacy_transformer_encoder_path
+        )
+        decoder_layer = decoder_layer_class(
                     d_model=cfg.feature_dim, 
                     nhead=cfg.nhead, 
                     dim_feedforward=cfg.intermediate_size, 

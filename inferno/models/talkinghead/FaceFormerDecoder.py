@@ -27,6 +27,10 @@ from omegaconf import DictConfig, OmegaConf, open_dict
 from inferno.models.temporal.PositionalEncodings import positional_encoding_from_cfg
 from inferno.models.temporal.TransformerMasking import init_mask_future, init_mask, init_faceformer_biased_mask, init_faceformer_biased_mask_future
 from inferno.models.temporal.motion_prior.MotionPrior import MotionPrior
+from inferno.models.temporal.TransformerCompatibility import (
+    FORCE_LEGACY_TRANSFORMER_ENCODER_PATH,
+    transformer_encoder_layer_class,
+)
 from inferno.models.temporal.motion_prior.L2lMotionPrior import L2lVqVae, create_squasher
     
 from inferno.utils.other import class_from_str
@@ -1029,7 +1033,11 @@ class SelfTalkBertDecoder(FlameBertDecoder):
         return sample
 
 
-def load_motion_prior_net(path, trainable=False):
+def load_motion_prior_net(
+        path,
+        trainable=False,
+        force_legacy_transformer_encoder_path=None,
+        ):
     from pathlib import Path
     from inferno.utils.other import get_path_to_assets
 
@@ -1039,6 +1047,17 @@ def load_motion_prior_net(path, trainable=False):
 
     with open(path / "cfg.yaml", 'r') as f:
         model_config = OmegaConf.load(f)
+
+    # An explicit FLINT value wins. Otherwise inherit the resolved EMOTE value
+    # in memory, leaving the archived FLINT config and checkpoint untouched.
+    motion_decoder_cfg = model_config.model.sequence_decoder
+    if force_legacy_transformer_encoder_path is not None \
+            and FORCE_LEGACY_TRANSFORMER_ENCODER_PATH not in motion_decoder_cfg:
+        with open_dict(motion_decoder_cfg):
+            motion_decoder_cfg[
+                FORCE_LEGACY_TRANSFORMER_ENCODER_PATH
+            ] = force_legacy_transformer_encoder_path
+
     checkpoint_mode = 'best' # resuming in the same stage, we want to pick up where we left of
     
     checkpoint, checkpoint_kwargs = get_checkpoint_with_kwargs(
@@ -1100,8 +1119,20 @@ class BertPriorDecoder(FeedForwardDecoder):
         super().__init__(cfg)
         dim_factor = self._total_dim_factor()
 
+        # Archived EMOTE configs predate the flag and require the ordinary
+        # Transformer path. Future models can explicitly opt out with false.
+        if FORCE_LEGACY_TRANSFORMER_ENCODER_PATH not in cfg:
+            with open_dict(cfg):
+                cfg[FORCE_LEGACY_TRANSFORMER_ENCODER_PATH] = True
+        force_legacy_transformer_encoder_path = bool(
+            cfg[FORCE_LEGACY_TRANSFORMER_ENCODER_PATH]
+        )
+
         if cfg.num_layers > 0:
-            encoder_layer = torch.nn.TransformerEncoderLayer(
+            encoder_layer_class = transformer_encoder_layer_class(
+                force_legacy_transformer_encoder_path
+            )
+            encoder_layer = encoder_layer_class(
                         d_model=cfg.feature_dim * dim_factor, 
                         nhead=cfg.nhead, dim_feedforward=dim_factor*cfg.feature_dim, 
                         activation=cfg.activation,
@@ -1118,7 +1149,11 @@ class BertPriorDecoder(FeedForwardDecoder):
         max_len = 1200
         self.biased_mask = _get_biased_mask(self, cfg, max_len)
 
-        self.motion_prior : MotionPrior = load_motion_prior_net(cfg.motion_prior.path, cfg.motion_prior.get('trainable', False))
+        self.motion_prior : MotionPrior = load_motion_prior_net(
+            cfg.motion_prior.path,
+            cfg.motion_prior.get('trainable', False),
+            force_legacy_transformer_encoder_path,
+        )
         self.latent_frame_size = self.motion_prior.latent_frame_size()
         quant_factor = self.motion_prior.quant_factor()
         bottleneck_dim = self.motion_prior.bottleneck_dim()
