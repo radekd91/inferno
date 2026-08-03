@@ -39,6 +39,18 @@ This is the official implementation of [EMOTE : Emotional Speech-Driven Animatio
 EMOTE takes speech audio and an emotion and intensity labels on the input and produces a talking head avatar that correctly articulates the words spoken in the audio while expressing the specified emotion.
 
 ## Warning 
+
+**UPDATE (2 August 2026):** The incorrect, jittery EMOTE/FLINT output under
+PyTorch 2.1 has been resolved. The cause was PyTorch's fused
+`TransformerEncoderLayer` evaluation path. Legacy EMOTE and FLINT
+configurations now select a model-scoped compatibility path in memory, so it is
+no longer necessary to check out the EMOTE 2.0 release commit. An explicit
+`force_legacy_transformer_encoder_path: false` keeps the standard PyTorch
+implementation for future models.
+
+The original warning and known-good legacy environment are retained below for
+historical reference:
+
 - Some people experience issues getting the correct results EMOTE from the latest version of the repo. If the results have obviously wrong jitter, 
 please default to the [EMOTE 2.0 release commit](https://github.com/radekd91/inferno/commit/076e4acd5f476dba4d741462760d4011d341c4ec): 
 ```bash
@@ -61,7 +73,7 @@ cuDNN version used by PyTorch: 8302
 Is CUDA available: True
 ```
 
-- If the issue persists, please contribute to this issue: https://github.com/radekd91/inferno/issues/9. We are actively looking into a solution. 
+- Historical issue discussion: https://github.com/radekd91/inferno/issues/9.
 
 
 ## News 

@@ -4,6 +4,16 @@ These utilities reproduce and measure a silent EMOTE inference regression seen
 after moving to PyTorch 2.1.1. They are diagnostic tools, not the production
 compatibility implementation.
 
+## Update (2 August 2026)
+
+The regression is resolved by the model-scoped
+`LegacyTransformerEncoderLayer` implementation in
+`inferno/models/temporal/TransformerCompatibility.py`. Archived EMOTE and
+FLINT configs default to that compatibility path in memory. Configs that
+explicitly set `force_legacy_transformer_encoder_path: false` use PyTorch's
+unaltered `TransformerEncoderLayer`. The global monkey patch below remains
+only as a reproduction and comparison tool.
+
 `../run_emote_backend_diagnostic.py` forwards its remaining arguments to
 `../demo_eval_talking_head_on_audio.py` and selects one backend experiment with
 `--backend-test`:

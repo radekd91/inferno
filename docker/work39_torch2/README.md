@@ -3,6 +3,13 @@
 ## WARNING 
 The new Python 3.9 environment with Pytorch 2 and CUDA 12 is experimental and may cause issues
 
+**UPDATE (2 August 2026):** The known jittery EMOTE/FLINT inference result in
+the PyTorch 2.1 environment has been resolved with a model-scoped legacy
+`TransformerEncoderLayer` compatibility path. Archived EMOTE/FLINT configs
+enable it automatically in memory; future models can explicitly set
+`force_legacy_transformer_encoder_path: false` to retain standard PyTorch
+behavior.
+
 ## Building 
 0) Install docker from the [official website](https://www.docker.com/)
 
