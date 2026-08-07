@@ -30,10 +30,22 @@
 [submodule "external/av_hubert"]
 	path = external/av_hubert
 	url = https://github.com/facebookresearch/av_hubert
+[submodule "external/ImageBind"]
+	path = external/ImageBind
+	url = https://github.com/facebookresearch/ImageBind
+	branch = main
 [submodule "external/spectre"]
 	path = external/spectre
 	url = https://github.com/radekd91/spectre
 	branch = feature/batchVidSupport
+[submodule "external/DiffPoseTalk"]
+	path = external/DiffPoseTalk
+	url = https://github.com/radekd91/DiffPoseTalk.git
+	branch = feature/rdanecek_iccv2
+[submodule "external/Perceptual_3D_Talking_Head"]
+	path = external/Perceptual_3D_Talking_Head
+	url = https://github.com/radekd91/Perceptual_3D_Talking_Head.git
+	branch = main
 [submodule "external/FOCUS"]
 	path = external/FOCUS
 	url = https://github.com/radekd91/Occlusion-Robust-MoFA
