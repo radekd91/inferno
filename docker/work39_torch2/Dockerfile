@@ -10,7 +10,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ Europe/Berlin 
 
 # Pre-configure tzdata to avoid prompts during the build process
-RUN echo "tzdata tzdata/Areas select Europe" | debconf-set-selections && \ 
+RUN echo "tzdata tzdata/Areas select Europe" | debconf-set-selections && \
     echo "tzdata tzdata/Zones/Europe select Berlin" | debconf-set-selections && \
     echo 'keyboard-configuration keyboard-configuration/variant select pc105' | debconf-set-selections && \
     echo 'keyboard-configuration keyboard-configuration/layout select us' | debconf-set-selections 
@@ -29,8 +29,8 @@ RUN mkdir -p /home/${USER}/workspace/repos && \
     install -d -m 0755 -o ${USER} -g ${USER} /home/${USER}/workspace && \
     install -d -m 0755 -o ${USER} -g ${USER} /home/${USER}/workspace/repos 
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends tzdata sudo && \ 
-    echo "${USER} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/$USER && \ 
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends tzdata sudo && \
+    echo "${USER} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/$USER && \
     chmod 0440 /etc/sudoers.d/$USER
 
 # Switch to the newly created user
@@ -42,7 +42,7 @@ RUN DEBIAN_FRONTEND=noninteractive sudo apt-get update && DEBIAN_FRONTEND=nonint
     build-essential \
     gcc \
     g++ \
-    libboost-dev \ 
+    libboost-dev \
     xorg \
     xvfb \
     libglvnd-dev \
@@ -53,11 +53,11 @@ RUN DEBIAN_FRONTEND=noninteractive sudo apt-get update && DEBIAN_FRONTEND=nonint
     cmake \
     curl \
     wget \
-    zip \ 
+    zip \
     unzip \
     nano \
     git \
-    ssh \ 
+    ssh \
     screen \
     software-properties-common \
     && rm -rf /var/lib/apt/lists/*
@@ -71,10 +71,10 @@ WORKDIR /home/$USER/workspace/repos
 ENV DISPLAY=:99
 
 # Add a startup script to the image
-COPY install_38_docker.sh /usr/local/bin/install_script.sh
+COPY install_39_docker.sh /usr/local/bin/install_script.sh
 COPY startup_script.sh /usr/local/bin/startup_script.sh
-COPY environment.yaml /workspace/environment.yaml
-COPY requirements.txt /workspace/requirements.txt
+COPY environment.yaml /home/${USER}/workspace/environment.yaml
+COPY requirements.txt /home/${USER}/workspace/requirements.txt
 RUN chmod +x /usr/local/bin/install_script.sh
 
 # Set the script to run on container start
