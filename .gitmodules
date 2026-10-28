@@ -51,6 +51,10 @@
 	url = https://github.com/radekd91/Occlusion-Robust-MoFA
 	branch = feature/integration
 
+[submodule "inferno/sandbox/thunder"]
+	path = inferno/sandbox/thunder
+	url = https://github.com/radekd91/thunder.git
+
 # private repos
 [submodule "inferno/sandbox/infernal"]
 	path = inferno/sandbox/infernal

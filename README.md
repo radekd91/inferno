@@ -25,9 +25,9 @@ Current infernal projects:
 - [TalkingHead](inferno_apps/TalkingHead) 
   - official release of [EMOTE: Emotional Speech- Driven Animation with C ontent- Emotion Disentanglement](https://emote.is.tue.mpg.de/index.html)
   - tools to run, train or finetune speech-driven 3D avatars 
-- [TalkingHeadV2](inferno/sandbox/thunder/apps/TalkingHeadV2) 
+- [TalkingHeadV2](https://github.com/radekd91/thunder/tree/main/apps/TalkingHeadV2)
   - official release of [THUNDER: Supervising 3D Talking Head Avatars with Analysis-by-Audio-Synthesis](https://thunder.is.tue.mpg.de/index.html)
-  - to run THUNDER, there is a [subrepository](https://github.com/radekd91/thunder) that should be cloned into `inferno/sandbox`. Please proceed to the relevant [README](inferno/sandbox/thunder/README.md) of the subrepo for more info
+  - [THUNDER](https://github.com/radekd91/thunder) is a separate public repository registered as the `inferno/sandbox/thunder` submodule. Follow its [Docker inference setup](https://github.com/radekd91/thunder/blob/main/docker/inference/README.md) for the tested environment and demos.
 - [FaceReconstruction](inferno_apps/FaceReconstruction)
   - contains EMICA - a combination of [DECA](https://deca.is.tue.mpg.de/), [EMOCA](https://emoca.is.tue.mpg.de/), [SPECTRE](https://filby89.github.io/spectre/) and [MICA](https://zielon.github.io/mica/) which produces excellent results
   - tools to run, train or fine-tune state-of-the-art in-the-wild face reconstruction 
@@ -134,15 +134,19 @@ pip install git+https://github.com/facebookresearch/pytorch3d.git@v0.6.2
 Pytorch3D installation (which is part of the requirements file) can unfortunately be tricky and machine specific. EMOCA was developed with is Pytorch3D 0.6.2 and the previous command includes its installation from source (to ensure its compatibility with pytorch and CUDA). If it fails to compile, you can try to find another way to install Pytorch3D.
 
 
-6) Pull submodules 
+6) Initialize THUNDER
 
-Then clone the THUNDER sandbox into a subfolder:
+THUNDER is a separate public repository pinned as a submodule. From the INFERNO
+repository root, initialize the checkout with:
+
 ```bash
-cd inferno/sandbox 
-git clone https://github.com/radekd91/thunder/ thunder
-git checkout master
+git submodule update --init -- inferno/sandbox/thunder
 ```
-Then proceed to the [readme in the sandbox](inferno/sandbox/thunder/README.md) and follow the setup steps there.
+
+Follow the [THUNDER README](https://github.com/radekd91/thunder#readme) and its
+[Docker inference setup](https://github.com/radekd91/thunder/blob/main/docker/inference/README.md).
+For the validated Docker workflow, use the pinned INFERNO revision and host-checkout
+layout in that guide. Project code, models and example data are mounted at runtime.
 
 7) Optional submodules 
 
