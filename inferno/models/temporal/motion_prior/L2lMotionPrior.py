@@ -30,6 +30,7 @@ from inferno.models.temporal.TransformerMasking import biased_mask_from_cfg
 from munch import Munch, munchify
 from inferno.models.temporal.TransformerCompatibility import (
     FORCE_LEGACY_TRANSFORMER_ENCODER_PATH,
+    use_legacy_transformer_encoder_path,
     transformer_encoder_layer_class,
 )
 from omegaconf import OmegaConf
@@ -64,7 +65,13 @@ class L2lVqVae(MotionPrior):
         motion_encoder = encoder_class(cfg.model.sequence_encoder, cfg.model.sizes)
         
         # motion_decoder = L2lDecoder(cfg.model.sequence_decoder, cfg.model.sizes, motion_encoder.get_input_dim())
-        motion_decoder = decoder_class(cfg.model.sequence_decoder, cfg.model.sizes, motion_encoder.get_input_dim())
+        decoder_kwargs = {}
+        if issubclass(decoder_class, L2lDecoder):
+            decoder_kwargs["training_time"] = cfg.get("inout", {}).get("time")
+        motion_decoder = decoder_class(
+            cfg.model.sequence_decoder, cfg.model.sizes,
+            motion_encoder.get_input_dim(), **decoder_kwargs
+        )
         # motion_quantizer = VectorQuantizer(cfg.model.quantizer)
         if cfg.model.get('quantizer', None) is not None:
             motion_quantizer = class_from_str(cfg.model.quantizer.type, sys.modules[__name__])(cfg.model.quantizer)
@@ -364,17 +371,12 @@ class L2lEncoderWithDeepPhaseHead(L2lEncoder):
 
 class L2lDecoder(MotionEncoder): 
 
-    def __init__(self, cfg, sizes, out_dim): 
+    def __init__(self, cfg, sizes, out_dim, *, training_time=None):
         super().__init__()
         is_audio = False
-        # Standalone archived FLINT configs also predate the flag. When FLINT
-        # is embedded in EMOTE, the loader has already inherited EMOTE's value
-        # unless this decoder config contains an explicit override.
-        if FORCE_LEGACY_TRANSFORMER_ENCODER_PATH not in cfg:
-            with open_dict(cfg):
-                cfg[FORCE_LEGACY_TRANSFORMER_ENCODER_PATH] = True
-        force_legacy_transformer_encoder_path = bool(
-            cfg[FORCE_LEGACY_TRANSFORMER_ENCODER_PATH]
+        force_legacy_transformer_encoder_path = use_legacy_transformer_encoder_path(
+            "L2lDecoder", training_time,
+            override=cfg.get(FORCE_LEGACY_TRANSFORMER_ENCODER_PATH),
         )
         self.cfg = cfg
         size = self.cfg.feature_dim
@@ -512,8 +514,8 @@ class L2lDecoder(MotionEncoder):
 
 class L2lDecoderWithDeepPhase(L2lDecoder): 
 
-    def __init__(self, cfg, sizes, out_dim): 
-        super().__init__(cfg, sizes, out_dim)
+    def __init__(self, cfg, sizes, out_dim, *, training_time=None):
+        super().__init__(cfg, sizes, out_dim, training_time=training_time)
         self.input_channels = self.config.input_dim
         self.embedding_channels = self.config.feature_dim
         self.latent_time_range = 2 ** self.sizes.quant_factor # how many frames are encoded in a latent frame

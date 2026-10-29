@@ -295,6 +295,7 @@ def train_model(cfg, start_i=-1,
     else:
         checkpoint, checkpoint_kwargs = None, None
 
+    original_training_time = cfg.inout.get('time')
     if cfg.inout.full_run_dir == 'todo' or force_new_location:
         if force_new_location:
             print("The run will be resumed in a new foler (forked)")
@@ -329,7 +330,9 @@ def train_model(cfg, start_i=-1,
     cfg.inout.full_run_dir = str(checkpoint_dir.parent)
     cfg.inout.checkpoint_dir = str(checkpoint_dir)
     cfg.inout.name = experiment_name
-    cfg.inout.time = time
+    # Forking/resuming an old checkpoint must retain its transformer behavior.
+    # The new output directory can have today's date; model provenance cannot.
+    cfg.inout.time = original_training_time if checkpoint is not None else time
     cfg.inout.random_id = random_id
 
     # add job id and submission dir to the config 

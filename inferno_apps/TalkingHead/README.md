@@ -43,10 +43,16 @@ EMOTE takes speech audio and an emotion and intensity labels on the input and pr
 **UPDATE (2 August 2026):** The incorrect, jittery EMOTE/FLINT output under
 PyTorch 2.1 has been resolved. The cause was PyTorch's fused
 `TransformerEncoderLayer` evaluation path. Legacy EMOTE and FLINT
-configurations now select a model-scoped compatibility path in memory, so it is
-no longer necessary to check out the EMOTE 2.0 release commit. An explicit
-`force_legacy_transformer_encoder_path: false` keeps the standard PyTorch
-implementation for future models.
+configurations select a model-scoped compatibility path when their original
+training timestamp (`inout.time`) is before `2023_12_16_09-39-43`, so it is
+no longer necessary to check out the EMOTE 2.0 release commit. Models trained
+at or after that cutoff use standard PyTorch. No config flag is required;
+`force_legacy_transformer_encoder_path: true` or `false` in an affected decoder
+config explicitly overrides the date when needed.
+EMOTE and its FLINT prior each use their own training date; other decoder types,
+including released THUNDER models, are unchanged. Missing or malformed dates
+on affected models raise an error instead of guessing. See the
+[compatibility policy](demos/emote_backend_diagnostics/README.md).
 
 The original warning and known-good legacy environment are retained below for
 historical reference:

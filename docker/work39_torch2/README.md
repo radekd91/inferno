@@ -5,10 +5,12 @@ The new Python 3.9 environment with Pytorch 2 and CUDA 12 is experimental and ma
 
 **UPDATE (2 August 2026):** The known jittery EMOTE/FLINT inference result in
 the PyTorch 2.1 environment has been resolved with a model-scoped legacy
-`TransformerEncoderLayer` compatibility path. Archived EMOTE/FLINT configs
-enable it automatically in memory; future models can explicitly set
-`force_legacy_transformer_encoder_path: false` to retain standard PyTorch
-behavior.
+`TransformerEncoderLayer` compatibility path. EMOTE (`BertPriorDecoder`) and
+FLINT (`L2lDecoder`) select it automatically when their own `inout.time` is
+before `2023_12_16_09-39-43`. Models trained at or after that cutoff use standard
+PyTorch. An optional decoder flag can override this choice; no flag is inserted
+into configs and other decoders are unchanged.
+See the [compatibility policy](../../inferno_apps/TalkingHead/demos/emote_backend_diagnostics/README.md).
 
 ## Building 
 0) Install docker from the [official website](https://www.docker.com/)

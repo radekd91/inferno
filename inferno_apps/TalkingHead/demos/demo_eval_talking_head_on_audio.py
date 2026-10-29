@@ -136,7 +136,7 @@ def main():
         emotion_index_list = []
         for e in emotions:
             emotion_name = e[0].upper() + e[1:].lower()
-            emotion_index_list += [AffectNetExpressions.index(emotion_name)]
+            emotion_index_list += [AffectNetExpressions[emotion_name].value]
     
     if args.intensity == 'all': 
         intensity_list = list(range(3))

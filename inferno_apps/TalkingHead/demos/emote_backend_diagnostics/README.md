@@ -9,10 +9,45 @@ compatibility implementation.
 The regression is resolved by the model-scoped
 `LegacyTransformerEncoderLayer` implementation in
 `inferno/models/temporal/TransformerCompatibility.py`. Archived EMOTE and
-FLINT configs default to that compatibility path in memory. Configs that
-explicitly set `force_legacy_transformer_encoder_path: false` use PyTorch's
-unaltered `TransformerEncoderLayer`. The global monkey patch below remains
-only as a reproduction and comparison tool.
+FLINT models select it by their original training dates. The global monkey
+patch below remains only as a reproduction and comparison tool.
+
+## Training-date compatibility policy (29 October 2026)
+
+- `BertPriorDecoder` (EMOTE) and `L2lDecoder` (FLINT, including its subclasses)
+  use the legacy path only when their own `cfg.inout.time` is strictly before
+  `2023_12_16_09-39-43`. This cutoff is exactly one week after the latest released
+  legacy training run (EMOTE_v2: `2023_12_09_09-39-43`). It is a compatibility
+  policy boundary, not an inferred PyTorch installation date.
+- The timestamp format is `YYYY_MM_DD_HH-MM-SS`, as saved by the training
+  scripts. It is compared as recorded, without assuming a timezone.
+- EMOTE and its FLINT prior resolve compatibility independently. A new EMOTE
+  using an old FLINT uses standard EMOTE layers and legacy FLINT layers.
+- Other decoder types retain their existing implementation and do not need a
+  training timestamp or compatibility flag. THUNDER configs are unchanged.
+- Missing, malformed or impossible dates on affected models without an explicit
+  override raise `ValueError`.
+  Restore `inout.time` from the original run config; do not substitute a file
+  modification date, download date or today's date for an old checkpoint.
+- New training initializes `inout.time` before model construction. Resuming or
+  forking a checkpoint preserves its original training timestamp even if the
+  output directory gets a new date.
+- The earlier unconditional fallback has been removed. An optional
+  `model.sequence_decoder.force_legacy_transformer_encoder_path: true` forces
+  legacy behavior; `false` forces standard PyTorch. Omitted or `null` means
+  automatic date selection. Other values raise `ValueError`. This flag is never
+  inserted automatically and an EMOTE override is not inherited by its FLINT
+  prior: set an override in each model's own config if needed.
+
+The selected path and the date used to select it are printed at construction.
+The implementation preserves parameter names and state-dict structure and does
+not change global PyTorch backend settings.
+
+Run the regression tests in an environment with PyTorch and OmegaConf:
+
+```bash
+python -m unittest discover -s tests -p 'test_transformer_compatibility.py' -v
+```
 
 `../run_emote_backend_diagnostic.py` forwards its remaining arguments to
 `../demo_eval_talking_head_on_audio.py` and selects one backend experiment with
