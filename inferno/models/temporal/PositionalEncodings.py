@@ -61,7 +61,7 @@ class PeriodicPositionalEncoding(nn.Module):
             pe = pe.transpose(0,1).contiguous()
         self.register_buffer('pe', pe)
 
-    def _get_pe(self, max_seq_len): 
+    def _get_pe(self, max_seq_len):
         pe = torch.zeros(self.period, self.d_model)
         position = torch.arange(0, self.period, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, self.d_model, 2).float() * (-math.log(10000.0) / self.d_model))
@@ -70,6 +70,8 @@ class PeriodicPositionalEncoding(nn.Module):
         pe = pe.unsqueeze(0) # (1, period, d_model)
         repeat_num = (max_seq_len//self.period) + 1
         pe = pe.repeat(1, repeat_num, 1)
+        if not self.batch_first:
+            pe = pe.transpose(0,1).contiguous()
         return pe
 
     def forward(self, x):
@@ -79,16 +81,15 @@ class PeriodicPositionalEncoding(nn.Module):
         """
         if self.batch_first:
             T = x.size(1)
-            # pe = self.pe[:, :T, :] 
-            pe = self.pe 
+            pe = self.pe
             if pe.shape[1] < T:
-                pe = self._get_pe(T).to(self.pe.device)
+                pe = self._get_pe(x.shape[1]).to(self.pe.device)
             pe = pe[:, :T, :]
         else:
             T = x.size(0)
-            # pe = self.pe[:T, :]
+            pe = self.pe
             if pe.shape[0] < T:
-                pe = self._get_pe(T).to(self.pe.device)
+                pe = self._get_pe(x.shape[1]).to(self.pe.device)
             pe = pe[:T, :]
         if self.op in ['add', 'sum']:
             x = x + pe

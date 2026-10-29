@@ -36,6 +36,7 @@ class TalkingHeadBase(pl.LightningModule):
                 sequence_decoder : Optional[SequenceDecoder] = None,
                 shape_model: Optional[ShapeModel] = None,
                 preprocessor: Optional[Preprocessor] = None,
+                postprocessor: Optional[Preprocessor] = None,
                 renderer: Optional[Renderer] = None,
                 # post_fusion_norm: Optional = None,
                 *args: Any, **kwargs: Any) -> None:
@@ -46,6 +47,7 @@ class TalkingHeadBase(pl.LightningModule):
         self.sequence_decoder = sequence_decoder
         self.shape_model = shape_model
         self.preprocessor = preprocessor
+        self.postprocessor = postprocessor
         self.renderer = renderer
 
         if shape_model is not None and renderer is not None:
@@ -88,6 +90,16 @@ class TalkingHeadBase(pl.LightningModule):
     def max_seq_length(self):
         return 5000
 
+    @property
+    def zero_shape(self): 
+        # assert not self.random_shape, "zero_shape is not supported when random_shape is True"
+        return self.cfg.model.get('zero_shape', False)
+
+    @property
+    def random_shape(self):
+        # assert not self.zero_shape, "random_shape is not supported when zero_shape is True"
+        return bool(self.cfg.model.get('random_shape_sigma', False))
+
     def configure_optimizers(self):
         trainable_params = []
         trainable_params += list(self.get_trainable_parameters())
@@ -121,6 +133,14 @@ class TalkingHeadBase(pl.LightningModule):
             scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=self.cfg.learning.learning_rate_decay)
             opt_dict['lr_scheduler'] = scheduler
             schedulers += [scheduler]
+        elif 'learning_rate_warmup' in self.cfg.learning.keys():
+            scheduler = torch.optim.lr_scheduler.LambdaLR(opt, 
+                lr_lambda=lambda epoch: min(1.0, (epoch + 1) / self.cfg.learning.learning_rate_warmup.warmup_steps))
+            opt_dict['lr_scheduler'] = {} 
+            opt_dict['lr_scheduler']['scheduler'] = scheduler
+            opt_dict['lr_scheduler']['interval'] = self.cfg.learning.learning_rate_warmup.interval
+            opt_dict['lr_scheduler']['frequency'] = self.cfg.learning.learning_rate_warmup.frequency
+            schedulers += [scheduler]
         return opt_dict
 
     def get_trainable_parameters(self):
@@ -135,10 +155,10 @@ class TalkingHeadBase(pl.LightningModule):
             trainable_params += self.shape_model.get_trainable_parameters()
         return trainable_params
 
-    def _choose_primary_3D_rec_method(self, batch): 
+    def _choose_primary_3D_rec_method(self, batch,  train=False, validation=False): 
         method = self.cfg.data.get('reconstruction_type', None)
-        if method is None:
-            return batch
+        # if method is None:
+        #     return batch
         if isinstance(method, (list, omegaconf.listconfig.ListConfig)):
             # method = random.choice(method)
             method = method[0]
@@ -146,6 +166,16 @@ class TalkingHeadBase(pl.LightningModule):
             for k in batch["reconstruction"][method].keys():
                 assert k not in batch.keys(), f"Key '{k}' already exists in batch. We don't want to overwrite it."
                 batch[k] = batch["reconstruction"][method][k]
+        if "gt_shape" not in batch.keys():
+            B, T = batch["gt_exp"].shape[:2]
+            # batch["gt_shape"] = torch.zeros(B, T, 300, device=batch["gt_exp"].device)
+            batch["gt_shape"] = torch.zeros(B, 300, device=batch["gt_exp"].device)
+        elif self.zero_shape and (train or validation):
+            batch["gt_shape"] = torch.zeros_like(batch["gt_shape"])
+        elif self.random_shape and (train or validation): 
+            B, T = batch["gt_exp"].shape[:2] 
+            sigma = self.random_shape_sigma
+            batch["gt_shape"] = torch.randn(B, 300, device=batch["gt_exp"].device) * sigma
         return batch
 
 
@@ -498,7 +528,14 @@ class TalkingHeadBase(pl.LightningModule):
         # sample = detach_dict(sample)
         return sample 
 
-    def forward(self, sample: Dict, train=False, validation=False, **kwargs: Any) -> Dict:
+    def postprocess_output(self, sample: Dict, train=False, validation=False, **kwargs: Any) -> Dict:
+        if self.postprocessor is not None:
+            if self.device != self.postprocessor.device:
+                self.postprocessor.to(self.device)
+            sample = self.postprocessor(sample, train=train, validation=validation, test_time=not train, with_grad=train or validation, **kwargs)
+        return sample
+
+    def forward(self, sample: Dict, train=False, validation=False, with_postprocessor=True, **kwargs: Any) -> Dict:
         """
         sample: Dict[str, torch.Tensor]
             - audio: (B, T, F)
@@ -519,7 +556,7 @@ class TalkingHeadBase(pl.LightningModule):
 
         sample = self.extract_gt_features(sample, train=train, **kwargs)
 
-        sample = self._choose_primary_3D_rec_method(sample)
+        sample = self._choose_primary_3D_rec_method(sample, train=train, validation=validation)
 
         teacher_forcing = kwargs.pop("teacher_forcing", False)
         desired_output_length = sample["gt_vertices"].shape[1] if "gt_vertices" in sample.keys() else None
@@ -537,6 +574,10 @@ class TalkingHeadBase(pl.LightningModule):
         # decode the sequence
         sample = self.decode_sequence(sample, train=train, teacher_forcing=teacher_forcing, **kwargs)
         check_nan(sample)
+
+        # postprocess the output
+        if with_postprocessor:
+            sample = self.postprocess_output(sample, train=train, validation=validation, **kwargs)
 
         ## render the sequence
         ## sample = self.render_sequence(sample, train=train, **kwargs)

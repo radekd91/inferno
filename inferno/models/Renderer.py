@@ -172,7 +172,11 @@ class Pytorch3dRasterizer(nn.Module):
 
 
 class SRenderY(nn.Module):
-    def __init__(self, image_size, obj_filename, uv_size=256):
+    def __init__(self, 
+                 image_size, 
+                 obj_filename, 
+                 uv_size=256, 
+                 background_color=None):
         super(SRenderY, self).__init__()
         self.image_size = image_size
         self.uv_size = uv_size
@@ -203,6 +207,13 @@ class SRenderY(nn.Module):
         colors = torch.tensor([180, 180, 180])[None, None, :].repeat(1, faces.max() + 1, 1).float() / 255.
         face_colors = util.face_vertices(colors, faces)
         self.register_buffer('face_colors', face_colors)
+
+        ## background color, if any
+        if background_color is None:
+            background_color = [0., 0., 0.]
+        background_color = torch.tensor(background_color).float().unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+        self.register_buffer('background_color', background_color)
+
 
         ## SH factors for lighting
         pi = np.pi
@@ -348,7 +359,12 @@ class SRenderY(nn.Module):
         shading = normals_dot_lights[:, :, :, None] * light_intensities[:, :, None, :]
         return shading.mean(1)
 
-    def render_shape(self, vertices, transformed_vertices, images=None, detail_normal_images=None, lights=None):
+    def render_shape(self, vertices, transformed_vertices, 
+                     images=None, 
+                     detail_normal_images=None, 
+                     lights=None, 
+                     return_alpha_image=False
+                     ):
         '''
         -- rendering shape with detail normal map
         '''
@@ -403,11 +419,15 @@ class SRenderY(nn.Module):
         shaded_images = albedo_images * shading_images
 
         if images is None:
-            shape_images = shaded_images * alpha_images + torch.zeros_like(shaded_images).to(vertices.device) * (
+            background =  torch.zeros_like(shaded_images).to(vertices.device) + self.background_color
+            shape_images = shaded_images * alpha_images + background * (
                         1 - alpha_images)
         else:
             shape_images = shaded_images * alpha_images + images * (1 - alpha_images)
-        return shape_images
+        
+        if not return_alpha_image:
+            return shape_images
+        return shape_images, alpha_images
 
     def render_depth(self, transformed_vertices):
         '''

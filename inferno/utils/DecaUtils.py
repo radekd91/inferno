@@ -1116,10 +1116,10 @@ def load_local_mask(image_size=256, mode='bbx'):
         eye_nose = np.array([490, 1558, 700, 1050 + 50])
         mouth = np.array([574, 1474, 1050, 1550])
         ratio = image_size / 2048.
-        face = (face * ratio).astype(np.int)
-        forehead = (forehead * ratio).astype(np.int)
-        eye_nose = (eye_nose * ratio).astype(np.int)
-        mouth = (mouth * ratio).astype(np.int)
+        face = (face * ratio).astype(int)
+        forehead = (forehead * ratio).astype(int)
+        eye_nose = (eye_nose * ratio).astype(int)
+        mouth = (mouth * ratio).astype(int)
         regional_mask = np.array([face, forehead, eye_nose, mouth])
 
     return regional_mask

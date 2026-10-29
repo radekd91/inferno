@@ -81,8 +81,15 @@ class MicaInputProcessor(object):
         kpss[:, 0, :] = mediapipe_landmarks[:, [158, 144], :].mean(1)  # center of eye
         kpss[:, 1, :] = mediapipe_landmarks[:, [386, 374], :].mean(1) # 
 
+        if input_image.ndim == 3:
+            input_image_shape = input_image.shape[1]
+        elif input_image.ndim == 4:
+            input_image_shape = input_image.shape[-2]
+        else: 
+            raise ValueError("input_image must be 3D or 4D")
+
         ## from [-1, 1] to [o, input_image_size]
-        kpss = (kpss + 1) * (input_image.shape[1] / 2)
+        kpss = (kpss + 1) * (input_image_shape / 2)
 
         return self._landmark_image_preprocessing(input_image, kpss, landmarks_validity=landmarks_validity)
 
@@ -99,7 +106,13 @@ class MicaInputProcessor(object):
         kpss[:, 1, :] = lmk51[:, [27, 29], :].mean(1)
         
         ## from [-1, 1] to [0, input_image_size]
-        kpss = (kpss + 1) * (input_image.shape[1] / 2)
+        if input_image.ndim == 3:
+            image_size = input_image.shape[1]
+        elif input_image.ndim == 4:
+            image_size = input_image.shape[-2]
+        else:
+            raise ValueError("input_image must be 3D or 4D")
+        kpss = (kpss + 1) * (image_size / 2)
 
         return self._landmark_image_preprocessing(input_image, kpss, landmarks_validity=landmarks_validity)
 
@@ -129,6 +142,15 @@ class MicaInputProcessor(object):
                 aimg = resize(input_image[i], output_shape=(112,112), preserve_range=True).astype(np.uint8)
             else:
                 aimg = face_align.norm_crop(input_image[i], landmark=kpss[i])
+
+                # import plotly.express as px
+                # import plotly.graph_objects as go
+                # fig = px.imshow(input_image[i])
+                # fig.add_trace(go.Scatter(x=kpss[i][:,0], y=kpss[i][:,1], mode='markers', marker=dict(size=10, color='red')))
+                # fig.show()
+                # fig = px.imshow(aimg)
+                # fig.show()
+
             aligned_image_list.append(aimg)
             # blob = cv2.dnn.blobFromImages([aimg], 1.0 / input_std, (112, 112), (input_mean, input_mean, input_mean), swapRB=False)
 

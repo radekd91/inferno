@@ -56,7 +56,6 @@ def reconstruct_video(args):
     mode = 'coarse'
    
     ## 1) Process the video - extract the frames from video and detected faces
-    processed_subfolder="processed_2024_Jan_02_07-46-06"
     # processed_subfolder=None
     dm = TestFaceVideoDM(input_video, output_folder, processed_subfolder=processed_subfolder, 
         batch_size=4, num_workers=4, face_detector="fan3d")
@@ -135,10 +134,10 @@ def reconstruct_video(args):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_video', type=str, default=str(Path(get_path_to_assets()) / "data/EMOCA_test_example_data/videos/82-25-854x480_affwild2.mp4"), 
-        help="Filename of the video for reconstruction.")
+    parser.add_argument('--input_video', type=str, default=str(Path(get_path_to_assets()) / "data/EMOCA_test_example_data/videos/82-25-854x480_affwild2.mp4"), help="Filename of the video for reconstruction.")
     parser.add_argument('--output_folder', type=str, default="video_output", help="Output folder to save the results to.")
-    parser.add_argument('--model_name', type=str, default='EMICA-CVT_flame2020_notexture', help='Name of the model to use. Currently EMOCA or DECA are available.')
+    # parser.add_argument('--model_name', type=str, default='EMICA-CVT_flame2020_notexture', help='Name of the model to use. Currently EMOCA or DECA are available.')
+    parser.add_argument('--model_name', type=str, default='EMICA-CVT_flame2020', help='Name of the model to use. Currently EMOCA or DECA are available.')
     parser.add_argument('--path_to_models', type=str, default=str(Path(get_path_to_assets()) / "FaceReconstruction/models"))
     # parser.add_argument('--mode', type=str, default="detail", choices=["detail", "coarse"], help="Which model to use for the reconstruction.")
     parser.add_argument('--save_images', type=str2bool, default=True, help="If true, output images will be saved")

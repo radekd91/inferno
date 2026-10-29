@@ -41,6 +41,7 @@ import traceback
 from inferno.layers.losses.MediaPipeLandmarkLosses import MEDIAPIPE_LANDMARK_NUMBER
 import cv2
 from decord import VideoReader, cpu
+from tqdm import auto
 
 class AbstractVideoDataset(torch.utils.data.Dataset):
 
@@ -152,7 +153,8 @@ class VideoDatasetBase(AbstractVideoDataset):
         self.align_images = align_images
         self.use_audio = use_audio
         self.use_original_video = use_original_video
-        self.transforms = transforms or imgaug.augmenters.Resize((image_size, image_size))
+        # self.transforms = transforms or imgaug.augmenters.Resize((image_size, image_size))
+        self.transforms = transforms #or imgaug.augmenters.Resize((image_size, image_size))
 
         self.hack_length = hack_length
         if self.hack_length == "auto": 
@@ -226,7 +228,7 @@ class VideoDatasetBase(AbstractVideoDataset):
         for rec_type in self.reconstruction_type:
             if rec_type == "spectre": 
                 max_cutoff = max(max_cutoff, 2 )
-            elif rec_type in ["emoca", "deca"] or "emoca" in rec_type.lower() or "emica" in rec_type.lower() or "edeca" in rec_type.lower(): 
+            elif rec_type in ["emoca", "deca"] or "emoca" in rec_type.lower() or "emica" in rec_type.lower() or "edeca" in rec_type.lower() or "smirk" in rec_type.lower(): 
                 max_cutoff = max(max_cutoff, 0 )
             else:
                 raise ValueError(f"Invalid reconstruction type: '{rec_type}'")
@@ -257,29 +259,28 @@ class VideoDatasetBase(AbstractVideoDataset):
     def _preload_videos(self): 
         # indices = np.unique(self.video_indices)
         from tqdm import auto
+        # unique_indices = np.unique(self.video_indices)
         unique_indices = set()
-        self.unique_index_mapping = {} 
+        self.unique_index_mapping = {}
         self.unique_index_mapping_inv = {}
-        for i in auto.tqdm( range(len(self.video_indices)), desc="Preloading videos" ):
-            
-            ## take a look if this video was already loaded (can happen if the video index is repeated in the dataset)
-            if self.video_indices[i] not in self.unique_index_mapping: 
-                self.unique_index_mapping[self.video_indices[i]] = i 
+        for i in auto.tqdm(range(len(self.video_indices)), desc="Preloading videos" ):
+            if self.video_indices[i] not in self.unique_index_mapping:
+                self.unique_index_mapping[self.video_indices[i]] = i
             if i not in self.unique_index_mapping_inv:
                 self.unique_index_mapping_inv[i] = self.video_indices[i]
             if self.video_indices[i] not in unique_indices:
                 unique_indices.add(self.video_indices[i])
+                # self.unique_index_mapping_order[i] = i
             else: 
-                ## the video was already loaded, skip to next iteration
+                # self.unique_index_mapping_order[i] = self.unique_index_mapping[self.unique_index_mapping_inv[self.video_indices[i]]]
                 continue
-
-            ## the video (and related data) is not loaded, so let's do that
             video_path = str(self._get_video_path(i))
             try:
-                ## try to load the video and related data (if an IOError is thrown, catch it)
                 if self.read_video:
                     if video_path not in self.video_cache:
                         self.video_cache[video_path] = vread(video_path)
+                if self.read_segmentation:
+                    if video_path not in self.seg_cache:
                         self.seg_cache[video_path] = self._read_segmentations(i) 
                 if self.read_audio:
                     if video_path not in self.audio_cache:
@@ -307,9 +308,12 @@ class VideoDatasetBase(AbstractVideoDataset):
                         self.emo_cache[i] = {}
                     self.emo_cache[i]["emotions"] = emotions 
                     self.emo_cache[i]["features"] = features
-            except IOError as e: 
-                ## if there was an IOError, populate the corresponding caches with None 
-                if self.read_video: 
+            except IOError as e:
+                print(f"Failed to preload data from video {i} : {video_path}. "\
+                        "Saving the expected value as None. "\
+                        "This will cause the sample to be skipped by the data loader.")
+                print(f"Failed to preload video {i} : {video_path}. Saving values as None which should cause the sample loading to fail and skip")
+                if self.read_video:
                     if video_path not in self.video_cache:
                         self.video_cache[video_path] = None
                         self.seg_cache[video_path] = None
@@ -321,10 +325,9 @@ class VideoDatasetBase(AbstractVideoDataset):
                         self.lmk_cache[i] = {}
                     if lmk_type not in self.lmk_cache[i]:
                         self.lmk_cache[i][lmk_type] = {}
-                    # if lmk_source not in self.lmk_cache[i][lmk_type]:
                     self.lmk_cache[i][lmk_type][lmk_source] = None
                 if self.reconstruction_type is not None:
-                    for rec_type in self.reconstruction_type: 
+                    for rec_type in self.reconstruction_type:
                         if i not in self.rec_cache:
                             self.rec_cache[i] = {}
                         video_dict = self.rec_cache[i]
@@ -338,8 +341,6 @@ class VideoDatasetBase(AbstractVideoDataset):
                     self.emo_cache[i]["emotions"] = None
                     self.emo_cache[i]["features"] = None
                 continue
-    
-
         print("Video cache loaded")
 
     def _inflate_by_video_size(self):
@@ -704,7 +705,6 @@ class VideoDatasetBase(AbstractVideoDataset):
 
     def _get_audio(self, index, start_frame, num_read_frames, video_fps, num_frames, sample):
         if self.preload_videos:
-            # wavdata, sampling_rate = self.audio_cache[index]
             cache_index = self.unique_index_mapping[self.unique_index_mapping_inv[index]]
             wavdata, sampling_rate = self.audio_cache[cache_index]
         else:
@@ -780,8 +780,6 @@ class VideoDatasetBase(AbstractVideoDataset):
             landmarks_dir = self._path_to_landmarks(index, landmark_type, landmark_source)
             landmarks = []
             if (landmarks_dir / "landmarks.pkl").exists(): # landmarks are saved per video in a single file
-            #    landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks.pkl")  
-            #    landmark_list = FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmarks_original.pkl") 
                 if not self.preload_videos: 
                     # landmark_list = FaceDataModuleBase.load_landmark_list(landm?arks_dir / f"landmarks_{landmark_source}.pkl")  
                     landmark_list = self._read_landmarks(index, landmark_type, landmark_source)
@@ -789,7 +787,6 @@ class VideoDatasetBase(AbstractVideoDataset):
                 else: 
                     cache_index = self.unique_index_mapping[self.unique_index_mapping_inv[index]]
                     landmark_list = self.lmk_cache[cache_index][landmark_type][landmark_source]
-                    # landmark_list = self.lmk_cache[index][landmark_type][landmark_source]
                     # landmark_types = self.lmk_cache[index]["landmark_types"]
                 landmarks = landmark_list[start_frame: sequence_length + start_frame] 
                 landmark_validity = np.ones((len(landmarks), 1), dtype=np.float32)
@@ -933,15 +930,15 @@ class VideoDatasetBase(AbstractVideoDataset):
             #     appearance[key] = np.copy(appearance[key])
         return shape_pose_cam, appearance
 
-    def _load_reconstructions_from_cache(self, index, rec_type, appearance=False, start_frame=None, end_frame=None): 
+    def _load_reconstructions_from_cache(self, index, rec_type, appearance=False, start_frame=None, end_frame=None):
         cache_index = self.unique_index_mapping[self.unique_index_mapping_inv[index]]
         shape_pose_cam_ = self.rec_cache[cache_index][rec_type]["shape_pose_cam"]
         appearance_ = self.rec_cache[cache_index][rec_type]["appearance"]
-        shape_pose_cam = shape_pose_cam_.copy() 
-        if appearance_ is not None: 
-            appearance = appearance_.copy() 
-        else: 
-            appearance = None 
+        shape_pose_cam = shape_pose_cam_.copy()
+        if appearance_ is not None:
+            appearance = appearance_.copy()
+        else:
+            appearance = None
 
         if start_frame is not None and end_frame is not None:
             shape_pose_cam = {key: shape_pose_cam[key][:, start_frame: end_frame] for key in shape_pose_cam.keys()}
@@ -1130,6 +1127,15 @@ class VideoDatasetBase(AbstractVideoDataset):
                 
                 img_warped, lmk_warped = bbpoint_warp(video_frames[i], center[i], size[i], self.image_size, landmarks=lmk_to_warp)
                 
+                # import plotly.express as px
+                # import plotly.graph_objects as go
+                # fig = px.imshow(img_warped)
+                # ## add landmarks
+                # # for k,v in lmk_warped.items():
+                # fig.add_trace(go.Scatter(x=lmk_warped["fan3d"][:,0], y=lmk_warped["fan3d"][:,1], mode="markers", marker=dict(size=5)))
+                # fig.add_trace(go.Scatter(x=lmk_warped["mediapipe"][:,0], y=lmk_warped["mediapipe"][:,1], mode="markers", marker=dict(size=5)))
+                # fig.show()
+
                 if "segmentation" in sample.keys():
                     seg_warped = bbpoint_warp(seg_frames[i], center_seg[i], size_seg[i], self.image_size, 
                         order=0 # nearest neighbor interpolation for segmentation
@@ -1159,7 +1165,11 @@ class VideoDatasetBase(AbstractVideoDataset):
                 if video_frames.ndim == 3:
                     video_frames = video_frames.unsqueeze(1)
                     channel_added = True
+                # T, H, W, C -> T, C, H, W
+                video_frames = video_frames.permute(0, 3, 1, 2)
                 video_frames = F.interpolate(video_frames, size=(self.image_size, self.image_size), mode="bilinear")
+                # T, C, H, W -> T, H, W, C
+                video_frames = video_frames.permute(0, 2, 3, 1)
                 if channel_added:
                     video_frames = video_frames.squeeze(1)
                 sample["video"] = video_frames.numpy()
@@ -1205,13 +1215,6 @@ class VideoDatasetBase(AbstractVideoDataset):
         else: 
             shape_pose_cam, appearance = self._load_reconstructions_from_cache(index, rec_type, self.return_appearance,
                                                                     start_frame=start_frame, end_frame=start_frame+num_read_frames)
-            # shape_pose_cam_ = self.rec_cache[index][rec_type]["shape_pose_cam"]
-            # appearance_ = self.rec_cache[index][rec_type]["appearance"]
-            # shape_pose_cam = shape_pose_cam_.copy()
-            # if appearance_ is not None:
-            #     appearance = appearance_.copy()
-            # else:
-            #     appearance = None
         for key in shape_pose_cam.keys():
             shape_pose_cam[key] = shape_pose_cam[key][0]
         if appearance is not None:
@@ -1311,6 +1314,10 @@ class VideoDatasetBase(AbstractVideoDataset):
         sample["reconstruction"][rec_type]["gt_exp"] = shape_pose_cam['exp'].astype(np.float32)
         sample["reconstruction"][rec_type]["gt_shape"] = shape.astype(np.float32)
         sample["reconstruction"][rec_type]["gt_jaw"] = shape_pose_cam['jaw'].astype(np.float32)
+
+        if 'eyelid' in shape_pose_cam:
+            sample["reconstruction"][rec_type]["gt_eyelid"] = shape_pose_cam['eyelid'].astype(np.float32)
+
         if self.return_global_pose:
             sample["reconstruction"][rec_type]["gt_global_pose"]= shape_pose_cam['global_pose'].astype(np.float32)
             sample["reconstruction"][rec_type] ["gt_cam"] = shape_pose_cam['cam'].astype(np.float32)
@@ -1346,12 +1353,6 @@ class VideoDatasetBase(AbstractVideoDataset):
             cache_index = self.unique_index_mapping[self.unique_index_mapping_inv[index]]
             emotions = self.emo_cache[cache_index]["emotions"].copy()
             features = self.emo_cache[cache_index]["features"]
-            if features is not None: 
-                features = features.copy()
-
-            # emotions = self.emo_cache[index]["emotions"].copy() 
-            # emotions = emotions[start_frame:start_frame+num_read_frames]
-            # features = self.emo_cache[index]["features"]
             if features is not None:
                 features = features.copy()
                 features = features[start_frame:start_frame+num_read_frames]
@@ -1384,52 +1385,65 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         # therefore we split the [B, T, ...] arays into T x [B, ...] arrays 
         # and augment each t from 1 to T separately same way using to_deterministic
+        if self.transforms is not None:
+            transform_det = self.transforms.to_deterministic()
 
-        transform_det = self.transforms.to_deterministic()
+            T = img.shape[0]
 
-        T = img.shape[0]
+            for t in range(T):
+                img_t = img[t, ...] if img is not None else None
+                seg_image_t = seg_image[t:t+1, ..., np.newaxis] if seg_image is not None else None
+                landmark_t = landmark[t:t+1, ..., :2] if landmark is not None else None
 
-        for t in range(T):
-            img_t = img[t, ...] if img is not None else None
-            seg_image_t = seg_image[t:t+1, ..., np.newaxis] if seg_image is not None else None
-            landmark_t = landmark[t:t+1, ..., :2] if landmark is not None else None
+                if self.transforms is not None:
+                    res = transform_det(
+                        # image=img_t.astype(np.float32),
+                        image=img_t,
+                        segmentation_maps=seg_image_t,
+                        keypoints=landmark_t)
+                    if seg_image_t is not None and landmark is not None:
+                        img_t, seg_image_t, landmark_t = res
+                    elif seg_image_t is not None:
+                        img_t, seg_image_t, _ = res
+                    elif landmark_t is not None:
+                        img_t, _, landmark_t = res
+                    else:
+                        img_t = res
 
-            if self.transforms is not None:
-                res = transform_det(
-                    # image=img_t.astype(np.float32),
-                    image=img_t,
-                    segmentation_maps=seg_image_t,
-                    keypoints=landmark_t)
-                if seg_image_t is not None and landmark is not None:
-                    img_t, seg_image_t, landmark_t = res
-                elif seg_image_t is not None:
-                    img_t, seg_image_t, _ = res
-                elif landmark_t is not None:
-                    img_t, _, landmark_t = res
-                else:
-                    img_t = res
+                if seg_image_t is not None:
+                    seg_image_t = np.squeeze(seg_image_t)[..., np.newaxis].astype(np.float32)
 
-            if seg_image_t is not None:
-                seg_image_t = np.squeeze(seg_image_t)[..., np.newaxis].astype(np.float32)
+                if landmark_t is not None:
+                    landmark_t = np.squeeze(landmark_t)
+                    if isinstance(self.landmark_normalizer, KeypointScale):
+                        self.landmark_normalizer.set_scale(
+                            img_t.shape[0] / input_img_shape[0],
+                            img_t.shape[1] / input_img_shape[1])
+                    elif isinstance(self.landmark_normalizer, KeypointNormalization):
+                        self.landmark_normalizer.set_scale(img_t.shape[0], img_t.shape[1])
+                        # self.landmark_normalizer.set_scale(input_img_shape[0], input_img_shape[1])
+                    else:
+                        raise ValueError(f"Unsupported landmark normalizer type: {type(self.landmark_normalizer)}")
+                    landmark_t = self.landmark_normalizer(landmark_t)
 
-            if landmark_t is not None:
-                landmark_t = np.squeeze(landmark_t)
+                img[t:t+1, ...] = img_t 
+                if seg_image is not None:
+                    seg_image[t:t+1, ...] = seg_image_t[..., 0]
+                if landmark is not None:
+                    landmark[t:t+1, ..., :2] = landmark_t[np.newaxis]
+        else: 
+            if landmark is not None: 
                 if isinstance(self.landmark_normalizer, KeypointScale):
                     self.landmark_normalizer.set_scale(
-                        img_t.shape[0] / input_img_shape[0],
-                        img_t.shape[1] / input_img_shape[1])
+                        img.shape[1] / input_img_shape[0],
+                        img.shape[2] / input_img_shape[1])
                 elif isinstance(self.landmark_normalizer, KeypointNormalization):
-                    self.landmark_normalizer.set_scale(img_t.shape[0], img_t.shape[1])
+                    self.landmark_normalizer.set_scale(img.shape[1], img.shape[2])
                     # self.landmark_normalizer.set_scale(input_img_shape[0], input_img_shape[1])
                 else:
                     raise ValueError(f"Unsupported landmark normalizer type: {type(self.landmark_normalizer)}")
-                landmark_t = self.landmark_normalizer(landmark_t)
+                landmark = self.landmark_normalizer(landmark)
 
-            img[t:t+1, ...] = img_t 
-            if seg_image is not None:
-                seg_image[t:t+1, ...] = seg_image_t[..., 0]
-            if landmark is not None:
-                landmark[t:t+1, ..., :2] = landmark_t[np.newaxis]
         if landmark is not None:
             landmark = landmark[:, :, :2]
         return img, seg_image, landmark
@@ -1508,14 +1522,17 @@ class VideoDatasetBase(AbstractVideoDataset):
 
         # images_aug, segmentation_aug, mediapipe_landmarks_aug = self._augment(images_aug, segmentation_aug, 
         #                     mediapipe_landmarks_aug, images.shape[2:])
-        images_aug, segmentation_aug, mediapipe_landmarks_aug = self._augment(images_aug, segmentation_aug, 
-                    landmarks_to_augment_aug, images.shape[2:])
+        # images_aug, segmentation_aug, mediapipe_landmarks_aug = self._augment(images_aug, segmentation_aug, 
+        images_aug, segmentation_aug, landmarks_to_augment_aug = self._augment(images_aug, segmentation_aug, 
+                    landmarks_to_augment_aug, 
+                    # images.shape[2:]
+                    images.shape[1:3]
+                    )
         images_aug = images_aug.astype(np.float32) / 255.0 # back to float
         images = images_aug[:images_aug.shape[0]//2]
 
         if segmentation is not None:
             segmentation = segmentation_aug[:segmentation_aug.shape[0]//2]
-        # mediapipe_landmarks = mediapipe_landmarks_aug[:mediapipe_landmarks_aug.shape[0]//2]
         landmarks_to_augment_aug = landmarks_to_augment_aug[:landmarks_to_augment_aug.shape[0]//2]
         images_masked = images_aug[images_aug.shape[0]//2 :]
 
@@ -1705,12 +1722,12 @@ class VideoDatasetBase(AbstractVideoDataset):
         all_images = np.concatenate(all_images, axis=0)
         # plot the frames
 
-        import plotly.express as px
-        import plotly.graph_objects as go
-        import pandas as pd
-        fig = go.Figure(data=[go.Image(z=all_images)])
-        # show the figure 
-        fig.show()
+        # import plotly.express as px
+        # import plotly.graph_objects as go
+        # import pandas as pd
+        # fig = go.Figure(data=[go.Image(z=all_images)])
+        # # show the figure 
+        # fig.show()
 
         # fig = go.Figure(data=[go.Image(z=frames)])
         # # show the figure 
@@ -1806,7 +1823,6 @@ class VideoDatasetBaseV2(VideoDatasetBase):
                     else:
                         cache_index = self.unique_index_mapping[self.unique_index_mapping_inv[index]]
                         landmark_list, landmark_valid_indices = self.lmk_cache[cache_index][landmark_type][landmark_source]
-                        # landmark_list, landmark_valid_indices = self.lmk_cache[index][landmark_type][landmark_source]
                         
                     # landmark_list = FaceDataModuleBase.load_landmark_list(landmark_list_file)  
                     # landmark_types =  FaceDataModuleBase.load_landmark_list(landmarks_dir / "landmark_types.pkl")  
@@ -1834,7 +1850,6 @@ class VideoDatasetBaseV2(VideoDatasetBase):
                 else: 
                     cache_index = self.unique_index_mapping[self.unique_index_mapping_inv[index]]
                     landmarks, landmark_confidences = self.lmk_cache[cache_index][landmark_type][landmark_source]
-                    # landmarks, landmark_confidences = self.lmk_cache[index][landmark_type][landmark_source]
 
                 # scale by image size 
                 original_image_size =  self.original_image_size

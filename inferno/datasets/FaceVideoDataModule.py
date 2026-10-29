@@ -50,7 +50,7 @@ from skimage.io import imread
 from skvideo.io import vreader, vread
 import skvideo.io
 import torch.nn.functional as F
-from inferno.utils.batch import dict_to_device
+from inferno.utils.batch import dict_to_device, slice_tensors_in_dict
 from inferno.datasets.VideoFaceDetectionDataset import VideoFaceDetectionDataset
 import types
 
@@ -502,7 +502,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
             #     self._detect_faces_in_image_wrapper(frame_list, fid, out_detection_folder, out_landmark_folder, out_file_boxes,
             #                                 centers_all, sizes_all, detection_fnames_all, landmark_fnames_all)
-
+    
         else: 
             # if start_fid == 0:
                 # videogen =  vreader(str(video_name))
@@ -1052,23 +1052,70 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     return self._emica[rec_method].to(device)
             else: 
                 self._emica = {}
-            from inferno.models.temporal.Preprocessors import EmocaPreprocessor
+            from inferno.models.temporal.Preprocessors import FaceRecPreprocessor
             from munch import Munch
             cfg = Munch()
             cfg.with_global_pose = True
             cfg.return_global_pose = True
             cfg.average_shape_decode = False
             cfg.return_appearance = True
-            cfg.model_name = rec_method
+            rec_method_ = rec_method
+            if "_unaligned" == rec_method.lower()[-10:]:
+                rec_method_ = rec_method[:-10]
+            cfg.model_name = rec_method_
             cfg.model_path = False
             cfg.stage = "coarse" 
             cfg.max_b = 16
             cfg.render = False
             cfg.crash_on_invalid = False
             # cfg.render = True
-            emica = EmocaPreprocessor(cfg).to(device)
+            emica = FaceRecPreprocessor(cfg).to(device)
             self._emica[rec_method] = emica
             return emica
+        if "smirk" in rec_method.lower():
+            if hasattr(self, '_smirk'): 
+                if rec_method in self._smirk.keys() :
+                    return self._smirk[rec_method].to(device)
+            else: 
+                self._smirk = {}
+            from inferno.models.temporal.external.SmirkPreprocessor import SmirkPreprocessor
+            from munch import Munch
+            cfg = Munch()
+            rec_method_ = rec_method
+            if "_unaligned" == rec_method.lower()[-10:]:
+                rec_method_ = rec_method[:-10]
+            cfg.model_name = rec_method_
+            cfg.model_path = False
+            cfg.max_b = 16
+            cfg.render = False
+            cfg.crash_on_invalid = False
+            cfg.use_smirk_generator = False
+            cfg.crop = False
+            cfg.with_global_pose = True
+            cfg.return_global_pose = True 
+            cfg.average_shape_decode = False 
+            cfg.slice_off_invalid = False 
+            cfg.crash_on_invalid = False 
+            cfg.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+            cfg.flame = Munch()
+            cfg.flame.flame_model_path = get_path_to_assets() / "FLAME/geometry/generic_model.pkl"
+            cfg.flame.flame_lmk_embedding_path = get_path_to_assets() / "FLAME/geometry/landmark_embedding.npy"
+            cfg.flame.flame_mediapipe_lmk_embedding_path = get_path_to_assets() / "FLAME/geometry/mediapipe_landmark_embedding.npz"
+            cfg.flame.n_shape = 300
+            # cfg.flame.n_exp = 100
+            cfg.flame.n_exp = 50
+            cfg.flame.use_texture = 1605
+            cfg.flame.use_eyelids = True
+
+            cfg.smirk_type = "smirk" 
+            if "spectre" in rec_method.lower():
+                cfg.smirk_type = "smirk_spectre"
+
+            # cfg.render = True
+            smirk = SmirkPreprocessor(cfg).to(device)
+            self._smirk[rec_method] = smirk
+            return smirk
         elif rec_method == "spectre": 
             if hasattr(self, '_spectre') and self._spectre is not None: 
                 return self._spectre.to(device)
@@ -1290,7 +1337,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         for sid in range(self.num_sequences):
             self._reconstruct_faces_in_sequence(sid, reconstruction_net, device)
 
-    def get_single_video_dataset(self, i):
+    def get_single_video_dataset(self, i, **kwargs):
         raise NotImplementedError("This method must be implemented by the deriving classes.")
 
     def _reconstruct_faces_in_sequence(self, sequence_id, reconstruction_net=None, device=None,
@@ -1483,6 +1530,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         if exists: 
             return
 
+
         device = device or torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         # reconstruction_net = reconstruction_net or self._get_reconstruction_net_v2(device, rec_method=rec_method)
 
@@ -1504,14 +1552,28 @@ class FaceVideoDataModule(FaceDataModuleBase):
         #     from skvideo.io import vread
         #     detections_fnames_or_images = vread(str(in_folder))
              
-        dataset = self.get_single_video_dataset(sequence_id)
-        batch_size = 32
-        # batch_size = 64
+        alignment_step = True
+        for rec_method in rec_methods:
+            if alignment_step: 
+                if 'unaligned' in rec_method:
+                    alignment_step = False 
+
+        dataset = self.get_single_video_dataset(sequence_id, align_images=alignment_step)
+        # batch_size = 32
+        batch_size = 64
         loader = DataLoader(dataset, batch_size=batch_size, num_workers=0, shuffle=False)
+
+        result_keys_to_keep_geometry = ['shape', 'exp', 'jaw', 'global_pose', 'cam', "eyelid"]
+        result_keys_to_keep_appearance = ['tex', 'light', 'detail']
 
         for i, batch in enumerate(tqdm(loader)):
             with torch.no_grad():
-                batch = dict_to_device(batch, device)
+                if 'samplerate' in batch.keys():
+                    batch.pop('samplerate')
+
+                assert batch['video'].shape[0] == 1
+                T = batch['video'].shape[1]
+
                 for rec_method in rec_methods:
 
                     # import matplotlib.pyplot as plt
@@ -1524,16 +1586,37 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
                     if out_file_shape[rec_method].is_file() and  out_file_appearance[rec_method].is_file(): 
                         continue
-                    batch_ = batch.copy()
                     reconstruction_net = self._get_reconstruction_net_v2(device, rec_method=rec_method)
-                    result = reconstruction_net(batch_, input_key='video', output_prefix="")
-                    assert batch['video'].shape[0] == 1
-                    T = batch['video'].shape[1]
-                    result_keys_to_keep = ['shape', 'exp', 'jaw', 'global_pose', 'cam']
-                    shape_pose = {k: result[k].cpu().numpy() for k in result_keys_to_keep}
-                    assert shape_pose['shape'].shape[1] == T, f"{shape_pose['shape'].shape[1]} != {T}"
-                    result_keys_to_keep = ['tex', 'light', 'detail']
-                    appearance = {k: result[k].cpu().numpy() for k in result_keys_to_keep if k in result.keys()}
+
+                    if T > batch_size:
+                        num_t_batches = T // batch_size
+                        if T % batch_size > 0:
+                            num_t_batches += 1
+                        shape_pose = []
+                        appearance = []
+                        for t_batch in auto.tqdm(range(num_t_batches)):
+                            batch_ = batch.copy()
+                            start_frame = t_batch * batch_size
+                            end_frame = min((t_batch + 1) * batch_size, T)
+                            batch_ = slice_tensors_in_dict(batch_, start_frame, end_frame, 1)
+                            batch_ = dict_to_device(batch_, device)
+                            result = reconstruction_net(batch_, input_key='video', output_prefix="")
+                            shape_pose_ = {k: result[k].cpu().numpy() for k in result_keys_to_keep_geometry if k in result.keys()}
+                            assert shape_pose_['shape'].shape[1] == end_frame - start_frame, f"{shape_pose_['shape'].shape[1]} != {end_frame - start_frame}"
+                            appearance_ = {k: result[k].cpu().numpy() for k in result_keys_to_keep_appearance if k in result.keys()}
+                            shape_pose.append(shape_pose_)
+                            appearance.append(appearance_)
+                        shape_pose = {k: np.concatenate([shape_pose_[k] for shape_pose_ in shape_pose], axis=1) for k in shape_pose[0].keys()}
+                        appearance = {k: np.concatenate([appearance_[k] for appearance_ in appearance], axis=1) for k in appearance[0].keys()}
+                    else: 
+
+                        batch_ = dict_to_device(batch, device)
+                        result = reconstruction_net(batch_, input_key='video', output_prefix="")
+
+                        shape_pose = {k: result[k].cpu().numpy() for k in result_keys_to_keep_geometry if k in result.keys()}
+                        assert shape_pose['shape'].shape[1] == T, f"{shape_pose['shape'].shape[1]} != {T}"
+
+                        appearance = {k: result[k].cpu().numpy() for k in result_keys_to_keep_appearance if k in result.keys()}
 
                     # with open(out_file_shape, "wb") as f:
                     #     hkl.dump(shape_pose, f) 
@@ -1591,25 +1674,50 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # emotion_net = emotion_net or self._get_emotion_recognition_net(device, rec_method=emo_method)
              
         dataset = self.get_single_video_dataset(sequence_id)
-        batch_size = 32
-        # batch_size = 64
+        # batch_size = 32
+        batch_size = 64
         loader = DataLoader(dataset, batch_size=batch_size, num_workers=0, shuffle=False)
 
         for i, batch in enumerate(tqdm(loader)):
             with torch.no_grad():
-                batch = dict_to_device(batch, device)
+                T = batch['video'].shape[1]
                 for emo_method in emo_methods:
                     if out_file_emotion[emo_method].is_file() and out_file_features[emo_method].is_file(): 
                         continue
                     emotion_net = self._get_emotion_recognition_net(device, rec_method=emo_method)
-                    result = emotion_net(batch, input_key='video', output_prefix="")
-                    assert batch['video'].shape[0] == 1
-                    T = batch['video'].shape[1]
-                    result_keys_to_keep = ['expression', 'valence', 'arousal',]
-                    assert result['expression'].shape[1] == T, f"{result['expression'].shape[1]} != {T}"
-                    emotion_labels = {k: result[k].cpu().numpy() for k in result_keys_to_keep}
-                    result_keys_to_keep = ['feature',]
-                    emotion_features = {k: result[k].cpu().numpy() for k in result_keys_to_keep}
+                    
+                    if T > batch_size: 
+                        num_temporal_batches = T // batch_size
+                        if T % batch_size > 0:
+                            num_temporal_batches += 1
+                        emotion_labels = []
+                        emotion_features = []
+                        for temp_batch in auto.tqdm(range(num_temporal_batches)):
+                            batch_ = batch.copy()
+                            start_frame = temp_batch * batch_size
+                            end_frame = min((temp_batch + 1) * batch_size, T)
+                            batch_ = slice_tensors_in_dict(batch_, start_frame, end_frame, 1)
+                            batch_ = dict_to_device(batch_, device)
+                            result = emotion_net(batch_, input_key='video', output_prefix="")
+                            assert batch_['video'].shape[0] == 1
+                            result_keys_to_keep = ['expression', 'valence', 'arousal',]
+                            assert result['expression'].shape[1] == end_frame - start_frame, f"{result['expression'].shape[1]} != {end_frame - start_frame}"
+                            emotion_labels_ = {k: result[k].cpu().numpy() for k in result_keys_to_keep}
+                            result_keys_to_keep = ['feature',]
+                            emotion_features_ = {k: result[k].cpu().numpy() for k in result_keys_to_keep}
+                            emotion_labels.append(emotion_labels_)
+                            emotion_features.append(emotion_features_)
+                        emotion_labels = {k: np.concatenate([emotion_labels_[k] for emotion_labels_ in emotion_labels], axis=1) for k in emotion_labels[0].keys()}
+                        emotion_features = {k: np.concatenate([emotion_features_[k] for emotion_features_ in emotion_features], axis=1) for k in emotion_features[0].keys()}
+                    else: 
+                        batch = dict_to_device(batch, device)
+                        result = emotion_net(batch, input_key='video', output_prefix="")
+                        assert batch['video'].shape[0] == 1
+                        result_keys_to_keep = ['expression', 'valence', 'arousal',]
+                        assert result['expression'].shape[1] == T, f"{result['expression'].shape[1]} != {T}"
+                        emotion_labels = {k: result[k].cpu().numpy() for k in result_keys_to_keep}
+                        result_keys_to_keep = ['feature',]
+                        emotion_features = {k: result[k].cpu().numpy() for k in result_keys_to_keep}
                     
                     # hkl.dump(emotion_labels, out_file_emotion[emo_method])
                     # hkl.dump(emotion_features, out_file_features[emo_method])
@@ -1621,9 +1729,9 @@ class FaceVideoDataModule(FaceDataModuleBase):
                         raise ValueError(f"Unknown file format {out_file_emotion[emo_method].suffix}")
                     
                     if out_file_features[emo_method].suffix == '.hdf5':
-                        save_emotion_list_v2(out_file_emotion[emo_method], emotion_labels)
+                        save_emotion_list_v2(out_file_emotion[emo_method], emotion_features)
                     elif out_file_features[emo_method].suffix == '.pkl':
-                        save_emotion_list(out_file_features[emo_method], emotion_labels)
+                        save_emotion_list(out_file_features[emo_method], emotion_features)
 
         print("Done running face reconstruction in sequence '%s'" % self.video_list[sequence_id])
 
@@ -1682,8 +1790,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 return
             out_file_video[rec_method].parent.mkdir(exist_ok=True, parents=True)
 
-        exists = True
+        exists = True 
+        alignment_step = True
         for rec_method in rec_methods:
+            if alignment_step: 
+                if 'unaligned' in rec_method:
+                    alignment_step = False
+
             if not in_file_reconstruction[rec_method].is_file(): 
                 exists = False
                 break
@@ -1693,24 +1806,32 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # if exists: 
         #     return
         # emotion_net = emotion_net or self._get_emotion_recognition_net(device, rec_method=emo_method)
-             
-        dataset = self.get_single_video_dataset(sequence_id)
+
+
+        dataset = self.get_single_video_dataset(sequence_id, 
+                                                align_images=alignment_step, )
         batch_size = 32
         # batch_size = 64
         loader = DataLoader(dataset, batch_size=batch_size, num_workers=0, shuffle=False)
 
         import math 
-        from inferno.utils.batch import slice_tensors_in_dict
 
         for i, batch_ in enumerate(tqdm(loader)):
             with torch.no_grad():
                 batch_ = dict_to_device(batch_, device)
                 for rec_method in rec_methods:
+                    out_vid = out_file_video[rec_method].parent / f"rec_unposed.mp4"
+                    if out_vid.is_file():
+                        print(f"Video {out_vid} already exists. Skipping.")
+                        continue
+
                     # if in_file_reconstruction[rec_method].is_file() and out_file_video[rec_method].is_file(): 
                     #     continue
                     assert batch_['video'].shape[0] == 1
                     T = batch_['video'].shape[1]
-                    chunks = int(math.ceil(T / batch_size))
+                    max_rec_video_frames = 550
+                    T = min(max_rec_video_frames, T)
+                    num_chunks = int(math.ceil(T / batch_size))
                     
                     if in_file_reconstruction[rec_method].suffix == '.hdf5':
                         reconstruction_ = load_reconstruction_list_v2(in_file_reconstruction[rec_method])
@@ -1722,13 +1843,16 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     reconstruction_net = self._get_reconstruction_net_v2(device, rec_method=rec_method)
                     vertices = [] 
                     unposed_vertices = []
-                    shape_im = []
-                    shape_im_large = [] 
-                    shape_im_unposed = [] 
+                    shape_ims = []
+                    shape_ims_large = [] 
+                    shape_ims_unposed = [] 
+                    images = [] 
 
-                    for chunk_i in range(chunks):
+                    for chunk_i in range(num_chunks):
                         start_i = chunk_i * batch_size
                         end_i = min((chunk_i + 1) * batch_size, T)
+                        if 'samplerate' in batch_.keys():
+                            batch_.pop('samplerate')
                         batch = slice_tensors_in_dict(batch_, start_i, end_i, 1)
                         reconstruction = slice_tensors_in_dict(reconstruction_, start_i, end_i, 1)
 
@@ -1736,6 +1860,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
                             flame = reconstruction_net.model.deca.flame 
                         elif "FaceRecPreprocessor" in reconstruction_net.__class__.__name__: ## new
                             flame = reconstruction_net.model.shape_model.flame
+                        elif reconstruction_net.__class__.__name__ == "SmirkPreprocessor": ## new
+                            flame = reconstruction_net.flame
                         else: 
                             raise ValueError(f"Unknown reconstruction net {reconstruction_net.__class__.__name__}")
                         
@@ -1746,17 +1872,24 @@ class FaceVideoDataModule(FaceDataModuleBase):
                             jaw = torch.zeros_like(global_pose).to(device)
                         pose = torch.cat([global_pose, jaw], dim=-1)
                         pose_jaw_only = torch.cat([torch.zeros_like(global_pose), jaw], dim=-1)
+                        eye_lid = reconstruction.get('eyelid', None) 
+                        if eye_lid is not None:
+                            eye_lid = torch.from_numpy(eye_lid ).float().to(device).squeeze(0)
                         vertices_, _, _, _ = flame(
                             shape_params=torch.from_numpy( reconstruction['shape']).float().to(device).squeeze(0), 
                             expression_params=torch.from_numpy( reconstruction['exp']).float().to(device).squeeze(0), 
                             pose_params=pose,
-                            eye_pose_params=None)
+                            eye_pose_params=None, 
+                            eyelid_params=eye_lid, 
+                            )
                         
                         unposed_vertices_, _, _, _ = flame(
                             shape_params=torch.from_numpy( reconstruction['shape']).float().to(device).squeeze(0), 
                             expression_params=torch.from_numpy( reconstruction['exp']).float().to(device).squeeze(0), 
                             pose_params=pose_jaw_only,
-                            eye_pose_params=None)
+                            eye_pose_params=None, 
+                            eyelid_params=eye_lid,
+                        )
                         
                         trans_verts = util.batch_orth_proj(vertices_, 
                                                         torch.from_numpy(reconstruction['cam']).float().to(device).squeeze(0), 
@@ -1774,38 +1907,41 @@ class FaceVideoDataModule(FaceDataModuleBase):
                         shape_im_large_ = self.torch_renderer_large_.render_shape(vertices_, trans_verts, images=None, detail_normal_images=None, lights=None)
                         shape_im_unposed_ = self.torch_renderer_large_.render_shape(unposed_vertices_, trans_verts_unposed, images=None, detail_normal_images=None, lights=None)
                         
-                        vertices += [vertices_]
-                        unposed_vertices += [unposed_vertices_]
-                        shape_im += [shape_im_]
-                        shape_im_large += [shape_im_large_]
-                        shape_im_unposed += [shape_im_unposed_]
+                        image_ = batch['video'][0].cpu()
+                        vertices += [vertices_.cpu()]
+                        unposed_vertices += [unposed_vertices_.cpu()]
+                        shape_ims += [shape_im_.cpu()]
+                        shape_ims_large += [shape_im_large_.cpu()]
+                        shape_ims_unposed += [shape_im_unposed_.cpu()]
+                        images += [image_.cpu()]
 
 
                     ## join the tensors 
                     vertices = torch.cat(vertices, dim=0).cpu()
                     unposed_vertices = torch.cat(unposed_vertices, dim=0).cpu()
-                    shape_im = torch.cat(shape_im, dim=0).cpu()
-                    shape_im_large = torch.cat(shape_im_large, dim=0).cpu()
-                    shape_im_unposed = torch.cat(shape_im_unposed, dim=0).cpu()
+                    shape_ims = torch.cat(shape_ims, dim=0).cpu()
+                    shape_ims_large = torch.cat(shape_ims_large, dim=0).cpu()
+                    shape_ims_unposed = torch.cat(shape_ims_unposed, dim=0).cpu()
 
                     ## add alpha channel 
-                    shape_im = torch.cat([shape_im, torch.zeros_like(shape_im[:, :1, ...])], dim=1)
+                    shape_ims = torch.cat([shape_ims, torch.zeros_like(shape_ims[:, :1, ...])], dim=1)
                     # binary map of black pixels
-                    mask = torch.logical_and(shape_im[:, 0, ...] == 0, shape_im[:, 1, ...] == 0).logical_and(shape_im[:, 2, ...] == 0)[:, None, ...]
+                    mask = torch.logical_and(shape_ims[:, 0, ...] == 0, shape_ims[:, 1, ...] == 0).logical_and(shape_ims[:, 2, ...] == 0)[:, None, ...]
 
-                    image = batch['video'][0]
+                    # image = batch['video'][0]
+                    images = torch.cat(images, dim=0)
                     ## add alpha channel 
-                    image = torch.cat([image, torch.ones_like(image[:, :1,...])], dim=1)
+                    images = torch.cat([images, torch.ones_like(images[:, :1,...])], dim=1)
 
                     # set alpha channel to 1 for all non-black pixels
-                    shape_im[:, 3:4, ...] = (1.- mask.float()) * 1
-                    image_blended = alpha_blend(image, shape_im)
+                    shape_ims[:, 3:4, ...] = (1.- mask.float()) * 1
+                    image_blended = alpha_blend(images, shape_ims)
 
-                    shape_im[:, 3:4, ...] = (1.- mask.float()) * 10
-                    image_blended2 = alpha_blend(image, shape_im)
+                    shape_ims[:, 3:4, ...] = (1.- mask.float()) * 10
+                    image_blended2 = alpha_blend(images, shape_ims)
 
                     # concatenate image, image_blended and shape_image 
-                    final_video = torch.cat([image[:,:3, ...], image_blended[:,:3, ...], image_blended2[:,:3, ...], shape_im[:,:3, ...]], dim=2)
+                    final_video = torch.cat([images[:,:3, ...], image_blended[:,:3, ...], image_blended2[:,:3, ...], shape_ims[:,:3, ...]], dim=2)
 
                     # save video into the final path 
                     if not out_file_video[rec_method].is_file():
@@ -1825,7 +1961,6 @@ class FaceVideoDataModule(FaceDataModuleBase):
 
                         for j in auto.tqdm(range(final_video.shape[0])):
                             vis_im = util.tensor2image(final_video[j])
-                            vis_im_shape = util.tensor2image(shape_im[j])
 
                             ## plot image
                             # import matplotlib.pyplot as plt
@@ -1851,7 +1986,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                     
 
 
-                    out_vid = out_file_video[rec_method].parent / f"rec_unposed.mp4"
+
                     if not out_vid.is_file():
                         if out_file_video[rec_method].suffix == '.mp4':
                             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -1867,8 +2002,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
                             # py_render_image_unposed = self.py_renderer_.render(unposed_verts)
 
                             ## This uses pytorch3d renderered images (faster)
-                            py_render_image_global = (shape_im_large[j].cpu().permute(1,2,0).numpy() * 255.).astype(np.uint8)
-                            py_render_image_unposed = (shape_im_unposed[j].cpu().permute(1,2,0).numpy() * 255.).astype(np.uint8)
+                            py_render_image_global = (shape_ims_large[j].cpu().permute(1,2,0).numpy() * 255.).astype(np.uint8)
+                            py_render_image_unposed = (shape_ims_unposed[j].cpu().permute(1,2,0).numpy() * 255.).astype(np.uint8)
 
                             ## reshape image to final_video.shape[3] x final_video.shape[3] 
                             py_render_image_global = cv2.resize(py_render_image_global, (final_video.shape[2], final_video.shape[2]), 
@@ -1991,7 +2126,8 @@ class FaceVideoDataModule(FaceDataModuleBase):
             # audio codec
             codec_idx = [idx for idx in range(len(vid['streams'])) if vid['streams'][idx]['codec_type'] == 'audio']
             if len(codec_idx) > 1:
-                raise RuntimeError("Video file has two audio streams! '%s'" % str(vid_file))
+                # raise RuntimeError("Video file has two audio streams! '%s'" % str(vid_file))
+                print("[WARNING] Video file has two audio streams! '%s' The first one will be defaulted to." % str(vid_file))
             if len(codec_idx) == 0:
                 if self._must_include_audio is True or self._must_include_audio == 'strict':
                     raise RuntimeError("Video file has no audio streams! '%s'" % str(vid_file))
@@ -2006,7 +2142,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
                 aud_meta['sample_rate'] = aud_info['sample_rate']
                 aud_meta['sample_fmt'] = aud_info['sample_fmt']
                 # aud_meta['num_samples'] = int(aud_info['nb_samples'])
-                aud_meta["num_frames"] = int(aud_info['nb_frames'])
+                aud_meta["num_frames"] = int(aud_info['nb_frames']) if 'nb_frames' in aud_info.keys() else None
                 if float(aud_info['start_time']) != 0:       
                     if not allow_later_audio_start:
                         # assert float(aud_info['start_time']) == 0, f"Audio start time is not zero: {aud_info['start_time']}"
@@ -2815,6 +2951,13 @@ class FaceVideoDataModule(FaceDataModuleBase):
         main_occurence_cov = cov[max_index]
         return max_index, main_occurence_mean
 
+    @property
+    def _size_interp_std(self): 
+        return 3.0
+
+    @property
+    def _center_interp_std(self): 
+        return 3.0
 
     def _extract_personal_recognition_sequences(self, sequence_id, distance_threshold = None): 
         detection_fnames, landmark_fnames, centers, sizes, embeddings, recognized_detections_fnames = \
@@ -2925,9 +3068,9 @@ class FaceVideoDataModule(FaceDataModuleBase):
         # convolve with a gaussian kernel to smooth the curve
         smoothed_centers = np.zeros(interpolated_centers.shape)
         
-        smoothed_sizes = scipy.ndimage.filters.gaussian_filter1d(interpolated_sizes, sigma=3)
+        smoothed_sizes = scipy.ndimage.filters.gaussian_filter1d(interpolated_sizes, sigma=self._size_interp_std)
         for i in range(interpolated_centers.shape[1]):
-            smoothed_centers[:, i] = scipy.ndimage.filters.gaussian_filter1d(interpolated_centers[:, i], sigma=3)
+            smoothed_centers[:, i] = scipy.ndimage.filters.gaussian_filter1d(interpolated_centers[:, i], sigma=self._center_interp_std)
         
         # do we need to smooth landmarks?
         # smoothed_landmarks = np.zeros(interpolated_landmarks.shape)
@@ -2993,7 +3136,7 @@ class FaceVideoDataModule(FaceDataModuleBase):
         #     '-c:v': 'h264', 
         #     # '-q:v': '1',
         #     '-r': self.video_metas[sequence_id]['fps'],
-        #     '-b': self.video_metas[sequence_id].get('bit_rate', '300000000'),
+    #     '-b': self.video_metas[sequence_id].get('bit_rate', '300000000'),
         # }
         # writer = skvideo.io.FFmpegWriter(str(output_video_file), outputdict=output_dict)
         # for i in range(aligned_video.shape[0]):

@@ -8,7 +8,7 @@ from inferno.utils.other import class_from_str
 
 
 
-from transformers import Wav2Vec2Model, Wav2Vec2Processor, Wav2Vec2Config, Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor, Wav2Vec2PreTrainedModel
+from transformers import Wav2Vec2Model, Wav2Vec2Processor, Wav2Vec2Config, Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor, Wav2Vec2PreTrainedModel, Wav2Vec2ForCTC
 from transformers.models.wav2vec2.modeling_wav2vec2 import _compute_mask_indices, BaseModelOutput, Wav2Vec2BaseModelOutput
 import torch.nn.functional as F
 
@@ -159,12 +159,25 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
             self.model.feature_extractor._freeze_parameters()
         if not trainable: 
             self.model.requires_grad_(False)
+            self.model.eval()
+
+    def train(self, mode: bool = True):
+        if self.trainable:
+            self.model.train(mode)
+        else: 
+            self.model.eval()
 
     def get_trainable_parameters(self): 
         if self.trainable:
             return [p for p in self.model.parameters() if p.requires_grad]
         return []
 
+    def train(self, mode: bool = True):
+        if self.trainable:
+            self.model.train(mode)
+        else: 
+            self.model.eval()
+            
     def _forward(self, sample, train=False, desired_output_length=None): 
         if self.input_processor is not None:
             B = sample["raw_audio"].shape[0]
@@ -239,6 +252,99 @@ class Wav2Vec2Encoder(TemporalAudioEncoder):
         # # return self.cfg.hidden_size * 2
         
         
+
+class SelfTalkEncoder(Wav2Vec2Encoder):
+    """
+    SelfTalk encoder, which is a Wav2Vec2 encoder with an addidtional frozen duplicated encoder which is used to compute the self-talk language-based 
+    features that will be used to compute the self-talk loss.
+    """
+    def __init__(self, model_specifier, trainable, with_processor=True, target_fps=25, expected_fps=50, 
+                freeze_feature_extractor=True, 
+                dropout_cfg=None,):
+        super().__init__(model_specifier, trainable, with_processor, target_fps, expected_fps, freeze_feature_extractor, dropout_cfg)
+        # self.model_specifier = model_specifier
+        # self.cfg  =  Wav2Vec2Config.from_pretrained(model_specifier)
+        # if dropout_cfg is not None:
+        #     dropout_type = dropout_cfg.pop("type") 
+        #     assert dropout_type is not None, "audio_dropout_cfg must have a 'type' key"
+        #     self.dropout = class_from_str(dropout_type)(**dropout_cfg)
+        # else: 
+        #     self.dropout = None
+        # if with_processor:
+        #     self.input_processor = Wav2Vec2Processor.from_pretrained(model_specifier)
+        # else: 
+        #     self.input_processor = None
+        # # self.model = Wav2Vec2Model.from_pretrained(model_specifier)
+        # if not target_fps or not expected_fps:
+        #     self.model = Wav2Vec2Model.from_pretrained(model_specifier)
+        #     self.resampling = False
+        # else:
+        #     self.model = Wav2Vec2ModelResampled.from_pretrained(model_specifier)
+        #     self.resampling = True
+        #     self.model.model_expected_fps = expected_fps
+        #     self.model.target_fps = target_fps
+        
+        self.text_encoder = Wav2Vec2ForCTC.from_pretrained(self.model_specifier)
+        ## the "text_encoder" is always frozen, so we don't need to set trainable 
+        ## the text_encoder is a bit of a misnomer (taken over from SelfTalk lingo), it is actually a Wav2Vec2 model for CTC
+        self.text_encoder.requires_grad_(False)
+        self.text_encoder.eval()
+
+        # self.trainable = trainable
+        # if freeze_feature_extractor:
+        #     self.model.feature_extractor._freeze_parameters()
+        # if not trainable: 
+        #     self.model.requires_grad_(False)
+        #     self.model.eval()
+
+    def train(self, mode: bool = True):
+        self.text_encoder.eval() # the text encoder is always frozen
+        return super().train(mode)
+
+    def _forward(self, sample, train=False, desired_output_length=None): 
+        if self.input_processor is not None:
+            B = sample["raw_audio"].shape[0]
+            T = sample["raw_audio"].shape[1]
+            # proc = self.input_processor(sample["raw_audio"], sampling_rate=sample["samplerate"], return_tensors="pt")[0]
+            # raw_audio = sample["raw_audio"].view( B, -1)
+            raw_audio = sample["raw_audio"].view( B, -1)
+            proc = self.input_processor(raw_audio, sampling_rate=sample["samplerate"][0], return_tensors="pt")
+            input = proc.input_values[0].to(device=raw_audio.device)
+            sample["processed_audio"] = input
+        else: 
+            B = sample["processed_audio"].shape[0]
+            # T = sample["processed_audio"].shape[1]
+            T = None
+            input = sample["processed_audio"].view( B, -1)
+        if isinstance(self.model, Wav2Vec2ModelResampled):
+            desired_output_length = desired_output_length or T
+            feats_ = self.model(input, desired_output_length=desired_output_length)
+            # feats_ = self.model(input)
+        else:
+            feats_ = self.model(input)
+
+        text_model_output = self.text_encoder(input, output_hidden_states=True, return_dict=True)
+        text_hidden_states = text_model_output.hidden_states
+        text_logits = text_model_output.logits
+
+
+        F = feats_.last_hidden_state.shape[-1]
+        T2 = feats_.last_hidden_state.shape[1]
+
+        if self.resampling and T is not None:
+            assert T2 == T # sanity checking that the feature got resampled to the proper length
+
+        sample["audio_feature"] = feats_.last_hidden_state 
+
+        if self.dropout is not None:
+            sample["audio_feature"] = self.dropout(sample["audio_feature"])
+
+        sample["text_feature"] = text_hidden_states[-1] # use the last hidden state as the text feature
+        sample["text_logits"] = text_logits # logits for the CTC task
+
+        return sample
+
+
 class Wav2Vec2SER(TemporalAudioEncoder):
     """
     Grokking notebook: https://colab.research.google.com/drive/1dNgohgrhtCqgZyqGJw91vOr4JEubZN_2

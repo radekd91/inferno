@@ -11,6 +11,7 @@ import torch.nn as nn
 import numpy as np
 import pickle
 import torch.nn.functional as F
+from pathlib import Path
 
 from inferno.utils.lbs import lbs, batch_rodrigues, vertices2landmarks
 
@@ -75,6 +76,13 @@ class FLAME(nn.Module):
         self.register_buffer('parents', parents)
         self.register_buffer('lbs_weights', to_tensor(to_np(flame_model.weights), dtype=self.dtype))
 
+        if hasattr(config, 'use_eyelids') and config.use_eyelids:
+            path_l_eyelid = Path(config.flame_model_path).parent / 'l_eyelid.npy'
+            path_r_eyelid = Path(config.flame_model_path).parent / 'r_eyelid.npy'
+            self.register_buffer('l_eyelid', torch.from_numpy(np.load(path_l_eyelid)).to(self.dtype)[None])
+            self.register_buffer('r_eyelid', torch.from_numpy(np.load(path_r_eyelid)).to(self.dtype)[None])
+
+
         # Fixing Eyeball and neck rotation
         default_eyball_pose = torch.zeros([1, 6], dtype=self.dtype, requires_grad=False)
         self.register_parameter('eye_pose', nn.Parameter(default_eyball_pose,
@@ -82,7 +90,14 @@ class FLAME(nn.Module):
         default_neck_pose = torch.zeros([1, 3], dtype=self.dtype, requires_grad=False)
         self.register_parameter('neck_pose', nn.Parameter(default_neck_pose,
                                                           requires_grad=False))
+        # Fixing 3D translation since we use translation in the image plane
 
+        # self.use_3D_translation = config.get('use_3D_translation', False)
+
+        default_transl = torch.zeros([1, 3], dtype=self.dtype, requires_grad=False)
+        self.register_parameter(
+            "transl", nn.Parameter(default_transl, requires_grad=False)
+        )
         # Static and Dynamic Landmark embeddings for FLAME
         lmk_embeddings = np.load(config.flame_lmk_embedding_path, allow_pickle=True, encoding='latin1')
         lmk_embeddings = lmk_embeddings[()]
@@ -219,7 +234,7 @@ class FLAME(nn.Module):
                                          self.full_lmk_bary_coords.repeat(vertices.shape[0], 1, 1))
         return landmarks3d
 
-    def forward(self, shape_params=None, expression_params=None, pose_params=None, eye_pose_params=None):
+    def forward(self, shape_params=None, expression_params=None, pose_params=None, eye_pose_params=None, neck_pose=None, eyelid_params=None):
         """
             Input:
                 shape_params: N X number of shape parameters
@@ -234,12 +249,15 @@ class FLAME(nn.Module):
             pose_params = self.eye_pose.expand(batch_size, -1) # TODO: is this correct?
         if eye_pose_params is None:
             eye_pose_params = self.eye_pose.expand(batch_size, -1)
+        if neck_pose is None:
+            neck_pose = self.neck_pose.expand(batch_size, -1)
         if expression_params is None:
             expression_params = torch.zeros(batch_size, self.cfg.n_exp).to(shape_params.device)
-
+        # if transl is None:
+        #     transl = self.transl.expand(batch_size, -1)
         betas = torch.cat([shape_params, expression_params], dim=1)
         full_pose = torch.cat(
-            [pose_params[:, :3], self.neck_pose.expand(batch_size, -1), pose_params[:, 3:], eye_pose_params], dim=1)
+            [pose_params[:, :3], neck_pose, pose_params[:, 3:], eye_pose_params], dim=1)
         template_vertices = self.v_template.unsqueeze(0).expand(batch_size, -1, -1)
 
         vertices, _ = lbs(betas, full_pose, template_vertices,
@@ -247,6 +265,11 @@ class FLAME(nn.Module):
                           self.J_regressor, self.parents,
                           self.lbs_weights, dtype=self.dtype, 
                           detach_pose_correctives=False)
+
+        if eyelid_params is not None:
+            vertices = vertices + self.r_eyelid.expand(batch_size, -1, -1) * eyelid_params[:, 1:2, None]
+            vertices = vertices + self.l_eyelid.expand(batch_size, -1, -1) * eyelid_params[:, 0:1, None]
+
 
         lmk_faces_idx = self.lmk_faces_idx.unsqueeze(dim=0).expand(batch_size, -1)
         lmk_bary_coords = self.lmk_bary_coords.unsqueeze(dim=0).expand(batch_size, -1, -1)
@@ -265,25 +288,77 @@ class FLAME(nn.Module):
         landmarks3d = vertices2landmarks(vertices, self.faces_tensor,
                                          self.full_lmk_faces_idx.repeat(bz, 1),
                                          self.full_lmk_bary_coords.repeat(bz, 1, 1))
+        # if self.use_3D_translation:
+        #     landmarks2d = landmarks2d + transl[..., :2]
+        #     landmarks3d = landmarks3d + transl
+        #     vertices = vertices + transl
 
         return vertices, landmarks2d, landmarks3d
+    
+    
+    ### BEGIN IMITATOR EMBEDDING FUNCTIONS
+    def extract_lip_keypoints(self, vertices):
+        """
+            Input:
+                vertices: N X V X 3
+                landmarks: N X number of landmarks X 3
+        """
+        batch_size = vertices.shape[0]
+        self.device = vertices.device
 
+        lmk_faces_idx = self.lmk_faces_idx.unsqueeze(dim=0).repeat(
+            batch_size, 1).to(self.device)
+        lmk_bary_coords = self.lmk_bary_coords.unsqueeze(dim=0).repeat(
+            batch_size, 1, 1).to(self.device)
+
+        landmarks = vertices2landmarks(vertices, self.faces_tensor.to(self.device),
+                                             lmk_faces_idx,
+                                             lmk_bary_coords)
+        return landmarks
+
+    def extract_upper_and_lower_lip(self, vertices):
+        """
+            Input:
+                vertices: N X V X 3
+                landmarks: N X number of landmarks X 3
+        """
+        inner_upper_lip = [44, 45, 46]
+        inner_lower_lip = [50, 49, 48]
+
+        outer_upper_lip = [32, 33, 34, 35, 36]
+        outer_lower_lip = [42, 41, 40, 39, 38]
+
+        landmarks = self.extract_lip_keypoints(vertices)
+        return landmarks[:, inner_upper_lip+outer_upper_lip], landmarks[:, inner_lower_lip+outer_lower_lip]
+
+    def get_lip_distance(self, vertices, vertice_dim=15069):
+        face_keypoints = self.extract_lip_keypoints(vertices.view(-1, vertice_dim // 3, 3) * 1000.0)
+        upper_lip_midpoint = face_keypoints[:, 45]  # this is fixed for the ring embedding
+        lower_lip_midpoint = face_keypoints[:, 49]  # this is fixed for the ring embedding
+        diff = upper_lip_midpoint - lower_lip_midpoint
+        gt_distance_in_mm = torch.sqrt(torch.sum(diff ** 2, dim=-1))
+        return gt_distance_in_mm
+    ### END IMITATOR EMBEDDING FUNCTIONS
 
 class FLAME_mediapipe(FLAME): 
 
     def __init__(self, config):
         super().__init__(config)
         # static MEDIAPIPE landmark embeddings for FLAME
-        lmk_embeddings_mediapipe = np.load(config.flame_mediapipe_lmk_embedding_path, 
-            allow_pickle=True, encoding='latin1')
+        try:
+            lmk_embeddings_mediapipe = np.load(config.flame_mediapipe_lmk_embedding_path, allow_pickle=True, encoding='latin1')
+        except: 
+            from pathlib import Path
+            lmk_embeddings_mediapipe = np.load(str(Path(config.flame_lmk_embedding_path).parent / Path(config.flame_mediapipe_lmk_embedding_path).name), 
+                allow_pickle=True, encoding='latin1')
         # indices = lmk_embeddings_mediapipe['landmark_indices']
         self.register_buffer('lmk_faces_idx_mediapipe', 
             torch.tensor(lmk_embeddings_mediapipe['lmk_face_idx'].astype(np.int64), dtype=torch.long))
         self.register_buffer('lmk_bary_coords_mediapipe',
             torch.tensor(lmk_embeddings_mediapipe['lmk_b_coords'], dtype=self.dtype))
         
-    def forward(self, shape_params=None, expression_params=None, pose_params=None, eye_pose_params=None):
-        vertices, landmarks2d, landmarks3d = super().forward(shape_params, expression_params, pose_params, eye_pose_params)
+    def forward(self, shape_params=None, expression_params=None, pose_params=None, eye_pose_params=None, eyelid_params=None):
+        vertices, landmarks2d, landmarks3d = super().forward(shape_params, expression_params, pose_params, eye_pose_params, eyelid_params=eyelid_params)
         batch_size = shape_params.shape[0]
         lmk_faces_idx_mediapipe = self.lmk_faces_idx_mediapipe.unsqueeze(dim=0).expand(batch_size, -1).contiguous()
         lmk_bary_coords_mediapipe = self.lmk_bary_coords_mediapipe.unsqueeze(dim=0).expand(batch_size, -1, -1).contiguous()

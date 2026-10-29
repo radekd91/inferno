@@ -44,19 +44,17 @@ def load_model(path_to_models,
 
 
 def load_face_reconstruction(
-              cfg,
-            #   mode
-              ):
+      cfg,
+      strict=True,
+    ):
     path = Path(cfg.inout.full_run_dir)
     if not path.is_absolute(): 
         # path = Path(get_path_to_assets()) / "FaceReconstruction/models" / path / "checkpoints"
-        # path = Path(get_path_to_assets()) /  path / "checkpoints" 
-        path = Path(get_path_to_assets()) /  cfg.inout.full_run_dir 
-    print(path)
+        path = Path(get_path_to_assets()) / cfg.inout.full_run_dir
+
     checkpoint = locate_checkpoint(path, mode = cfg.get("checkpoint_mode", "best"))
     assert checkpoint is not None, "No checkpoint found. Check the paths in the config file."
     cfg.learning.losses = {}
     cfg.learning.metrics = {}
-    face_rec_model = FaceReconstructionBase.instantiate(cfg, checkpoint=checkpoint, strict=False)
-        
+    face_rec_model = FaceReconstructionBase.instantiate(cfg, checkpoint=checkpoint, strict=strict)
     return face_rec_model

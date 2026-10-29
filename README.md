@@ -25,6 +25,10 @@ Current infernal projects:
 - [TalkingHead](inferno_apps/TalkingHead) 
   - official release of [EMOTE: Emotional Speech- Driven Animation with C ontent- Emotion Disentanglement](https://emote.is.tue.mpg.de/index.html)
   - tools to run, train or finetune speech-driven 3D avatars 
+- [THUNDER](https://github.com/radekd91/thunder)
+  - official release of [THUNDER: Supervising 3D Talking Head Avatars with Analysis-by-Audio-Synthesis](https://thunder.is.tue.mpg.de/index.html)
+  - [Talking-head animation](https://github.com/radekd91/thunder/tree/thunder_v1/apps/TalkingHeadV2) and [Mesh2Speech](https://github.com/radekd91/thunder/tree/thunder_v1/apps/Mesh2Speech) inference demos, including V1 and TFHP/3DV models
+  - maintained in a separate public repository, pinned by the `inferno/sandbox/thunder` submodule; see the [Docker inference setup](https://github.com/radekd91/thunder/blob/thunder_v1/docker/inference/README.md)
 - [FaceReconstruction](inferno_apps/FaceReconstruction)
   - contains EMICA - a combination of [DECA](https://deca.is.tue.mpg.de/), [EMOCA](https://emoca.is.tue.mpg.de/), [SPECTRE](https://filby89.github.io/spectre/) and [MICA](https://zielon.github.io/mica/) which produces excellent results
   - tools to run, train or fine-tune state-of-the-art in-the-wild face reconstruction 
@@ -39,6 +43,24 @@ Current infernal projects:
   - emotion-driven face reconstruction 
   - (deprecated, for a much better version of face reconstruction go to FaceReconstruction [FaceReconstruction](inferno_apps/FaceReconstruction))
 
+
+## THUNDER v1 demo release
+
+The `thunder_v1` tag identifies matching releases of INFERNO and THUNDER. The
+INFERNO tag pins the corresponding THUNDER commit. To get this release:
+
+```bash
+git clone --branch thunder_v1 https://github.com/radekd91/inferno.git inferno
+git -C inferno submodule update --init -- inferno/sandbox/thunder
+export INFERNO_ROOT="$PWD/inferno"
+export THUNDER_ROOT="$INFERNO_ROOT/inferno/sandbox/thunder"
+```
+
+Follow the [THUNDER Docker guide](https://github.com/radekd91/thunder/blob/thunder_v1/docker/inference/README.md)
+from the dependency-preparation step (`prepare.sh`, then `build.sh`).
+Code, downloaded models, assets and example data stay on the host and are mounted
+into the container. This release provides inference and demos; training code is
+planned for a later release.
 
 ## Installation 
 
@@ -129,6 +151,36 @@ pip install git+https://github.com/facebookresearch/pytorch3d.git@v0.6.2
 ```
 
 Pytorch3D installation (which is part of the requirements file) can unfortunately be tricky and machine specific. EMOCA was developed with is Pytorch3D 0.6.2 and the previous command includes its installation from source (to ensure its compatibility with pytorch and CUDA). If it fails to compile, you can try to find another way to install Pytorch3D.
+
+
+6) Initialize THUNDER
+
+THUNDER is a separate public repository pinned as a submodule. From the INFERNO
+repository root, initialize the checkout with:
+
+```bash
+git submodule update --init -- inferno/sandbox/thunder
+```
+
+Follow the [THUNDER README](https://github.com/radekd91/thunder#readme) and its
+[Docker inference setup](https://github.com/radekd91/thunder/blob/main/docker/inference/README.md).
+For the validated Docker workflow, use the pinned INFERNO revision and host-checkout
+layout in that guide. Project code, models and example data are mounted at runtime.
+
+7) Optional submodules 
+
+You may want to clone the following repos into the [externals](externals) folder for some of the functionality but for most things you will not need it. 
+
+```bash 
+cd externals 
+git clone -b feature/rdanecek_paper Syncnet_python_rdanecek
+git clone -b feature/rdanecek_paper DiffPoseTalk
+git clone https://github.com/facebookresearch/ImageBind 
+cd ImageBind
+pip install .
+cd ..
+cd ..
+```
 
 Notes: 
 1) INFERNO was developed with Pytorch 1.12.1 and Pytorch3d 0.6.2 running on CUDA toolkit 11.3. If for some reason installation of these failed on your machine (which can happen), feel free to install these dependencies another way. The most important thing is that version of Pytorch and Pytorch3D match. The version of CUDA is probably less important.

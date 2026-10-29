@@ -23,14 +23,15 @@ import cv2
 from pathlib import Path
 import os, sys
 from skimage.io import imread, imsave
-from skvideo.io import vread
+from skvideo.io import vread, vwrite
+import subprocess 
 
 
-def combine_video_audio(filename_out, video_in, audio_in):
+def combine_video_audio(filename_out, video_in, audio_in, vcodec='copy', acodec='mp3', pix_fmt='yuv420p'):
     import ffmpeg
     video = ffmpeg.input(video_in)
     audio = ffmpeg.input(audio_in)
-    out = ffmpeg.output(video, audio, filename_out, vcodec='copy', acodec='aac', strict='experimental')
+    out = ffmpeg.output(video, audio, filename_out, vcodec=vcodec, acodec=acodec, pix_fmt=pix_fmt, strict='experimental')
     try:
         out.run()
     except ffmpeg.Error as e:
@@ -39,14 +40,49 @@ def combine_video_audio(filename_out, video_in, audio_in):
         # raise e
 
 
-def save_video_with_audio(video_path, audio_path, video_tensor, fourcc='mp4v', fps=25):
+def save_video_with_audio(video_path, audio_path, video_tensor, fourcc='mp4v', fps=25, overwrite=None):
     video_tmp_path = Path(video_path).with_suffix(".tmp.mp4") 
-    save_video(video_tmp_path, video_tensor, fourcc=fourcc, fps=fps)
-    ffmpeg_cmd = f"ffmpeg -i {str(video_tmp_path)} -i {audio_path} -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 {str(video_path)}"
+    save_video(video_tmp_path, video_tensor, fourcc=fourcc, fps=fps) 
+    if overwrite is not None: 
+        if overwrite: 
+            overwrite_str = "-y"
+        else: 
+            overwrite_str = "-n"
+    else:
+        overwrite_str = ""
+
+    ffmpeg_cmd = f"ffmpeg {overwrite_str} -i {str(video_tmp_path)} -i {audio_path} -c:v copy -c:a mp3 -strict experimental -map 0:v:0 -map 1:a:0 {str(video_path)}"
     os.system(ffmpeg_cmd) 
     # remove out_video_path 
     os.remove(video_tmp_path)
 
+
+def save_video_with_audio_scikit(video_path, audio_path, video_tensor, fps=25, overwrite=None):
+    """
+    A better function that uses scikit as opposed to openCV. 
+    The output videos (yuv) have a better chance of being viewable in VScode and various browser.
+    """
+    video_tmp_path = Path(video_path).with_suffix(".tmp.mp4") 
+    
+    # specify flags
+    input_dict = {'-r': str(fps)}
+    outputdict = {'-pix_fmt': 'yuv420p'}
+
+    vwrite(video_tmp_path, video_tensor, inputdict=input_dict, outputdict=outputdict)
+
+    if overwrite is not None: 
+        if overwrite: 
+            overwrite_str = "-y"
+        else: 
+            overwrite_str = "-n"
+    else:
+        overwrite_str = ""
+    
+    audio_codec_str = " -c:a mp3 "
+    ffmpeg_cmd = f"ffmpeg {overwrite_str} -i {str(video_tmp_path)} -i {audio_path} -c:v copy {audio_codec_str} -strict experimental -map 0:v:0 -map 1:a:0 {str(video_path)}"
+    os.system(ffmpeg_cmd) 
+    # remove out_video_path 
+    os.remove(video_tmp_path)
 
 
 def save_video(video_path, video_tensor, fourcc='mp4v', fps=25):
@@ -81,38 +117,121 @@ def save_video(video_path, video_tensor, fourcc='mp4v', fps=25):
         writer.write(frame)
     writer.release()
 
+def get_video_duration(video_path):
+    """ Get the duration of a video using ffprobe. """
+    cmd = [
+        "ffprobe", "-i", str(video_path), "-show_entries",
+        "format=duration", "-v", "quiet", "-of", "csv=p=0"
+    ]
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    return float(result.stdout.strip())
 
-def concatenate_videos(video_list, output_path, horizontal=True, with_audio=True, overwrite=None):
+def concatenate_videos(
+    video_list,
+    output_path,
+    horizontal=True,
+    with_audio=True,
+    overwrite=None,
+    audio_codec="mp3",
+    video_codec="libx264",
+    trim_start=0,
+    trim_end=0,
+):
     assert len(video_list) > 0, "No videos to concatenate"
-    # video_list_str = " ".join([str(video_path) for video_path in video_list])
-    # output_path = Path("/is/cluster/work/rdanecek/emoca/finetune_deca/video_output") / video_name / "video_geometry_coarse_with_sound.mp4"
-    # save video list into a text file
+
+    # Build inputs with per-input trim at decode time (affects video + audio)
+    # t_i = max(0, duration_i - trim_end) - trim_start
+    # If t_i <= 0, that input contributes 0s; you may want to skip it instead.
+    in_args = []
+    for i, path in enumerate(video_list):
+        duration = get_video_duration(path)
+        end_time = max(0.0, duration - float(trim_end))
+        t = max(0.0, end_time - float(trim_start))
+        # Use -ss/-t BEFORE -i so it seeks on demuxer and trims both streams
+        in_args.append(f'-ss {trim_start} -t {t:.6f} -i "{path}"')
+    video_list_str = " ".join(in_args)
+
+    # Video-only filtergraph: setpts per input (add scale if needed)
+    # NOTE: If heights/widths differ, insert scale before stacking.
+    v_steps = []
+    for i in range(len(video_list)):
+        v_steps.append(f'[{i}:v]setpts=PTS-STARTPTS[v{i}]')
+        # Example with scaling to common height (uncomment if needed):
+        # v_steps.append(f'[{i}:v]scale=-2:720,setpts=PTS-STARTPTS[v{i}]')
+
+    stack_inputs = "".join(f"[v{i}]" for i in range(len(video_list)))
+    keyword = "hstack" if horizontal else "vstack"
+    filter_complex = (
+        '-filter_complex "'
+        + "; ".join(v_steps)
+        + f"; {stack_inputs}{keyword}=inputs={len(video_list)}[v]"
+        + '"'
+    )
+
+    # Optional audio mapping (don’t reference audio in the filtergraph!)
+    audio_map = " ".join(f"-map {i}:a?" for i in range(len(video_list))) if with_audio else ""
+    audio_codec_str = f"-c:a {audio_codec}" if with_audio else ""
+
+    # Overwrite flag
+    overwrite_str = "-y" if overwrite is True else ("-n" if overwrite is False else "")
+
+    cmd = (
+        f'ffmpeg {overwrite_str} {video_list_str} '
+        f'{filter_complex} -map "[v]" {audio_map} '
+        f'-c:v {video_codec} -pix_fmt yuv420p {audio_codec_str} -shortest '
+        f'"{output_path}"'
+    )
+
+    print(cmd)
+    os.system(cmd)
+
+
+def concatenate_videos_with_frame_numbers(video_list, output_path, horizontal=True, with_audio=True, overwrite=None, write_frame_numbers=False, audio_codec="mp3", video_codec="libx264"):
+    assert len(video_list) > 0, "No videos to concatenate"
+    
+    # Save video list into a text file
     video_list_path = Path(output_path).with_suffix(".txt")
     with open(video_list_path, "w") as f:
         f.write("\n".join([str(video_path) for video_path in video_list]))
     print("Done")
-    # stack the videos and keep the audio from the first file 
+
+    # Construct the ffmpeg input and filter strings
     video_list_str = "-i " + " -i ".join([str(video_path) for video_path in video_list])
-    filter_str = [f"[{n}:v]" for n in range(len(video_list))]
-    filter_str = "".join(filter_str)
+    
+    filter_str = ""
+    for n in range(len(video_list)):
+        if write_frame_numbers:
+            filter_str += f"[{n}:v]drawtext=text='%{{n}}':x=10:y=10:fontcolor=white:fontsize=24[v{n}]; "
+        else:
+            filter_str += f"[{n}:v][v{n}]; "
+    
+    inputs_str = "".join([f"[v{n}]" for n in range(len(video_list))])
     if horizontal:
         keyword = "hstack"
     else:
         keyword = "vstack"
+    
+    filter_complex = f'"{filter_str}{inputs_str}{keyword}=inputs={len(video_list)}[v]"'
+
     if with_audio:
         audio = "-map 0:a"
     else: 
         audio = ""
+    
     if overwrite is True: 
         overwrite_str = "-y"
     elif overwrite is False: 
         overwrite_str = "-n"
     else:
         overwrite_str = ""
-    cmd = f'ffmpeg {overwrite_str} {video_list_str} -filter_complex "{filter_str}{keyword}=inputs={len(video_list)}[v]" -map "[v]" {audio} {output_path}'
-    print(cmd)
+
+    audio_codec = audio_codec or 'mp3'
+    cmd = (
+        f'ffmpeg {overwrite_str} {video_list_str} -c:v {video_codec} -pix_fmt yuv420p -c:a {audio_codec} '
+        f'-filter_complex {filter_complex} -map "[v]" {audio} {output_path}'
+    )    
+    # print(cmd)
     os.system(cmd)
-    # os.system(f"ffmpeg {video_list_str} -filter_complex hstack=inputs={2} -map 1:a {output_path}")
 
 
 def resample_video(input_video_file, output_video_file, fps=25, audio_file=None, overwrite=None):

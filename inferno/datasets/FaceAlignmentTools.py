@@ -3,6 +3,8 @@ from pathlib import Path
 from inferno.datasets.ImageDatasetHelpers import bbox2point, bbpoint_warp
 import skvideo
 import types
+import cv2
+from tqdm import auto
 
 
 def align_face(image, landmarks, landmark_type, scale_adjustment, target_size_height, target_size_width=None,):
@@ -88,19 +90,36 @@ def align_and_save_video(video, out_video_path, centers, sizes, landmarks, targe
     warped_landmarks = []
     if isinstance(video, np.ndarray):
         for i in range(len(centers)): 
+            if i == 0:
+                if np.median(video[i]) < 35:
+                    ## just a hack to brighten really dark videos
+                    adjust_brightness = True 
+                else:
+                    adjust_brightness = False
             img_warped, lmk_warped = bbpoint_warp(video[i], centers[i], sizes[i], 
                     target_size_height=target_size_height, target_size_width=target_size_width, 
                     landmarks=landmarks[i])
             img_warped = (img_warped * 255).astype(np.uint8)
+            if adjust_brightness:
+                img_warped = cv2.convertScaleAbs(img_warped, alpha=4.0, beta=0)
             writer.writeFrame(img_warped)
             warped_landmarks += [lmk_warped]
             
     elif isinstance(video, types.GeneratorType): 
-        for i, frame in enumerate(video):
+        for i, frame in enumerate(auto.tqdm(video)):
+            if i == 0:
+                if np.median(frame) < 35:
+                    ## just a hack to brighten really dark videos
+                    adjust_brightness = True
+                else:
+                    adjust_brightness = False
             img_warped, lmk_warped = bbpoint_warp(frame, centers[i], sizes[i], 
                     target_size_height=target_size_height, target_size_width=target_size_width, 
                     landmarks=landmarks[i])
             img_warped = (img_warped * 255).astype(np.uint8)
+            if adjust_brightness:
+                ## just a hack to brighten really dark videos
+                img_warped = cv2.convertScaleAbs(img_warped, alpha=4.0, beta=0)
             writer.writeFrame(img_warped)
             warped_landmarks += [lmk_warped] 
     writer.close()

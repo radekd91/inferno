@@ -724,7 +724,8 @@ def cut_mouth_vectorized(images,
                          mouth_landmark_stop_idx,
                          mouth_crop_height, 
                          mouth_crop_width,
-                         convert_grayscale=True
+                         convert_grayscale=True, 
+                         mouth_landmark_indices=None,
                          ):
             
     with torch.no_grad():
@@ -756,7 +757,10 @@ def cut_mouth_vectorized(images,
         smooth_landmarks_t = smooth_landmarks_t + landmarks.mean(dim=2, keepdims=True) - smooth_landmarks_t.mean(dim=2, keepdims=True)
 
         # #2) get the mouth landmarks
-        mouth_landmarks_t = smooth_landmarks_t[..., mouth_landmark_start_idx:mouth_landmark_stop_idx, :]
+        if mouth_landmark_indices is not None: 
+            mouth_landmarks_t = smooth_landmarks_t[..., mouth_landmark_indices, :]
+        else:
+            mouth_landmarks_t = smooth_landmarks_t[..., mouth_landmark_start_idx:mouth_landmark_stop_idx, :]
         
         # #3) get the mean of the mouth landmarks
         mouth_landmarks_mean_t = mouth_landmarks_t.mean(dim=-2, keepdims=True)

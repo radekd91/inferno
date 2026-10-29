@@ -22,11 +22,61 @@ positional_encoding:
   dropout: 0.1
 
 
-# # # ## MEAD video expression, intensity and identity
+temporal_bias_type: faceformer
+
+
+# style_embedding: none
+
+# # shapecode
+# style_embedding: 
+
+#   # use_shape: false
+#   use_shape: true
+
+#   type: emotion_linear 
+#   # use_expression: true
+#   use_expression: false
+#   n_expression: 8 # affectnet 
+# #   n_expression: 8 # ravdess
+# #   n_expression: 4 # iemocap
+# #   use_valence: true
+# #   use_arousal: true
+#   use_valence: false
+#   use_arousal: false
+#   use_emotion_feature: false
+# #   num_features: 2048 
+#   use_bias: true
+
+# ## video expression
+# style_embedding: 
+
+#   # use_shape: false
+#   use_shape: true
+
+#   type: emotion_linear 
+#   use_video_expression: true
+  # # use_video_feature: false
+  # use_video_feature: true
+  # n_vid_expression_feature: 512 # needs to be changed based on the emotion feature
+#   # use_expression: true
+#   use_expression: false
+#   n_expression: 8 # affectnet 
+#   # n_expression: 8 # ravdess
+#   # n_expression: 4 # iemocap
+# #   use_valence: true
+# #   use_arousal: true
+#   use_valence: false
+#   use_arousal: false
+#   use_emotion_feature: false
+# #   num_features: 2048 
+#   use_bias: true
+
+
+# # # # ## MEAD video expression, intensity and identity
 style_embedding: 
 
-  # use_shape: false
-  use_shape: true
+  use_shape: false
+  # use_shape: true
 
   type: emotion_linear 
   use_video_expression: false 
@@ -35,7 +85,8 @@ style_embedding:
   # gt_expression_label: False
   gt_expression_intensity: True
   # gt_expression_intensity: False
-  n_intensities: 3
+#   n_intensities: 3
+  n_intensities: 4
   
   gt_expression_identity: True
   n_identities: todo
@@ -43,7 +94,8 @@ style_embedding:
 
   # use_expression: true
   use_expression: false
-  n_expression: 8 # affectnet 
+  n_expression: 9 # affectnet 
+  # n_expression: 8 # affectnet 
   # n_expression: 8 # ravdess
   # n_expression: 4 # iemocap
 #   use_valence: true
@@ -54,8 +106,7 @@ style_embedding:
 #   num_features: 2048 
   use_bias: true
 
-
-# ## MEAD video expression
+# # ## mixed video expression
 # style_embedding: 
 
 #   # use_shape: false
@@ -67,13 +118,15 @@ style_embedding:
 
 #   gt_expression_label: True
 #   # gt_expression_label: False
-#   # gt_expression_intensity: True
-#   gt_expression_intensity: False
-#   n_intensities: 3
+#   gt_expression_intensity: True
+#   # gt_expression_intensity: False
+#   n_intensities: 4
+#   # n_intensities: 3
 
 #   # use_expression: true
 #   use_expression: false
-#   n_expression: 8 # affectnet 
+#   n_expression: 9 # affectnet 
+#   # n_expression: 8 # affectnet 
 #   # n_expression: 8 # ravdess
 #   # n_expression: 4 # iemocap
 # #   use_valence: true

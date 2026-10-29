@@ -25,7 +25,7 @@ from inferno.models.temporal.SequenceEncoders import *
 # from inferno.models.temporal.SequenceDecoders import *
 from inferno.models.temporal.TemporalFLAME import FlameShapeModel
 from inferno.models.temporal.Renderers import FlameRenderer, FixedViewFlameRenderer
-from inferno.models.temporal.AudioEncoders import Wav2Vec2Encoder, Wav2Vec2SER
+from inferno.models.temporal.AudioEncoders import Wav2Vec2Encoder, Wav2Vec2SER, SelfTalkEncoder
 
 import omegaconf
 from omegaconf import open_dict
@@ -226,6 +226,16 @@ def sequence_decoder_from_cfg(cfg):
             decoder_cfg.predict_exp = cfg.model.output.predict_expcode
             decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
         decoder = FlameBertDecoder(decoder_cfg)
+    elif decoder_cfg.type == "SelfTalkFlameBertDecoderWithPrior":
+        from inferno.models.talkinghead.FaceFormerDecoder import SelfTalkBertDecoder 
+        with open_dict(decoder_cfg):
+            decoder_cfg.num_training_subjects = len(cfg.data.train_subjects)
+            decoder_cfg.predict_exp = cfg.model.output.predict_expcode
+            decoder_cfg.predict_jaw = cfg.model.output.predict_jawpose
+            decoder_cfg.geometry_frequency = cfg.model.audio.target_fps
+            decoder_cfg.language_feature_frequency = cfg.model.audio.model_expected_fps
+            decoder_cfg.asr_model_path = cfg.model.audio.model_specifier
+        decoder = SelfTalkBertDecoder(decoder_cfg)
     elif decoder_cfg.type == "MLPDecoder":
         from inferno.models.talkinghead.FaceFormerDecoder import MLPDecoder 
         with open_dict(decoder_cfg):
@@ -301,6 +311,30 @@ def preprocessor_from_cfg(cfg):
         return SpectrePreprocessor(cfg)
     elif cfg.type == "ser":
         return SpeechEmotionRecognitionPreprocessor(cfg)
+    elif cfg.type == "MelPreprocessor":
+        try:
+            from inferno.sandbox.thunder.models.mesh2speech.MelPreprocessor import MelPreprocessor
+        except ImportError:
+            raise ImportError("MelPreprocessor is not available. Please install the THUNDER subrepo.")
+        return MelPreprocessor(**cfg)
+    elif cfg.type == "ClusteringHuBERTPreprocessor":
+        try:
+            from inferno.sandbox.thunder.models.mesh2speech.HuBERTPreprocessor import ClusteringHuBERTPreprocessor
+        except ImportError:
+            raise ImportError("ClusteringHuBERTPreprocessor is not available. Please install the THUNDER subrepo.")
+        return ClusteringHuBERTPreprocessor(**cfg)
+    elif cfg.type == "MeshToSpeechPreprocessor": 
+        try:
+            from inferno.sandbox.thunder.models.MeshToSpeechPreprocessor import MeshToSpeechPreprocessor
+        except ImportError:
+            raise ImportError("MeshToSpeechPreprocessor is not available. Please install the THUNDER subrepo.")
+        return MeshToSpeechPreprocessor(**cfg)
+    elif cfg.type == "ContrastiveSpeechMeshProcessor": 
+        try:
+            from inferno.sandbox.thunder.models.ContrastiveSpeechMeshProcessor import ContrastiveSpeechMeshProcessor
+        except ImportError:
+            raise ImportError("ContrastiveSpeechMeshProcessor is not available. Please install the THUNDER subrepo.")
+        return ContrastiveSpeechMeshProcessor(**cfg)
     else: 
         raise ValueError(f"Unknown preprocess model type '{cfg.model.preprocess.type}'")
 
@@ -322,6 +356,14 @@ def audio_model_from_cfg(cfg):
             expected_fps=cfg.get('model_expected_fps', 50), # 50 fps is the default for wav2vec2 (but not sure if this holds universally)
             target_fps=cfg.get('target_fps', 25), # 25 fps is the default since we use 25 fps for the videos 
             freeze_feature_extractor=cfg.get('freeze_feature_extractor', True),
+            dropout_cfg=cfg.get('dropout_cfg', None),
+        )
+    elif cfg.type == "selftalk":
+        encoder = SelfTalkEncoder(cfg.model_specifier, cfg.trainable, 
+            with_processor=cfg.get('with_processor', True), 
+            expected_fps=cfg.get('model_expected_fps', 50), # 50 fps is the default for wav2vec2 (but not sure if this holds universally)
+            target_fps=cfg.get('target_fps', 25), # 25 fps is the default since we use 25 fps for the videos 
+            freeze_feature_extractor=cfg.get('freeze_feature_extractor', False),
             dropout_cfg=cfg.get('dropout_cfg', None),
         )
     elif cfg.type == "wav2vec2SER": 

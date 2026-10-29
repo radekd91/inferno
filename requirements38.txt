@@ -14,6 +14,8 @@ imgaug==0.4.0
 insightface==0.6.2
 kornia==0.6.5
 matplotlib==3.2.2
+# WARNING: mediapipe 0.8.10 is a legacy pin and may not resolve from current PyPI indexes/wheels.
+# If this install fails, do not spend time debugging resolver noise; prefer mediapipe==0.10.21 for the legacy mp.solutions API.
 mediapipe==0.8.10
 munch==2.5.0
 numpy==1.23.0

@@ -109,6 +109,8 @@ def rotation_dim(rotation_representation):
         return 3
     elif rotation_representation in ["axis_angle", "aa"]:
         return 3
+    elif rotation_representation in ["axis_angle_1", "aa_1"]: ## hack for 1D joint rotation (diffPoseTalk)
+        return 1
     elif rotation_representation in ["mat", "matrix"]:
         return 9
     elif rotation_representation in ["6d", "6dof"]:
@@ -439,6 +441,46 @@ class MotionPrior(pl.LightningModule):
                 metric=loss_cfg.get('metric', 'l2'), 
                 )
             return loss_value
+        
+        elif loss_name in ["global_reconstruction", "global_geometry_reconstruction", "posed_reconstruction"]: 
+            import inferno.utils.DecaUtils as util
+            reconstructed_vertices = rec_dict[loss_cfg.input_key] 
+            gt_vertices = sample[loss_cfg.output_key]
+            reconstructed_cam = rec_dict["gt_cam"]
+            gt_cam = sample["reconstructed_cam"]
+            B, T = gt_cam.shape[:2]
+            reconstructed_vertices_cam = util.batch_orth_proj(reconstructed_vertices.reshape(B*T, -1, 3), 
+                                                              reconstructed_cam.reshape(B*T, *reconstructed_cam.shape[2:]))
+            gt_vertices_cam =  util.batch_orth_proj(gt_vertices.reshape(B*T, -1, 3,), 
+                                                    gt_cam.reshape(B*T, *gt_cam.shape[2:]))
+            metric_from_cfg = loss_cfg.get("metric", "mse_loss")
+            metric = class_from_str(metric_from_cfg, torch.nn.functional)
+            loss_value = metric(reconstructed_vertices_cam, gt_vertices_cam)
+            return loss_value
+
+        elif loss_name in ["globalpose_loss", "global_pose_loss"]:
+            # loss = class_from_str(loss_cfg["loss"])(metric=metric)
+            pred_jaw_ = sample["reconstructed_global_pose"]
+            gt_jaw_ = rec_dict["gt_global_pose"]
+            loss_value = compute_rotation_loss(
+                pred_jaw_, 
+                gt_jaw_,  
+                r1_input_rep=self._rotation_representation(), 
+                r2_input_rep="aa", # gt is in axis-angle
+                output_rep=loss_cfg.get('rotation_rep', 'quat'), 
+                metric=loss_cfg.get('metric', 'l2'), 
+                )
+            return loss_value
+        elif loss_name == "cam_loss":
+            # gt_key = loss_cfg.get('gt_key', 'gt_cam')
+            # pred_key = loss_cfg.get('predicted_key', 'predicted_cam')
+            # pred_cam_ = sample[pred_key]
+            # gt_cam_ = sample[gt_key]
+            metric_from_cfg = loss_cfg.get("metric", "mse_loss")
+            metric = class_from_str(metric_from_cfg, torch.nn.functional)
+            loss_value = metric(rec_dict[loss_cfg.input_key], sample[loss_cfg.output_key])
+            return loss_value
+
         elif loss_name == "codebook_alignment": 
             return sample["codebook_alignment"]
         elif loss_name == "codebook_commitment":
@@ -525,20 +567,19 @@ class MotionPrior(pl.LightningModule):
         training = False 
         # forward pass
         # sample = self.forward(batch, train=training, validation=False, **kwargs)
-        batch = self.encoding_step(batch, train=training, validation=False, )
-        batch = self.decoding_step(batch, train=training, validation=False, )
-
+        sample = self.encoding_step(batch, train=training, validation=False, )
+        sample = self.decoding_step(sample, train=training, validation=False,)
         # loss 
-        total_loss, losses, metrics = self.compute_loss(batch, training=training, validation=False, **kwargs)
+        # total_loss, losses, metrics = self.compute_loss(sample, training=training, validation=False, **kwargs)
 
-        losses_and_metrics_to_log = {**losses, **metrics}
-        # losses_and_metrics_to_log = {"train_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
-        losses_and_metrics_to_log = {"test/" + k: v.item() if isinstance(v, (torch.Tensor)) else v if isinstance(v, float) else 0. for k, v in losses_and_metrics_to_log.items()}
+        # losses_and_metrics_to_log = {**losses, **metrics}
+        # # losses_and_metrics_to_log = {"train_" + k: v.item() for k, v in losses_and_metrics_to_log.items()}
+        # losses_and_metrics_to_log = {"test/" + k: v.item() if isinstance(v, (torch.Tensor)) else v if isinstance(v, float) else 0. for k, v in losses_and_metrics_to_log.items()}
         
-        if self.logger is not None:
-            self.log_dict(losses_and_metrics_to_log, on_step=False, on_epoch=True, sync_dist=True) # log per epoch, # recommended
-            # self.log_dict(losses_and_metrics_to_log, on_step=True, on_epoch=True, sync_dist=True) # log per epoch, # recommended
+        # if self.logger is not None:
+        #     self.log_dict(losses_and_metrics_to_log, on_step=False, on_epoch=True, sync_dist=True) # log per epoch, # recommended
+        #     # self.log_dict(losses_and_metrics_to_log, on_step=True, on_epoch=True, sync_dist=True) # log per epoch, # recommended
 
-        return total_loss
+        # return total_loss
 
 

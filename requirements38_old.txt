@@ -69,6 +69,8 @@ wandb~=0.10.30
 watchdog~=0.10.3
 wrapt~=1.12.1
 youtube-dl~=2021.6.6
+# WARNING: mediapipe 0.8.10 is a legacy pin and may not resolve from current PyPI indexes/wheels.
+# If this install fails, do not spend time debugging resolver noise; prefer mediapipe==0.10.21 for the legacy mp.solutions API.
 mediapipe==0.8.10 
 plotly==5.8.0 
 librosa==0.9.2
