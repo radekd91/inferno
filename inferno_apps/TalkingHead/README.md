@@ -38,51 +38,64 @@
 This is the official implementation of [EMOTE : Emotional Speech-Driven Animation with Content-Emotion Disentanglement](https://emote.is.tue.mpg.de/). 
 EMOTE takes speech audio and an emotion and intensity labels on the input and produces a talking head avatar that correctly articulates the words spoken in the audio while expressing the specified emotion.
 
-## Warning 
+## Update: EMOTE/FLINT jitter fixed (29 October 2026)
 
-**UPDATE (2 August 2026):** The incorrect, jittery EMOTE/FLINT output under
-PyTorch 2.1 has been resolved. The cause was PyTorch's fused
-`TransformerEncoderLayer` evaluation path. Legacy EMOTE and FLINT
-configurations select a model-scoped compatibility path when their original
-training timestamp (`inout.time`) is before `2023_12_16_09-39-43`, so it is
-no longer necessary to check out the EMOTE 2.0 release commit. Models trained
-at or after that cutoff use standard PyTorch. No config flag is required;
-`force_legacy_transformer_encoder_path: true` or `false` in an affected decoder
-config explicitly overrides the date when needed.
-EMOTE and its FLINT prior each use their own training date; other decoder types,
-including released THUNDER models, are unchanged. Missing or malformed dates
-on affected models raise an error instead of guessing. See the
-[compatibility policy](demos/emote_backend_diagnostics/README.md).
+**The excessive jitter observed with the released EMOTE and FLINT models in
+the PyTorch 2.1 environment has been fixed.** With this fix, existing model
+downloads work without changing their weights or configs, and checking out
+the old EMOTE 2.0 release is no longer necessary.
 
-The original warning and known-good legacy environment are retained below for
-historical reference:
+The regression was traced to PyTorch's fused `TransformerEncoderLayer`
+evaluation path. For these older checkpoints, it produced different motion
+from the ordinary, non-fused path used in the original environment. The fix
+selects the non-fused implementation for the affected EMOTE and FLINT decoders,
+restoring their expected motion without changing global PyTorch settings.
 
-- Some people experience issues getting the correct results EMOTE from the latest version of the repo. If the results have obviously wrong jitter, 
-please default to the [EMOTE 2.0 release commit](https://github.com/radekd91/inferno/commit/076e4acd5f476dba4d741462760d4011d341c4ec): 
+Compatibility is selected automatically from each model's original training
+timestamp (`inout.time`). EMOTE and FLINT models trained before
+`2023_12_16_09-39-43` use the compatibility path; models trained at or after
+that cutoff use standard PyTorch. The cutoff is one week after the latest
+released legacy model's training timestamp (EMOTE_v2). EMOTE and its FLINT
+prior are checked independently. Released THUNDER models and configs are unaffected.
+
+For custom checkpoints, an optional
+`model.sequence_decoder.force_legacy_transformer_encoder_path: true` or
+`false` overrides the date in that model's config. Without an override,
+missing or malformed training dates raise an error instead of silently
+selecting an implementation. See the
+[compatibility policy and diagnostics](demos/emote_backend_diagnostics/README.md)
+for details.
+
+The fix was validated with the EMOTE_v2/FLINTv2 demo under PyTorch 2.1.1
+and THUNDER inference smoke tests.
+
+<details>
+<summary>Historical workaround and original environment</summary>
+
+Before this fix, the recommended workaround was to use the
+[EMOTE 2.0 release commit](https://github.com/radekd91/inferno/commit/076e4acd5f476dba4d741462760d4011d341c4ec)
+and the original environment:
+
 ```bash
 git checkout 076e4acd5f476dba4d741462760d4011d341c4ec
 ```
-- Furthermore, it appears a mismatch in versions one of the lower-level packages is behind the issue. For your reference, EMOTE models can be run successfully with the following CUDA/Pytorch versions. Running: 
-```python
-import torch
 
-print("PyTorch version:", torch.__version__)
-print("CUDA version used by PyTorch:", torch.version.cuda)
-print("cuDNN version used by PyTorch:", torch.backends.cudnn.version())
-print("Is CUDA available:", torch.cuda.is_available())
-```
-should produce: 
-```
+```text
 PyTorch version: 1.12.1
 CUDA version used by PyTorch: 11.3
 cuDNN version used by PyTorch: 8302
 Is CUDA available: True
 ```
 
-- Historical issue discussion: https://github.com/radekd91/inferno/issues/9.
+This workaround is retained for historical reference. See
+[issue #9](https://github.com/radekd91/inferno/issues/9) for the original reports.
+
+</details>
 
 
 ## News 
+
+- (29th Oct. 2026) Fixed EMOTE/FLINT jitter under PyTorch 2.1 with automatic compatibility for legacy models. See the update above.
 - (20th Dec 2023) Docker installation now available. Please go to the [docker folder](../../docker/README.md)
 - (13th Dec. 2023) EMOTE v2 is now out! It is trained on a newer iteration of the ++data and should give better results overall. EMOTE v1 is still available. Please see the demo script for details. 
 
