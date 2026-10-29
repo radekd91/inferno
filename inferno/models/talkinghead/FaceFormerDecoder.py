@@ -29,6 +29,7 @@ from inferno.models.temporal.TransformerMasking import init_mask_future, init_ma
 from inferno.models.temporal.motion_prior.MotionPrior import MotionPrior
 from inferno.models.temporal.TransformerCompatibility import (
     FORCE_LEGACY_TRANSFORMER_ENCODER_PATH,
+    use_legacy_transformer_encoder_path,
     transformer_encoder_layer_class,
 )
 from inferno.models.temporal.motion_prior.L2lMotionPrior import L2lVqVae, create_squasher
@@ -1033,11 +1034,7 @@ class SelfTalkBertDecoder(FlameBertDecoder):
         return sample
 
 
-def load_motion_prior_net(
-        path,
-        trainable=False,
-        force_legacy_transformer_encoder_path=None,
-        ):
+def load_motion_prior_net(path, trainable=False):
     from pathlib import Path
     from inferno.utils.other import get_path_to_assets
 
@@ -1047,16 +1044,6 @@ def load_motion_prior_net(
 
     with open(path / "cfg.yaml", 'r') as f:
         model_config = OmegaConf.load(f)
-
-    # An explicit FLINT value wins. Otherwise inherit the resolved EMOTE value
-    # in memory, leaving the archived FLINT config and checkpoint untouched.
-    motion_decoder_cfg = model_config.model.sequence_decoder
-    if force_legacy_transformer_encoder_path is not None \
-            and FORCE_LEGACY_TRANSFORMER_ENCODER_PATH not in motion_decoder_cfg:
-        with open_dict(motion_decoder_cfg):
-            motion_decoder_cfg[
-                FORCE_LEGACY_TRANSFORMER_ENCODER_PATH
-            ] = force_legacy_transformer_encoder_path
 
     checkpoint_mode = 'best' # resuming in the same stage, we want to pick up where we left of
     
@@ -1115,17 +1102,13 @@ class BertPriorDecoder(FeedForwardDecoder):
     """
     A decoder that uses a transformer encoder and a motion prior network to decode the FLAME parameters
     """
-    def __init__(self, cfg) -> None:
+    def __init__(self, cfg, *, training_time=None) -> None:
         super().__init__(cfg)
         dim_factor = self._total_dim_factor()
 
-        # Archived EMOTE configs predate the flag and require the ordinary
-        # Transformer path. Future models can explicitly opt out with false.
-        if FORCE_LEGACY_TRANSFORMER_ENCODER_PATH not in cfg:
-            with open_dict(cfg):
-                cfg[FORCE_LEGACY_TRANSFORMER_ENCODER_PATH] = True
-        force_legacy_transformer_encoder_path = bool(
-            cfg[FORCE_LEGACY_TRANSFORMER_ENCODER_PATH]
+        force_legacy_transformer_encoder_path = use_legacy_transformer_encoder_path(
+            "BertPriorDecoder", training_time,
+            override=cfg.get(FORCE_LEGACY_TRANSFORMER_ENCODER_PATH),
         )
 
         if cfg.num_layers > 0:
@@ -1152,7 +1135,6 @@ class BertPriorDecoder(FeedForwardDecoder):
         self.motion_prior : MotionPrior = load_motion_prior_net(
             cfg.motion_prior.path,
             cfg.motion_prior.get('trainable', False),
-            force_legacy_transformer_encoder_path,
         )
         self.latent_frame_size = self.motion_prior.latent_frame_size()
         quant_factor = self.motion_prior.quant_factor()
