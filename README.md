@@ -25,9 +25,10 @@ Current infernal projects:
 - [TalkingHead](inferno_apps/TalkingHead) 
   - official release of [EMOTE: Emotional Speech- Driven Animation with C ontent- Emotion Disentanglement](https://emote.is.tue.mpg.de/index.html)
   - tools to run, train or finetune speech-driven 3D avatars 
-- [TalkingHeadV2](https://github.com/radekd91/thunder/tree/main/apps/TalkingHeadV2)
+- [THUNDER](https://github.com/radekd91/thunder)
   - official release of [THUNDER: Supervising 3D Talking Head Avatars with Analysis-by-Audio-Synthesis](https://thunder.is.tue.mpg.de/index.html)
-  - [THUNDER](https://github.com/radekd91/thunder) is a separate public repository registered as the `inferno/sandbox/thunder` submodule. Follow its [Docker inference setup](https://github.com/radekd91/thunder/blob/main/docker/inference/README.md) for the tested environment and demos.
+  - [Talking-head animation](https://github.com/radekd91/thunder/tree/thunder_v1/apps/TalkingHeadV2) and [Mesh2Speech](https://github.com/radekd91/thunder/tree/thunder_v1/apps/Mesh2Speech) inference demos, including V1 and TFHP/3DV models
+  - maintained in a separate public repository, pinned by the `inferno/sandbox/thunder` submodule; see the [Docker inference setup](https://github.com/radekd91/thunder/blob/thunder_v1/docker/inference/README.md)
 - [FaceReconstruction](inferno_apps/FaceReconstruction)
   - contains EMICA - a combination of [DECA](https://deca.is.tue.mpg.de/), [EMOCA](https://emoca.is.tue.mpg.de/), [SPECTRE](https://filby89.github.io/spectre/) and [MICA](https://zielon.github.io/mica/) which produces excellent results
   - tools to run, train or fine-tune state-of-the-art in-the-wild face reconstruction 
@@ -42,6 +43,24 @@ Current infernal projects:
   - emotion-driven face reconstruction 
   - (deprecated, for a much better version of face reconstruction go to FaceReconstruction [FaceReconstruction](inferno_apps/FaceReconstruction))
 
+
+## THUNDER v1 demo release
+
+The `thunder_v1` tag identifies matching releases of INFERNO and THUNDER. The
+INFERNO tag pins the corresponding THUNDER commit. To get this release:
+
+```bash
+git clone --branch thunder_v1 https://github.com/radekd91/inferno.git inferno
+git -C inferno submodule update --init -- inferno/sandbox/thunder
+export INFERNO_ROOT="$PWD/inferno"
+export THUNDER_ROOT="$INFERNO_ROOT/inferno/sandbox/thunder"
+```
+
+Follow the [THUNDER Docker guide](https://github.com/radekd91/thunder/blob/thunder_v1/docker/inference/README.md)
+from the dependency-preparation step (`prepare.sh`, then `build.sh`).
+Code, downloaded models, assets and example data stay on the host and are mounted
+into the container. This release provides inference and demos; training code is
+planned for a later release.
 
 ## Installation 
 
