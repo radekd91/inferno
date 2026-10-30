@@ -57,7 +57,10 @@ export THUNDER_ROOT="$INFERNO_ROOT/inferno/sandbox/thunder"
 ```
 
 Follow the [THUNDER Docker guide](https://github.com/radekd91/thunder/blob/thunder_v1/docker/inference/README.md)
-from the dependency-preparation step (`prepare.sh`, then `build.sh`).
+from the dependency-preparation step (`prepare.sh`). Then either build the image
+with `build.sh` or use the [prebuilt Docker archive](https://download.is.tue.mpg.de/thunder/docker_images/thunder_docker.tar)
+(approximately 7.95 GB). The [download and load instructions](https://github.com/radekd91/thunder/blob/main/docker/inference/README.md#use-the-prebuilt-image)
+include the SHA-256 checksum; loading the image replaces `build.sh`.
 Code, downloaded models, assets and example data stay on the host and are mounted
 into the container. This release provides inference and demos; training code is
 planned for a later release.
@@ -165,7 +168,8 @@ git submodule update --init -- inferno/sandbox/thunder
 Follow the [THUNDER README](https://github.com/radekd91/thunder#readme) and its
 [Docker inference setup](https://github.com/radekd91/thunder/blob/main/docker/inference/README.md).
 For the validated Docker workflow, use the pinned INFERNO revision and host-checkout
-layout in that guide. Project code, models and example data are mounted at runtime.
+layout in that guide. It supports a prebuilt image download or a local build.
+Project code, models and example data are mounted at runtime.
 
 7) Optional submodules 
 
